@@ -61,6 +61,51 @@ crate::sol! {
         function transferWithMemo(address to, uint256 amount, bytes32 memo) external;
         function transferFromWithMemo(address from, address to, uint256 amount, bytes32 memo) external returns (bool);
 
+        // Native Payment Data Functions (ISO 20022 Compliant)
+        /// @notice Transfer tokens with ISO 20022 compliant payment data
+        /// @param to Recipient address
+        /// @param amount Transfer amount
+        /// @param endToEndId End-to-end identification (max 35 characters)
+        /// @param purposeCode Purpose code per ExternalPurpose1Code (4 characters)
+        /// @param remittanceInfo Remittance information (unstructured, max 140 chars)
+        function transferWithPaymentData(
+            address to,
+            uint256 amount,
+            bytes calldata endToEndId,
+            bytes4 purposeCode,
+            bytes calldata remittanceInfo
+        ) external;
+
+        /// @notice Transfer tokens from another account with payment data
+        /// @param from Source address
+        /// @param to Recipient address
+        /// @param amount Transfer amount
+        /// @param endToEndId End-to-end identification (max 35 characters)
+        /// @param purposeCode Purpose code per ExternalPurpose1Code (4 characters)
+        /// @param remittanceInfo Remittance information (unstructured, max 140 chars)
+        function transferFromWithPaymentData(
+            address from,
+            address to,
+            uint256 amount,
+            bytes calldata endToEndId,
+            bytes4 purposeCode,
+            bytes calldata remittanceInfo
+        ) external returns (bool);
+
+        /// @notice Mint tokens with payment data (for issuers)
+        /// @param to Recipient address
+        /// @param amount Mint amount
+        /// @param endToEndId End-to-end identification
+        /// @param purposeCode Purpose code
+        /// @param remittanceInfo Remittance information
+        function mintWithPaymentData(
+            address to,
+            uint256 amount,
+            bytes calldata endToEndId,
+            bytes4 purposeCode,
+            bytes calldata remittanceInfo
+        ) external;
+
         // Admin Functions
         function changeTransferPolicyId(uint64 newPolicyId) external;
         function setSupplyCap(uint256 newSupplyCap) external;
@@ -115,6 +160,22 @@ crate::sol! {
         event RewardDistributed(address indexed funder, uint256 amount);
         event RewardRecipientSet(address indexed holder, address indexed recipient);
 
+        /// @notice Emitted when a transfer includes ISO 20022 payment data
+        /// @param from Sender address (indexed for filtering)
+        /// @param to Recipient address (indexed for filtering)
+        /// @param amount Transfer amount
+        /// @param endToEndId ISO 20022 EndToEndIdentification (max 35 chars)
+        /// @param purposeCode ISO 20022 Purpose code (4 chars, e.g., SALA, TAXS)
+        /// @param remittanceInfo ISO 20022 Remittance information
+        event TransferWithPaymentData(
+            address indexed from,
+            address indexed to,
+            uint256 amount,
+            bytes endToEndId,
+            bytes4 purposeCode,
+            bytes remittanceInfo
+        );
+
         // Errors
         error InsufficientBalance(uint256 available, uint256 required, address token);
         error InsufficientAllowance();
@@ -135,6 +196,12 @@ crate::sol! {
         error InvalidToken();
         error Uninitialized();
         error InvalidTransferPolicyId();
+
+        /// @notice EndToEndId exceeds maximum length (35 characters)
+        error EndToEndIdTooLong(uint256 length, uint256 maxLength);
+
+        /// @notice RemittanceInfo exceeds maximum length (140 characters)
+        error RemittanceInfoTooLong(uint256 length, uint256 maxLength);
     }
 }
 
@@ -243,5 +310,21 @@ impl MIP20Error {
     /// Error when token is uninitialized (has no bytecode)
     pub const fn uninitialized() -> Self {
         Self::Uninitialized(IMIP20::Uninitialized {})
+    }
+
+    /// Error when EndToEndId exceeds ISO 20022 Max35Text limit
+    pub fn end_to_end_id_too_long(length: usize, max_length: usize) -> Self {
+        Self::EndToEndIdTooLong(IMIP20::EndToEndIdTooLong {
+            length: U256::from(length),
+            maxLength: U256::from(max_length),
+        })
+    }
+
+    /// Error when RemittanceInfo exceeds ISO 20022 Max140Text limit
+    pub fn remittance_info_too_long(length: usize, max_length: usize) -> Self {
+        Self::RemittanceInfoTooLong(IMIP20::RemittanceInfoTooLong {
+            length: U256::from(length),
+            maxLength: U256::from(max_length),
+        })
     }
 }

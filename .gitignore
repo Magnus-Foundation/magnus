@@ -34,3 +34,8 @@ docs/.sonda
 _
 .vercel
 .env*.local
+
+# Simple Task Master - User tasks are git-ignored
+.simple-task-master
+.simple-task-master/lock
+specs

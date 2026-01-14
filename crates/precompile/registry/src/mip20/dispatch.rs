@@ -142,6 +142,20 @@ impl Precompile for MIP20Token {
                     self.transfer_from_with_memo(sender, c)
                 })
             }
+
+            // Native Payment Data Functions (ISO 20022 Compliant)
+            MIP20Call::MIP20(IMIP20Calls::transferWithPaymentData(call)) => {
+                mutate_void(call, msg_sender, |s, c| self.transfer_with_payment_data(s, c))
+            }
+            MIP20Call::MIP20(IMIP20Calls::transferFromWithPaymentData(call)) => {
+                mutate(call, msg_sender, |s, c| {
+                    self.transfer_from_with_payment_data(s, c)
+                })
+            }
+            MIP20Call::MIP20(IMIP20Calls::mintWithPaymentData(call)) => {
+                mutate_void(call, msg_sender, |s, c| self.mint_with_payment_data(s, c))
+            }
+
             MIP20Call::MIP20(IMIP20Calls::distributeReward(call)) => {
                 mutate_void(call, msg_sender, |s, c| self.distribute_reward(s, c))
             }
@@ -197,7 +211,7 @@ mod tests {
         mip403_registry::{IMIP403Registry, MIP403Registry},
     };
     use alloy::{
-        primitives::{Bytes, U256, address},
+        primitives::{Bytes, FixedBytes, U256, address},
         sol_types::{SolCall, SolInterface, SolValue},
     };
     use magnus_contracts::precompiles::{IRolesAuth, RolesAuthError, MIP20Error};
@@ -697,6 +711,340 @@ mod tests {
             assert!(result.reverted);
             let expected: Bytes = MIP20Error::uninitialized().selector().into();
             assert_eq!(result.bytes, expected);
+
+            Ok(())
+        })
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Native Payment Data Tests (ISO 20022 Compliant)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// Verifies that transfer_with_payment_data executes successfully
+    /// with valid ISO 20022 compliant payment data fields.
+    #[test]
+    fn test_transfer_with_payment_data_success() -> eyre::Result<()> {
+        let (mut storage, admin) = setup_storage();
+        let sender = Address::random();
+        let recipient = Address::random();
+        let transfer_amount = U256::from(100);
+        let initial_balance = U256::from(500);
+
+        StorageCtx::enter(&mut storage, || {
+            let mut token = MIP20Setup::create("Test", "TST", admin)
+                .with_issuer(admin)
+                .with_mint(sender, initial_balance)
+                .apply()?;
+
+            let transfer_call = IMIP20::transferWithPaymentDataCall {
+                to: recipient,
+                amount: transfer_amount,
+                endToEndId: Bytes::from_static(b"INV-2024-001234"),
+                purposeCode: FixedBytes(*b"SUPP"),
+                remittanceInfo: Bytes::from_static(b"Invoice payment for Q4 services"),
+            };
+            let calldata = transfer_call.abi_encode();
+            let result = token.call(&calldata, sender)?;
+            assert!(!result.reverted, "Transfer should succeed");
+
+            // Verify balance changes
+            assert_eq!(
+                token.balance_of(IMIP20::balanceOfCall { account: sender })?,
+                initial_balance - transfer_amount
+            );
+            assert_eq!(
+                token.balance_of(IMIP20::balanceOfCall { account: recipient })?,
+                transfer_amount
+            );
+
+            Ok(())
+        })
+    }
+
+    /// Verifies that EndToEndId exceeding 35 characters is rejected.
+    /// This ensures ISO 20022 Max35Text compliance.
+    #[test]
+    fn test_end_to_end_id_too_long_rejected() -> eyre::Result<()> {
+        let (mut storage, admin) = setup_storage();
+        let sender = Address::random();
+        let recipient = Address::random();
+        let initial_balance = U256::from(500);
+
+        StorageCtx::enter(&mut storage, || {
+            let mut token = MIP20Setup::create("Test", "TST", admin)
+                .with_issuer(admin)
+                .with_mint(sender, initial_balance)
+                .apply()?;
+
+            // 36 characters - exceeds Max35Text limit
+            let too_long_id = "A".repeat(36);
+
+            let transfer_call = IMIP20::transferWithPaymentDataCall {
+                to: recipient,
+                amount: U256::from(100),
+                endToEndId: Bytes::from(too_long_id.as_bytes().to_vec()),
+                purposeCode: FixedBytes(*b"SUPP"),
+                remittanceInfo: Bytes::from_static(b"Test"),
+            };
+            let calldata = transfer_call.abi_encode();
+            let result = token.call(&calldata, sender)?;
+
+            assert!(result.reverted, "Should reject EndToEndId > 35 chars");
+            let expected: Bytes = MIP20Error::end_to_end_id_too_long(36, 35).abi_encode().into();
+            assert_eq!(result.bytes, expected);
+
+            Ok(())
+        })
+    }
+
+    /// Verifies that remittance info exceeding 140 characters is rejected.
+    /// This ensures ISO 20022 Max140Text compliance.
+    #[test]
+    fn test_remittance_info_too_long_rejected() -> eyre::Result<()> {
+        let (mut storage, admin) = setup_storage();
+        let sender = Address::random();
+        let recipient = Address::random();
+        let initial_balance = U256::from(500);
+
+        StorageCtx::enter(&mut storage, || {
+            let mut token = MIP20Setup::create("Test", "TST", admin)
+                .with_issuer(admin)
+                .with_mint(sender, initial_balance)
+                .apply()?;
+
+            // 141 characters - exceeds Max140Text limit
+            let too_long_info = "B".repeat(141);
+
+            let transfer_call = IMIP20::transferWithPaymentDataCall {
+                to: recipient,
+                amount: U256::from(100),
+                endToEndId: Bytes::from_static(b"VALID-ID"),
+                purposeCode: FixedBytes(*b"SUPP"),
+                remittanceInfo: Bytes::from(too_long_info.as_bytes().to_vec()),
+            };
+            let calldata = transfer_call.abi_encode();
+            let result = token.call(&calldata, sender)?;
+
+            assert!(result.reverted, "Should reject RemittanceInfo > 140 chars");
+            let expected: Bytes = MIP20Error::remittance_info_too_long(141, 140).abi_encode().into();
+            assert_eq!(result.bytes, expected);
+
+            Ok(())
+        })
+    }
+
+    /// Verifies that boundary values (exactly 35 and 140 chars) are accepted.
+    #[test]
+    fn test_boundary_length_values_accepted() -> eyre::Result<()> {
+        let (mut storage, admin) = setup_storage();
+        let sender = Address::random();
+        let recipient = Address::random();
+        let initial_balance = U256::from(500);
+
+        StorageCtx::enter(&mut storage, || {
+            let mut token = MIP20Setup::create("Test", "TST", admin)
+                .with_issuer(admin)
+                .with_mint(sender, initial_balance)
+                .apply()?;
+
+            // Exactly 35 characters (Max35Text boundary)
+            let max_end_to_end_id = "X".repeat(35);
+
+            // Exactly 140 characters (Max140Text boundary)
+            let max_remittance_info = "Y".repeat(140);
+
+            let transfer_call = IMIP20::transferWithPaymentDataCall {
+                to: recipient,
+                amount: U256::from(100),
+                endToEndId: Bytes::from(max_end_to_end_id.as_bytes().to_vec()),
+                purposeCode: FixedBytes(*b"SUPP"),
+                remittanceInfo: Bytes::from(max_remittance_info.as_bytes().to_vec()),
+            };
+            let calldata = transfer_call.abi_encode();
+            let result = token.call(&calldata, sender)?;
+
+            assert!(!result.reverted, "Boundary values should be accepted");
+
+            Ok(())
+        })
+    }
+
+    /// Verifies that empty payment data fields are accepted.
+    /// Some transfers may not have all ISO 20022 fields populated.
+    #[test]
+    fn test_empty_payment_data_fields_allowed() -> eyre::Result<()> {
+        let (mut storage, admin) = setup_storage();
+        let sender = Address::random();
+        let recipient = Address::random();
+        let initial_balance = U256::from(500);
+
+        StorageCtx::enter(&mut storage, || {
+            let mut token = MIP20Setup::create("Test", "TST", admin)
+                .with_issuer(admin)
+                .with_mint(sender, initial_balance)
+                .apply()?;
+
+            let transfer_call = IMIP20::transferWithPaymentDataCall {
+                to: recipient,
+                amount: U256::from(100),
+                endToEndId: Bytes::new(),  // Empty
+                purposeCode: FixedBytes::ZERO,  // Zero bytes
+                remittanceInfo: Bytes::new(),  // Empty
+            };
+            let calldata = transfer_call.abi_encode();
+            let result = token.call(&calldata, sender)?;
+
+            assert!(!result.reverted, "Empty payment data should be allowed");
+
+            Ok(())
+        })
+    }
+
+    /// Verifies that paused contract rejects payment data transfers.
+    #[test]
+    fn test_paused_contract_rejects_payment_data_transfer() -> eyre::Result<()> {
+        let (mut storage, admin) = setup_storage();
+        let sender = Address::random();
+        let recipient = Address::random();
+        let initial_balance = U256::from(500);
+
+        StorageCtx::enter(&mut storage, || {
+            let mut token = MIP20Setup::create("Test", "TST", admin)
+                .with_issuer(admin)
+                .with_role(admin, *PAUSE_ROLE)
+                .with_mint(sender, initial_balance)
+                .apply()?;
+
+            // Pause contract
+            let pause_call = IMIP20::pauseCall {};
+            let calldata = pause_call.abi_encode();
+            token.call(&calldata, admin)?;
+
+            let transfer_call = IMIP20::transferWithPaymentDataCall {
+                to: recipient,
+                amount: U256::from(100),
+                endToEndId: Bytes::from_static(b"TEST"),
+                purposeCode: FixedBytes(*b"SUPP"),
+                remittanceInfo: Bytes::from_static(b"Test"),
+            };
+            let calldata = transfer_call.abi_encode();
+            let result = token.call(&calldata, sender)?;
+
+            assert!(result.reverted, "Paused contract should reject transfers");
+            let expected: Bytes = MIP20Error::contract_paused().selector().into();
+            assert_eq!(result.bytes, expected);
+
+            Ok(())
+        })
+    }
+
+    /// Verifies that transferFrom with payment data respects allowances.
+    #[test]
+    fn test_transfer_from_with_payment_data_allowance() -> eyre::Result<()> {
+        let (mut storage, admin) = setup_storage();
+        let owner = Address::random();
+        let spender = Address::random();
+        let recipient = Address::random();
+        let initial_balance = U256::from(1000);
+        let approve_amount = U256::from(500);
+        let transfer_amount = U256::from(300);
+
+        StorageCtx::enter(&mut storage, || {
+            let mut token = MIP20Setup::create("Test", "TST", admin)
+                .with_issuer(admin)
+                .with_mint(owner, initial_balance)
+                .apply()?;
+
+            // Approve spender
+            let approve_call = IMIP20::approveCall {
+                spender,
+                amount: approve_amount,
+            };
+            let calldata = approve_call.abi_encode();
+            token.call(&calldata, owner)?;
+
+            // Transfer within allowance
+            let transfer_call = IMIP20::transferFromWithPaymentDataCall {
+                from: owner,
+                to: recipient,
+                amount: transfer_amount,
+                endToEndId: Bytes::from_static(b"ALLOWED-TX"),
+                purposeCode: FixedBytes(*b"SUPP"),
+                remittanceInfo: Bytes::from_static(b"Within allowance"),
+            };
+            let calldata = transfer_call.abi_encode();
+            let result = token.call(&calldata, spender)?;
+
+            assert!(!result.reverted, "TransferFrom within allowance should succeed");
+            let success = bool::abi_decode(&result.bytes)?;
+            assert!(success);
+
+            // Verify allowance was reduced
+            let remaining_allowance = token.allowance(IMIP20::allowanceCall { owner, spender })?;
+            assert_eq!(remaining_allowance, approve_amount - transfer_amount);
+
+            Ok(())
+        })
+    }
+
+    /// Verifies that mint with payment data requires ISSUER_ROLE.
+    #[test]
+    fn test_mint_with_payment_data_requires_issuer_role() -> eyre::Result<()> {
+        let (mut storage, admin) = setup_storage();
+        let non_issuer = Address::random();
+        let recipient = Address::random();
+
+        StorageCtx::enter(&mut storage, || {
+            let mut token = MIP20Setup::create("Test", "TST", admin).apply()?;
+
+            let mint_call = IMIP20::mintWithPaymentDataCall {
+                to: recipient,
+                amount: U256::from(1000),
+                endToEndId: Bytes::from_static(b"MINT-001"),
+                purposeCode: FixedBytes(*b"TREA"),
+                remittanceInfo: Bytes::from_static(b"Treasury mint"),
+            };
+            let calldata = mint_call.abi_encode();
+            let result = token.call(&calldata, non_issuer)?;
+
+            assert!(result.reverted, "Non-issuer should not be able to mint");
+            let expected: Bytes = RolesAuthError::unauthorized().selector().into();
+            assert_eq!(result.bytes, expected);
+
+            Ok(())
+        })
+    }
+
+    /// Verifies that mint with payment data succeeds for ISSUER_ROLE holder.
+    #[test]
+    fn test_mint_with_payment_data_success() -> eyre::Result<()> {
+        let (mut storage, admin) = setup_storage();
+        let issuer = Address::random();
+        let recipient = Address::random();
+        let mint_amount = U256::from(1000);
+
+        StorageCtx::enter(&mut storage, || {
+            let mut token = MIP20Setup::create("Test", "TST", admin)
+                .with_issuer(issuer)
+                .apply()?;
+
+            let mint_call = IMIP20::mintWithPaymentDataCall {
+                to: recipient,
+                amount: mint_amount,
+                endToEndId: Bytes::from_static(b"MINT-001"),
+                purposeCode: FixedBytes(*b"TREA"),
+                remittanceInfo: Bytes::from_static(b"Treasury mint"),
+            };
+            let calldata = mint_call.abi_encode();
+            let result = token.call(&calldata, issuer)?;
+
+            assert!(!result.reverted, "Issuer should be able to mint");
+
+            // Verify balance
+            assert_eq!(
+                token.balance_of(IMIP20::balanceOfCall { account: recipient })?,
+                mint_amount
+            );
 
             Ok(())
         })

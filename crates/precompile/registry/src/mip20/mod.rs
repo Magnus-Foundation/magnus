@@ -583,6 +583,149 @@ impl MIP20Token {
             memo: call.memo,
         }))
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Native Payment Data Functions (ISO 20022 Compliant)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// Transfer tokens with ISO 20022 compliant payment data.
+    ///
+    /// Payment data is emitted as event data only (not stored in state)
+    /// for gas efficiency. Off-chain systems can index these events
+    /// for payment reconciliation.
+    pub fn transfer_with_payment_data(
+        &mut self,
+        msg_sender: Address,
+        call: IMIP20::transferWithPaymentDataCall,
+    ) -> Result<()> {
+        // Validate payment data lengths
+        Self::validate_payment_data(&call.endToEndId, &call.remittanceInfo)?;
+
+        // Standard transfer checks
+        self.check_not_paused()?;
+        self.check_recipient(call.to)?;
+        self.ensure_transfer_authorized(msg_sender, call.to)?;
+        self.check_and_update_spending_limit(msg_sender, call.amount)?;
+
+        // Execute transfer (only balance updates stored)
+        self._transfer(msg_sender, call.to, call.amount)?;
+
+        // Emit payment data event (NO STORAGE)
+        self.emit_event(MIP20Event::TransferWithPaymentData(
+            IMIP20::TransferWithPaymentData {
+                from: msg_sender,
+                to: call.to,
+                amount: call.amount,
+                endToEndId: call.endToEndId,
+                purposeCode: call.purposeCode,
+                remittanceInfo: call.remittanceInfo,
+            },
+        ))
+    }
+
+    /// Transfer tokens from another account with payment data.
+    pub fn transfer_from_with_payment_data(
+        &mut self,
+        msg_sender: Address,
+        call: IMIP20::transferFromWithPaymentDataCall,
+    ) -> Result<bool> {
+        // Validate payment data lengths
+        Self::validate_payment_data(&call.endToEndId, &call.remittanceInfo)?;
+
+        // Standard transferFrom checks
+        self.check_not_paused()?;
+        self.check_recipient(call.to)?;
+        self.ensure_transfer_authorized(call.from, call.to)?;
+
+        // Check and update allowance (following _transfer_from pattern)
+        let allowed = self.get_allowance(call.from, msg_sender)?;
+        if call.amount > allowed {
+            return Err(MIP20Error::insufficient_allowance().into());
+        }
+        if allowed != U256::MAX {
+            let new_allowance = allowed
+                .checked_sub(call.amount)
+                .ok_or(MIP20Error::insufficient_allowance())?;
+            self.set_allowance(call.from, msg_sender, new_allowance)?;
+        }
+
+        // Execute transfer
+        self._transfer(call.from, call.to, call.amount)?;
+
+        // Emit payment data event
+        self.emit_event(MIP20Event::TransferWithPaymentData(
+            IMIP20::TransferWithPaymentData {
+                from: call.from,
+                to: call.to,
+                amount: call.amount,
+                endToEndId: call.endToEndId,
+                purposeCode: call.purposeCode,
+                remittanceInfo: call.remittanceInfo,
+            },
+        ))?;
+
+        Ok(true)
+    }
+
+    /// Mint tokens with payment data (for issuers).
+    pub fn mint_with_payment_data(
+        &mut self,
+        msg_sender: Address,
+        call: IMIP20::mintWithPaymentDataCall,
+    ) -> Result<()> {
+        // Validate payment data lengths
+        Self::validate_payment_data(&call.endToEndId, &call.remittanceInfo)?;
+
+        // Standard mint (includes role check for ISSUER_ROLE)
+        self._mint(msg_sender, call.to, call.amount)?;
+
+        // Emit payment data event (from = Address::ZERO for mint)
+        self.emit_event(MIP20Event::TransferWithPaymentData(
+            IMIP20::TransferWithPaymentData {
+                from: Address::ZERO,
+                to: call.to,
+                amount: call.amount,
+                endToEndId: call.endToEndId,
+                purposeCode: call.purposeCode,
+                remittanceInfo: call.remittanceInfo,
+            },
+        ))?;
+        // Also emit Mint event for consistency with mint_with_memo
+        self.emit_event(MIP20Event::Mint(IMIP20::Mint {
+            to: call.to,
+            amount: call.amount,
+        }))
+    }
+}
+
+/// Maximum length for EndToEndId per ISO 20022 Max35Text
+const MAX_END_TO_END_ID_LENGTH: usize = 35;
+
+/// Maximum length for unstructured remittance info per ISO 20022 Max140Text
+const MAX_REMITTANCE_INFO_LENGTH: usize = 140;
+
+// Payment data validation
+impl MIP20Token {
+    /// Validates payment data field lengths per ISO 20022 specifications.
+    fn validate_payment_data(end_to_end_id: &[u8], remittance_info: &[u8]) -> Result<()> {
+        if end_to_end_id.len() > MAX_END_TO_END_ID_LENGTH {
+            return Err(MIP20Error::end_to_end_id_too_long(
+                end_to_end_id.len(),
+                MAX_END_TO_END_ID_LENGTH,
+            )
+            .into());
+        }
+
+        if remittance_info.len() > MAX_REMITTANCE_INFO_LENGTH {
+            return Err(MIP20Error::remittance_info_too_long(
+                remittance_info.len(),
+                MAX_REMITTANCE_INFO_LENGTH,
+            )
+            .into());
+        }
+
+        Ok(())
+    }
 }
 
 // Utility functions

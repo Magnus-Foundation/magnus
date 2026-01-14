@@ -104,11 +104,60 @@ interface ITIP20 {
     /// @param amount The amount of tokens to mint
     /// @param memo A 32-byte memo attached to the mint
     function mintWithMemo(address to, uint256 amount, bytes32 memo) external;
-    
+
     /// @notice Burns tokens from caller's balance with a memo (requires ISSUER_ROLE)
     /// @param amount The amount of tokens to burn
     /// @param memo A 32-byte memo attached to the burn
     function burnWithMemo(uint256 amount, bytes32 memo) external;
+
+    // =========================================================================
+    //                 ISO 20022 Payment Data Functions
+    // =========================================================================
+
+    /// @notice Transfers tokens with ISO 20022 compliant payment data
+    /// @param to The recipient address
+    /// @param amount The amount of tokens to transfer
+    /// @param endToEndId End-to-end identification (max 35 characters per ISO 20022 Max35Text)
+    /// @param purposeCode Purpose code (4 bytes, e.g., "SALA", "SUPP", "TAXS")
+    /// @param remittanceInfo Remittance information (max 140 characters per ISO 20022 Max140Text)
+    function transferWithPaymentData(
+        address to,
+        uint256 amount,
+        bytes calldata endToEndId,
+        bytes4 purposeCode,
+        bytes calldata remittanceInfo
+    ) external;
+
+    /// @notice Transfers tokens from another account with ISO 20022 payment data
+    /// @param from The sender address
+    /// @param to The recipient address
+    /// @param amount The amount to transfer
+    /// @param endToEndId End-to-end identification (max 35 characters)
+    /// @param purposeCode Purpose code (4 bytes)
+    /// @param remittanceInfo Remittance information (max 140 characters)
+    /// @return True if successful
+    function transferFromWithPaymentData(
+        address from,
+        address to,
+        uint256 amount,
+        bytes calldata endToEndId,
+        bytes4 purposeCode,
+        bytes calldata remittanceInfo
+    ) external returns (bool);
+
+    /// @notice Mints tokens with ISO 20022 payment data (requires ISSUER_ROLE)
+    /// @param to The recipient address
+    /// @param amount The amount to mint
+    /// @param endToEndId End-to-end identification
+    /// @param purposeCode Purpose code
+    /// @param remittanceInfo Remittance information
+    function mintWithPaymentData(
+        address to,
+        uint256 amount,
+        bytes calldata endToEndId,
+        bytes4 purposeCode,
+        bytes calldata remittanceInfo
+    ) external;
     
     /// @notice Burns tokens from a blocked address (requires BURN_BLOCKED_ROLE)
     /// @param from The address to burn tokens from (must be unauthorized by transfer policy)
@@ -311,6 +360,22 @@ interface ITIP20 {
         bytes32 indexed memo
     );
 
+    /// @notice Emitted when a transfer includes ISO 20022 payment data
+    /// @param from The sender address (address(0) for mints)
+    /// @param to The recipient address
+    /// @param amount The transfer amount
+    /// @param endToEndId ISO 20022 EndToEndIdentification
+    /// @param purposeCode ISO 20022 Purpose code (e.g., SALA, SUPP, TAXS)
+    /// @param remittanceInfo ISO 20022 Remittance information
+    event TransferWithPaymentData(
+        address indexed from,
+        address indexed to,
+        uint256 amount,
+        bytes endToEndId,
+        bytes4 purposeCode,
+        bytes remittanceInfo
+    );
+
     /// @notice Emitted when the membership of a role changes for an account
     /// @param role The role being granted or revoked
     /// @param account The account whose membership was changed
@@ -380,6 +445,16 @@ interface ITIP20 {
     /// @notice The caller does not have the required role or permission for this operation
     error Unauthorized();
 
+    /// @notice EndToEndId exceeds maximum length per ISO 20022 Max35Text
+    /// @param length The actual length provided
+    /// @param maxLength The maximum allowed length (35)
+    error EndToEndIdTooLong(uint256 length, uint256 maxLength);
+
+    /// @notice RemittanceInfo exceeds maximum length per ISO 20022 Max140Text
+    /// @param length The actual length provided
+    /// @param maxLength The maximum allowed length (140)
+    error RemittanceInfoTooLong(uint256 length, uint256 maxLength);
+
 }
 ```
 
@@ -391,6 +466,34 @@ When interacting with precompiles, **always use the provided ABI** rather than r
 
 ## Memos
 Memo functions `transferWithMemo`, `transferFromWithMemo`, `mintWithMemo`, and `burnWithMemo` behave like their ERC-20 equivalents but additionally emit memo data in dedicated events. The memo is always a fixed 32-byte field. Callers should pack shorter strings or identifiers directly into this field, and use hashes or external references when the underlying payload exceeds 32 bytes.
+
+## ISO 20022 Payment Data
+
+TIP-20 supports native ISO 20022 payment data fields for enhanced payment reconciliation and interoperability with traditional financial systems. The payment data functions (`transferWithPaymentData`, `transferFromWithPaymentData`, `mintWithPaymentData`) extend standard token operations with structured payment metadata:
+
+- **EndToEndId** (Max35Text): Unique end-to-end transaction identifier, max 35 characters
+- **PurposeCode** (4 bytes): ISO 20022 external purpose code indicating the payment type
+- **RemittanceInfo** (Max140Text): Unstructured remittance information, max 140 characters
+
+Payment data is emitted as event data only (not stored in contract state) for gas efficiency. Off-chain systems can index `TransferWithPaymentData` events for payment reconciliation and compliance reporting.
+
+### Common Purpose Codes
+| Code | Description |
+|------|-------------|
+| `SALA` | Salary payment |
+| `SUPP` | Supplier payment |
+| `TAXS` | Tax payment |
+| `DIVD` | Dividend payment |
+| `TREA` | Treasury payment |
+| `INTE` | Interest payment |
+| `PENS` | Pension payment |
+| `COMM` | Commission payment |
+
+### Field Validation
+The implementation validates field lengths per ISO 20022 specifications:
+- `EndToEndId` exceeding 35 characters reverts with `EndToEndIdTooLong`
+- `RemittanceInfo` exceeding 140 characters reverts with `RemittanceInfoTooLong`
+- Empty fields are permitted for flexibility
 
 ## TIP-403 Transfer Policies
 All operations that move tokens: `transfer`, `transferFrom`, `transferWithMemo`, `transferFromWithMemo`, `mint`, `burn`, `mintWithMemo`, and `burnWithMemo` — enforce the token’s configured TIP-403 transfer policy.
