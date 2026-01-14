@@ -1,0 +1,105 @@
+[package]
+name = "magnus-node-bin"
+description = "Magnus node binary"
+default-run = "magnus-node"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+magnus-eyre.workspace = true
+magnus-node = { workspace = true, features = ["default"] }
+magnus-consensus-engine.workspace = true
+magnus-consensus-engine-config.workspace = true
+magnus-consensus.workspace = true
+magnus-config.workspace = true
+magnus-chainspec = { workspace = true, features = ["default"] }
+magnus-evm.workspace = true
+magnus-faucet.workspace = true
+
+commonware-cryptography.workspace = true
+commonware-math.workspace = true
+commonware-runtime = { workspace = true, features = ["external"] }
+futures = { workspace = true, features = ["executor"] }
+rand.workspace = true
+reth-cli-commands.workspace = true
+reth-cli-util.workspace = true
+reth-ethereum = { workspace = true, features = ["full", "cli"] }
+reth-ethereum-cli.workspace = true
+reth-node-builder.workspace = true
+clap.workspace = true
+eyre.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+pyroscope = { workspace = true, optional = true }
+pyroscope_pprofrs = { workspace = true, optional = true }
+
+[[bin]]
+name = "magnus-node"
+path = "src/main.rs"
+
+[features]
+default = ["asm-keccak", "jemalloc"]
+
+asm-keccak = [
+	"magnus-node/asm-keccak",
+	"reth-ethereum-cli/asm-keccak"
+]
+
+otlp = [
+	"reth-ethereum-cli/otlp",
+	"reth-ethereum/otlp",
+	"magnus-node/otlp"
+]
+
+pyroscope = ["dep:pyroscope", "dep:pyroscope_pprofrs"]
+js-tracer = [
+	"reth-node-builder/js-tracer",
+	"reth-ethereum/js-tracer",
+	"magnus-node/js-tracer"
+]
+
+jemalloc = [
+	"reth-cli-util/jemalloc",
+	"reth-ethereum-cli/jemalloc",
+	"reth-ethereum/jemalloc",
+	"magnus-node/jemalloc"
+]
+jemalloc-prof = [
+	"reth-cli-util/jemalloc",
+	"reth-cli-util/jemalloc-prof",
+	"reth-ethereum-cli/jemalloc-prof",
+	"magnus-node/jemalloc-prof"
+]
+
+min-error-logs = [
+	"tracing/release_max_level_error",
+	"reth-ethereum-cli/min-error-logs",
+	"magnus-node/min-error-logs"
+]
+min-warn-logs = [
+	"tracing/release_max_level_warn",
+	"reth-ethereum-cli/min-warn-logs",
+	"magnus-node/min-warn-logs"
+]
+min-info-logs = [
+	"tracing/release_max_level_info",
+	"reth-ethereum-cli/min-info-logs",
+	"magnus-node/min-info-logs"
+]
+min-debug-logs = [
+	"tracing/release_max_level_debug",
+	"reth-ethereum-cli/min-debug-logs",
+	"magnus-node/min-debug-logs"
+]
+min-trace-logs = [
+	"reth-ethereum-cli/min-trace-logs",
+	"magnus-node/min-trace-logs"
+]

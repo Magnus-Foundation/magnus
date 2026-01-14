@@ -1,0 +1,42 @@
+[package]
+name = "magnus-payload"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+magnus-chainspec.workspace = true
+magnus-consensus.workspace = true
+magnus-evm = { workspace = true, features = ["engine"] }
+magnus-payload-types.workspace = true
+magnus-primitives = { workspace = true, features = ["reth-codec", "serde"] }
+magnus-mempool.workspace = true
+
+alloy-consensus.workspace = true
+alloy-primitives.workspace = true
+alloy-rlp.workspace = true
+
+metrics.workspace = true
+reth-basic-payload-builder.workspace = true
+reth-chainspec.workspace = true
+reth-consensus-common.workspace = true
+reth-engine-tree.workspace = true
+reth-errors.workspace = true
+reth-evm.workspace = true
+reth-metrics.workspace = true
+reth-payload-builder.workspace = true
+reth-payload-primitives.workspace = true
+reth-primitives-traits.workspace = true
+reth-revm.workspace = true
+reth-storage-api.workspace = true
+reth-transaction-pool.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

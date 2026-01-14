@@ -1,0 +1,43 @@
+[package]
+name = "magnus-sidecar"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+clap.workspace = true
+alloy = { workspace = true, default-features = false, features = [
+    "network",
+    "rpc",
+    "rpc-types",
+    "transports",
+    "providers",
+    "provider-ws",
+    "reqwest-rustls-tls",
+    "signers",
+    "signer-local",
+    "signer-mnemonic",
+    "rand",
+] }
+magnus-provider.workspace = true
+magnus-telemetry-util.workspace = true
+eyre.workspace = true
+futures.workspace = true
+hex = "0.4"
+itertools = "0.14.0"
+magnus-precompile-registry = { workspace = true, features = ["rpc"] }
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "rustls-tls",
+    "rustls-tls-native-roots",
+] }
+metrics-exporter-prometheus = { version = "0.17.2", default-features = false }
+metrics = "0.24.2"
+poem = "3.1.12"
+rand_distr = "0.5.1"
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tokio.workspace = true
+tracing.workspace = true
