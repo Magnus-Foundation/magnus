@@ -496,7 +496,7 @@ The implementation validates field lengths per ISO 20022 specifications:
 - Empty fields are permitted for flexibility
 
 ## TIP-403 Transfer Policies
-All operations that move tokens: `transfer`, `transferFrom`, `transferWithMemo`, `transferFromWithMemo`, `mint`, `burn`, `mintWithMemo`, and `burnWithMemo` — enforce the token’s configured TIP-403 transfer policy.
+All operations that move tokens: `transfer`, `transferFrom`, `transferWithMemo`, `transferFromWithMemo`, `transferWithPaymentData`, `transferFromWithPaymentData`, `mint`, `burn`, `mintWithMemo`, `burnWithMemo`, and `mintWithPaymentData` — enforce the token's configured TIP-403 transfer policy.
 
 Internally, this is implemented via a `transferAuthorized` modifier that:
 - Calls `TIP403_REGISTRY.isAuthorized(transferPolicyId, from)` for the sender.
