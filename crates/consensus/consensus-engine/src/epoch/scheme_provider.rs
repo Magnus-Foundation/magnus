@@ -5,8 +5,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use commonware_consensus::{simplex::scheme::bls12381_threshold::Scheme, types::Epoch};
-use commonware_cryptography::{
+use magnus_bft::{simplex::scheme::bls12381_threshold::Scheme, types::Epoch};
+use magnus_cryptography::{
     bls12381::primitives::variant::MinSig, certificate::Provider, ed25519::PublicKey,
 };
 

@@ -1,12 +1,12 @@
-//! [`Digest`] is a wrapper around [`B256`] to use eth block hash in commonware simplex.
+//! [`Digest`] is a wrapper around [`B256`] to use eth block hash in Magnus simplex.
 
 use std::ops::Deref;
 
 use alloy_primitives::B256;
-use commonware_codec::{FixedSize, Read, ReadExt as _, Write};
-use commonware_utils::{Array, Span};
+use magnus_codec::{FixedSize, Read, ReadExt as _, Write};
+use magnus_utils::{Array, Span};
 
-/// Wrapper around [`B256`] to use it in places requiring [`commonware_cryptography::Digest`].
+/// Wrapper around [`B256`] to use it in places requiring [`magnus_cryptography::Digest`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[repr(transparent)]
 pub struct Digest(pub B256);
@@ -27,13 +27,13 @@ impl Deref for Digest {
     }
 }
 
-impl commonware_math::algebra::Random for Digest {
+impl magnus_math::algebra::Random for Digest {
     /// Generate a random digest.
     ///
     /// # Note
     ///
-    /// One-to-one copy of [`commonware_cryptography::Digest`]
-    /// for [`commonware_cryptography::sha256::Digest`].
+    /// One-to-one copy of [`magnus_cryptography::Digest`]
+    /// for [`magnus_cryptography::sha256::Digest`].
     fn random(mut rng: impl rand_core::CryptoRngCore) -> Self {
         let mut array = B256::ZERO;
         rng.fill_bytes(&mut *array);
@@ -41,7 +41,7 @@ impl commonware_math::algebra::Random for Digest {
     }
 }
 
-impl commonware_cryptography::Digest for Digest {
+impl magnus_cryptography::Digest for Digest {
     const EMPTY: Self = Self(B256::ZERO);
 }
 
@@ -61,7 +61,7 @@ impl Read for Digest {
     fn read_cfg(
         buf: &mut impl bytes::Buf,
         _cfg: &Self::Cfg,
-    ) -> Result<Self, commonware_codec::Error> {
+    ) -> Result<Self, magnus_codec::Error> {
         let array = <[u8; 32]>::read(buf)?;
         Ok(Self(B256::new(array)))
     }

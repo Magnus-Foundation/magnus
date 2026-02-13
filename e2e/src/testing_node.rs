@@ -2,9 +2,9 @@
 
 use crate::execution_runtime::{self, ExecutionNode, ExecutionNodeConfig, ExecutionRuntimeHandle};
 use alloy_primitives::Address;
-use commonware_cryptography::ed25519::PublicKey;
-use commonware_p2p::simulated::{Control, Oracle, SocketManager};
-use commonware_runtime::{Handle, deterministic::Context};
+use magnus_cryptography::ed25519::PublicKey;
+use magnus_p2p::simulated::{Control, Oracle, SocketManager};
+use magnus_runtime::{Handle, deterministic::Context};
 use reth_db::{Database, DatabaseEnv, mdbx::DatabaseArguments, open_db_read_only};
 use reth_ethereum::{
     provider::{
@@ -27,7 +27,7 @@ use tracing::{debug, instrument};
 /// A testing node that can start and stop both consensus and execution layers.
 pub struct TestingNode<TClock>
 where
-    TClock: commonware_runtime::Clock,
+    TClock: magnus_runtime::Clock,
 {
     /// Unique identifier for this node
     pub uid: String,
@@ -65,7 +65,7 @@ where
 
 impl<TClock> TestingNode<TClock>
 where
-    TClock: commonware_runtime::Clock,
+    TClock: magnus_runtime::Clock,
 {
     /// Create a new TestingNode without spawning execution or starting consensus.
     ///
@@ -439,8 +439,8 @@ where
 mod tests {
     use crate::{Setup, setup_validators};
     use alloy::providers::{Provider, ProviderBuilder};
-    use commonware_p2p::simulated::Link;
-    use commonware_runtime::{
+    use magnus_p2p::simulated::Link;
+    use magnus_runtime::{
         Runner as _,
         deterministic::{Config, Runner},
     };

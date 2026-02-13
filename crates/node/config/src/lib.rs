@@ -5,8 +5,8 @@
 
 use std::{fmt::Display, path::Path};
 
-use commonware_codec::{DecodeExt as _, Encode as _};
-use commonware_cryptography::{
+use magnus_codec::{DecodeExt as _, Encode as _};
+use magnus_cryptography::{
     Signer,
     bls12381::primitives::group::Share,
     ed25519::{PrivateKey, PublicKey},
@@ -71,7 +71,7 @@ enum SigningKeyErrorKind {
     #[error("failed decoding file contents as hex-encoded bytes")]
     Hex(#[source] const_hex::FromHexError),
     #[error("failed parsing hex-decoded bytes as ed25519 private key")]
-    Parse(#[source] commonware_codec::Error),
+    Parse(#[source] magnus_codec::Error),
     #[error("failed reading file")]
     Read(#[source] std::io::Error),
     #[error("failed writing to file")]
@@ -129,7 +129,7 @@ enum SigningShareErrorKind {
     #[error("failed decoding file contents as hex-encoded bytes")]
     Hex(#[source] const_hex::FromHexError),
     #[error("failed parsing hex-decoded bytes as bls12381 private share")]
-    Parse(#[source] commonware_codec::Error),
+    Parse(#[source] magnus_codec::Error),
     #[error("failed reading file")]
     Read(#[source] std::io::Error),
     #[error("failed writing to file")]

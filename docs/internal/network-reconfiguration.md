@@ -5,11 +5,11 @@ validators through the a distribute key generation ceremony.
 
 ## Definitions and network state
 
-Tempo is running Simplex consensus using the commonwarexyz stack with
+Magnus is running Simplex consensus with
 BLS12-381 threshold signatures. For a high level overview of the protocol,
 see [1] and [2]. Node-to-node communication is done using direct p2p, with all
-peer identities and socket addresses known. Commonwarexyz calls this scheme
-"authenticated lookup p2p" [3]. In tempo, peers are identified by their ed25519
+peer identities and socket addresses known. This scheme is called
+"authenticated lookup p2p" [3]. In Magnus, peers are identified by their ed25519
 public key.
 
 The network state evolves in epochs, where epochs are numbered 0, 1, 2, ... and
@@ -49,9 +49,9 @@ Note that for the purpose of the ceremony outcome, only the ed25519 public keys
 are relevant. The socket addresses are also noted here as a side-effect of the
 choice of P2P network, binding key and address closely together.
 
-[1]: https://docs.rs/commonware-consensus/0.0.63/commonware_consensus/simplex/index.html#protocol-description
-[2]: https://docs.rs/commonware-consensus/0.0.63/commonware_consensus/simplex/index.html#signing_schemebls12381_threshold
-[3]: https://docs.rs/commonware-p2p/0.0.63/commonware_p2p/authenticated/lookup/index.html
+[1]: https://github.com/Magnus-Foundation/monorepo (Simplex protocol description)
+[2]: https://github.com/Magnus-Foundation/monorepo (BLS12-381 threshold signing scheme)
+[3]: https://github.com/Magnus-Foundation/monorepo (authenticated lookup p2p)
 
 ## Genesis data
 
@@ -63,7 +63,7 @@ validators is read from the `ValidatorConfig` smart contract using the
 the `{epochLength: <NUMBER>}`, see `TempoGenesisInfo` in [4] for the underlying
 Rust struct. The `extra_data` field contains a binary encoding of a triple
 `{epoch: <NUMBER>, participants: [<ed25519 pubkey>], public: <bytes>}` using
-the commonware codec, see `PublicOutcome` in [5]. And for the validator config
+the Magnus codec, see `PublicOutcome` in [5]. And for the validator config
 see [6].
 
 [4]: ../crates/chainspec/src/spec.rs
@@ -143,7 +143,7 @@ height `H`:
    c. dealer or player: enter epoch `C+1` with the outcome of the ceremony in
       epoch `C`.
 
-[7]: https://docs.rs/commonware-cryptography/0.0.63/commonware_cryptography/bls12381/dkg/index.html
+[7]: https://github.com/Magnus-Foundation/monorepo (BLS12-381 DKG documentation)
    
 ### On determining ceremony players on the boundary block
 

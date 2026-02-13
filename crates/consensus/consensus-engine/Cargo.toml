@@ -28,17 +28,17 @@ axum.workspace = true
 bytes.workspace = true
 clap.workspace = true
 
-commonware-broadcast.workspace = true
-commonware-codec.workspace = true
-commonware-consensus.workspace = true
-commonware-cryptography.workspace = true
-commonware-macros.workspace = true
-commonware-math.workspace = true
-commonware-p2p.workspace = true
-commonware-parallel.workspace = true
-commonware-runtime = { workspace = true, features = ["external"] }
-commonware-storage.workspace = true
-commonware-utils.workspace = true
+magnus-broadcast.workspace = true
+magnus-codec.workspace = true
+magnus-bft.workspace = true
+magnus-cryptography.workspace = true
+magnus-macros.workspace = true
+magnus-math.workspace = true
+magnus-p2p.workspace = true
+magnus-parallel.workspace = true
+magnus-runtime = { workspace = true, features = ["external"] }
+magnus-storage.workspace = true
+magnus-utils.workspace = true
 
 eyre.workspace = true
 futures.workspace = true

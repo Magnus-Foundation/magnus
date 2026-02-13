@@ -2406,7 +2406,7 @@ dependencies = [
 [[package]]
 name = "commonware-broadcast"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "bytes",
  "commonware-codec",
@@ -2424,7 +2424,7 @@ dependencies = [
 [[package]]
 name = "commonware-codec"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "bytes",
  "paste",
@@ -2436,7 +2436,7 @@ dependencies = [
 [[package]]
 name = "commonware-consensus"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "bytes",
  "cfg-if",
@@ -2464,7 +2464,7 @@ dependencies = [
 [[package]]
 name = "commonware-cryptography"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "anyhow",
  "aws-lc-rs",
@@ -2495,7 +2495,7 @@ dependencies = [
 [[package]]
 name = "commonware-macros"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "futures",
  "proc-macro-crate",
@@ -2510,7 +2510,7 @@ dependencies = [
 [[package]]
 name = "commonware-math"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "bytes",
  "commonware-codec",
@@ -2522,7 +2522,7 @@ dependencies = [
 [[package]]
 name = "commonware-p2p"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "bytes",
  "commonware-codec",
@@ -2548,7 +2548,7 @@ dependencies = [
 [[package]]
 name = "commonware-parallel"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "cfg-if",
  "rayon",
@@ -2557,7 +2557,7 @@ dependencies = [
 [[package]]
 name = "commonware-resolver"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "bytes",
  "commonware-codec",
@@ -2577,7 +2577,7 @@ dependencies = [
 [[package]]
 name = "commonware-runtime"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "async-lock",
  "axum",
@@ -2613,7 +2613,7 @@ dependencies = [
 [[package]]
 name = "commonware-storage"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2636,7 +2636,7 @@ dependencies = [
 [[package]]
 name = "commonware-stream"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "bytes",
  "chacha20poly1305",
@@ -2656,7 +2656,7 @@ dependencies = [
 [[package]]
 name = "commonware-utils"
 version = "0.0.64"
-source = "git+https://github.com/commonwarexyz/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
+source = "git+https://github.com/Magnus-Foundation/monorepo?rev=5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be#5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be"
 dependencies = [
  "bytes",
  "cfg-if",

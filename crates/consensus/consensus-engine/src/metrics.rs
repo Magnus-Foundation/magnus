@@ -6,13 +6,13 @@ use axum::{
     http::{Response, StatusCode, header},
     routing::get,
 };
-use commonware_runtime::{Handle, Metrics as _, Spawner as _, tokio::Context};
+use magnus_runtime::{Handle, Metrics as _, Spawner as _, tokio::Context};
 use eyre::WrapErr as _;
 use tokio::net::TcpListener;
 
-/// Installs a metrics server so that commonware can publish its metrics.
+/// Installs a metrics server so that Magnus core can publish its metrics.
 ///
-/// This is lifted straight from [`commonware_runtime::tokio::telemetry::init`],
+/// This is lifted straight from [`magnus_runtime::tokio::telemetry::init`],
 /// because it also wants to install a tracing subscriber, which clashes with
 /// reth ethereum cli doing the same thing.
 pub fn install(context: Context, listen_addr: SocketAddr) -> Handle<eyre::Result<()>> {

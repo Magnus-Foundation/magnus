@@ -22,7 +22,7 @@ mod defaults;
 mod magnus_cmd;
 
 use clap::Parser;
-use commonware_runtime::{Metrics, Runner};
+use magnus_runtime::{Metrics, Runner};
 use eyre::WrapErr as _;
 use futures::{FutureExt as _, future::FusedFuture as _};
 use reth_ethereum::{
@@ -154,7 +154,7 @@ fn main() -> eyre::Result<()> {
                 .resolve_datadir(node.chain_spec().chain())
                 .data_dir()
                 .join("consensus");
-            let runtime_config = commonware_runtime::tokio::Config::default()
+            let runtime_config = magnus_runtime::tokio::Config::default()
                 .with_tcp_nodelay(Some(true))
                 .with_worker_threads(args.consensus.worker_threads)
                 .with_storage_directory(consensus_storage)
@@ -167,7 +167,7 @@ fn main() -> eyre::Result<()> {
                 )
             });
 
-            let runner = commonware_runtime::tokio::Runner::new(runtime_config);
+            let runner = magnus_runtime::tokio::Runner::new(runtime_config);
 
             runner.start(async move |ctx| {
                 // Ensure all consensus metrics are prefixed. Shadow `ctx` to

@@ -1,8 +1,8 @@
 //! Tests for fast sync after a full DKG ceremony.
 
 use alloy::transports::http::reqwest::Url;
-use commonware_macros::test_traced;
-use commonware_runtime::{
+use magnus_macros::test_traced;
+use magnus_runtime::{
     Clock as _, Runner as _,
     deterministic::{Config, Runner},
 };

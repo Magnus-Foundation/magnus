@@ -1,14 +1,14 @@
-//! A collection of aliases for frequently used (primarily commonware) types.
+//! A collection of aliases for frequently used (primarily Magnus core) types.
 
 pub(crate) mod marshal {
-    use commonware_consensus::{
+    use magnus_bft::{
         marshal,
         simplex::{scheme::bls12381_threshold::Scheme, types::Finalization},
         types::FixedEpocher,
     };
-    use commonware_cryptography::{bls12381::primitives::variant::MinSig, ed25519::PublicKey};
-    use commonware_storage::archive::immutable;
-    use commonware_utils::acknowledgement::Exact;
+    use magnus_cryptography::{bls12381::primitives::variant::MinSig, ed25519::PublicKey};
+    use magnus_storage::archive::immutable;
+    use magnus_utils::acknowledgement::Exact;
 
     use crate::consensus::{Digest, block::Block};
 

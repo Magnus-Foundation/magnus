@@ -1,11 +1,11 @@
 //! The actor running the application event loop.
 //!
-//! # On the usage of the commonware-pacer
+//! # On the usage of the magnus-pacer
 //!
 //! The actor will contain `Pacer::pace` calls for all interactions
 //! with the execution layer. This is a no-op in production because the
-//! commonware tokio runtime ignores these. However, these are critical in
-//! e2e tests using the commonware deterministic runtime: since the execution
+//! Magnus tokio runtime ignores these. However, these are critical in
+//! e2e tests using the Magnus deterministic runtime: since the execution
 //! layer is still running on the tokio runtime, these calls signal the
 //! deterministic runtime to spend real life time to wait for the execution
 //! layer calls to complete.
@@ -15,18 +15,18 @@ use std::{sync::Arc, time::Duration};
 use alloy_consensus::BlockHeader;
 use alloy_primitives::{B256, Bytes};
 use alloy_rpc_types_engine::PayloadId;
-use commonware_codec::{Encode as _, ReadExt as _};
-use commonware_consensus::{
+use magnus_codec::{Encode as _, ReadExt as _};
+use magnus_bft::{
     Heightable as _,
     types::{Epoch, Epocher as _, FixedEpocher, Height, HeightDelta, Round, View},
 };
-use commonware_cryptography::{certificate::Provider as _, ed25519::PublicKey};
-use commonware_macros::select;
-use commonware_runtime::{
+use magnus_cryptography::{certificate::Provider as _, ed25519::PublicKey};
+use magnus_macros::select;
+use magnus_runtime::{
     ContextCell, FutureExt as _, Handle, Metrics, Pacer, Spawner, Storage, spawn_cell,
 };
 
-use commonware_utils::SystemTimeExt;
+use magnus_utils::SystemTimeExt;
 use eyre::{OptionExt as _, WrapErr as _, bail, ensure, eyre};
 use futures::{
     StreamExt as _, TryFutureExt as _,
@@ -229,7 +229,7 @@ impl Inner<Init> {
         ret(Display),
         err(level = Level::ERROR)
     )]
-    async fn handle_genesis<TContext: commonware_runtime::Clock>(
+    async fn handle_genesis<TContext: magnus_runtime::Clock>(
         mut self,
         mut genesis: Genesis,
         context: TContext,

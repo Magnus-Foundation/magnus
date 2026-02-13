@@ -1,4 +1,4 @@
-//! A Magnus node using commonware's threshold simplex as consensus.
+//! A Magnus node using Magnus core library's threshold simplex as consensus.
 
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -18,9 +18,9 @@ pub(crate) mod subblocks;
 
 use std::net::SocketAddr;
 
-use commonware_cryptography::ed25519::{PrivateKey, PublicKey};
-use commonware_p2p::authenticated::lookup;
-use commonware_runtime::Metrics as _;
+use magnus_cryptography::ed25519::{PrivateKey, PublicKey};
+use magnus_p2p::authenticated::lookup;
+use magnus_runtime::Metrics as _;
 use eyre::{OptionExt, WrapErr as _, eyre};
 use magnus_consensus_engine_config::SigningShare;
 use magnus_node::MagnusFullNode;
@@ -36,7 +36,7 @@ pub use crate::config::{
 pub use args::Args;
 
 pub async fn run_consensus_stack(
-    context: &commonware_runtime::tokio::Context,
+    context: &magnus_runtime::tokio::Context,
     config: Args,
     execution_node: MagnusFullNode,
     feed_state: feed::FeedStateHandle,
@@ -170,7 +170,7 @@ pub async fn run_consensus_stack(
 }
 
 async fn instantiate_network(
-    context: &commonware_runtime::tokio::Context,
+    context: &magnus_runtime::tokio::Context,
     signing_key: PrivateKey,
     listen_addr: SocketAddr,
     mailbox_size: usize,
@@ -178,12 +178,12 @@ async fn instantiate_network(
     bypass_ip_check: bool,
     use_local_defaults: bool,
 ) -> eyre::Result<(
-    lookup::Network<commonware_runtime::tokio::Context, PrivateKey>,
+    lookup::Network<magnus_runtime::tokio::Context, PrivateKey>,
     lookup::Oracle<PublicKey>,
 )> {
     // TODO: Find out why `union_unique` should be used. This is the only place
     // where `NAMESPACE` is used at all. We follow alto's example for now.
-    let p2p_namespace = commonware_utils::union_unique(crate::config::NAMESPACE, b"_P2P");
+    let p2p_namespace = magnus_utils::union_unique(crate::config::NAMESPACE, b"_P2P");
 
     let default_config = if use_local_defaults {
         lookup::Config::local(signing_key, &p2p_namespace, listen_addr, max_message_size)

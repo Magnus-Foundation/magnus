@@ -15,9 +15,9 @@ use alloy::{
 use alloy_evm::{EvmFactory as _, revm::inspector::JournalExt as _};
 use alloy_genesis::{Genesis, GenesisAccount};
 use alloy_primitives::{Address, B256};
-use commonware_codec::Encode;
-use commonware_cryptography::ed25519::PublicKey;
-use commonware_utils::ordered;
+use magnus_codec::Encode;
+use magnus_cryptography::ed25519::PublicKey;
+use magnus_utils::ordered;
 use eyre::{OptionExt as _, WrapErr as _};
 use futures::StreamExt;
 use reth_db::mdbx::DatabaseEnv;
@@ -296,8 +296,8 @@ impl ExecutionNodeConfigGenerator {
 ///
 /// This is needed to spawn tempo execution nodes, which require a tokio runtime.
 ///
-/// The commonware itself is launched in their
-/// [`commonware_runtime::deterministic`] and so this extra effort is necessary.
+/// The Magnus core itself is launched in their
+/// [`magnus_runtime::deterministic`] and so this extra effort is necessary.
 pub struct ExecutionRuntime {
     // The tokio runtime launched on a different thread.
     rt: std::thread::JoinHandle<()>,

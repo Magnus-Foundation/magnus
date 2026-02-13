@@ -1,9 +1,9 @@
-use commonware_consensus::{Reporter, marshal::Update, types::Epoch};
-use commonware_cryptography::{
+use magnus_bft::{Reporter, marshal::Update, types::Epoch};
+use magnus_cryptography::{
     bls12381::primitives::{group::Share, sharing::Sharing, variant::MinSig},
     ed25519::PublicKey,
 };
-use commonware_utils::ordered;
+use magnus_utils::ordered;
 use eyre::WrapErr as _;
 use futures::channel::mpsc;
 use tracing::{Span, error};

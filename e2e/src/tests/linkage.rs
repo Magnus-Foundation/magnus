@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use crate::{Setup, run};
-use commonware_macros::test_traced;
-use commonware_p2p::simulated::Link;
+use magnus_macros::test_traced;
+use magnus_p2p::simulated::Link;
 
 #[test_traced]
 fn only_good_links() {
@@ -21,7 +21,7 @@ fn only_good_links() {
     for seed in 0..1 {
         let setup = Setup::new().epoch_length(100).seed(seed);
         let _first = run(setup.clone(), |metric, value| {
-            // // TODO(janis): commonware calls this marshal, we call this sync.
+            // // TODO(janis): Magnus core calls this marshal, we call this sync.
             // // We should rename this to marshal (the actor, that is).
             if metric.ends_with("_marshal_processed_height") {
                 let value = value.parse::<u64>().unwrap();
@@ -35,7 +35,7 @@ fn only_good_links() {
         // sometimes flaky.
         //
         // let first = run(setup.clone(), |metric, value| {
-        //     // // TODO(janis): commonware calls this marshal, we call this sync.
+        //     // // TODO(janis): Magnus core calls this marshal, we call this sync.
         //     // // We should rename this to marshal (the actor, that is).
         //     if metric.ends_with("_marshal_processed_height") {
         //         let value = value.parse::<u64>().unwrap();
@@ -48,7 +48,7 @@ fn only_good_links() {
         // std::thread::sleep(Duration::from_secs(1));
 
         // let second = run(setup.clone(), |metric, value| {
-        //     // // TODO(janis): commonware calls this marshal, we call this sync.
+        //     // // TODO(janis): Magnus core calls this marshal, we call this sync.
         //     // // We should rename this to marshal (the actor, that is).
         //     if metric.ends_with("_marshal_processed_height") {
         //         let value = value.parse::<u64>().unwrap();
@@ -88,7 +88,7 @@ fn many_bad_links() {
             .epoch_length(100);
 
         let _first = run(setup.clone(), |metric, value| {
-            // // TODO(janis): commonware calls this marshal, we call this sync.
+            // // TODO(janis): Magnus core calls this marshal, we call this sync.
             // // We should rename this to marshal (the actor, that is).
             if metric.ends_with("_marshal_processed_height") {
                 let value = value.parse::<u64>().unwrap();
@@ -128,7 +128,7 @@ fn reach_height_20_with_a_few_bad_links() {
         .linkage(link);
 
     let _first = run(setup, |metric, value| {
-        // // TODO(janis): commonware calls this marshal, we call this sync.
+        // // TODO(janis): Magnus core calls this marshal, we call this sync.
         // // We should rename this to marshal (the actor, that is).
         if metric.ends_with("_marshal_processed_height") {
             let value = value.parse::<u64>().unwrap();

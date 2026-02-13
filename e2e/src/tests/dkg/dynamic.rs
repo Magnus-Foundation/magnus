@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use alloy::transports::http::reqwest::Url;
-use commonware_macros::test_traced;
-use commonware_runtime::{
+use magnus_macros::test_traced;
+use magnus_runtime::{
     Clock as _, Metrics as _, Runner as _,
     deterministic::{Config, Runner},
 };

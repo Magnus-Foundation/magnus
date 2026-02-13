@@ -43,8 +43,8 @@ mkdir -p magnus/{apps/{node,sidecar,bench,indexer},crates/{core/{primitives,type
 | `crates/alloy/` | `crates/sdk/provider/` |
 | `crates/e2e/` | `e2e/` |
 | `crates/faucet/` | `tools/faucet/` |
-| `crates/commonware-node/` | `crates/consensus/consensus-engine/` |
-| `crates/commonware-node-config/` | `crates/node/consensus-engine-config/` |
+| `crates/magnus-consensus-engine/` | `crates/consensus/consensus-engine/` |
+| `crates/magnus-consensus-engine-config/` | `crates/node/consensus-engine-config/` |
 | `crates/dkg-onchain-artifacts/` | `crates/consensus/dkg/` |
 | `crates/telemetry-util/` | `crates/core/primitives/telemetry/` |
 | `docs/specs/src/*.sol` | `contracts/src/` |

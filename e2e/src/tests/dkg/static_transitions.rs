@@ -2,7 +2,7 @@
 //!
 //! Contains test for DKG transition logic
 //! at genesis.
-use commonware_macros::test_traced;
+use magnus_macros::test_traced;
 
 use crate::{Setup, run};
 

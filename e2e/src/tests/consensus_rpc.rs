@@ -6,8 +6,8 @@
 use std::{net::SocketAddr, time::Duration};
 
 use crate::{CONSENSUS_NODE_PREFIX, Setup, setup_validators};
-use commonware_macros::test_traced;
-use commonware_runtime::{
+use magnus_macros::test_traced;
+use magnus_runtime::{
     Clock, Metrics as _, Runner as _,
     deterministic::{self, Context, Runner},
 };

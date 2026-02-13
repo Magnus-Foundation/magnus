@@ -2,14 +2,14 @@ use std::{collections::BTreeMap, net::SocketAddr, num::NonZeroU32, task::Poll, t
 
 use alloy_consensus::BlockHeader as _;
 use bytes::{Buf, BufMut, Bytes};
-use commonware_codec::{Encode as _, EncodeSize, Read, ReadExt as _, Write};
-use commonware_consensus::{
+use magnus_codec::{Encode as _, EncodeSize, Read, ReadExt as _, Write};
+use magnus_bft::{
     Heightable as _,
     marshal::{self, Update},
     simplex::scheme::bls12381_threshold::Scheme,
     types::{Epoch, EpochPhase, Epocher as _, FixedEpocher, Height},
 };
-use commonware_cryptography::{
+use magnus_cryptography::{
     Signer as _,
     bls12381::{
         dkg::{self, DealerLog, DealerPrivMsg, DealerPubMsg, PlayerAck, SignedDealerLog, observe},
@@ -18,14 +18,14 @@ use commonware_cryptography::{
     ed25519::{PrivateKey, PublicKey},
     transcript::Summary,
 };
-use commonware_math::algebra::Random as _;
-use commonware_p2p::{
+use magnus_math::algebra::Random as _;
+use magnus_p2p::{
     Address, Receiver, Recipients, Sender,
     utils::mux::{self, MuxHandle},
 };
-use commonware_parallel::Sequential;
-use commonware_runtime::{Clock, ContextCell, Handle, Metrics as _, Spawner, spawn_cell};
-use commonware_utils::{Acknowledgement, NZU32, ordered};
+use magnus_parallel::Sequential;
+use magnus_runtime::{Clock, ContextCell, Handle, Metrics as _, Spawner, spawn_cell};
+use magnus_utils::{Acknowledgement, NZU32, ordered};
 
 use eyre::{OptionExt as _, WrapErr as _, bail, ensure, eyre};
 use futures::{
@@ -86,7 +86,7 @@ impl EncodeSize for Message {
 impl Read for Message {
     type Cfg = NonZeroU32;
 
-    fn read_cfg(reader: &mut impl Buf, cfg: &Self::Cfg) -> Result<Self, commonware_codec::Error> {
+    fn read_cfg(reader: &mut impl Buf, cfg: &Self::Cfg) -> Result<Self, magnus_codec::Error> {
         let tag = u8::read(reader)?;
         match tag {
             0 => {
@@ -98,15 +98,15 @@ impl Read for Message {
                 let ack = PlayerAck::read(reader)?;
                 Ok(Self::Ack(ack))
             }
-            other => Err(commonware_codec::Error::InvalidEnum(other)),
+            other => Err(magnus_codec::Error::InvalidEnum(other)),
         }
     }
 }
 
 pub(crate) struct Actor<TContext, TPeerManager>
 where
-    TContext: Clock + commonware_runtime::Metrics + commonware_runtime::Storage,
-    TPeerManager: commonware_p2p::Manager,
+    TContext: Clock + magnus_runtime::Metrics + magnus_runtime::Storage,
+    TPeerManager: magnus_p2p::Manager,
 {
     /// The actor configuration passed in when constructing the actor.
     config: super::Config<TPeerManager>,
@@ -125,8 +125,8 @@ where
 impl<TContext, TPeerManager> Actor<TContext, TPeerManager>
 where
     TContext:
-        Clock + CryptoRngCore + commonware_runtime::Metrics + Spawner + commonware_runtime::Storage,
-    TPeerManager: commonware_p2p::Manager<PublicKey = PublicKey, Peers = ordered::Map<PublicKey, Address>>
+        Clock + CryptoRngCore + magnus_runtime::Metrics + Spawner + magnus_runtime::Storage,
+    TPeerManager: magnus_p2p::Manager<PublicKey = PublicKey, Peers = ordered::Map<PublicKey, Address>>
         + Sync,
 {
     pub(super) async fn new(
@@ -217,7 +217,7 @@ where
         mux: &mut MuxHandle<TSender, TReceiver>,
     ) -> eyre::Result<()>
     where
-        TStorageContext: commonware_runtime::Metrics + commonware_runtime::Storage,
+        TStorageContext: magnus_runtime::Metrics + magnus_runtime::Storage,
         TSender: Sender<PublicKey = PublicKey>,
         TReceiver: Receiver<PublicKey = PublicKey>,
     {
@@ -618,7 +618,7 @@ where
         block: Block,
     ) -> eyre::Result<Option<State>>
     where
-        TStorageContext: commonware_runtime::Metrics + commonware_runtime::Storage,
+        TStorageContext: magnus_runtime::Metrics + magnus_runtime::Storage,
         TSender: Sender<PublicKey = PublicKey>,
     {
         let epoch_info = self
@@ -880,7 +880,7 @@ where
         player_state: &mut Option<state::Player>,
         round_channel: &mut TSender,
     ) where
-        TStorageContext: commonware_runtime::Metrics + commonware_runtime::Storage,
+        TStorageContext: magnus_runtime::Metrics + magnus_runtime::Storage,
         TSender: Sender<PublicKey = PublicKey>,
     {
         let me = self.config.me.public_key();
@@ -953,7 +953,7 @@ where
         mut message: Bytes,
     ) -> eyre::Result<()>
     where
-        TStorageContext: commonware_runtime::Metrics + commonware_runtime::Storage,
+        TStorageContext: magnus_runtime::Metrics + magnus_runtime::Storage,
     {
         let msg = Message::read_cfg(&mut message, &NZU32!(round.players().len() as u32))
             .wrap_err("failed reading p2p message")?;
@@ -1038,7 +1038,7 @@ where
         request: GetDkgOutcome,
     ) -> Option<(Digest, GetDkgOutcome)>
     where
-        TStorageContext: commonware_runtime::Metrics + commonware_runtime::Storage,
+        TStorageContext: magnus_runtime::Metrics + magnus_runtime::Storage,
     {
         let epoch_info = self
             .config
@@ -1321,7 +1321,7 @@ struct Metrics {
 impl Metrics {
     fn init<TContext>(context: &TContext) -> Self
     where
-        TContext: commonware_runtime::Metrics,
+        TContext: magnus_runtime::Metrics,
     {
         let syncing_players = Gauge::default();
         context.register(
@@ -1464,7 +1464,7 @@ impl Metrics {
 }
 
 /// Attempts to read the validator config from the smart contract until it becomes available.
-async fn read_validator_config_with_retry<C: commonware_runtime::Clock>(
+async fn read_validator_config_with_retry<C: magnus_runtime::Clock>(
     context: &C,
     node: &MagnusFullNode,
     epoch: Epoch,

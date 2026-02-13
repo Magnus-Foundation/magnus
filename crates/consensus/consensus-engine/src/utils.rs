@@ -8,7 +8,7 @@ use std::{
 use futures::future::FusedFuture;
 use pin_project::pin_project;
 
-/// A vendored version of [`commonware_utils::futures::OptionFuture`] to implement
+/// A vendored version of [`magnus_utils::futures::OptionFuture`] to implement
 /// [`futures::future::FusedFuture`].
 ///
 /// An optional future that yields [Poll::Pending] when [None]. Useful within `select!` macros,

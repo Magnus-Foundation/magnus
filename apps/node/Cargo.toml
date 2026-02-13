@@ -23,9 +23,9 @@ magnus-chainspec = { workspace = true, features = ["default"] }
 magnus-evm.workspace = true
 magnus-faucet.workspace = true
 
-commonware-cryptography.workspace = true
-commonware-math.workspace = true
-commonware-runtime = { workspace = true, features = ["external"] }
+magnus-cryptography.workspace = true
+magnus-math.workspace = true
+magnus-runtime = { workspace = true, features = ["external"] }
 futures = { workspace = true, features = ["executor"] }
 rand.workspace = true
 reth-cli-commands.workspace = true

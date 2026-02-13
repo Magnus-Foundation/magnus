@@ -4,17 +4,17 @@ use alloy::{
     signers::{local::MnemonicBuilder, utils::secret_key_to_address},
 };
 use alloy_primitives::{B256, Bytes};
-use commonware_codec::Encode as _;
-use commonware_consensus::types::Epoch;
-use commonware_cryptography::{
+use magnus_codec::Encode as _;
+use magnus_bft::types::Epoch;
+use magnus_cryptography::{
     bls12381::{
         dkg::{self, Output},
         primitives::{sharing::Mode, variant::MinSig},
     },
     ed25519::PublicKey,
 };
-use commonware_math::algebra::Random as _;
-use commonware_utils::{TryFromIterator as _, ordered};
+use magnus_math::algebra::Random as _;
+use magnus_utils::{TryFromIterator as _, ordered};
 use eyre::{WrapErr as _, eyre};
 use indicatif::{ParallelProgressIterator, ProgressIterator};
 use itertools::Itertools;
@@ -850,7 +850,7 @@ fn generate_consensus_config(
     seed: Option<u64>,
     no_dkg_in_genesis: bool,
 ) -> Option<ConsensusConfig> {
-    use commonware_cryptography::{Signer as _, ed25519::PrivateKey};
+    use magnus_cryptography::{Signer as _, ed25519::PrivateKey};
 
     match (validators.is_empty(), no_dkg_in_genesis) {
         (_, true) => {

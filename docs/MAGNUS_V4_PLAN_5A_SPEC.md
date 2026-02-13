@@ -610,8 +610,8 @@ cd magnus && cargo test --all
 | `tempo-telemetry-util` | `crates/core/primitives` | (merged) |
 | `tempo-faucet` | `tools/faucet` | `magnus-faucet` |
 | `tempo-e2e` | `e2e/` | `magnus-e2e` |
-| `commonware-node` | `crates/consensus/consensus-engine` | `magnus-consensus-engine` |
-| `commonware-node-config` | `crates/node/consensus-engine-config` | `magnus-consensus-engine-config` |
+| `magnus-consensus-engine` (legacy) | `crates/consensus/consensus-engine` | `magnus-consensus-engine` |
+| `magnus-consensus-engine-config` (legacy) | `crates/node/consensus-engine-config` | `magnus-consensus-engine-config` |
 | `dkg-onchain-artifacts` | `crates/consensus/dkg` | `magnus-dkg` |
 
 ---

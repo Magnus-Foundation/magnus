@@ -5,8 +5,8 @@ use crate::{
         manager::{ValidatorState, actor},
     },
 };
-use commonware_consensus::types::Epoch;
-use commonware_runtime::{Clock, Metrics, Storage};
+use magnus_bft::types::Epoch;
+use magnus_runtime::{Clock, Metrics, Storage};
 
 // Key helpers for typed storage
 fn ceremony_key(epoch: Epoch) -> String {

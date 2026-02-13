@@ -1,10 +1,10 @@
-use commonware_consensus::{
+use magnus_bft::{
     Automaton, CertifiableAutomaton, Relay,
     simplex::types::Context,
     types::{Epoch, Round, View},
 };
 
-use commonware_cryptography::ed25519::PublicKey;
+use magnus_cryptography::ed25519::PublicKey;
 use futures::{
     SinkExt as _,
     channel::{mpsc, oneshot},
@@ -147,10 +147,8 @@ impl Automaton for Mailbox {
 
 // TODO: figure out if this can be useful for magnus. The original PR implementing
 // this trait:
-// https://github.com/commonwarexyz/monorepo/pull/2565
-// Associated issue:
-// https://github.com/commonwarexyz/monorepo/issues/1767
-impl CertifiableAutomaton for Mailbox {
+//  Associated issue:
+//  CertifiableAutomaton for Mailbox {
     // NOTE: uses the default impl for CertifiableAutomaton which always
     // returns true.
 }

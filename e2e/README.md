@@ -8,7 +8,7 @@ reached.
 
 The tests are rust tests (no container images or production binaries).
 The consensus layer is run inside
-[`commonware_runtime::deterministic`](https://docs.rs/commonware-runtime/0.0.62/commonware_runtime/deterministic/index.html),
+`magnus_runtime::deterministic`,
 while the execution layer is run inside a non-deterministic tokio runtime.
 
 

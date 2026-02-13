@@ -1,12 +1,12 @@
 //! The interface between the consensus layer and the execution layer.
 //!
-//! The application actor implements the [`commonware_consensus::Automaton`]
+//! The application actor implements the [`magnus_bft::Automaton`]
 //! trait to propose and verify blocks.
 
 use std::time::Duration;
 
-use commonware_consensus::types::FixedEpocher;
-use commonware_runtime::{Metrics, Pacer, Spawner, Storage};
+use magnus_bft::types::FixedEpocher;
+use magnus_runtime::{Metrics, Pacer, Spawner, Storage};
 
 use eyre::WrapErr as _;
 use rand::{CryptoRng, Rng};
@@ -34,7 +34,7 @@ where
 }
 
 pub(super) struct Config<TContext> {
-    /// The execution context of the commonwarexyz application (tokio runtime, etc).
+    /// The execution context of the Magnus Foundation application (tokio runtime, etc).
     pub(super) context: TContext,
 
     /// Used as PayloadAttributes.suggested_fee_recipient

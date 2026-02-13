@@ -18,8 +18,8 @@ magnus-payload-types = { workspace = true, optional = true }
 magnus-primitives.workspace = true
 magnus-vm.workspace = true
 
-commonware-cryptography.workspace = true
-commonware-codec.workspace = true
+magnus-cryptography.workspace = true
+magnus-codec.workspace = true
 
 reth-consensus.workspace = true
 reth-chainspec.workspace = true

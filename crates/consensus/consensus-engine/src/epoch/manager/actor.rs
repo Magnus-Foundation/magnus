@@ -47,24 +47,24 @@
 use std::{collections::BTreeMap, num::NonZeroUsize};
 
 use alloy_consensus::BlockHeader as _;
-use commonware_codec::ReadExt as _;
-use commonware_consensus::{
+use magnus_codec::ReadExt as _;
+use magnus_bft::{
     Reporters,
     marshal::Update,
     simplex::{self, elector, scheme::bls12381_threshold::Scheme},
     types::{Epoch, Epocher as _, Height},
 };
-use commonware_cryptography::ed25519::PublicKey;
-use commonware_macros::select;
-use commonware_p2p::{
+use magnus_cryptography::ed25519::PublicKey;
+use magnus_macros::select;
+use magnus_p2p::{
     Blocker, Receiver, Sender,
     utils::mux::{Builder as _, MuxHandle, Muxer},
 };
-use commonware_parallel::Sequential;
-use commonware_runtime::{
+use magnus_parallel::Sequential;
+use magnus_runtime::{
     Clock, ContextCell, Handle, Metrics as _, Network, Spawner, Storage, spawn_cell,
 };
-use commonware_utils::{Acknowledgement as _, vec::NonEmptyVec};
+use magnus_utils::{Acknowledgement as _, vec::NonEmptyVec};
 use eyre::{ensure, eyre};
 use futures::{StreamExt as _, channel::mpsc};
 use prometheus_client::metrics::{counter::Counter, gauge::Gauge};
@@ -95,7 +95,7 @@ where
     TBlocker: Blocker<PublicKey = PublicKey>,
     // TODO(janis): are all of these bounds necessary?
     TContext: Spawner
-        + commonware_runtime::Metrics
+        + magnus_runtime::Metrics
         + Rng
         + CryptoRng
         + Clock

@@ -1,4 +1,4 @@
-use commonware_macros::test_traced;
+use magnus_macros::test_traced;
 use reth_ethereum::{rpc::types::engine::ForkchoiceState, storage::BlockReader as _};
 
 use crate::{ExecutionRuntime, execution_runtime::chainspec};
@@ -20,7 +20,7 @@ fn spawning_execution_node_works() {
     //
     // To debug the node instance running in tokio, it is useful to
     // isolate the tracing subscriber and install it globally (the
-    // `test_traced` tests defined by commonware are thread-local
+    // `test_traced` tests defined by Magnus core are thread-local
     //
     // #[test]
     // fn spawning_execution_node_works() {

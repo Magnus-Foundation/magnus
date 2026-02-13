@@ -3,16 +3,16 @@
 use std::num::NonZeroU32;
 
 use bytes::{Buf, BufMut};
-use commonware_codec::{EncodeSize, RangeCfg, Read, ReadExt, Write};
-use commonware_consensus::types::Epoch;
-use commonware_cryptography::{
+use magnus_codec::{EncodeSize, RangeCfg, Read, ReadExt, Write};
+use magnus_bft::types::Epoch;
+use magnus_cryptography::{
     bls12381::{
         dkg::Output,
         primitives::{sharing::Sharing, variant::MinSig},
     },
     ed25519::PublicKey,
 };
-use commonware_utils::{NZU32, ordered};
+use magnus_utils::{NZU32, ordered};
 
 const MAX_VALIDATORS: NonZeroU32 = NZU32!(u16::MAX as u32);
 
@@ -70,7 +70,7 @@ impl Write for OnchainDkgOutcome {
 impl Read for OnchainDkgOutcome {
     type Cfg = ();
 
-    fn read_cfg(buf: &mut impl Buf, _cfg: &Self::Cfg) -> Result<Self, commonware_codec::Error> {
+    fn read_cfg(buf: &mut impl Buf, _cfg: &Self::Cfg) -> Result<Self, magnus_codec::Error> {
         let epoch = ReadExt::read(buf)?;
         let output = Read::read_cfg(buf, &MAX_VALIDATORS)?;
         let next_players = Read::read_cfg(
@@ -100,11 +100,11 @@ impl EncodeSize for OnchainDkgOutcome {
 mod tests {
     use std::iter::repeat_with;
 
-    use commonware_codec::{Encode as _, ReadExt as _};
-    use commonware_consensus::types::Epoch;
-    use commonware_cryptography::{Signer as _, bls12381::dkg, ed25519::PrivateKey};
-    use commonware_math::algebra::Random as _;
-    use commonware_utils::{TryFromIterator as _, ordered};
+    use magnus_codec::{Encode as _, ReadExt as _};
+    use magnus_bft::types::Epoch;
+    use magnus_cryptography::{Signer as _, bls12381::dkg, ed25519::PrivateKey};
+    use magnus_math::algebra::Random as _;
+    use magnus_utils::{TryFromIterator as _, ordered};
     use rand::SeedableRng as _;
 
     use super::OnchainDkgOutcome;

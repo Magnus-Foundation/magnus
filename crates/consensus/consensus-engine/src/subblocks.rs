@@ -2,8 +2,8 @@ use crate::{consensus::Digest, epoch::SchemeProvider};
 use alloy_consensus::{BlockHeader, Transaction, transaction::TxHashRef};
 use alloy_primitives::{Address, B256, BlockHash, Bytes, TxHash};
 use alloy_rlp::Decodable;
-use commonware_codec::DecodeExt;
-use commonware_consensus::{
+use magnus_codec::DecodeExt;
+use magnus_bft::{
     Epochable, Reporter, Viewable,
     simplex::{
         elector::Random,
@@ -12,14 +12,14 @@ use commonware_consensus::{
     },
     types::{Epocher as _, FixedEpocher, Height, Round, View},
 };
-use commonware_cryptography::{
+use magnus_cryptography::{
     Signer, Verifier,
     bls12381::primitives::variant::MinSig,
     certificate::Provider,
     ed25519::{PrivateKey, PublicKey, Signature},
 };
-use commonware_p2p::{Receiver, Recipients, Sender};
-use commonware_runtime::{Handle, Metrics, Pacer, Spawner};
+use magnus_p2p::{Receiver, Recipients, Sender};
+use magnus_runtime::{Handle, Metrics, Pacer, Spawner};
 use eyre::{Context, OptionExt};
 use futures::{FutureExt as _, StreamExt, channel::mpsc};
 use indexmap::IndexMap;
@@ -83,7 +83,7 @@ pub(crate) struct Actor<TContext> {
 
     /// Scheme provider to track participants of each epoch.
     scheme_provider: SchemeProvider,
-    /// Commonware runtime context.
+    /// Magnus runtime context.
     context: TContext,
     /// ed25519 private key used for consensus.
     signer: PrivateKey,
@@ -466,7 +466,7 @@ impl<TContext: Spawner + Metrics + Pacer> Actor<TContext> {
     #[instrument(skip_all)]
     async fn on_built_subblock(
         &mut self,
-        subblock: Result<RecoveredSubBlock, commonware_runtime::Error>,
+        subblock: Result<RecoveredSubBlock, magnus_runtime::Error>,
         next_proposer: PublicKey,
     ) {
         let subblock = match subblock {

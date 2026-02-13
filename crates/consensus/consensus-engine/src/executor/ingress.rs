@@ -1,4 +1,4 @@
-use commonware_consensus::{Reporter, marshal::Update, types::Height};
+use magnus_bft::{Reporter, marshal::Update, types::Height};
 use eyre::WrapErr as _;
 use futures::{
     SinkExt as _,

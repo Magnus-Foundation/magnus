@@ -20,14 +20,14 @@ alloy-evm.workspace = true
 alloy-genesis.workspace = true
 alloy-primitives.workspace = true
 
-commonware-codec.workspace = true
+magnus-codec.workspace = true
 # fuzz features provides access to dkg fixtures
-commonware-consensus = { workspace = true, features = ["fuzz"] }
-commonware-cryptography.workspace = true
-commonware-math.workspace = true
-commonware-p2p.workspace = true
-commonware-runtime = { workspace = true, features = ["external"] }
-commonware-utils.workspace = true
+magnus-bft = { workspace = true, features = ["fuzz"] }
+magnus-cryptography.workspace = true
+magnus-math.workspace = true
+magnus-p2p.workspace = true
+magnus-runtime = { workspace = true, features = ["external"] }
+magnus-utils.workspace = true
 
 itertools.workspace = true
 
@@ -56,8 +56,8 @@ serde_json.workspace = true
 secp256k1.workspace = true
 
 [dev-dependencies]
-commonware-consensus.workspace = true
-commonware-macros.workspace = true
+magnus-bft.workspace = true
+magnus-macros.workspace = true
 jsonrpsee = { workspace = true, features = ["ws-client", "http-client"] }
 magnus-eyre.workspace = true
 tracing-subscriber.workspace = true

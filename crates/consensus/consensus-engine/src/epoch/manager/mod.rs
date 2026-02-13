@@ -4,16 +4,16 @@ pub(super) mod ingress;
 use std::time::Duration;
 
 pub(crate) use actor::Actor;
-use commonware_cryptography::{bls12381::primitives::variant::MinSig, ed25519::PublicKey};
+use magnus_cryptography::{bls12381::primitives::variant::MinSig, ed25519::PublicKey};
 pub(crate) use ingress::Mailbox;
 
-use commonware_consensus::{
+use magnus_bft::{
     marshal,
     simplex::scheme::bls12381_threshold::Scheme,
     types::{FixedEpocher, ViewDelta},
 };
-use commonware_p2p::Blocker;
-use commonware_runtime::{Clock, Metrics, Network, Spawner, Storage, buffer::PoolRef};
+use magnus_p2p::Blocker;
+use magnus_runtime::{Clock, Metrics, Network, Spawner, Storage, buffer::PoolRef};
 use rand::{CryptoRng, Rng};
 
 use crate::{consensus::block::Block, epoch::scheme_provider::SchemeProvider, feed, subblocks};

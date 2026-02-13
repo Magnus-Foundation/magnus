@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, error::ErrorKind};
-use commonware_cryptography::{Signer as _, ed25519::PrivateKey};
-use commonware_math::algebra::Random as _;
+use magnus_cryptography::{Signer as _, ed25519::PrivateKey};
+use magnus_math::algebra::Random as _;
 use eyre::Context;
 use magnus_consensus_engine_config::SigningKey;
 

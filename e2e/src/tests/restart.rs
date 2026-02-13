@@ -5,13 +5,13 @@
 
 use std::time::Duration;
 
-use commonware_consensus::types::{Epocher, FixedEpocher, Height};
-use commonware_macros::test_traced;
-use commonware_runtime::{
+use magnus_bft::types::{Epocher, FixedEpocher, Height};
+use magnus_macros::test_traced;
+use magnus_runtime::{
     Clock, Metrics as _, Runner as _,
     deterministic::{self, Context, Runner},
 };
-use commonware_utils::NZU64;
+use magnus_utils::NZU64;
 use futures::future::join_all;
 use rand::Rng;
 use tracing::debug;

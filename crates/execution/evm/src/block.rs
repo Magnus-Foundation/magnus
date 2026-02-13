@@ -13,8 +13,8 @@ use alloy_evm::{
 };
 use alloy_primitives::{Address, B256, U256};
 use alloy_rlp::Decodable;
-use commonware_codec::DecodeExt;
-use commonware_cryptography::{
+use magnus_codec::DecodeExt;
+use magnus_cryptography::{
     Verifier,
     ed25519::{PublicKey, Signature},
 };
@@ -485,7 +485,7 @@ mod tests {
     use alloy_evm::{block::BlockExecutor, eth::receipt_builder::ReceiptBuilder};
     use alloy_primitives::{Bytes, Log, Signature, TxKind, bytes::BytesMut};
     use alloy_rlp::Encodable;
-    use commonware_cryptography::{Signer, ed25519::PrivateKey};
+    use magnus_cryptography::{Signer, ed25519::PrivateKey};
     use reth_chainspec::EthChainSpec;
     use reth_revm::State;
     use revm::{context::result::ExecutionResult, database::EmptyDB};

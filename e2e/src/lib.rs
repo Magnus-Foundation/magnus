@@ -1,4 +1,4 @@
-//! e2e tests using the [`commonware_runtime::deterministic`].
+//! e2e tests using the [`magnus_runtime::deterministic`].
 //!
 //! This crate mimics how a full tempo node is run in production but runs the
 //! consensus engine in a deterministic runtime while maintaining a tokio
@@ -12,21 +12,21 @@
 
 use std::{iter::repeat_with, net::SocketAddr, time::Duration};
 
-use commonware_consensus::types::Epoch;
-use commonware_cryptography::{
+use magnus_bft::types::Epoch;
+use magnus_cryptography::{
     Signer as _,
     bls12381::{dkg, primitives::sharing::Mode},
     ed25519::{PrivateKey, PublicKey},
 };
-use commonware_math::algebra::Random as _;
-use commonware_p2p::simulated::{self, Link, Network, Oracle};
+use magnus_math::algebra::Random as _;
+use magnus_p2p::simulated::{self, Link, Network, Oracle};
 
-use commonware_codec::Encode;
-use commonware_runtime::{
+use magnus_codec::Encode;
+use magnus_runtime::{
     Clock, Metrics as _, Runner as _,
     deterministic::{self, Context, Runner},
 };
-use commonware_utils::{TryFromIterator as _, ordered};
+use magnus_utils::{TryFromIterator as _, ordered};
 use futures::future::join_all;
 use itertools::Itertools as _;
 use reth_node_metrics::recorder::PrometheusRecorder;
@@ -326,7 +326,7 @@ pub fn run(setup: Setup, mut stop_condition: impl FnMut(&str, &str) -> bool) -> 
 ///
 /// The `restrict_to` function can be used to restrict the linking to certain connections,
 /// otherwise all validators will be linked to all other validators.
-pub async fn link_validators<TClock: commonware_runtime::Clock>(
+pub async fn link_validators<TClock: magnus_runtime::Clock>(
     oracle: &mut Oracle<PublicKey, TClock>,
     validators: &[TestingNode<TClock>],
     link: Link,
@@ -356,12 +356,12 @@ pub async fn link_validators<TClock: commonware_runtime::Clock>(
                 .await
             {
                 Ok(()) => (),
-                // TODO: it should be possible to remove the below if Commonware simulated network exposes list of registered peers.
+                // TODO: it should be possible to remove the below if Magnus simulated network exposes list of registered peers.
                 //
                 // This is fine because some of the peers might be registered later
-                Err(commonware_p2p::simulated::Error::PeerMissing) => (),
+                Err(magnus_p2p::simulated::Error::PeerMissing) => (),
                 // This is fine because we might call this multiple times as peers are joining the network.
-                Err(commonware_p2p::simulated::Error::LinkExists) => (),
+                Err(magnus_p2p::simulated::Error::LinkExists) => (),
                 res @ Err(_) => res.unwrap(),
             }
         }

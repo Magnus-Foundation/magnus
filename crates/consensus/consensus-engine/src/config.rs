@@ -13,15 +13,15 @@ use std::num::NonZeroU32;
 
 use governor::Quota;
 
-// Hardcoded values to configure commonware's alto toy chain. These could be made into
+// Hardcoded values to configure Magnus core library's alto toy chain. These could be made into
 // configuration variables at some point.
-pub const PENDING_CHANNEL_IDENT: commonware_p2p::Channel = 0;
-pub const RECOVERED_CHANNEL_IDENT: commonware_p2p::Channel = 1;
-pub const RESOLVER_CHANNEL_IDENT: commonware_p2p::Channel = 2;
-pub const BROADCASTER_CHANNEL_IDENT: commonware_p2p::Channel = 3;
-pub const MARSHAL_CHANNEL_IDENT: commonware_p2p::Channel = 4;
-pub const DKG_CHANNEL_IDENT: commonware_p2p::Channel = 5;
-pub const SUBBLOCKS_CHANNEL_IDENT: commonware_p2p::Channel = 6;
+pub const PENDING_CHANNEL_IDENT: magnus_p2p::Channel = 0;
+pub const RECOVERED_CHANNEL_IDENT: magnus_p2p::Channel = 1;
+pub const RESOLVER_CHANNEL_IDENT: magnus_p2p::Channel = 2;
+pub const BROADCASTER_CHANNEL_IDENT: magnus_p2p::Channel = 3;
+pub const MARSHAL_CHANNEL_IDENT: magnus_p2p::Channel = 4;
+pub const DKG_CHANNEL_IDENT: magnus_p2p::Channel = 5;
+pub const SUBBLOCKS_CHANNEL_IDENT: magnus_p2p::Channel = 6;
 
 pub(crate) const NUMBER_CONCURRENT_FETCHES: usize = 4;
 

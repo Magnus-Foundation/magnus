@@ -7,9 +7,9 @@
 use std::{num::NonZeroU64, time::Duration};
 
 use alloy::transports::http::reqwest::Url;
-use commonware_consensus::types::{Epocher, FixedEpocher, Height};
-use commonware_macros::test_traced;
-use commonware_runtime::{
+use magnus_bft::types::{Epocher, FixedEpocher, Height};
+use magnus_macros::test_traced;
+use magnus_runtime::{
     Clock as _, Metrics as _, Runner as _,
     deterministic::{self, Context, Runner},
 };

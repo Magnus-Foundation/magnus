@@ -1,9 +1,9 @@
-use commonware_cryptography::{
+use magnus_cryptography::{
     Signer as _,
     bls12381::{dkg, primitives::variant::MinSig},
     ed25519::PrivateKey,
 };
-use commonware_utils::NZU32;
+use magnus_utils::NZU32;
 use rand::SeedableRng as _;
 
 use crate::{SigningKey, SigningShare};

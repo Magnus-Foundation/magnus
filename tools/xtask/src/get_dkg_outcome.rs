@@ -4,10 +4,10 @@ use alloy::{
     primitives::{B256, Bytes},
     providers::{Provider, ProviderBuilder},
 };
-use commonware_codec::{Encode as _, ReadExt as _};
-use commonware_consensus::types::{Epoch, Epocher as _, FixedEpocher};
-use commonware_cryptography::ed25519::PublicKey;
-use commonware_utils::NZU64;
+use magnus_codec::{Encode as _, ReadExt as _};
+use magnus_bft::types::{Epoch, Epocher as _, FixedEpocher};
+use magnus_cryptography::ed25519::PublicKey;
+use magnus_utils::NZU64;
 use eyre::{Context as _, eyre};
 use serde::Serialize;
 use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;

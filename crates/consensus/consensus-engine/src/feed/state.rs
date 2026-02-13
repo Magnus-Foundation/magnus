@@ -2,8 +2,8 @@
 
 use crate::{alias::marshal, consensus::Digest};
 use alloy_primitives::hex;
-use commonware_codec::Encode;
-use commonware_consensus::{Heightable as _, types::Height};
+use magnus_codec::Encode;
+use magnus_bft::{Heightable as _, types::Height};
 use parking_lot::RwLock;
 use std::sync::{Arc, OnceLock};
 use magnus_node::rpc::consensus::{CertifiedBlock, ConsensusFeed, ConsensusState, Event, Query};

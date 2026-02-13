@@ -1,6 +1,6 @@
 //! The executor is sending fork-choice-updates to the execution layer.
-use commonware_consensus::types::Height;
-use commonware_runtime::{Metrics, Pacer, Spawner};
+use magnus_bft::types::Height;
+use magnus_runtime::{Metrics, Pacer, Spawner};
 
 mod actor;
 mod ingress;

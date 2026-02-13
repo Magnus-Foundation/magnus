@@ -27,7 +27,7 @@ Public blockchains that support financial activity need to balance two contradic
 
 On the one hand, the blockchain needs fast finality: a payment made on the blockchain should be quickly confirmed as final, with no risk of being "re-orged" out as can happen on many blockchains today.
 
-On the other hand, the blockchain also needs to degrade gracefully under suboptimal network conditions. Tempo uses Simplex Consensus (via [Commonware](https://www.commonware.xyz/)), which provides fast, sub-second finality in normal conditions while maintaining graceful degradation under adverse networks.
+On the other hand, the blockchain also needs to degrade gracefully under suboptimal network conditions. Magnus uses Simplex Consensus, which provides fast, sub-second finality in normal conditions while maintaining graceful degradation under adverse networks.
 
 Tempo uses Byzantine-fault tolerant consensus with four validators on testnet. Blocks are finalized every ~0.5 seconds, and once a block is marked as final, transactions in that block are guaranteed to be included in the chain. This cutting-edge consensus algorithm optimally balances speed with resilience.
 

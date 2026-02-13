@@ -1,13 +1,13 @@
-use commonware_consensus::{
+use magnus_bft::{
     Reporter,
     marshal::Update,
     types::{Epoch, Height},
 };
-use commonware_cryptography::{
+use magnus_cryptography::{
     bls12381::{dkg::SignedDealerLog, primitives::variant::MinSig},
     ed25519::{PrivateKey, PublicKey},
 };
-use commonware_utils::acknowledgement::Exact;
+use magnus_utils::acknowledgement::Exact;
 use eyre::WrapErr as _;
 use futures::channel::{mpsc, oneshot};
 use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;

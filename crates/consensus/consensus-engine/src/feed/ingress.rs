@@ -1,10 +1,10 @@
 //! Mailbox for sending consensus activity to the feed actor.
 
-use commonware_consensus::{
+use magnus_bft::{
     Reporter,
     simplex::{scheme::bls12381_threshold::Scheme, types::Activity},
 };
-use commonware_cryptography::{bls12381::primitives::variant::MinSig, ed25519::PublicKey};
+use magnus_cryptography::{bls12381::primitives::variant::MinSig, ed25519::PublicKey};
 use futures::channel::mpsc;
 use tracing::error;
 

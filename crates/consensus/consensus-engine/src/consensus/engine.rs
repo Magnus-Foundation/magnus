@@ -1,31 +1,31 @@
-//! [`Engine`] drives the application and is modelled after commonware's [`alto`] toy blockchain.
+//! [`Engine`] drives the application and is modelled after Magnus core library's [`alto`] toy blockchain.
 //!
-//! [`alto`]: https://github.com/commonwarexyx/alto
+//! [`alto`]: https://github.com/Magnus-Foundation/alto
 
 use std::{
     num::{NonZeroU16, NonZeroU64, NonZeroUsize},
     time::{Duration, Instant},
 };
 
-use commonware_broadcast::buffered;
-use commonware_consensus::{
+use magnus_broadcast::buffered;
+use magnus_bft::{
     Reporters, marshal,
     simplex::scheme::bls12381_threshold::Scheme,
     types::{FixedEpocher, ViewDelta},
 };
-use commonware_cryptography::{
+use magnus_cryptography::{
     Signer as _,
     bls12381::primitives::{group::Share, variant::MinSig},
     certificate::Scheme as _,
     ed25519::{PrivateKey, PublicKey},
 };
-use commonware_p2p::{Address, Blocker, Receiver, Sender};
-use commonware_runtime::{
+use magnus_p2p::{Address, Blocker, Receiver, Sender};
+use magnus_runtime::{
     Clock, ContextCell, Handle, Metrics, Network, Pacer, Spawner, Storage, buffer::PoolRef,
     spawn_cell,
 };
-use commonware_storage::archive::immutable;
-use commonware_utils::{NZU64, ordered::Map};
+use magnus_storage::archive::immutable;
+use magnus_utils::{NZU64, ordered::Map};
 use eyre::{OptionExt as _, WrapErr as _};
 use futures::future::try_join_all;
 use rand::{CryptoRng, Rng};
@@ -42,7 +42,7 @@ use crate::{
 
 use super::block::Block;
 
-// A bunch of constants to configure commonwarexyz singletons and copied over form alto.
+// A bunch of constants to configure Magnus Foundation singletons and copied over form alto.
 
 /// To better support peers near tip during network instability, we multiply
 /// the consensus activity timeout by this factor.
@@ -109,7 +109,7 @@ where
         + Metrics
         + Network,
     TPeerManager:
-        commonware_p2p::Manager<PublicKey = PublicKey, Peers = Map<PublicKey, Address>> + Sync,
+        magnus_p2p::Manager<PublicKey = PublicKey, Peers = Map<PublicKey, Address>> + Sync,
 {
     pub fn with_execution_node(mut self, execution_node: MagnusFullNode) -> Self {
         self.execution_node = Some(execution_node);
@@ -147,10 +147,9 @@ where
         // Create the buffer pool
         let buffer_pool = PoolRef::new(BUFFER_POOL_PAGE_SIZE, BUFFER_POOL_CAPACITY);
 
-        // XXX: All hard-coded values here are the same as prior to commonware
+        // XXX: All hard-coded values here are the same as prior to Magnus core
         // making the resolver configurable in
-        // https://github.com/commonwarexyz/monorepo/commit/92870f39b4a9e64a28434b3729ebff5aba67fb4e
-        let resolver_config = commonware_consensus::marshal::resolver::p2p::Config {
+        //         let resolver_config = magnus_bft::marshal::resolver::p2p::Config {
             public_key: self.signer.public_key(),
             manager: self.peer_manager.clone(),
             mailbox_size: self.mailbox_size,
@@ -409,7 +408,7 @@ where
         + Pacer
         + Spawner
         + Storage,
-    TPeerManager: commonware_p2p::Manager<PublicKey = PublicKey, Peers = Map<PublicKey, Address>>,
+    TPeerManager: magnus_p2p::Manager<PublicKey = PublicKey, Peers = Map<PublicKey, Address>>,
 {
     context: ContextCell<TContext>,
 
@@ -422,7 +421,7 @@ where
     dkg_manager_mailbox: dkg::manager::Mailbox,
 
     /// Acts as the glue between the consensus and execution layers implementing
-    /// the `[commonware_consensus::Automaton]` trait.
+    /// the `[magnus_bft::Automaton]` trait.
     application: application::Actor<TContext>,
 
     /// Responsible for keeping the consensus layer state and execution layer
@@ -459,11 +458,11 @@ where
         + Spawner
         + Storage,
     TPeerManager:
-        commonware_p2p::Manager<PublicKey = PublicKey, Peers = Map<PublicKey, Address>> + Sync,
+        magnus_p2p::Manager<PublicKey = PublicKey, Peers = Map<PublicKey, Address>> + Sync,
 {
     #[expect(
         clippy::too_many_arguments,
-        reason = "following commonware's style of writing"
+        reason = "following Magnus core library's style of writing"
     )]
     pub fn start(
         mut self,
@@ -513,7 +512,7 @@ where
 
     #[expect(
         clippy::too_many_arguments,
-        reason = "following commonware's style of writing"
+        reason = "following Magnus core library's style of writing"
     )]
     async fn run(
         self,

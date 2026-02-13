@@ -2,7 +2,7 @@ import { Callout } from 'vocs/components'
 
 # Running a validator node
 
-Validator nodes are responsible for securing the network by validating blocks and the transactions within them. Tempo uses [Threshold Simplex](https://docs.rs/commonware-consensus/0.0.61/commonware_consensus/threshold_simplex/index.html) to achieve consensus between validators.
+Validator nodes are responsible for securing the network by validating blocks and the transactions within them. Magnus uses Threshold Simplex BFT to achieve consensus between validators.
 
 ## Cryptographic key hierarchy
 
@@ -76,7 +76,7 @@ You will be able to resync from genesis to the latest block height. We're curren
 Once your node is proposing blocks, it will start emitting logs like these:
 
 ```
-INFO handle_propose{epoch=18 view=387213 parent.view=387212 parent.digest=0x43885416b4a7ae7550c615ad4dc702045cd26540b78fa2bd75abdcbfbef02d9d}: tempo_commonware_node::consensus::application::actor: constructed proposal proposal.digest=0x6baa8fa813beea491cf598024d8b31cb2927e7ba1b92a29899a795dbafd682c6 proposal.height=5733680
+INFO handle_propose{epoch=18 view=387213 parent.view=387212 parent.digest=0x43885416b4a7ae7550c615ad4dc702045cd26540b78fa2bd75abdcbfbef02d9d}: magnus_consensus_engine::consensus::application::actor: constructed proposal proposal.digest=0x6baa8fa813beea491cf598024d8b31cb2927e7ba1b92a29899a795dbafd682c6 proposal.height=5733680
 ```
 
 If you do not see logs like these, please check that your node is synced up to the [latest block height](https://explorer.tempo.xyz/). Additionally, please check that your outgoing IP address matches the one whitelisted on the validator smart contract:

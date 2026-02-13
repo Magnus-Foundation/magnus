@@ -7,8 +7,8 @@ use alloy::{
 };
 use alloy_network::{TxSignerSync, eip2718::Encodable2718};
 use alloy_primitives::{Address, TxHash, U256, b256};
-use commonware_macros::test_traced;
-use commonware_runtime::{
+use magnus_macros::test_traced;
+use magnus_runtime::{
     Runner as _,
     deterministic::{self, Runner},
 };
@@ -51,7 +51,7 @@ fn subblocks_are_included() {
         let mut fee_recipients = Vec::new();
 
         for node in &mut nodes {
-            // Due to how Commonware deterministic runtime behaves in CI, we need to bump this timeout
+            // Due to how Magnus deterministic runtime behaves in CI, we need to bump this timeout
             // to ensure that payload builder has enough time to accumulate subblocks.
             node.consensus_config_mut().new_payload_wait_time = Duration::from_millis(500);
 
@@ -158,7 +158,7 @@ fn subblocks_are_included_with_failing_txs() {
         let mut fee_recipients = Vec::new();
 
         for node in &mut nodes {
-            // Due to how Commonware deterministic runtime behaves in CI, we need to bump this timeout
+            // Due to how Magnus deterministic runtime behaves in CI, we need to bump this timeout
             // to ensure that payload builder has enough time to accumulate subblocks.
             node.consensus_config_mut().new_payload_wait_time = Duration::from_millis(500);
 
@@ -386,7 +386,7 @@ fn oversized_subblock_txs_are_removed() {
     });
 }
 
-async fn submit_subblock_tx<TClock: commonware_runtime::Clock>(
+async fn submit_subblock_tx<TClock: magnus_runtime::Clock>(
     node: &TestingNode<TClock>,
 ) -> TxHash {
     // First signer of the test mnemonic
@@ -398,7 +398,7 @@ async fn submit_subblock_tx<TClock: commonware_runtime::Clock>(
     submit_subblock_tx_from(node, &wallet, 100_000).await
 }
 
-async fn submit_subblock_tx_from<TClock: commonware_runtime::Clock>(
+async fn submit_subblock_tx_from<TClock: magnus_runtime::Clock>(
     node: &TestingNode<TClock>,
     wallet: &PrivateKeySigner,
     gas_limit: u64,

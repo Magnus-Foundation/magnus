@@ -1,7 +1,7 @@
 //! Command line arguments for configuring the consensus layer of a magnus node.
 use std::{net::SocketAddr, path::PathBuf, sync::OnceLock};
 
-use commonware_cryptography::ed25519::PublicKey;
+use magnus_cryptography::ed25519::PublicKey;
 use eyre::Context;
 use magnus_consensus_engine_config::SigningKey;
 

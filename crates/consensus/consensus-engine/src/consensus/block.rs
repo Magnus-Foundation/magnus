@@ -6,9 +6,9 @@
 use alloy_consensus::BlockHeader as _;
 use alloy_primitives::B256;
 use bytes::{Buf, BufMut};
-use commonware_codec::{EncodeSize, Read, Write};
-use commonware_consensus::{Heightable, types::Height};
-use commonware_cryptography::{Committable, Digestible};
+use magnus_codec::{EncodeSize, Read, Write};
+use magnus_bft::{Heightable, types::Height};
+use magnus_cryptography::{Committable, Digestible};
 use reth_node_core::primitives::SealedBlock;
 
 use crate::consensus::Digest;
@@ -16,7 +16,7 @@ use crate::consensus::Digest;
 /// A Magnus block.
 ///
 // XXX: This is a refinement type around a reth [`SealedBlock`]
-// to hold the trait implementations required by commonwarexyz. Uses
+// to hold the trait implementations required by Magnus Foundation. Uses
 // Sealed because of the frequent accesses to the hash.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[repr(transparent)]
@@ -36,7 +36,7 @@ impl Block {
         self.0.hash()
     }
 
-    /// Returns the hash of the wrapped block as a commonware [`Digest`].
+    /// Returns the hash of the wrapped block as a Magnus core [`Digest`].
     pub(crate) fn digest(&self) -> Digest {
         Digest(self.hash())
     }
@@ -69,7 +69,7 @@ impl Read for Block {
     // TODO: Figure out what this is for/when to use it. This is () for both alto and summit.
     type Cfg = ();
 
-    fn read_cfg(buf: &mut impl Buf, _cfg: &Self::Cfg) -> Result<Self, commonware_codec::Error> {
+    fn read_cfg(buf: &mut impl Buf, _cfg: &Self::Cfg) -> Result<Self, magnus_codec::Error> {
         // XXX: this does not advance `buf`. Also, it assumes that the rlp
         // header is fully contained in the first chunk of `buf`. As per
         // `bytes::Buf::chunk`'s documentation, the first slice should never be
@@ -77,13 +77,13 @@ impl Read for Block {
         // cases where the very tiny rlp header is spread over more than one
         // chunk.
         let header = alloy_rlp::Header::decode(&mut buf.chunk()).map_err(|rlp_err| {
-            commonware_codec::Error::Wrapped("reading RLP header", rlp_err.into())
+            magnus_codec::Error::Wrapped("reading RLP header", rlp_err.into())
         })?;
 
         if header.length_with_payload() > buf.remaining() {
-            // TODO: it would be nice to report more information here, but commonware_codex::Error does not
+            // TODO: it would be nice to report more information here, but magnus_codex::Error does not
             // have the fidelity for it (outside abusing Error::Wrapped).
-            return Err(commonware_codec::Error::EndOfBuffer);
+            return Err(magnus_codec::Error::EndOfBuffer);
         }
         let bytes = buf.copy_to_bytes(header.length_with_payload());
 
@@ -91,7 +91,7 @@ impl Read for Block {
         // https://github.com/paradigmxyz/reth/pull/18003
         // For now relies on `Decodable for alloy_consensus::Block`.
         let inner = alloy_rlp::Decodable::decode(&mut bytes.as_ref()).map_err(|rlp_err| {
-            commonware_codec::Error::Wrapped("reading RLP encoded block", rlp_err.into())
+            magnus_codec::Error::Wrapped("reading RLP encoded block", rlp_err.into())
         })?;
 
         Ok(Self::from_execution_block(inner))
@@ -127,7 +127,7 @@ impl Heightable for Block {
     }
 }
 
-impl commonware_consensus::Block for Block {
+impl magnus_bft::Block for Block {
     fn parent(&self) -> Digest {
         self.parent_digest()
     }
@@ -198,15 +198,15 @@ impl commonware_consensus::Block for Block {
 //     // XXX: Same Cfg as for Block.
 //     type Cfg = ();
 
-//     fn read_cfg(buf: &mut impl Buf, _cfg: &Self::Cfg) -> Result<Self, commonware_codec::Error> {
+//     fn read_cfg(buf: &mut impl Buf, _cfg: &Self::Cfg) -> Result<Self, magnus_codec::Error> {
 //         // FIXME: wrapping this to give it some context on what exactly failed, but it doesn't feel great.
-//         // Problem is the catch-all `commonware_codex:Error`.
+//         // Problem is the catch-all `magnus_codex:Error`.
 //         let proof = Notarization::read(buf)
-//             .map_err(|err| commonware_codec::Error::Wrapped("failed to read proof", err.into()))?;
+//             .map_err(|err| magnus_codec::Error::Wrapped("failed to read proof", err.into()))?;
 //         let block = Block::read(buf)
-//             .map_err(|err| commonware_codec::Error::Wrapped("failed to read block", err.into()))?;
+//             .map_err(|err| magnus_codec::Error::Wrapped("failed to read block", err.into()))?;
 //         Self::try_new(proof, block).map_err(|err| {
-//             commonware_codec::Error::Wrapped("failed constructing notarized block", err.into())
+//             magnus_codec::Error::Wrapped("failed constructing notarized block", err.into())
 //         })
 //     }
 // }
@@ -278,15 +278,15 @@ impl commonware_consensus::Block for Block {
 //     // XXX: Same Cfg as for Block.
 //     type Cfg = ();
 
-//     fn read_cfg(buf: &mut impl Buf, _cfg: &Self::Cfg) -> Result<Self, commonware_codec::Error> {
+//     fn read_cfg(buf: &mut impl Buf, _cfg: &Self::Cfg) -> Result<Self, magnus_codec::Error> {
 //         // FIXME: wrapping this to give it some context on what exactly failed, but it doesn't feel great.
-//         // Problem is the catch-all `commonware_codex:Error`.
+//         // Problem is the catch-all `magnus_codex:Error`.
 //         let proof = Finalization::read(buf)
-//             .map_err(|err| commonware_codec::Error::Wrapped("failed to read proof", err.into()))?;
+//             .map_err(|err| magnus_codec::Error::Wrapped("failed to read proof", err.into()))?;
 //         let block = Block::read(buf)
-//             .map_err(|err| commonware_codec::Error::Wrapped("failed to read block", err.into()))?;
+//             .map_err(|err| magnus_codec::Error::Wrapped("failed to read block", err.into()))?;
 //         Self::try_new(proof, block).map_err(|err| {
-//             commonware_codec::Error::Wrapped("failed constructing finalized block", err.into())
+//             magnus_codec::Error::Wrapped("failed constructing finalized block", err.into())
 //         })
 //     }
 // }
@@ -313,18 +313,18 @@ mod tests {
     //
     // 1. block write -> stable hex or rlp representation
     // 2. block digest -> stable hex
-    // 3. notarized write -> stable hex (necessary? good to guard against commonware xyz changes?)
-    // 4. finalized write -> stable hex (necessary? good to guard against commonware xyz changes?)
+    // 3. notarized write -> stable hex (necessary? good to guard against Magnus changes?)
+    // 4. finalized write -> stable hex (necessary? good to guard against Magnus changes?)
 
     // TODO: Bring back this unit test; preferably with some flavour of magnus reth block.
     //
-    // use commonware_codec::{Read as _, Write as _};
+    // use magnus_codec::{Read as _, Write as _};
     // use reth_chainspec::ChainSpec;
 
     // use crate::consensus::block::Block;
 
     // #[test]
-    // fn commonware_write_read_roundtrip() {
+    // fn magnus_write_read_roundtrip() {
     //     // TODO: should use a non-default chainspec to make the test more interesting.
     //     let chainspec = ChainSpec::default();
     //     let expected = Block::genesis_from_chainspec(&chainspec);

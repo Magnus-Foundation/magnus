@@ -11,12 +11,12 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-commonware-codec.workspace = true
-commonware-cryptography.workspace = true
+magnus-codec.workspace = true
+magnus-cryptography.workspace = true
 const-hex.workspace = true
 derive_more = { workspace = true, features = ["debug"] }
 thiserror.workspace = true
 
 [dev-dependencies]
-commonware-utils.workspace = true
+magnus-utils.workspace = true
 rand.workspace = true

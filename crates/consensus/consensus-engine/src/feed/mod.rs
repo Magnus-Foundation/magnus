@@ -11,7 +11,7 @@ mod actor;
 mod ingress;
 mod state;
 
-use commonware_runtime::Spawner;
+use magnus_runtime::Spawner;
 use futures::channel::mpsc;
 
 use crate::alias::marshal;

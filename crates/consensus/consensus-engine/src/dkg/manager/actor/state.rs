@@ -5,12 +5,12 @@ use std::{
 };
 
 use alloy_consensus::BlockHeader as _;
-use commonware_codec::{EncodeSize, RangeCfg, Read, ReadExt, Write};
-use commonware_consensus::{
+use magnus_codec::{EncodeSize, RangeCfg, Read, ReadExt, Write};
+use magnus_bft::{
     Block as _, Heightable as _,
     types::{Epoch, Height},
 };
-use commonware_cryptography::{
+use magnus_cryptography::{
     Signer as _,
     bls12381::{
         dkg::{self, DealerPrivMsg, DealerPubMsg, Info, Output, PlayerAck, SignedDealerLog},
@@ -19,11 +19,11 @@ use commonware_cryptography::{
     ed25519::{PrivateKey, PublicKey},
     transcript::{Summary, Transcript},
 };
-use commonware_p2p::Address;
-use commonware_parallel::Strategy;
-use commonware_runtime::{Metrics, buffer::PoolRef};
-use commonware_storage::journal::{contiguous, segmented};
-use commonware_utils::{NZU16, NZU32, NZU64, NZUsize, ordered};
+use magnus_p2p::Address;
+use magnus_parallel::Strategy;
+use magnus_runtime::{Metrics, buffer::PoolRef};
+use magnus_storage::journal::{contiguous, segmented};
+use magnus_utils::{NZU16, NZU32, NZU64, NZUsize, ordered};
 use eyre::{OptionExt, WrapErr as _, bail, eyre};
 use futures::{FutureExt as _, StreamExt as _, future::BoxFuture};
 use tracing::{debug, info, instrument, warn};
@@ -48,7 +48,7 @@ pub(super) fn builder() -> Builder {
 
 pub(super) struct Storage<TContext>
 where
-    TContext: commonware_runtime::Storage + Metrics,
+    TContext: magnus_runtime::Storage + Metrics,
 {
     states: contiguous::variable::Journal<TContext, State>,
     events: segmented::variable::Journal<TContext, Event>,
@@ -59,7 +59,7 @@ where
 
 impl<TContext> Storage<TContext>
 where
-    TContext: commonware_runtime::Storage + Metrics,
+    TContext: magnus_runtime::Storage + Metrics,
 {
     /// Returns all player acknowledgments received during the given epoch.
     fn acks_for_epoch(
@@ -512,7 +512,7 @@ impl Builder {
     #[instrument(skip_all, err)]
     pub(super) async fn init<TContext>(self, context: TContext) -> eyre::Result<Storage<TContext>>
     where
-        TContext: commonware_runtime::Storage + Metrics,
+        TContext: magnus_runtime::Storage + Metrics,
     {
         let Self {
             initial_state,
@@ -672,7 +672,7 @@ impl Read for State {
     fn read_cfg(
         buf: &mut impl bytes::Buf,
         cfg: &Self::Cfg,
-    ) -> Result<Self, commonware_codec::Error> {
+    ) -> Result<Self, magnus_codec::Error> {
         Ok(Self {
             epoch: ReadExt::read(buf)?,
             seed: ReadExt::read(buf)?,
@@ -839,7 +839,7 @@ impl Read for Event {
     fn read_cfg(
         buf: &mut impl bytes::Buf,
         cfg: &Self::Cfg,
-    ) -> Result<Self, commonware_codec::Error> {
+    ) -> Result<Self, magnus_codec::Error> {
         let tag = u8::read(buf)?;
         match tag {
             0 => Ok(Self::Dealing {
@@ -860,7 +860,7 @@ impl Read for Event {
                 parent: ReadExt::read(buf)?,
                 height: ReadExt::read(buf)?,
             }),
-            other => Err(commonware_codec::Error::InvalidEnum(other)),
+            other => Err(magnus_codec::Error::InvalidEnum(other)),
         }
     }
 }
@@ -911,7 +911,7 @@ impl Dealer {
         ack: PlayerAck<PublicKey>,
     ) -> eyre::Result<()>
     where
-        TContext: commonware_runtime::Storage + Metrics,
+        TContext: magnus_runtime::Storage + Metrics,
     {
         if !self.unsent.contains_key(&player) {
             bail!("already received an ack from `{player}`");
@@ -1053,7 +1053,7 @@ impl Player {
         priv_msg: DealerPrivMsg,
     ) -> eyre::Result<PlayerAck<PublicKey>>
     where
-        TContext: commonware_runtime::Storage + Metrics,
+        TContext: magnus_runtime::Storage + Metrics,
     {
         // If we've already generated an ack, return the cached version
         if let Some(ack) = self.acks.get(&dealer) {

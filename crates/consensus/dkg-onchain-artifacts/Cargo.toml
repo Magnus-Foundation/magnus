@@ -8,14 +8,14 @@ publish.workspace = true
 
 [dependencies]
 bytes.workspace = true
-commonware-codec.workspace = true
-commonware-consensus.workspace = true
-commonware-cryptography.workspace = true
-commonware-utils.workspace = true
+magnus-codec.workspace = true
+magnus-bft.workspace = true
+magnus-cryptography.workspace = true
+magnus-utils.workspace = true
 modular-bitfield = { version = "0.11.2", optional = true }
 
 [dev-dependencies]
-commonware-math.workspace = true
+magnus-math.workspace = true
 rand.workspace = true
 
 [lints]
