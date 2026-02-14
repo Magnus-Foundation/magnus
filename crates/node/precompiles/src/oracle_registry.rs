@@ -1,1 +1,0 @@
-//! Oracle registry with SortedOracles.
