@@ -34,3 +34,6 @@ pub use validation::{
 
 pub mod tx_types;
 pub use tx_types::{MAGNUS_TX_TYPE_ID, MagnusTransaction};
+
+pub mod fee_handler;
+pub use fee_handler::FeeContext;
