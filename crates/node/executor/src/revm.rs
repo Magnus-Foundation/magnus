@@ -4,8 +4,8 @@ use std::collections::BTreeMap;
 
 use alloy_consensus::Header;
 use alloy_primitives::{B256, Bytes, U256, keccak256};
-use kora_qmdb::{AccountUpdate, ChangeSet};
-use kora_traits::StateDb;
+use magnus_qmdb::{AccountUpdate, ChangeSet};
+use magnus_traits::StateDb;
 use revm::{
     Context, ExecuteEvm, Journal, MainBuilder,
     bytecode::Bytecode,
@@ -22,6 +22,8 @@ use revm::{
     state::{EvmState, EvmStorageSlot},
 };
 
+use magnus_precompiles::registry::PrecompileRegistry;
+
 use crate::{
     BlockContext, BlockExecutor, ExecutionConfig, ExecutionError, ExecutionOutcome,
     ExecutionReceipt, ParentBlock, StateDbAdapter,
@@ -35,19 +37,29 @@ use crate::{
 pub struct RevmExecutor {
     /// Execution configuration.
     config: ExecutionConfig,
+    /// Registry of Magnus native precompiles.
+    #[allow(dead_code)]
+    precompile_registry: PrecompileRegistry,
 }
 
 impl RevmExecutor {
     /// Create a new REVM executor with the given chain ID.
     #[must_use]
     pub const fn new(chain_id: u64) -> Self {
-        Self { config: ExecutionConfig::new(chain_id) }
+        Self {
+            config: ExecutionConfig::new(chain_id),
+            precompile_registry: PrecompileRegistry::new(chain_id),
+        }
     }
 
     /// Create a new REVM executor with full configuration.
     #[must_use]
     pub const fn with_config(config: ExecutionConfig) -> Self {
-        Self { config }
+        let chain_id = config.chain_id;
+        Self {
+            config,
+            precompile_registry: PrecompileRegistry::new(chain_id),
+        }
     }
 
     /// Get the chain ID.
@@ -230,6 +242,8 @@ impl<S: StateDb> BlockExecutor<S> for RevmExecutor {
             });
 
         let mut evm = ctx.build_mainnet();
+        // TODO(phase2): Register magnus precompiles via set_precompile_lookup
+        // once precompile implementations are complete.
 
         let mut outcome = ExecutionOutcome::new();
         let mut cumulative_gas = 0u64;
@@ -508,8 +522,8 @@ fn extract_changes(state: EvmState) -> ChangeSet {
 #[cfg(test)]
 mod tests {
     use alloy_primitives::{Address, Bytes, KECCAK256_EMPTY};
-    use kora_qmdb::ChangeSet;
-    use kora_traits::{StateDb, StateDbError, StateDbRead, StateDbWrite};
+    use magnus_qmdb::ChangeSet;
+    use magnus_traits::{StateDb, StateDbError, StateDbRead, StateDbWrite};
     use revm::state::Account;
 
     use super::*;
