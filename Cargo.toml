@@ -1,6 +1,6 @@
 [workspace]
 members = ["bin/*", "crates/e2e", "crates/network/*", "crates/node/*", "crates/storage/*", "crates/utilities/*"]
-default-members = ["bin/kora"]
+default-members = ["bin/magnus"]
 resolver = "2"
 
 [workspace.package]
@@ -8,7 +8,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT"
-repository = "https://github.com/refcell/kora"
+repository = "https://github.com/refcell/magnus"
 
 [workspace.lints.rust]
 missing-debug-implementations = "warn"
@@ -46,33 +46,34 @@ codegen-units = 1
 
 [workspace.dependencies]
 # Local crates
-kora-builder = { path = "crates/node/builder" }
-kora-domain = { path = "crates/node/domain" }
-kora-cli = { path = "crates/utilities/cli" }
-kora-crypto = { path = "crates/utilities/crypto" }
-kora-backend = { path = "crates/storage/backend" }
-kora-config = { path = "crates/node/config" }
-kora-consensus = { path = "crates/node/consensus" }
-kora-executor = { path = "crates/node/executor" }
-kora-ledger = { path = "crates/node/ledger" }
-kora-marshal = { path = "crates/network/marshal" }
-kora-reporters = { path = "crates/node/reporters" }
-kora-service = { path = "crates/node/service" }
-kora-simplex = { path = "crates/node/simplex" }
-kora-transport = { path = "crates/network/transport" }
-kora-transport-sim = { path = "crates/network/transport-sim" }
-kora-sys = { path = "crates/utilities/sys" }
-kora-handlers = { path = "crates/storage/handlers" }
-kora-overlay = { path = "crates/storage/overlay" }
-kora-qmdb = { path = "crates/storage/qmdb" }
-kora-qmdb-ledger = { path = "crates/storage/qmdb-ledger" }
-kora-traits = { path = "crates/storage/traits" }
-kora-indexer = { path = "crates/storage/indexer" }
-kora-dkg = { path = "crates/node/dkg" }
-kora-runner = { path = "crates/node/runner" }
-kora-rpc = { path = "crates/node/rpc" }
-kora-txpool = { path = "crates/node/txpool" }
-kora-e2e = { path = "crates/e2e" }
+magnus-builder = { path = "crates/node/builder" }
+magnus-domain = { path = "crates/node/domain" }
+magnus-cli = { path = "crates/utilities/cli" }
+magnus-crypto = { path = "crates/utilities/crypto" }
+magnus-backend = { path = "crates/storage/backend" }
+magnus-config = { path = "crates/node/config" }
+magnus-consensus = { path = "crates/node/consensus" }
+magnus-executor = { path = "crates/node/executor" }
+magnus-ledger = { path = "crates/node/ledger" }
+magnus-marshal = { path = "crates/network/marshal" }
+magnus-reporters = { path = "crates/node/reporters" }
+magnus-service = { path = "crates/node/service" }
+magnus-simplex = { path = "crates/node/simplex" }
+magnus-transport = { path = "crates/network/transport" }
+magnus-transport-sim = { path = "crates/network/transport-sim" }
+magnus-sys = { path = "crates/utilities/sys" }
+magnus-handlers = { path = "crates/storage/handlers" }
+magnus-overlay = { path = "crates/storage/overlay" }
+magnus-qmdb = { path = "crates/storage/qmdb" }
+magnus-qmdb-ledger = { path = "crates/storage/qmdb-ledger" }
+magnus-traits = { path = "crates/storage/traits" }
+magnus-indexer = { path = "crates/storage/indexer" }
+magnus-dkg = { path = "crates/node/dkg" }
+magnus-runner = { path = "crates/node/runner" }
+magnus-rpc = { path = "crates/node/rpc" }
+magnus-txpool = { path = "crates/node/txpool" }
+magnus-precompiles = { path = "crates/node/precompiles" }
+magnus-e2e = { path = "crates/e2e" }
 
 commonware-p2p = "0.0.65"
 commonware-utils = "0.0.65"
@@ -92,6 +93,7 @@ alloy-primitives = "1.0"
 alloy-consensus = { version = "1.0", features = ["k256"] }
 alloy-eips = "1.0"
 alloy-rlp = "0.3"
+alloy-sol-types = "1.0"
 
 # Execution
 revm = { version = "34.0.0", default-features = false }
@@ -130,6 +132,7 @@ governor = "0.10.4"
 prometheus-client = "0.24.0"
 bytes = "1"
 hex = "0.4"
+hex-literal = "0.4"
 k256 = "0.13"
 sha3 = "0.10"
 

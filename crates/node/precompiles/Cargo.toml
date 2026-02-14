@@ -1,0 +1,21 @@
+[package]
+name = "magnus-precompiles"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+alloy-primitives = { workspace = true }
+alloy-evm = { workspace = true }
+alloy-sol-types = { workspace = true }
+hex-literal = { workspace = true }
+revm = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+
+[lints]
+workspace = true
