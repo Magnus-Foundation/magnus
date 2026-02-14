@@ -298,6 +298,14 @@ fn decode_tx_env(tx_bytes: &Bytes, _chain_id: u64) -> Result<revm::context::TxEn
     use alloy_consensus::TxEnvelope;
     use alloy_rlp::Decodable;
 
+    // Check for Magnus tx type first (before standard decode)
+    if !tx_bytes.is_empty() && tx_bytes[0] == crate::tx_types::MAGNUS_TX_TYPE_ID {
+        // TODO: decode and convert to TxEnv once RLP is implemented
+        return Err(ExecutionError::TxDecode(
+            "Magnus tx type 0x76 not yet fully implemented".to_string(),
+        ));
+    }
+
     // Decode the transaction envelope
     let envelope = TxEnvelope::decode(&mut tx_bytes.as_ref())
         .map_err(|e| ExecutionError::TxDecode(format!("{}", e)))?;

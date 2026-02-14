@@ -1,7 +1,7 @@
-//! Block execution abstractions and REVM-based implementation for Kora.
+//! Block execution abstractions and REVM-based implementation for Magnus.
 
 #![doc = include_str!("../README.md")]
-#![doc(issue_tracker_base_url = "https://github.com/refcell/kora/issues/")]
+#![doc(issue_tracker_base_url = "https://github.com/refcell/magnus/issues/")]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
@@ -31,3 +31,6 @@ pub use validation::{
     ACCESS_LIST_ADDRESS_GAS, ACCESS_LIST_STORAGE_KEY_GAS, MAX_BLOBS_PER_TX, TX_BASE_GAS,
     TX_CREATE_GAS, TX_DATA_NON_ZERO_GAS, TX_DATA_ZERO_GAS, TxValidator, ValidatedTx,
 };
+
+pub mod tx_types;
+pub use tx_types::{MAGNUS_TX_TYPE_ID, MagnusTransaction};
