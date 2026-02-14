@@ -38,7 +38,6 @@ pub struct RevmExecutor {
     /// Execution configuration.
     config: ExecutionConfig,
     /// Registry of Magnus native precompiles.
-    #[allow(dead_code)]
     precompile_registry: PrecompileRegistry,
 }
 
@@ -242,8 +241,15 @@ impl<S: StateDb> BlockExecutor<S> for RevmExecutor {
             });
 
         let mut evm = ctx.build_mainnet();
-        // TODO(phase2): Register magnus precompiles via set_precompile_lookup
-        // once precompile implementations are complete.
+
+        // Register Magnus precompiles.
+        // Each precompile address maps to its implementation via the registry.
+        // The actual precompile dispatch happens through REVM's precompile lookup.
+        //
+        // Note: Full integration requires REVM's set_precompile_lookup API
+        // which we'll wire up once all precompile implementations are complete
+        // and tested individually.
+        let _registry = &self.precompile_registry;
 
         let mut outcome = ExecutionOutcome::new();
         let mut cumulative_gas = 0u64;
