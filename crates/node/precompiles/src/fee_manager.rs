@@ -16,6 +16,7 @@ use crate::{
     addresses,
     error::{MagnusPrecompileError, Result},
     fee_amm,
+    oracle_registry::OracleRegistry,
     storage::Mapping,
     mip20::MIP20Token,
     mip20_factory::MIP20Factory,
@@ -135,6 +136,32 @@ impl FeeManager {
     }
 }
 
+/// Convert an amount from one currency to another using the oracle rate.
+///
+/// If from_token == to_token, returns amount unchanged.
+/// Otherwise, queries the OracleRegistry for the median rate.
+///
+/// rate = median(base_token/quote_token)
+/// converted = amount * rate / 10^18
+pub fn convert_via_oracle(
+    oracle: &mut OracleRegistry,
+    amount: U256,
+    from_token: Address,
+    to_token: Address,
+    timestamp: u64,
+) -> Result<U256> {
+    if from_token == to_token {
+        return Ok(amount);
+    }
+    let rate = oracle.get_rate(from_token, to_token, timestamp)?;
+    // rate is fixed-point with 18 decimals
+    let converted = amount
+        .checked_mul(rate)
+        .and_then(|v| v.checked_div(U256::from(10u64.pow(18))))
+        .ok_or(MagnusPrecompileError::Overflow)?;
+    Ok(converted)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,5 +170,78 @@ mod tests {
     fn fee_manager_new() {
         let fm = FeeManager::new();
         assert_eq!(fm.address, addresses::FEE_MANAGER);
+    }
+
+    fn addr(n: u8) -> Address {
+        Address::with_last_byte(n)
+    }
+
+    /// Helper: create an OracleRegistry with a reporter and a single report for
+    /// the given pair at the given rate and timestamp.
+    fn oracle_with_rate(
+        base: Address,
+        quote: Address,
+        rate: U256,
+        timestamp: u64,
+    ) -> OracleRegistry {
+        let mut oracle = OracleRegistry::new();
+        let reporter = addr(99);
+        oracle.add_reporter(reporter);
+        oracle
+            .report(reporter, base, quote, rate, timestamp)
+            .expect("report should succeed");
+        oracle
+    }
+
+    #[test]
+    fn convert_same_token_returns_unchanged() {
+        let mut oracle = OracleRegistry::new();
+        let token = addr(10);
+        let amount = U256::from(500_000u64);
+
+        let result = convert_via_oracle(&mut oracle, amount, token, token, 1000);
+        assert_eq!(result.unwrap(), amount);
+    }
+
+    #[test]
+    fn convert_cross_currency_with_known_rate() {
+        let base = addr(10);
+        let quote = addr(20);
+        // Rate: 2 * 10^18 (i.e., 1 base = 2 quote in fixed-point 18 decimals)
+        let rate = U256::from(2u64) * U256::from(10u64.pow(18));
+        let timestamp = 1000u64;
+        let mut oracle = oracle_with_rate(base, quote, rate, timestamp);
+
+        let amount = U256::from(100u64);
+        let result = convert_via_oracle(&mut oracle, amount, base, quote, timestamp);
+        // 100 * (2 * 10^18) / 10^18 = 200
+        assert_eq!(result.unwrap(), U256::from(200u64));
+    }
+
+    #[test]
+    fn convert_zero_amount() {
+        let base = addr(10);
+        let quote = addr(20);
+        let rate = U256::from(3u64) * U256::from(10u64.pow(18));
+        let timestamp = 1000u64;
+        let mut oracle = oracle_with_rate(base, quote, rate, timestamp);
+
+        let result = convert_via_oracle(&mut oracle, U256::ZERO, base, quote, timestamp);
+        assert_eq!(result.unwrap(), U256::ZERO);
+    }
+
+    #[test]
+    fn convert_missing_rate_pair_returns_error() {
+        let mut oracle = OracleRegistry::new();
+        let base = addr(10);
+        let quote = addr(20);
+
+        let result = convert_via_oracle(&mut oracle, U256::from(100u64), base, quote, 1000);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("no reports"),
+            "expected oracle error about missing reports, got: {err}"
+        );
     }
 }
