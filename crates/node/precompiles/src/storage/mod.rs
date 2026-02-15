@@ -4,7 +4,7 @@
 //! slot addressing (same layout as Solidity mappings).
 
 pub mod mapping;
-pub use mapping::Mapping;
+pub use mapping::{Mapping, NestedMapping, StorageKey, nested_mapping_slot};
 
 use alloy_primitives::{Address, U256};
 

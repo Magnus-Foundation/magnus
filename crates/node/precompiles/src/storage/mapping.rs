@@ -73,6 +73,53 @@ impl<K: StorageKey> Mapping<K, U256> {
     }
 }
 
+/// Compute the storage slot for a nested mapping: `mapping[key1][key2]`.
+///
+/// Equivalent to Solidity: `mapping(K1 => mapping(K2 => V))`.
+/// slot = keccak256(key2 ++ keccak256(key1 ++ base_slot))
+pub fn nested_mapping_slot(
+    key1: &[u8; 32],
+    key2: &[u8; 32],
+    base_slot: &U256,
+) -> U256 {
+    let inner = mapping_slot(key1, base_slot);
+    mapping_slot(key2, &inner)
+}
+
+/// Two-level nested mapping: `mapping[K1][K2] -> V`.
+#[derive(Debug)]
+pub struct NestedMapping<K1, K2, V> {
+    contract: Address,
+    base_slot: U256,
+    _phantom: PhantomData<(K1, K2, V)>,
+}
+
+impl<K1: StorageKey, K2: StorageKey, V> NestedMapping<K1, K2, V> {
+    pub const fn new(contract: Address, base_slot: U256) -> Self {
+        Self { contract, base_slot, _phantom: PhantomData }
+    }
+}
+
+impl<K1: StorageKey, K2: StorageKey> NestedMapping<K1, K2, U256> {
+    pub fn read(&self, key1: &K1, key2: &K2) -> U256 {
+        let slot = nested_mapping_slot(
+            &key1.to_slot_bytes(),
+            &key2.to_slot_bytes(),
+            &self.base_slot,
+        );
+        super::sload(self.contract, slot)
+    }
+
+    pub fn write(&mut self, key1: &K1, key2: &K2, value: U256) {
+        let slot = nested_mapping_slot(
+            &key1.to_slot_bytes(),
+            &key2.to_slot_bytes(),
+            &self.base_slot,
+        );
+        super::sstore(self.contract, slot, value);
+    }
+}
+
 impl<K: StorageKey> Mapping<K, Address> {
     /// Read an `Address` value from the mapping at the given key.
     pub fn read_address(&self, key: &K) -> Address {
@@ -120,5 +167,26 @@ mod tests {
         let slot1 = mapping_slot(&key, &U256::from(0));
         let slot2 = mapping_slot(&key, &U256::from(1));
         assert_ne!(slot1, slot2);
+    }
+
+    #[test]
+    fn nested_mapping_slot_deterministic() {
+        let key1 = [1u8; 32];
+        let key2 = [2u8; 32];
+        let base = U256::from(5);
+        let s1 = nested_mapping_slot(&key1, &key2, &base);
+        let s2 = nested_mapping_slot(&key1, &key2, &base);
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn nested_mapping_different_keys_different_slots() {
+        let key1 = [1u8; 32];
+        let key2a = [2u8; 32];
+        let key2b = [3u8; 32];
+        let base = U256::from(5);
+        let s1 = nested_mapping_slot(&key1, &key2a, &base);
+        let s2 = nested_mapping_slot(&key1, &key2b, &base);
+        assert_ne!(s1, s2);
     }
 }
