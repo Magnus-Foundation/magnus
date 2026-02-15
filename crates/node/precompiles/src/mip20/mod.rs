@@ -38,6 +38,8 @@ pub struct MIP20Token {
     metadata_base: U256,
     // Storage slot 5: transfer policy ID (MIP403). Default: 1 (always-allow).
     transfer_policy_slot: U256,
+    // Storage slot 6: supply cap (0 = unlimited).
+    supply_cap_slot: U256,
 }
 
 impl MIP20Token {
@@ -56,6 +58,7 @@ impl MIP20Token {
             roles_base: U256::from(3),
             metadata_base: U256::from(4),
             transfer_policy_slot: U256::from(5),
+            supply_cap_slot: U256::from(6),
         })
     }
 
@@ -83,6 +86,24 @@ impl MIP20Token {
             self.transfer_policy_slot,
             U256::from(policy_id),
         );
+    }
+
+    /// Get the supply cap. Returns U256::MAX if no cap is set.
+    pub fn supply_cap(&self) -> U256 {
+        let val = crate::storage::sload(self.address, self.supply_cap_slot);
+        if val.is_zero() { U256::MAX } else { val }
+    }
+
+    /// Set the supply cap. Must be >= current total supply.
+    pub fn set_supply_cap(&mut self, new_cap: U256) -> Result<()> {
+        let current_supply = self.total_supply();
+        if new_cap < current_supply {
+            return Err(MagnusPrecompileError::InvalidInput(
+                "cap below current supply".into(),
+            ));
+        }
+        crate::storage::sstore(self.address, self.supply_cap_slot, new_cap);
+        Ok(())
     }
 
     /// Get balance of an account.
@@ -114,6 +135,16 @@ impl MIP20Token {
 
     /// Mint new tokens to an account. Caller must have minter role.
     pub fn mint(&mut self, to: Address, amount: U256) -> Result<bool> {
+        // Check supply cap
+        let cap = self.supply_cap();
+        let current = self.total_supply();
+        let new_supply = current.checked_add(amount)
+            .ok_or(MagnusPrecompileError::Overflow)?;
+        if new_supply > cap {
+            return Err(MagnusPrecompileError::InvalidInput(
+                "would exceed supply cap".into(),
+            ));
+        }
         let balance = self.balances.read(&to);
         self.balances.write(
             &to,
@@ -191,6 +222,44 @@ impl MIP20Token {
     fn set_allowance(&mut self, owner: Address, spender: Address, amount: U256) {
         let slot = self.allowance_slot(owner, spender);
         crate::storage::sstore(self.address, slot, amount);
+    }
+
+    /// Transfer tokens with a 32-byte memo.
+    ///
+    /// The memo is not stored on-chain -- it is emitted in event logs only.
+    /// Used for payment references, invoice IDs, and transaction notes.
+    pub fn transfer_with_memo(
+        &mut self,
+        from: Address,
+        to: Address,
+        amount: U256,
+        _memo: [u8; 32],
+    ) -> Result<bool> {
+        self.check_recipient(to)?;
+        self.transfer(from, to, amount)
+        // In production, emit TransferWithMemo event with memo
+    }
+
+    /// Mint tokens with a 32-byte memo.
+    pub fn mint_with_memo(
+        &mut self,
+        to: Address,
+        amount: U256,
+        _memo: [u8; 32],
+    ) -> Result<bool> {
+        self.mint(to, amount)
+        // In production, emit TransferWithMemo event from Address::ZERO
+    }
+
+    /// Burn tokens with a 32-byte memo.
+    pub fn burn_with_memo(
+        &mut self,
+        from: Address,
+        amount: U256,
+        _memo: [u8; 32],
+    ) -> Result<bool> {
+        self.burn(from, amount)
+        // In production, emit TransferWithMemo event to Address::ZERO
     }
 
     fn allowance_slot(&self, owner: Address, spender: Address) -> U256 {
