@@ -1,0 +1,44 @@
+[package]
+name = "magnus-precompile-registry"
+description = "TODO:"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+magnus-contracts.workspace = true
+magnus-chainspec.workspace = true
+magnus-precompile-macros.workspace = true
+alloy = { workspace = true, features = ["sol-types", "consensus"] }
+alloy-evm.workspace = true
+revm.workspace = true
+
+tracing.workspace = true
+thiserror.workspace = true
+derive_more.workspace = true
+scoped-tls = "1.0"
+
+[dev-dependencies]
+criterion.workspace = true
+alloy-signer.workspace = true
+alloy-signer-local.workspace = true
+alloy-primitives = { workspace = true, features = ["rand"] }
+eyre.workspace = true
+rand.workspace = true
+proptest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+magnus-evm.workspace = true
+
+[features]
+default = ["rpc"]
+test-utils = ["alloy/getrandom"]
+rpc = ["magnus-contracts/rpc"]
+
+# Tests and benchmarks removed during migration (files not present)

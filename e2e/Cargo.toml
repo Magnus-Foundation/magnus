@@ -1,0 +1,70 @@
+[package]
+name = "magnus-e2e"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+alloy = { workspace = true, features = [
+  "genesis",
+  "rpc-types",
+  "signers",
+  "signer-local",
+  "signer-mnemonic",
+  "rlp",
+  "providers",
+] }
+alloy-evm.workspace = true
+alloy-genesis.workspace = true
+alloy-primitives.workspace = true
+
+magnus-codec.workspace = true
+# fuzz features provides access to dkg fixtures
+magnus-bft = { workspace = true, features = ["fuzz"] }
+magnus-cryptography.workspace = true
+magnus-math.workspace = true
+magnus-p2p.workspace = true
+magnus-runtime = { workspace = true, features = ["external"] }
+magnus-utils.workspace = true
+
+itertools.workspace = true
+
+eyre.workspace = true
+reth-db.workspace = true
+reth-ethereum = { workspace = true, features = ["node", "rpc", "test-utils", "pool"] }
+reth-network-peers.workspace = true
+reth-node-builder.workspace = true
+reth-node-core.workspace = true
+reth-node-metrics.workspace = true
+reth-rpc-builder.workspace = true
+
+magnus-chainspec.workspace = true
+magnus-consensus-engine.workspace = true
+magnus-dkg.workspace = true
+magnus-dkg-onchain-artifacts.workspace = true
+magnus-consensus.workspace = true
+magnus-node.workspace = true
+magnus-precompile-registry = { workspace = true, features = ["rpc"] }
+
+futures.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+serde_json.workspace = true
+secp256k1.workspace = true
+
+[dev-dependencies]
+magnus-bft.workspace = true
+magnus-macros.workspace = true
+jsonrpsee = { workspace = true, features = ["ws-client", "http-client"] }
+magnus-eyre.workspace = true
+tracing-subscriber.workspace = true
+
+alloy-network.workspace = true
+
+rand.workspace = true
+
+[lints]
+workspace = true
