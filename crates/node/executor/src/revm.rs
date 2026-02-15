@@ -306,10 +306,33 @@ fn decode_tx_env(tx_bytes: &Bytes, _chain_id: u64) -> Result<revm::context::TxEn
 
     // Check for Magnus tx type first (before standard decode)
     if !tx_bytes.is_empty() && tx_bytes[0] == crate::tx_types::MAGNUS_TX_TYPE_ID {
-        // TODO: decode and convert to TxEnv once RLP is implemented
-        return Err(ExecutionError::TxDecode(
-            "Magnus tx type 0x76 not yet fully implemented".to_string(),
-        ));
+        let magnus_tx = crate::tx_types::decode_magnus_tx(tx_bytes, _chain_id)
+            .map_err(|e| ExecutionError::TxDecode(format!("Magnus 0x76: {}", e)))?;
+
+        // Convert first call to TxEnv (single call for now)
+        let (kind, value, data) = if let Some(call) = magnus_tx.calls.first() {
+            (convert_tx_kind(call.to), call.value, call.input.clone())
+        } else {
+            (TxKind::Create, U256::ZERO, Bytes::new())
+        };
+
+        let mut builder = revm::context::TxEnv::builder();
+        builder = builder
+            .gas_limit(magnus_tx.gas_limit)
+            .gas_price(magnus_tx.max_fee_per_gas)
+            .gas_priority_fee(Some(magnus_tx.max_priority_fee_per_gas))
+            .value(value)
+            .data(data)
+            .nonce(magnus_tx.nonce)
+            .chain_id(Some(magnus_tx.chain_id))
+            .kind(kind);
+
+        // Note: caller recovery requires signature verification,
+        // which is handled in a later phase. For now, we set a
+        // placeholder that the tx validation layer will override.
+
+        return builder.build()
+            .map_err(|e| ExecutionError::TxDecode(format!("failed to build tx env: {:?}", e)));
     }
 
     // Decode the transaction envelope
