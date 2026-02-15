@@ -17,7 +17,7 @@ use crate::{
     error::{MagnusPrecompileError, Result},
     fee_amm,
     oracle_registry::OracleRegistry,
-    storage::Mapping,
+    storage::{Mapping, NestedMapping},
     mip20::MIP20Token,
     mip20_factory::MIP20Factory,
 };
@@ -31,9 +31,8 @@ pub struct FeeManager {
     validator_tokens: Mapping<Address, Address>,
     /// User preferred token: user_address -> token_address
     user_tokens: Mapping<Address, Address>,
-    /// Accumulated fees base slot (for nested mapping: validator -> token -> amount)
-    #[allow(dead_code)]
-    collected_fees_base: U256,
+    /// Accumulated fees: validator -> token -> amount.
+    collected_fees: NestedMapping<Address, Address, U256>,
 }
 
 /// Default fee token used when no preference is set.
@@ -47,7 +46,7 @@ impl FeeManager {
             address: addresses::FEE_MANAGER,
             validator_tokens: Mapping::new(addresses::FEE_MANAGER, U256::from(0)),
             user_tokens: Mapping::new(addresses::FEE_MANAGER, U256::from(1)),
-            collected_fees_base: U256::from(2),
+            collected_fees: NestedMapping::new(addresses::FEE_MANAGER, U256::from(2)),
         }
     }
 
@@ -72,6 +71,32 @@ impl FeeManager {
         }
         self.user_tokens.write_address(&user, token);
         Ok(())
+    }
+
+    /// Resolve the fee token for a transaction using the preference hierarchy.
+    ///
+    /// Preference order:
+    /// 1. Explicit fee_token from transaction (if not Address::ZERO)
+    /// 2. Stored user preference (from setUserToken)
+    /// 3. DEFAULT_FEE_TOKEN fallback
+    pub fn resolve_fee_token(
+        &self,
+        tx_fee_token: Address,
+        fee_payer: Address,
+    ) -> Address {
+        // 1. Transaction-level preference (highest priority)
+        if tx_fee_token != Address::ZERO {
+            return tx_fee_token;
+        }
+
+        // 2. Account-level preference
+        let user_token = self.user_tokens.read_address(&fee_payer);
+        if user_token != Address::ZERO {
+            return user_token;
+        }
+
+        // 3. Default fallback
+        DEFAULT_FEE_TOKEN
     }
 
     /// Pre-transaction fee collection.
@@ -122,17 +147,51 @@ impl FeeManager {
 
         let validator_token = self.get_validator_token(beneficiary);
 
-        let _fee_amount = if fee_token != validator_token && !actual_spending.is_zero() {
+        let fee_amount = if fee_token != validator_token && !actual_spending.is_zero() {
             // Cross-currency: compute swap output
             fee_amm::compute_amount_out(actual_spending)?
         } else {
             actual_spending
         };
 
-        // Track accumulated fees (simplified -- full impl uses nested mapping)
-        // TODO: implement nested mapping for collected_fees[validator][token]
+        // Accumulate fees for the validator in their preferred token
+        if !fee_amount.is_zero() {
+            let current = self.collected_fees.read(&beneficiary, &validator_token);
+            let new_total = current.checked_add(fee_amount)
+                .ok_or(MagnusPrecompileError::Overflow)?;
+            self.collected_fees.write(&beneficiary, &validator_token, new_total);
+        }
 
         Ok(())
+    }
+
+    /// Get the accumulated fees for a validator in a specific token.
+    pub fn collected_fees(&self, validator: Address, token: Address) -> U256 {
+        self.collected_fees.read(&validator, &token)
+    }
+
+    /// Distribute accumulated fees to a validator.
+    ///
+    /// Transfers accumulated fees in the specified token to the validator.
+    /// Resets the accumulated amount to zero.
+    pub fn distribute_fees(
+        &mut self,
+        validator: Address,
+        token: Address,
+    ) -> Result<U256> {
+        let amount = self.collected_fees.read(&validator, &token);
+        if amount.is_zero() {
+            return Ok(U256::ZERO);
+        }
+
+        // Reset accumulated fees
+        self.collected_fees.write(&validator, &token, U256::ZERO);
+
+        // Transfer fees to validator
+        let mut mip20 = MIP20Token::from_address(token)?;
+        mip20.transfer(self.address, validator, amount)?;
+
+        Ok(amount)
     }
 }
 
