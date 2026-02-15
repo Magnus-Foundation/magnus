@@ -36,6 +36,8 @@ pub struct MIP20Token {
     roles_base: U256,
     // Storage slot 4: metadata (name, symbol, decimals, currency)
     metadata_base: U256,
+    // Storage slot 5: transfer policy ID (MIP403). Default: 1 (always-allow).
+    transfer_policy_slot: U256,
 }
 
 impl MIP20Token {
@@ -53,7 +55,34 @@ impl MIP20Token {
             total_supply_slot: U256::from(2),
             roles_base: U256::from(3),
             metadata_base: U256::from(4),
+            transfer_policy_slot: U256::from(5),
         })
+    }
+
+    /// Check recipient is valid (not zero, not another MIP20 address).
+    fn check_recipient(&self, to: Address) -> Result<()> {
+        if to.is_zero() || crate::addresses::is_mip20_prefix(to) {
+            return Err(MagnusPrecompileError::InvalidInput(
+                "invalid recipient".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    /// Get the transfer policy ID for this token. Default: 1 (always-allow).
+    pub fn transfer_policy_id(&self) -> u64 {
+        let val = crate::storage::sload(self.address, self.transfer_policy_slot);
+        let id = val.as_limbs()[0];
+        if id == 0 { 1 } else { id } // Default to policy 1 (always-allow)
+    }
+
+    /// Set the transfer policy ID (admin-only in production).
+    pub fn set_transfer_policy_id(&mut self, policy_id: u64) {
+        crate::storage::sstore(
+            self.address,
+            self.transfer_policy_slot,
+            U256::from(policy_id),
+        );
     }
 
     /// Get balance of an account.
@@ -68,6 +97,7 @@ impl MIP20Token {
         to: Address,
         amount: U256,
     ) -> Result<bool> {
+        self.check_recipient(to)?;
         let from_balance = self.balances.read(&from);
         if from_balance < amount {
             return Err(MagnusPrecompileError::InsufficientBalance);
@@ -127,6 +157,7 @@ impl MIP20Token {
         to: Address,
         amount: U256,
     ) -> Result<bool> {
+        self.check_recipient(to)?;
         // Check and update allowance
         let allowance = self.allowance(from, spender);
         if allowance < amount && allowance != U256::MAX {
