@@ -1,9 +1,9 @@
-# `kora-crypto`
+# `magnus-crypto`
 
-<a href="https://github.com/refcell/kora/actions/workflows/ci.yml"><img src="https://github.com/refcell/kora/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-<a href="https://github.com/refcell/kora/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-d1d1f6.svg" alt="License"></a>
+<a href="https://github.com/refcell/magnus/actions/workflows/ci.yml"><img src="https://github.com/refcell/magnus/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="https://github.com/refcell/magnus/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-d1d1f6.svg" alt="License"></a>
 
-Cryptographic utilities for Kora.
+Cryptographic utilities for Magnus.
 
 ## Features
 
@@ -13,13 +13,13 @@ Cryptographic utilities for Kora.
 
 ```toml
 [dependencies]
-kora-crypto = { path = "crates/utilities/crypto" }
+magnus-crypto = { path = "crates/utilities/crypto" }
 
 # For testing
 [dev-dependencies]
-kora-crypto = { path = "crates/utilities/crypto", features = ["test-utils"] }
+magnus-crypto = { path = "crates/utilities/crypto", features = ["test-utils"] }
 ```
 
 ## License
 
-[MIT License](https://github.com/refcell/kora/blob/main/LICENSE)
+[MIT License](https://github.com/refcell/magnus/blob/main/LICENSE)

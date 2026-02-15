@@ -3,7 +3,7 @@
 use alloy_primitives::B256;
 use commonware_cryptography::sha256::Digest as QmdbDigest;
 use commonware_storage::{kv::Batchable as _, qmdb::any::VariableConfig, translator::EightCap};
-use kora_qmdb::{QmdbBatchable, QmdbGettable};
+use magnus_qmdb::{QmdbBatchable, QmdbGettable};
 
 use crate::{
     BackendError,

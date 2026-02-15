@@ -1,6 +1,6 @@
-//! Consensus reporters for Kora nodes.
+//! Consensus reporters for Magnus nodes.
 #![doc = include_str!("../README.md")]
-#![doc(issue_tracker_base_url = "https://github.com/refcell/kora/issues/")]
+#![doc(issue_tracker_base_url = "https://github.com/refcell/magnus/issues/")]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
@@ -18,13 +18,13 @@ use commonware_consensus::{
 use commonware_cryptography::{Committable as _, bls12381::primitives::variant::Variant};
 use commonware_runtime::{Spawner as _, tokio};
 use commonware_utils::acknowledgement::Acknowledgement as _;
-use kora_consensus::BlockExecution;
-use kora_domain::{Block, ConsensusDigest, PublicKey};
-use kora_executor::{BlockContext, BlockExecutor};
-use kora_ledger::LedgerService;
-use kora_overlay::OverlayState;
-use kora_qmdb_ledger::QmdbState;
-use kora_rpc::NodeState;
+use magnus_consensus::BlockExecution;
+use magnus_domain::{Block, ConsensusDigest, PublicKey};
+use magnus_executor::{BlockContext, BlockExecutor};
+use magnus_ledger::LedgerService;
+use magnus_overlay::OverlayState;
+use magnus_qmdb_ledger::QmdbState;
+use magnus_rpc::NodeState;
 use tracing::{error, trace, warn};
 
 /// Provides block execution context for finalized block verification.

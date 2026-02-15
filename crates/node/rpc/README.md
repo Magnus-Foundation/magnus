@@ -1,22 +1,22 @@
-# `kora-rpc`
+# `magnus-rpc`
 
-<a href="https://github.com/refcell/kora/actions/workflows/ci.yml"><img src="https://github.com/refcell/kora/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-<a href="https://github.com/refcell/kora/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-d1d1f6.svg" alt="License"></a>
+<a href="https://github.com/refcell/magnus/actions/workflows/ci.yml"><img src="https://github.com/refcell/magnus/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="https://github.com/refcell/magnus/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-d1d1f6.svg" alt="License"></a>
 
-RPC server for Kora nodes. Provides HTTP status endpoints and a full Ethereum JSON-RPC 2.0 API implementation.
+RPC server for Magnus nodes. Provides HTTP status endpoints and a full Ethereum JSON-RPC 2.0 API implementation.
 
 ## Overview
 
-This crate implements the RPC layer for Kora nodes, exposing:
+This crate implements the RPC layer for Magnus nodes, exposing:
 
 - **Ethereum JSON-RPC API** (`eth_*`, `net_*`, `web3_*`) for wallet and tooling compatibility
-- **Kora-specific API** (`kora_*`) for node status and consensus information
+- **Magnus-specific API** (`magnus_*`) for node status and consensus information
 - **HTTP endpoints** for health checks and node monitoring
 
 ## Usage
 
 ```rust,ignore
-use kora_rpc::{RpcServer, RpcServerConfig, NodeState, StateProvider};
+use magnus_rpc::{RpcServer, RpcServerConfig, NodeState, StateProvider};
 use std::net::SocketAddr;
 
 // Create server configuration
@@ -73,11 +73,11 @@ The following standard Ethereum methods are supported:
 | `web3_clientVersion` | Returns client version |
 | `web3_sha3` | Returns Keccak-256 hash |
 
-## Kora-Specific Methods
+## Magnus-Specific Methods
 
 | Method | Description |
 |--------|-------------|
-| `kora_nodeStatus` | Returns node status including consensus info |
+| `magnus_nodeStatus` | Returns node status including consensus info |
 
 ## HTTP Endpoints
 
@@ -91,7 +91,7 @@ The following standard Ethereum methods are supported:
 ### RpcServerConfig
 
 ```rust,ignore
-use kora_rpc::{RpcServerConfig, CorsConfig, RateLimitConfig};
+use magnus_rpc::{RpcServerConfig, CorsConfig, RateLimitConfig};
 
 let config = RpcServerConfig::new(
     "127.0.0.1:8080".parse().unwrap(),  // HTTP address
@@ -128,7 +128,7 @@ let cors = CorsConfig::none();
 - `RpcServerConfig` - Server configuration
 - `StateProvider` - Trait for providing chain state to RPC methods
 - `EthApiServer` - Ethereum JSON-RPC API trait
-- `KoraApiServer` - Kora-specific API trait
+- `MagnusApiServer` - Magnus-specific API trait
 - `NodeState` - Node status container
 - `NoopStateProvider` - Default provider returning empty/zero values
 
@@ -137,7 +137,7 @@ let cors = CorsConfig::none();
 Implement `StateProvider` to connect RPC methods to your storage layer:
 
 ```rust,ignore
-use kora_rpc::{StateProvider, RpcError, BlockNumberOrTag, RpcBlock};
+use magnus_rpc::{StateProvider, RpcError, BlockNumberOrTag, RpcBlock};
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 

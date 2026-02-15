@@ -2,20 +2,20 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
 use commonware_runtime::tokio::Context;
-use kora_backend::{
+use magnus_backend::{
     AccountStore, CodeStore, CommonwareBackend, CommonwareRootProvider, QmdbBackendConfig,
     StorageStore,
 };
-use kora_domain::StateRoot;
-use kora_handlers::{HandleError, QmdbHandle, QmdbRefDb as HandlerQmdbRefDb};
-use kora_traits::{StateDb, StateDbWrite};
+use magnus_domain::StateRoot;
+use magnus_handlers::{HandleError, QmdbHandle, QmdbRefDb as HandlerQmdbRefDb};
+use magnus_traits::{StateDb, StateDbWrite};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
 /// QMDB configuration for the backend.
 pub type QmdbConfig = QmdbBackendConfig;
 /// QMDB change set type.
-pub type QmdbChangeSet = kora_qmdb::ChangeSet;
+pub type QmdbChangeSet = magnus_qmdb::ChangeSet;
 /// QMDB handle type used as a state database.
 pub type QmdbState = QmdbHandle<AccountStore, StorageStore, CodeStore>;
 /// Tokio-backed REVM database wrapper for QMDB handles.
@@ -23,7 +23,7 @@ pub type QmdbRefDb = HandlerQmdbRefDb<AccountStore, StorageStore, CodeStore>;
 
 type Handle = QmdbState;
 
-/// QMDB ledger service backed by kora storage crates.
+/// QMDB ledger service backed by magnus storage crates.
 #[derive(Clone, Debug)]
 pub struct QmdbLedger {
     handle: Handle,
@@ -34,13 +34,13 @@ pub struct QmdbLedger {
 pub enum Error {
     /// Backend error while opening QMDB storage.
     #[error("backend error: {0}")]
-    Backend(#[from] kora_backend::BackendError),
+    Backend(#[from] magnus_backend::BackendError),
     /// Handler error while applying state changes.
     #[error("handler error: {0}")]
     Handler(#[from] HandleError),
     /// State database error while computing or committing roots.
     #[error("state db error: {0}")]
-    StateDb(#[from] kora_traits::StateDbError),
+    StateDb(#[from] magnus_traits::StateDbError),
     /// Missing Tokio runtime needed for sync REVM database access.
     #[error("missing tokio runtime for async db bridge")]
     MissingRuntime,

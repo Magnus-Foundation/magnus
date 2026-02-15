@@ -11,13 +11,13 @@ use commonware_consensus::{
 use commonware_cryptography::{Committable as _, certificate::Scheme as CertScheme};
 use commonware_runtime::{Clock, Metrics, Spawner};
 use futures::StreamExt;
-use kora_consensus::{BlockExecution, SnapshotStore, components::InMemorySnapshotStore};
-use kora_domain::{Block, ConsensusDigest};
-use kora_executor::{BlockContext, BlockExecutor};
-use kora_ledger::LedgerService;
-use kora_overlay::OverlayState;
-use kora_qmdb_ledger::QmdbState;
-use kora_rpc::NodeState;
+use magnus_consensus::{BlockExecution, SnapshotStore, components::InMemorySnapshotStore};
+use magnus_domain::{Block, ConsensusDigest};
+use magnus_executor::{BlockContext, BlockExecutor};
+use magnus_ledger::LedgerService;
+use magnus_overlay::OverlayState;
+use magnus_qmdb_ledger::QmdbState;
+use magnus_rpc::NodeState;
 use rand::Rng;
 use tracing::{info, trace, warn};
 
@@ -81,7 +81,7 @@ where
     }
 
     async fn build_block(&self, parent: &Block) -> Option<Block> {
-        use kora_consensus::Mempool as _;
+        use magnus_consensus::Mempool as _;
 
         let start = Instant::now();
         let parent_digest = parent.commitment();
@@ -226,7 +226,7 @@ where
         &self,
         snapshots: &InMemorySnapshotStore<OverlayState<QmdbState>>,
         from: ConsensusDigest,
-    ) -> BTreeSet<kora_consensus::TxId> {
+    ) -> BTreeSet<magnus_consensus::TxId> {
         let mut excluded = BTreeSet::new();
         let mut current = Some(from);
 

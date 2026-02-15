@@ -1,9 +1,9 @@
-# `kora-config`
+# `magnus-config`
 
-<a href="https://github.com/refcell/kora/actions/workflows/ci.yml"><img src="https://github.com/refcell/kora/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-<a href="https://github.com/refcell/kora/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-d1d1f6.svg" alt="License"></a>
+<a href="https://github.com/refcell/magnus/actions/workflows/ci.yml"><img src="https://github.com/refcell/magnus/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<a href="https://github.com/refcell/magnus/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-d1d1f6.svg" alt="License"></a>
 
-Configuration types for Kora node.
+Configuration types for Magnus node.
 
 This crate provides serializable configuration structures for all node components,
 supporting both TOML (default) and JSON formats.
@@ -13,7 +13,7 @@ supporting both TOML (default) and JSON formats.
 ```toml
 [node]
 chain_id = 1
-data_dir = "/var/lib/kora"
+data_dir = "/var/lib/magnus"
 
 [consensus]
 validator_key = "path/to/key"
@@ -36,7 +36,7 @@ ws_addr = "0.0.0.0:8546"
 ## Usage
 
 ```rust,ignore
-use kora_config::NodeConfig;
+use magnus_config::NodeConfig;
 use std::path::Path;
 
 // Load from TOML file
@@ -51,4 +51,4 @@ let toml_str = config.to_toml()?;
 
 ## License
 
-[MIT License](https://github.com/refcell/kora/blob/main/LICENSE)
+[MIT License](https://github.com/refcell/magnus/blob/main/LICENSE)

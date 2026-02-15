@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use kora_domain::{Tx, TxId};
+use magnus_domain::{Tx, TxId};
 
 /// Mempool provides access to pending transactions for block building.
 ///

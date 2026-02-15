@@ -1,7 +1,7 @@
 //! Transport provider trait for building node transport.
 
 use commonware_runtime::tokio;
-use kora_config::NodeConfig;
+use magnus_config::NodeConfig;
 
 /// Provides transport for a node.
 ///

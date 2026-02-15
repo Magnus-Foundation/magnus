@@ -1,4 +1,4 @@
-//! Generates initial configuration for a Kora devnet.
+//! Generates initial configuration for a Magnus devnet.
 
 use std::{collections::BTreeMap, fs, path::PathBuf};
 

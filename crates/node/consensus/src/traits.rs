@@ -3,9 +3,9 @@
 use std::collections::BTreeSet;
 
 use alloy_primitives::B256;
-use kora_domain::{ConsensusDigest, StateRoot, Tx, TxId as DomainTxId};
-use kora_qmdb::ChangeSet;
-use kora_traits::StateDb;
+use magnus_domain::{ConsensusDigest, StateRoot, Tx, TxId as DomainTxId};
+use magnus_qmdb::ChangeSet;
+use magnus_traits::StateDb;
 
 use crate::ConsensusError;
 
@@ -117,7 +117,7 @@ pub trait SeedTracker: Clone + Send + Sync + 'static {
 #[cfg(test)]
 mod tests {
     use alloy_primitives::B256;
-    use kora_domain::StateRoot;
+    use magnus_domain::StateRoot;
 
     use super::*;
 

@@ -1,7 +1,7 @@
 //! Error types for database handles.
 
 use alloy_primitives::B256;
-use kora_qmdb::QmdbError;
+use magnus_qmdb::QmdbError;
 use thiserror::Error;
 
 /// Error type for database handle operations.

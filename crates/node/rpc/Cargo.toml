@@ -1,11 +1,11 @@
 [package]
-name = "kora-rpc"
+name = "magnus-rpc"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "RPC server for Kora nodes"
+description = "RPC server for Magnus nodes"
 
 [lints]
 workspace = true
@@ -38,9 +38,9 @@ tracing.workspace = true
 # Misc
 parking_lot = "0.12"
 
-# Kora crates
-kora-indexer = { path = "../../storage/indexer" }
-kora-traits = { path = "../../storage/traits" }
+# Magnus crates
+magnus-indexer = { path = "../../storage/indexer" }
+magnus-traits = { path = "../../storage/traits" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }

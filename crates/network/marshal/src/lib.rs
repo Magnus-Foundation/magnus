@@ -1,7 +1,7 @@
-//! Block dissemination handler for Kora using commonware Marshaled adapter.
+//! Block dissemination handler for Magnus using commonware Marshaled adapter.
 
 #![doc = include_str!("../README.md")]
-#![doc(issue_tracker_base_url = "https://github.com/refcell/kora/issues/")]
+#![doc(issue_tracker_base_url = "https://github.com/refcell/magnus/issues/")]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 

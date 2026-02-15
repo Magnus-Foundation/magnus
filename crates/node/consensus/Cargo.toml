@@ -1,19 +1,19 @@
 [package]
-name = "kora-consensus"
+name = "magnus-consensus"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Consensus application layer for Kora"
+description = "Consensus application layer for Magnus"
 
 [dependencies]
 # Local crates
-kora-config = { path = "../config" }
-kora-domain = { path = "../domain" }
-kora-executor = { path = "../executor" }
-kora-qmdb = { path = "../../storage/qmdb" }
-kora-traits = { path = "../../storage/traits" }
+magnus-config = { path = "../config" }
+magnus-domain = { path = "../domain" }
+magnus-executor = { path = "../executor" }
+magnus-qmdb = { path = "../../storage/qmdb" }
+magnus-traits = { path = "../../storage/traits" }
 
 # Alloy
 alloy-primitives.workspace = true

@@ -15,14 +15,14 @@ use commonware_parallel::Sequential;
 use commonware_runtime::{Metrics as _, Spawner, buffer::PoolRef, tokio};
 use commonware_utils::{NZU64, NZUsize, acknowledgement::Exact};
 use futures::StreamExt;
-use kora_domain::{Block, BlockCfg, BootstrapConfig, ConsensusDigest, LedgerEvent, TxCfg};
-use kora_executor::{BlockContext, RevmExecutor};
-use kora_ledger::{LedgerService, LedgerView};
-use kora_marshal::{ArchiveInitializer, BroadcastInitializer, PeerInitializer};
-use kora_reporters::{BlockContextProvider, FinalizedReporter, NodeStateReporter, SeedReporter};
-use kora_service::{NodeRunContext, NodeRunner};
-use kora_simplex::{DEFAULT_MAILBOX_SIZE as MAILBOX_SIZE, DefaultPool};
-use kora_transport::NetworkTransport;
+use magnus_domain::{Block, BlockCfg, BootstrapConfig, ConsensusDigest, LedgerEvent, TxCfg};
+use magnus_executor::{BlockContext, RevmExecutor};
+use magnus_ledger::{LedgerService, LedgerView};
+use magnus_marshal::{ArchiveInitializer, BroadcastInitializer, PeerInitializer};
+use magnus_reporters::{BlockContextProvider, FinalizedReporter, NodeStateReporter, SeedReporter};
+use magnus_service::{NodeRunContext, NodeRunner};
+use magnus_simplex::{DEFAULT_MAILBOX_SIZE as MAILBOX_SIZE, DefaultPool};
+use magnus_transport::NetworkTransport;
 use tracing::{debug, info, trace};
 
 use crate::{RevmApplication, RunnerError, scheme::ThresholdScheme};
@@ -30,7 +30,7 @@ use crate::{RevmApplication, RunnerError, scheme::ThresholdScheme};
 const BLOCK_CODEC_MAX_TXS: usize = 64;
 const BLOCK_CODEC_MAX_TX_BYTES: usize = 1024;
 const EPOCH_LENGTH: u64 = u64::MAX;
-const PARTITION_PREFIX: &str = "kora";
+const PARTITION_PREFIX: &str = "magnus";
 
 type Peer = ed25519::PublicKey;
 type CertArchive = Finalization<ThresholdScheme, ConsensusDigest>;
@@ -119,7 +119,7 @@ pub struct ProductionRunner {
     /// Storage partition prefix.
     pub partition_prefix: String,
     /// Optional RPC configuration (state, bind address).
-    pub rpc_config: Option<(kora_rpc::NodeState, std::net::SocketAddr)>,
+    pub rpc_config: Option<(magnus_rpc::NodeState, std::net::SocketAddr)>,
 }
 
 impl ProductionRunner {
@@ -142,7 +142,7 @@ impl ProductionRunner {
 
     /// Configure RPC server.
     #[must_use]
-    pub fn with_rpc(mut self, state: kora_rpc::NodeState, addr: std::net::SocketAddr) -> Self {
+    pub fn with_rpc(mut self, state: magnus_rpc::NodeState, addr: std::net::SocketAddr) -> Self {
         self.rpc_config = Some((state, addr));
         self
     }
@@ -150,9 +150,9 @@ impl ProductionRunner {
 
 impl ProductionRunner {
     /// Run the validator as a standalone process.
-    pub fn run_standalone(self, config: kora_config::NodeConfig) -> Result<(), RunnerError> {
+    pub fn run_standalone(self, config: magnus_config::NodeConfig) -> Result<(), RunnerError> {
         use commonware_runtime::Runner;
-        use kora_transport::NetworkConfigExt;
+        use magnus_transport::NetworkConfigExt;
 
         let rpc_config = self.rpc_config.clone();
 
@@ -160,7 +160,7 @@ impl ProductionRunner {
         executor.start(|context| async move {
             // Start RPC server if configured
             if let Some((state, addr)) = rpc_config {
-                let rpc = kora_rpc::RpcServer::new(state, addr);
+                let rpc = magnus_rpc::RpcServer::new(state, addr);
                 drop(rpc.start());
             }
 
@@ -174,7 +174,7 @@ impl ProductionRunner {
                 .map_err(|e| anyhow::anyhow!("failed to build transport: {}", e))?;
 
             let ctx =
-                kora_service::NodeRunContext::new(context, std::sync::Arc::new(config), transport);
+                magnus_service::NodeRunContext::new(context, std::sync::Arc::new(config), transport);
 
             let _ledger = self.run(ctx).await?;
 
@@ -259,7 +259,7 @@ impl NodeRunner for ProductionRunner {
         .context("init blocks archive")?;
 
         let (actor, marshal_mailbox, _last_processed_height) =
-            kora_marshal::ActorInitializer::init::<_, Block, _, _, _, Exact>(
+            magnus_marshal::ActorInitializer::init::<_, Block, _, _, _, Exact>(
                 context.clone(),
                 finalizations_by_height,
                 finalized_blocks,

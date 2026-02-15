@@ -1,11 +1,11 @@
 [package]
-name = "kora-builder"
+name = "magnus-builder"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Block builder for Kora nodes"
+description = "Block builder for Magnus nodes"
 
 [lints]
 workspace = true

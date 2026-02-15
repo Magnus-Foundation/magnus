@@ -1,5 +1,5 @@
 [package]
-name = "kora-simplex"
+name = "magnus-simplex"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

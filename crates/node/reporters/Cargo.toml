@@ -1,24 +1,24 @@
 [package]
-name = "kora-reporters"
+name = "magnus-reporters"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Consensus reporters for Kora nodes"
+description = "Consensus reporters for Magnus nodes"
 
 [lints]
 workspace = true
 
 [dependencies]
 # Local crates
-kora-consensus = { path = "../consensus" }
-kora-domain = { path = "../domain" }
-kora-executor = { path = "../executor" }
-kora-ledger = { path = "../ledger" }
-kora-overlay = { path = "../../storage/overlay" }
-kora-qmdb-ledger = { path = "../../storage/qmdb-ledger" }
-kora-rpc = { path = "../rpc" }
+magnus-consensus = { path = "../consensus" }
+magnus-domain = { path = "../domain" }
+magnus-executor = { path = "../executor" }
+magnus-ledger = { path = "../ledger" }
+magnus-overlay = { path = "../../storage/overlay" }
+magnus-qmdb-ledger = { path = "../../storage/qmdb-ledger" }
+magnus-rpc = { path = "../rpc" }
 
 # Commonware
 commonware-codec.workspace = true

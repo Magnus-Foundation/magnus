@@ -1,23 +1,23 @@
-# `kora-service`
+# `magnus-service`
 
-[![CI](https://github.com/refcell/kora/actions/workflows/ci.yml/badge.svg)](https://github.com/refcell/kora/actions/workflows/ci.yml)
+[![CI](https://github.com/refcell/magnus/actions/workflows/ci.yml/badge.svg)](https://github.com/refcell/magnus/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Kora node service orchestration.
+Magnus node service orchestration.
 
 ## Key Types
 
-- `KoraNodeService` - Main service type that orchestrates node components
+- `MagnusNodeService` - Main service type that orchestrates node components
 
 ## Usage
 
 ```rust,ignore
-use kora_config::NodeConfig;
-use kora_service::KoraNodeService;
+use magnus_config::NodeConfig;
+use magnus_service::MagnusNodeService;
 
 fn main() -> eyre::Result<()> {
     let config = NodeConfig::default();
-    let service = KoraNodeService::new(config);
+    let service = MagnusNodeService::new(config);
     service.run()
 }
 ```

@@ -1,19 +1,19 @@
 [package]
-name = "kora-txpool"
+name = "magnus-txpool"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Production-ready transaction pool for kora-node"
+description = "Production-ready transaction pool for magnus-node"
 
 [lints]
 workspace = true
 
 [dependencies]
 # Local crates
-kora-domain = { path = "../domain", features = ["evm"] }
-kora-traits = { path = "../../storage/traits" }
+magnus-domain = { path = "../domain", features = ["evm"] }
+magnus-traits = { path = "../../storage/traits" }
 
 # Alloy
 alloy-primitives.workspace = true

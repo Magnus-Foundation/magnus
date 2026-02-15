@@ -1,5 +1,5 @@
 [package]
-name = "kora"
+name = "magnus"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,13 +7,13 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-kora-cli.workspace = true
-kora-config.workspace = true
-kora-service.workspace = true
-kora-dkg.workspace = true
-kora-runner.workspace = true
-kora-domain.workspace = true
-kora-rpc.workspace = true
+magnus-cli.workspace = true
+magnus-config.workspace = true
+magnus-service.workspace = true
+magnus-dkg.workspace = true
+magnus-runner.workspace = true
+magnus-domain.workspace = true
+magnus-rpc.workspace = true
 
 commonware-cryptography.workspace = true
 commonware-codec.workspace = true

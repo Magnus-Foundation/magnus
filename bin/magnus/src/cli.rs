@@ -1,14 +1,14 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use kora_config::NodeConfig;
-use kora_domain::BootstrapConfig;
-use kora_rpc::NodeState;
-use kora_runner::{ProductionRunner, load_threshold_scheme};
-use kora_service::LegacyNodeService;
+use magnus_config::NodeConfig;
+use magnus_domain::BootstrapConfig;
+use magnus_rpc::NodeState;
+use magnus_runner::{ProductionRunner, load_threshold_scheme};
+use magnus_service::LegacyNodeService;
 
 #[derive(Parser, Debug)]
-#[command(name = "kora")]
+#[command(name = "magnus")]
 #[command(about = "A minimal commonware + revm execution client")]
 pub(crate) struct Cli {
     #[command(subcommand)]
@@ -73,7 +73,7 @@ impl Cli {
     }
 
     fn run_dkg(&self, args: &DkgArgs) -> eyre::Result<()> {
-        use kora_dkg::{DkgCeremony, DkgConfig};
+        use magnus_dkg::{DkgCeremony, DkgConfig};
 
         let node_config = self.load_config()?;
         tracing::info!(chain_id = node_config.chain_id, "Starting DKG ceremony");
@@ -119,13 +119,13 @@ impl Cli {
 
         tracing::info!(chain_id = config.chain_id, "Starting validator");
 
-        if !kora_dkg::DkgOutput::exists(&config.data_dir) {
+        if !magnus_dkg::DkgOutput::exists(&config.data_dir) {
             return Err(eyre::eyre!(
-                "DKG output not found. Run 'kora dkg' first to generate threshold shares."
+                "DKG output not found. Run 'magnus dkg' first to generate threshold shares."
             ));
         }
 
-        let dkg_output = kora_dkg::DkgOutput::load(&config.data_dir)?;
+        let dkg_output = magnus_dkg::DkgOutput::load(&config.data_dir)?;
         tracing::info!(share_index = dkg_output.share_index, "Loaded DKG output");
 
         let scheme = load_threshold_scheme(&config.data_dir)
@@ -158,7 +158,7 @@ impl Cli {
         let runner = ProductionRunner::new(
             scheme,
             config.chain_id,
-            kora_config::DEFAULT_GAS_LIMIT,
+            magnus_config::DEFAULT_GAS_LIMIT,
             bootstrap,
         )
         .with_rpc(node_state, rpc_addr);

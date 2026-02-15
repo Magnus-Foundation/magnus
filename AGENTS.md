@@ -1,4 +1,4 @@
-# Agent Guidelines for Kora
+# Agent Guidelines for Magnus
 
 ## Build & Test Commands
 
@@ -46,7 +46,7 @@ just devnet-logs
 
 ## Project Structure
 
-- `bin/kora` - Main binary
+- `bin/magnus` - Main binary
 - `crates/node/` - Node components (consensus, executor, rpc, etc.)
 - `crates/network/` - Networking (transport, marshal)
 - `crates/storage/` - Storage (qmdb, handlers, indexer)

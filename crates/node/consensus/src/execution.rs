@@ -1,9 +1,9 @@
 //! Shared block execution helpers.
 
 use alloy_primitives::Bytes;
-use kora_domain::{StateRoot, Tx};
-use kora_executor::{BlockContext, BlockExecutor, ExecutionOutcome};
-use kora_traits::StateDb;
+use magnus_domain::{StateRoot, Tx};
+use magnus_executor::{BlockContext, BlockExecutor, ExecutionOutcome};
+use magnus_traits::StateDb;
 
 use crate::{ConsensusError, Snapshot};
 

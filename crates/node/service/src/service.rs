@@ -1,4 +1,4 @@
-//! Kora node service implementation.
+//! Magnus node service implementation.
 
 use std::sync::Arc;
 
@@ -9,17 +9,17 @@ use commonware_runtime::{
     tokio::{self, Context},
 };
 use futures::future::try_join_all;
-use kora_config::NodeConfig;
-use kora_transport::NetworkConfigExt;
+use magnus_config::NodeConfig;
+use magnus_transport::NetworkConfigExt;
 
 use crate::{NodeRunContext, NodeRunner, TransportProvider};
 
-/// Generic kora node service that delegates to a runner.
+/// Generic magnus node service that delegates to a runner.
 ///
-/// This is the primary way to run a kora node with custom execution logic.
+/// This is the primary way to run a magnus node with custom execution logic.
 /// The service handles transport creation via the `TransportProvider`,
 /// then delegates node wiring to the `NodeRunner`.
-pub struct KoraNodeService<R, T>
+pub struct MagnusNodeService<R, T>
 where
     R: NodeRunner<Transport = T::Transport>,
     T: TransportProvider,
@@ -29,17 +29,17 @@ where
     config: NodeConfig,
 }
 
-impl<R, T> std::fmt::Debug for KoraNodeService<R, T>
+impl<R, T> std::fmt::Debug for MagnusNodeService<R, T>
 where
     R: NodeRunner<Transport = T::Transport>,
     T: TransportProvider,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("KoraNodeService").finish_non_exhaustive()
+        f.debug_struct("MagnusNodeService").finish_non_exhaustive()
     }
 }
 
-impl<R, T> KoraNodeService<R, T>
+impl<R, T> MagnusNodeService<R, T>
 where
     R: NodeRunner<Transport = T::Transport>,
     T: TransportProvider,
@@ -77,10 +77,10 @@ where
     }
 }
 
-/// Legacy kora node service for production use.
+/// Legacy magnus node service for production use.
 ///
 /// This maintains backward compatibility with the existing production binary.
-/// For new implementations, prefer [`KoraNodeService`] with custom runner/provider.
+/// For new implementations, prefer [`MagnusNodeService`] with custom runner/provider.
 #[derive(Debug)]
 pub struct LegacyNodeService {
     config: NodeConfig,
@@ -120,14 +120,14 @@ impl LegacyNodeService {
             tracing::info!("registered validators with oracle");
         }
 
-        tracing::info!(chain_id = self.config.chain_id, "kora node initialized");
+        tracing::info!(chain_id = self.config.chain_id, "magnus node initialized");
 
         if let Err(e) = try_join_all(vec![transport.handle]).await {
             tracing::error!(?e, "service task failed");
             return Err(eyre::eyre!("service task failed: {:?}", e));
         }
 
-        tracing::info!("kora node shutdown");
+        tracing::info!("magnus node shutdown");
         Ok(())
     }
 }

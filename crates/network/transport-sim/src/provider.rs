@@ -9,9 +9,9 @@ use std::{
 use commonware_cryptography::PublicKey;
 use commonware_p2p::{Manager as _, simulated};
 use commonware_runtime::{Quota, tokio};
-use kora_config::NodeConfig;
-use kora_service::TransportProvider;
-use kora_transport::{
+use magnus_config::NodeConfig;
+use magnus_service::TransportProvider;
+use magnus_transport::{
     CHANNEL_BACKFILL, CHANNEL_BLOCKS, CHANNEL_CERTS, CHANNEL_RESOLVER, CHANNEL_VOTES,
 };
 

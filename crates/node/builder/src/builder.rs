@@ -4,7 +4,7 @@ use crate::ConsensusProvider;
 
 /// Node builder.
 ///
-/// A builder for constructing Kora nodes with pluggable consensus providers.
+/// A builder for constructing Magnus nodes with pluggable consensus providers.
 ///
 /// # Type States
 ///
@@ -17,7 +17,7 @@ use crate::ConsensusProvider;
 /// # Example
 ///
 /// ```rust,ignore
-/// use kora_builder::{NodeBuilder, ConsensusProvider};
+/// use magnus_builder::{NodeBuilder, ConsensusProvider};
 ///
 /// let builder = NodeBuilder::new()
 ///     .with_consensus(my_consensus_provider);

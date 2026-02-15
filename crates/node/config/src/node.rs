@@ -10,7 +10,7 @@ use crate::{ConfigError, ConsensusConfig, ExecutionConfig, NetworkConfig, RpcCon
 pub const DEFAULT_CHAIN_ID: u64 = 1;
 
 /// Default data directory.
-pub const DEFAULT_DATA_DIR: &str = "/var/lib/kora";
+pub const DEFAULT_DATA_DIR: &str = "/var/lib/magnus";
 
 /// Complete node configuration.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -14,7 +14,7 @@ use crate::{
         EthApiImpl, EthApiServer, NetApiImpl, NetApiServer, TxSubmitCallback, Web3ApiImpl,
         Web3ApiServer,
     },
-    kora::{KoraApiImpl, KoraApiServer},
+    magnus::{MagnusApiImpl, MagnusApiServer},
     state::NodeState,
     state_provider::{NoopStateProvider, StateProvider},
 };
@@ -227,7 +227,7 @@ impl<S: StateProvider + Clone + 'static> RpcServer<S> {
             );
             let net_api = NetApiImpl::new(chain_id);
             let web3_api = Web3ApiImpl::new();
-            let kora_api = KoraApiImpl::new(node_state_for_jsonrpc);
+            let magnus_api = MagnusApiImpl::new(node_state_for_jsonrpc);
 
             let mut module = jsonrpsee::RpcModule::new(());
             if let Err(e) = module.merge(eth_api.into_rpc()) {
@@ -242,8 +242,8 @@ impl<S: StateProvider + Clone + 'static> RpcServer<S> {
                 error!(error = %e, "Failed to merge web3 API");
                 return None;
             }
-            if let Err(e) = module.merge(kora_api.into_rpc()) {
-                error!(error = %e, "Failed to merge kora API");
+            if let Err(e) = module.merge(magnus_api.into_rpc()) {
+                error!(error = %e, "Failed to merge magnus API");
                 return None;
             }
 

@@ -3,9 +3,9 @@
 use std::collections::BTreeSet;
 
 use alloy_primitives::B256;
-use kora_domain::{StateRoot, Tx};
-use kora_qmdb::ChangeSet;
-use kora_traits::StateDb;
+use magnus_domain::{StateRoot, Tx};
+use magnus_qmdb::ChangeSet;
+use magnus_traits::StateDb;
 
 use crate::{ConsensusError, Digest, Mempool, SeedTracker, Snapshot, SnapshotStore, TxId};
 
@@ -213,8 +213,8 @@ where
 #[cfg(test)]
 mod tests {
     use alloy_primitives::U256;
-    use kora_domain::{StateRoot, Tx};
-    use kora_qmdb::ChangeSet;
+    use magnus_domain::{StateRoot, Tx};
+    use magnus_qmdb::ChangeSet;
 
     use super::*;
     use crate::components::{InMemoryMempool, InMemorySeedTracker, InMemorySnapshotStore};
@@ -231,32 +231,32 @@ mod tests {
         }
     }
 
-    impl kora_traits::StateDbRead for MockStateDb {
+    impl magnus_traits::StateDbRead for MockStateDb {
         async fn nonce(
             &self,
             _address: &alloy_primitives::Address,
-        ) -> Result<u64, kora_traits::StateDbError> {
+        ) -> Result<u64, magnus_traits::StateDbError> {
             Ok(0)
         }
 
         async fn balance(
             &self,
             _address: &alloy_primitives::Address,
-        ) -> Result<U256, kora_traits::StateDbError> {
+        ) -> Result<U256, magnus_traits::StateDbError> {
             Ok(U256::ZERO)
         }
 
         async fn code_hash(
             &self,
             _address: &alloy_primitives::Address,
-        ) -> Result<B256, kora_traits::StateDbError> {
+        ) -> Result<B256, magnus_traits::StateDbError> {
             Ok(B256::ZERO)
         }
 
         async fn code(
             &self,
             _code_hash: &B256,
-        ) -> Result<alloy_primitives::Bytes, kora_traits::StateDbError> {
+        ) -> Result<alloy_primitives::Bytes, magnus_traits::StateDbError> {
             Ok(alloy_primitives::Bytes::new())
         }
 
@@ -264,20 +264,20 @@ mod tests {
             &self,
             _address: &alloy_primitives::Address,
             _slot: &U256,
-        ) -> Result<U256, kora_traits::StateDbError> {
+        ) -> Result<U256, magnus_traits::StateDbError> {
             Ok(U256::ZERO)
         }
     }
 
-    impl kora_traits::StateDbWrite for MockStateDb {
-        async fn commit(&self, _changes: ChangeSet) -> Result<B256, kora_traits::StateDbError> {
+    impl magnus_traits::StateDbWrite for MockStateDb {
+        async fn commit(&self, _changes: ChangeSet) -> Result<B256, magnus_traits::StateDbError> {
             Ok(B256::repeat_byte(0xCC))
         }
 
         async fn compute_root(
             &self,
             _changes: &ChangeSet,
-        ) -> Result<B256, kora_traits::StateDbError> {
+        ) -> Result<B256, magnus_traits::StateDbError> {
             Ok(B256::ZERO)
         }
 
@@ -287,8 +287,8 @@ mod tests {
         }
     }
 
-    impl kora_traits::StateDb for MockStateDb {
-        async fn state_root(&self) -> Result<B256, kora_traits::StateDbError> {
+    impl magnus_traits::StateDb for MockStateDb {
+        async fn state_root(&self) -> Result<B256, magnus_traits::StateDbError> {
             Ok(self.root)
         }
     }

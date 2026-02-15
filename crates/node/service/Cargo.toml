@@ -1,19 +1,19 @@
 [package]
-name = "kora-service"
+name = "magnus-service"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Kora node service orchestration"
+description = "Magnus node service orchestration"
 
 [lints]
 workspace = true
 
 [dependencies]
 # Local crates
-kora-config = { path = "../config" }
-kora-transport = { path = "../../network/transport" }
+magnus-config = { path = "../config" }
+magnus-transport = { path = "../../network/transport" }
 
 # Commonware
 commonware-consensus.workspace = true

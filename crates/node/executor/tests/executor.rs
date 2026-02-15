@@ -1,4 +1,4 @@
-//! Integration tests for kora-executor.
+//! Integration tests for magnus-executor.
 
 use std::{
     collections::HashMap,
@@ -7,9 +7,9 @@ use std::{
 
 use alloy_consensus::Header;
 use alloy_primitives::{Address, B256, Bytes, U256};
-use kora_executor::{BlockContext, BlockExecutor, RevmExecutor};
-use kora_qmdb::{AccountUpdate, ChangeSet};
-use kora_traits::{StateDb, StateDbError, StateDbRead, StateDbWrite};
+use magnus_executor::{BlockContext, BlockExecutor, RevmExecutor};
+use magnus_qmdb::{AccountUpdate, ChangeSet};
+use magnus_traits::{StateDb, StateDbError, StateDbRead, StateDbWrite};
 use rstest::rstest;
 
 /// Account data stored in the mock state database.

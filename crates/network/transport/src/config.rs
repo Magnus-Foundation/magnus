@@ -14,12 +14,12 @@ pub const DEFAULT_MAX_MESSAGE_SIZE: u32 = 1024 * 1024;
 /// Default channel backlog size.
 pub const DEFAULT_BACKLOG: usize = 256;
 
-/// Default namespace for kora network messages.
-pub const DEFAULT_NAMESPACE: &[u8] = b"_COMMONWARE_KORA_NETWORK";
+/// Default namespace for magnus network messages.
+pub const DEFAULT_NAMESPACE: &[u8] = b"_COMMONWARE_MAGNUS_NETWORK";
 
 /// Transport configuration for authenticated discovery network.
 ///
-/// This wraps the commonware discovery config with kora-specific defaults
+/// This wraps the commonware discovery config with magnus-specific defaults
 /// and provides builder methods for customization.
 #[derive(Clone)]
 pub struct TransportConfig<C: commonware_cryptography::Signer> {
@@ -237,6 +237,6 @@ mod tests {
     fn constants_values() {
         assert_eq!(DEFAULT_MAX_MESSAGE_SIZE, 1024 * 1024);
         assert_eq!(DEFAULT_BACKLOG, 256);
-        assert_eq!(DEFAULT_NAMESPACE, b"_COMMONWARE_KORA_NETWORK");
+        assert_eq!(DEFAULT_NAMESPACE, b"_COMMONWARE_MAGNUS_NETWORK");
     }
 }

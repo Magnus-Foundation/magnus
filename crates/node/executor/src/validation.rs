@@ -4,7 +4,7 @@ use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2930::AccessList;
 use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_rlp::Decodable;
-use kora_traits::StateDb;
+use magnus_traits::StateDb;
 
 use crate::{ExecutionConfig, ExecutionError};
 

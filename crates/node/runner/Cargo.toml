@@ -1,27 +1,27 @@
 [package]
-name = "kora-runner"
+name = "magnus-runner"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Production node runner for Kora validators"
+description = "Production node runner for Magnus validators"
 
 [dependencies]
-kora-config.workspace = true
-kora-consensus.workspace = true
-kora-domain.workspace = true
-kora-dkg.workspace = true
-kora-executor.workspace = true
-kora-ledger.workspace = true
-kora-marshal.workspace = true
-kora-overlay.workspace = true
-kora-qmdb-ledger.workspace = true
-kora-reporters.workspace = true
-kora-rpc.workspace = true
-kora-service.workspace = true
-kora-simplex.workspace = true
-kora-transport.workspace = true
+magnus-config.workspace = true
+magnus-consensus.workspace = true
+magnus-domain.workspace = true
+magnus-dkg.workspace = true
+magnus-executor.workspace = true
+magnus-ledger.workspace = true
+magnus-marshal.workspace = true
+magnus-overlay.workspace = true
+magnus-qmdb-ledger.workspace = true
+magnus-reporters.workspace = true
+magnus-rpc.workspace = true
+magnus-service.workspace = true
+magnus-simplex.workspace = true
+magnus-transport.workspace = true
 
 commonware-codec.workspace = true
 commonware-consensus.workspace = true

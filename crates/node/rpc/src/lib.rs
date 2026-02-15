@@ -1,7 +1,7 @@
-//! RPC server for Kora nodes.
+//! RPC server for Magnus nodes.
 
 #![doc = include_str!("../README.md")]
-#![doc(issue_tracker_base_url = "https://github.com/refcell/kora/issues/")]
+#![doc(issue_tracker_base_url = "https://github.com/refcell/magnus/issues/")]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
@@ -17,8 +17,8 @@ pub use eth::{
     Web3ApiServer,
 };
 
-mod kora;
-pub use kora::{KoraApiImpl, KoraApiServer};
+mod magnus;
+pub use magnus::{MagnusApiImpl, MagnusApiServer};
 
 mod server;
 pub use server::{JsonRpcServer, RpcServer, RpcServerHandle, ServerError};

@@ -77,9 +77,9 @@ print_header() {
     echo ""
     echo -e "${BOLD}${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
     if [[ "$INTERACTIVE_DKG" == "true" ]]; then
-        echo -e "${BOLD}${BLUE}║${NC}        ${BOLD}KORA DEVNET${NC} ${GREEN}(Interactive DKG)${NC}                 ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}        ${BOLD}MAGNUS DEVNET${NC} ${GREEN}(Interactive DKG)${NC}                 ${BOLD}${BLUE}║${NC}"
     else
-        echo -e "${BOLD}${BLUE}║${NC}        ${BOLD}KORA DEVNET${NC} ${YELLOW}(Trusted Dealer)${NC}                  ${BOLD}${BLUE}║${NC}"
+        echo -e "${BOLD}${BLUE}║${NC}        ${BOLD}MAGNUS DEVNET${NC} ${YELLOW}(Trusted Dealer)${NC}                  ${BOLD}${BLUE}║${NC}"
     fi
     echo -e "${BOLD}${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
     echo ""
@@ -122,7 +122,7 @@ print_header
 
 # Phase 0: Build
 print_phase "0/3" "Building Docker image"
-if run_with_spinner "Building kora:local image..." docker buildx bake --allow=fs.read=.. -f docker-bake.hcl kora-local; then
+if run_with_spinner "Building magnus:local image..." docker buildx bake --allow=fs.read=.. -f docker-bake.hcl magnus-local; then
     print_success "Image built successfully"
 else
     print_error "Build failed"
@@ -133,12 +133,12 @@ fi
 CONFIG_EXISTS=false
 SHARES_EXIST=false
 
-docker volume inspect kora-devnet_shared_config >/dev/null 2>&1 && \
-    docker run --rm -v kora-devnet_shared_config:/shared alpine test -f /shared/peers.json 2>/dev/null && \
+docker volume inspect magnus-devnet_shared_config >/dev/null 2>&1 && \
+    docker run --rm -v magnus-devnet_shared_config:/shared alpine test -f /shared/peers.json 2>/dev/null && \
     CONFIG_EXISTS=true
 
-docker volume inspect kora-devnet_data_node0 >/dev/null 2>&1 && \
-    docker run --rm -v kora-devnet_data_node0:/data alpine test -f /data/share.key 2>/dev/null && \
+docker volume inspect magnus-devnet_data_node0 >/dev/null 2>&1 && \
+    docker run --rm -v magnus-devnet_data_node0:/data alpine test -f /data/share.key 2>/dev/null && \
     SHARES_EXIST=true
 
 echo ""
