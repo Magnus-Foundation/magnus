@@ -1,5 +1,26 @@
 [workspace]
-members = ["bin/*", "crates/e2e", "crates/network/*", "crates/node/*", "crates/storage/*", "crates/utilities/*"]
+members = [
+    "bin/*",
+    "crates/e2e",
+    "crates/network/*",
+    "crates/node/*",
+    "crates/storage/*",
+    "crates/utilities/*",
+    "crates/core/*",
+    "crates/execution/*",
+    "crates/precompile/*",
+    "crates/consensus/consensus-engine",
+    "crates/consensus/dkg-onchain-artifacts",
+    "crates/sdk/provider",
+    "crates/telemetry/util",
+    "tools/faucet",
+    "tools/xtask",
+]
+exclude = [
+    # Exclude duplicate-named crates (same name as crates/node/* counterparts)
+    "crates/consensus/engine",
+    "crates/consensus/dkg",
+]
 default-members = ["bin/magnus"]
 resolver = "2"
 
@@ -9,6 +30,7 @@ edition = "2024"
 rust-version = "1.88"
 license = "MIT"
 repository = "https://github.com/refcell/magnus"
+publish = false
 
 [workspace.lints.rust]
 missing-debug-implementations = "warn"
@@ -45,17 +67,23 @@ lto = "fat"
 codegen-units = 1
 
 [workspace.dependencies]
-# Local crates
+# ========================================
+# Magnus Local Crates (node)
+# ========================================
 magnus-builder = { path = "crates/node/builder" }
+magnus-node = { package = "magnus-builder", path = "crates/node/builder", default-features = false }
 magnus-domain = { path = "crates/node/domain" }
 magnus-cli = { path = "crates/utilities/cli" }
 magnus-crypto = { path = "crates/utilities/crypto" }
 magnus-backend = { path = "crates/storage/backend" }
 magnus-config = { path = "crates/node/config" }
 magnus-consensus = { path = "crates/node/consensus" }
+magnus-consensus-engine = { path = "crates/consensus/consensus-engine" }
+magnus-consensus-engine-config = { path = "crates/node/consensus-engine-config" }
 magnus-executor = { path = "crates/node/executor" }
 magnus-ledger = { path = "crates/node/ledger" }
 magnus-marshal = { path = "crates/network/marshal" }
+magnus-mempool = { path = "crates/node/mempool", default-features = false }
 magnus-reporters = { path = "crates/node/reporters" }
 magnus-service = { path = "crates/node/service" }
 magnus-simplex = { path = "crates/node/simplex" }
@@ -69,12 +97,41 @@ magnus-qmdb-ledger = { path = "crates/storage/qmdb-ledger" }
 magnus-traits = { path = "crates/storage/traits" }
 magnus-indexer = { path = "crates/storage/indexer" }
 magnus-dkg = { path = "crates/node/dkg" }
+magnus-dkg-onchain-artifacts = { path = "crates/consensus/dkg-onchain-artifacts" }
 magnus-runner = { path = "crates/node/runner" }
 magnus-rpc = { path = "crates/node/rpc" }
 magnus-txpool = { path = "crates/node/txpool" }
 magnus-precompiles = { path = "crates/node/precompiles" }
 magnus-e2e = { path = "crates/e2e" }
+magnus-payload-types = { path = "crates/node/payload-types", default-features = false }
 
+# Core
+magnus-primitives = { path = "crates/core/primitives", default-features = false, features = ["reth"] }
+magnus-chainspec = { path = "crates/core/chainspec", default-features = false }
+magnus-eyre = { path = "crates/core/error", default-features = false }
+
+# Execution
+magnus-evm = { path = "crates/execution/evm", default-features = false }
+magnus-vm = { path = "crates/execution/vm", default-features = false }
+
+# Precompile
+magnus-contracts = { path = "crates/precompile/contracts", default-features = false }
+magnus-precompile-macros = { path = "crates/precompile/macros" }
+magnus-precompile-registry = { path = "crates/precompile/registry", default-features = false }
+
+# SDK
+magnus-provider = { path = "crates/sdk/provider" }
+
+# Telemetry
+magnus-telemetry-util = { path = "crates/telemetry/util" }
+
+# Tools
+magnus-faucet = { path = "tools/faucet", default-features = false }
+magnus-xtask = { path = "tools/xtask" }
+
+# ========================================
+# Legacy Commonware (keep for backward compat)
+# ========================================
 commonware-p2p = "0.0.65"
 commonware-utils = "0.0.65"
 commonware-codec = "0.0.65"
@@ -88,57 +145,193 @@ commonware-broadcast = "0.0.65"
 commonware-consensus = "0.0.65"
 commonware-cryptography = "0.0.65"
 
-# Alloy
-alloy-primitives = "1.0"
-alloy-consensus = { version = "1.0", features = ["k256"] }
-alloy-eips = "1.0"
-alloy-rlp = "0.3"
-alloy-sol-types = "1.0"
+# ========================================
+# Magnus Core Libraries (from Magnus-Foundation monorepo)
+# ========================================
+magnus-broadcast = { package = "commonware-broadcast", git = "https://github.com/Magnus-Foundation/monorepo", rev = "5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be" }
+magnus-codec = { package = "commonware-codec", git = "https://github.com/Magnus-Foundation/monorepo", rev = "5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be" }
+magnus-bft = { package = "commonware-consensus", git = "https://github.com/Magnus-Foundation/monorepo", rev = "5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be" }
+magnus-cryptography = { package = "commonware-cryptography", git = "https://github.com/Magnus-Foundation/monorepo", rev = "5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be" }
+magnus-macros = { package = "commonware-macros", git = "https://github.com/Magnus-Foundation/monorepo", rev = "5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be" }
+magnus-math = { package = "commonware-math", git = "https://github.com/Magnus-Foundation/monorepo", rev = "5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be" }
+magnus-p2p = { package = "commonware-p2p", git = "https://github.com/Magnus-Foundation/monorepo", rev = "5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be" }
+magnus-parallel = { package = "commonware-parallel", git = "https://github.com/Magnus-Foundation/monorepo", rev = "5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be" }
+magnus-runtime = { package = "commonware-runtime", git = "https://github.com/Magnus-Foundation/monorepo", rev = "5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be" }
+magnus-storage = { package = "commonware-storage", git = "https://github.com/Magnus-Foundation/monorepo", rev = "5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be" }
+magnus-utils = { package = "commonware-utils", git = "https://github.com/Magnus-Foundation/monorepo", rev = "5ca1fb0bba4f2f04bf27d1da2b68ef034dca93be" }
 
+# ========================================
+# Reth (Ethereum Node Framework)
+# ========================================
+reth-basic-payload-builder = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-cli = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-cli-commands = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-cli-util = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-codecs = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-consensus = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-consensus-common = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-db-api = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-e2e-test-utils = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-engine-local = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-engine-tree = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-errors = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-eth-wire-types = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-ethereum-cli = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-ethereum-engine-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60", default-features = false }
+reth-evm = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-metrics = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-network-peers = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-node-builder = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-node-core = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-node-metrics = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-payload-builder = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-payload-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60", default-features = false }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-rpc = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-rpc-builder = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-rpc-convert = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-rpc-eth-api = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-rpc-eth-types = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-rpc-server-types = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-storage-api = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60", features = ["std", "optional-checks"] }
+reth-trie-common = { git = "https://github.com/paradigmxyz/reth", rev = "8e3b5e6a99439561b73c5dd31bd3eced2e994d60" }
+
+# ========================================
 # Execution
+# ========================================
 revm = { version = "34.0.0", default-features = false }
 alloy-evm = { version = "0.27.0", default-features = false }
 
-# Async
-tokio = { version = "1", features = ["full"] }
-futures = "0.3"
+# ========================================
+# Alloy (Ethereum Core Libraries)
+# ========================================
+alloy = { version = "1.1.3", default-features = false }
+alloy-consensus = { version = "1.0", features = ["k256"] }
+alloy-contract = { version = "1.1.3", default-features = false }
+alloy-eips = "1.0"
+alloy-genesis = "1.1.3"
+alloy-hardforks = "0.4.5"
+alloy-network = { version = "1.1.3", default-features = false }
+alloy-primitives = "1.0"
+alloy-provider = { version = "1.1.3", default-features = false }
+alloy-rlp = "0.3"
+alloy-rpc-types-engine = "1.1.3"
+alloy-rpc-types-eth = { version = "1.1.3" }
+alloy-serde = "1.1.3"
+alloy-signer = "1.1.3"
+alloy-signer-local = "1.1.3"
+alloy-sol-types = "1.0"
+alloy-transport = "1.1.3"
 
+# ========================================
+# Async Runtime & Concurrency
+# ========================================
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7.16"
+futures = "0.3"
+async-trait = "0.1"
+rayon = "1.10"
+
+# ========================================
 # Serialization
+# ========================================
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
 
+# ========================================
 # CLI
+# ========================================
 clap = { version = "4", features = ["derive"] }
+indicatif = "0.18"
 
+# ========================================
 # Tracing
+# ========================================
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# ========================================
 # Error handling
+# ========================================
 thiserror = "2"
 eyre = "0.6"
 
+# ========================================
+# Networking
+# ========================================
+axum = "0.8.4"
+jsonrpsee = { version = "0.26.0", features = ["server", "client", "macros"] }
+
+# ========================================
 # Concurrency
+# ========================================
 parking_lot = "0.12"
 
-# Misc
-async-trait = "0.1"
+# ========================================
+# Utilities
+# ========================================
 anyhow = "1.0.100"
-libc = "0.2"
-rand = "0.8"
-rand_core = "0.6"
-governor = "0.10.4"
-prometheus-client = "0.24.0"
+arbitrary = { version = "1.3", features = ["derive"] }
+auto_impl = "1"
+base64 = "0.22"
 bytes = "1"
+const-hex = { version = "1.15.0" }
+derive_more = { version = "2.0.0" }
+governor = "0.10.4"
 hex = "0.4"
 hex-literal = "0.4"
+indexmap = "2.11.0"
+itertools = "0.14.0"
+jiff = { version = "0.2.15", default-features = false }
 k256 = "0.13"
+libc = "0.2"
+metrics = "0.24.0"
+modular-bitfield = "0.11.2"
+p256 = "0.13"
+prometheus-client = "0.24.0"
+rand = "0.8"
+rand_core = "0.6"
+schnellru = "0.2"
+secp256k1 = "0.30.0"
+sha2 = "0.10"
 sha3 = "0.10"
 
+# ========================================
 # HTTP
+# ========================================
 reqwest = { version = "0.12", features = ["json"] }
 
+# ========================================
+# Build Dependencies
+# ========================================
+vergen = "9"
+vergen-git2 = "1"
+
+# ========================================
 # Testing
+# ========================================
+criterion = "0.7.0"
+proptest = "1.7"
+proptest-arbitrary-interop = "0.1.0"
 rstest = "0.24"
 tempfile = "3"
+test-case = "3"
+
+# ========================================
+# Profiling
+# ========================================
+pyroscope = "0.5.8"
+pyroscope_pprofrs = "0.2.10"
