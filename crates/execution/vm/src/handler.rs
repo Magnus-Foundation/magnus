@@ -2,8 +2,8 @@
 
 use std::{cmp::Ordering, fmt::Debug};
 
+use alloy_evm::error::EvmError as EvmErrorTrait;
 use alloy_primitives::{Address, U256};
-use reth_evm::EvmError;
 use revm::{
     Database,
     context::{
@@ -11,6 +11,7 @@ use revm::{
         result::{EVMError, ExecutionResult, InvalidTransaction},
         transaction::{AccessListItem, AccessListItemTr},
     },
+    context_interface::journaled_state::account::JournaledAccountTr,
     handler::{
         EvmTr, FrameResult, FrameTr, Handler, MainnetHandler,
         pre_execution::{self, calculate_caller_fee},
@@ -21,8 +22,8 @@ use revm::{
         Gas, InitialAndFloorGas,
         gas::{
             ACCESS_LIST_ADDRESS, ACCESS_LIST_STORAGE_KEY, CALLVALUE, COLD_ACCOUNT_ACCESS_COST,
-            COLD_SLOAD_COST, CREATE, SSTORE_SET, STANDARD_TOKEN_COST, WARM_SSTORE_RESET,
-            calc_tx_floor_cost, get_tokens_in_calldata, initcode_cost,
+            COLD_SLOAD_COST, CREATE, INITCODE_WORD_COST, SSTORE_SET, STANDARD_TOKEN_COST,
+            TOTAL_COST_FLOOR_PER_TOKEN, WARM_SSTORE_RESET, get_tokens_in_calldata_istanbul,
         },
         interpreter::EthInterpreter,
     },
@@ -84,7 +85,7 @@ fn primitive_signature_verification_gas(signature: &PrimitiveSignature) -> u64 {
         PrimitiveSignature::Secp256k1(_) => 0,
         PrimitiveSignature::P256(_) => P256_VERIFY_GAS,
         PrimitiveSignature::WebAuthn(webauthn_sig) => {
-            let tokens = get_tokens_in_calldata(&webauthn_sig.webauthn_data, true);
+            let tokens = get_tokens_in_calldata_istanbul(&webauthn_sig.webauthn_data);
             P256_VERIFY_GAS + tokens * STANDARD_TOKEN_COST
         }
     }
@@ -355,7 +356,7 @@ where
                     if let Ok(mut caller_acc) =
                         evm.ctx().journal_mut().load_account_with_code_mut(caller)
                     {
-                        caller_acc.data.bump_nonce();
+                        caller_acc.bump_nonce();
                     }
                 }
 
@@ -548,10 +549,9 @@ where
     /// of an aa_authorization_list in the magnus_tx_env.
     #[inline]
     fn apply_eip7702_auth_list(&self, evm: &mut Self::Evm) -> Result<u64, Self::Error> {
-        let ctx = evm.ctx();
-
         // Check if this is an AA transaction with an authorization list
-        let has_aa_auth_list = ctx
+        let has_aa_auth_list = evm
+            .ctx_ref()
             .tx()
             .magnus_tx_env
             .as_ref()
@@ -565,8 +565,8 @@ where
             // For AA transactions, we need to apply the authorization list ourselves
             // because pre_execution::apply_eip7702_auth_list returns early for non-0x04 tx types
 
-            let chain_id = ctx.cfg().chain_id();
-            let spec = ctx.cfg().spec();
+            let chain_id = evm.ctx_ref().cfg().chain_id();
+            let spec = *evm.ctx_ref().cfg().spec();
 
             let (tx, journal) = evm.ctx().tx_journal_mut();
 
@@ -598,7 +598,7 @@ where
                 let mut authority_acc = journal.load_account_with_code_mut(authority)?;
 
                 // 4. Verify the code of `authority` is either empty or already delegated.
-                if let Some(bytecode) = &authority_acc.info.code {
+                if let Some(bytecode) = authority_acc.code() {
                     // if it is not empty and it is not eip7702
                     if !bytecode.is_empty() && !bytecode.is_eip7702() {
                         continue;
@@ -606,13 +606,13 @@ where
                 }
 
                 // 5. Verify the nonce of `authority` is equal to `nonce`.
-                if authorization.nonce != authority_acc.info.nonce {
+                if authorization.nonce != authority_acc.nonce() {
                     continue;
                 }
 
                 // 6. Add gas refund if authority already exists
-                if !(authority_acc.is_empty()
-                    && authority_acc.is_loaded_as_not_existing_not_touched())
+                if !(authority_acc.account().is_empty()
+                    && authority_acc.account().is_loaded_as_not_existing_not_touched())
                 {
                     refunded_accounts += 1;
                 }
@@ -662,7 +662,7 @@ where
 
         // Validate account nonce and code (EIP-3607) using upstream helper
         pre_execution::validate_account_nonce_and_code(
-            &caller_account.info,
+            &caller_account.account().info,
             tx.nonce(),
             cfg.is_eip3607_disabled(),
             // skip nonce check if 2D nonce is used
@@ -1019,7 +1019,7 @@ where
         //
         // This is normally unreachable unless the gas price was increased mid-transaction,
         // which is only possible when there are some EVM customizations involved (e.g Foundry EVM).
-        if context.cfg.disable_fee_charge
+        if context.cfg.is_fee_charge_disabled()
             && evm.collected_fee.is_zero()
             && !actual_spending.is_zero()
         {
@@ -1126,7 +1126,7 @@ where
     /// - P256 (129 bytes): 21k base + 5k for P256 verification
     /// - WebAuthn (>129 bytes): 21k base + 5k + calldata gas for variable data
     #[inline]
-    fn validate_initial_tx_gas(&self, evm: &Self::Evm) -> Result<InitialAndFloorGas, Self::Error> {
+    fn validate_initial_tx_gas(&self, evm: &mut Self::Evm) -> Result<InitialAndFloorGas, Self::Error> {
         let tx = evm.ctx_ref().tx();
 
         // Route to appropriate gas calculation based on transaction type
@@ -1135,7 +1135,7 @@ where
             validate_aa_initial_tx_gas(evm)
         } else {
             // Standard transaction - use default revm validation
-            let spec = evm.ctx_ref().cfg().spec().into();
+            let spec = (*evm.ctx_ref().cfg().spec()).into();
             Ok(validation::validate_initial_tx_gas(
                 tx,
                 spec,
@@ -1228,7 +1228,7 @@ pub fn calculate_aa_batch_intrinsic_gas<'a>(
 
     for call in calls {
         // 4a. Calldata gas using revm helper
-        let tokens = get_tokens_in_calldata(&call.input, true);
+        let tokens = get_tokens_in_calldata_istanbul(&call.input);
         total_tokens += tokens;
 
         // 4b. CREATE-specific costs
@@ -1237,7 +1237,7 @@ pub fn calculate_aa_batch_intrinsic_gas<'a>(
             gas.initial_gas += CREATE; // 32000 gas
 
             // EIP-3860: Initcode analysis gas using revm helper
-            gas.initial_gas += initcode_cost(call.input.len());
+            gas.initial_gas += INITCODE_WORD_COST * ((call.input.len() as u64 + 31) / 32);
         }
 
         // Note: Transaction value is not allowed in AA transactions as there is no balances in accounts yet.
@@ -1269,7 +1269,7 @@ pub fn calculate_aa_batch_intrinsic_gas<'a>(
     }
 
     // 6. Floor gas  using revm helper
-    gas.floor_gas = calc_tx_floor_cost(total_tokens); // tokens * 10 + 21000
+    gas.floor_gas = total_tokens * TOTAL_COST_FLOOR_PER_TOKEN + 21_000; // EIP-7623 floor gas
 
     Ok(gas)
 }
