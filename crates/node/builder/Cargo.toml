@@ -10,6 +10,10 @@ description = "Block builder for Magnus nodes"
 [lints]
 workspace = true
 
+[build-dependencies]
+vergen = { workspace = true }
+vergen-git2 = { workspace = true }
+
 [dependencies]
 # Commonware
 commonware-consensus.workspace = true
