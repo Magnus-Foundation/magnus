@@ -4,9 +4,11 @@ use crate::rpc::token::{
     tokens_by_address::{TokensByAddressParams, TokensByAddressResponse},
 };
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
+use magnus_indexer::TokenStore;
 use reth_node_core::rpc::result::internal_rpc_err;
 use reth_rpc_eth_api::RpcNodeCore;
 use magnus_provider::rpc::pagination::PaginationParams;
+use std::sync::Arc;
 
 pub mod role_history;
 pub mod tokens;
@@ -44,14 +46,16 @@ pub trait MagnusTokenApi {
 }
 
 /// The JSON-RPC handlers for the `token_` namespace.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct MagnusToken<EthApi> {
     eth_api: EthApi,
+    token_store: Arc<TokenStore>,
 }
 
 impl<EthApi> MagnusToken<EthApi> {
-    pub fn new(eth_api: EthApi) -> Self {
-        Self { eth_api }
+    /// Creates a new `MagnusToken` handler backed by the given token store.
+    pub fn new(eth_api: EthApi, token_store: Arc<TokenStore>) -> Self {
+        Self { eth_api, token_store }
     }
 }
 

@@ -5637,6 +5637,7 @@ dependencies = [
  "commonware-cryptography 0.0.65",
  "commonware-p2p 0.0.65",
  "commonware-parallel 0.0.65",
+ "magnus-indexer",
  "vergen",
  "vergen-git2",
 ]

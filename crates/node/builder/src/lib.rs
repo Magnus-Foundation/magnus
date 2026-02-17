@@ -5,6 +5,8 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![feature(associated_type_defaults)]
 
+use magnus_indexer as _;
+
 mod builder;
 pub use builder::NodeBuilder;
 

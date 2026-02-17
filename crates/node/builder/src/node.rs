@@ -199,8 +199,10 @@ where
                 } = container;
 
                 let eth_api = registry.eth_api().clone();
-                let token = MagnusToken::new(eth_api.clone());
-                let eth_ext = MagnusEthExt::new(eth_api);
+                let token_store = Arc::new(magnus_indexer::TokenStore::new());
+                let block_index = Arc::new(magnus_indexer::BlockIndex::new());
+                let token = MagnusToken::new(eth_api.clone(), token_store);
+                let eth_ext = MagnusEthExt::new(eth_api, block_index);
                 let admin = MagnusAdminApi::new(self.validator_key);
 
                 modules.merge_configured(token.into_rpc())?;

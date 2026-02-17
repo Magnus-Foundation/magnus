@@ -1,8 +1,10 @@
 use crate::rpc::eth_ext::transactions::TransactionsResponse;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
+use magnus_indexer::BlockIndex;
 use reth_node_core::rpc::result::internal_rpc_err;
 use reth_rpc_eth_api::RpcNodeCore;
 use magnus_provider::rpc::pagination::PaginationParams;
+use std::sync::Arc;
 
 pub mod transactions;
 pub use transactions::TransactionsFilter;
@@ -19,15 +21,17 @@ pub trait MagnusEthExtApi {
     ) -> RpcResult<TransactionsResponse>;
 }
 
-/// The JSON-RPC handlers for the `dex_` namespace.
-#[derive(Debug, Clone, Default)]
+/// The JSON-RPC handlers for the `eth_` ext namespace.
+#[derive(Debug, Clone)]
 pub struct MagnusEthExt<EthApi> {
     eth_api: EthApi,
+    block_index: Arc<BlockIndex>,
 }
 
 impl<EthApi> MagnusEthExt<EthApi> {
-    pub fn new(eth_api: EthApi) -> Self {
-        Self { eth_api }
+    /// Creates a new `MagnusEthExt` handler backed by the given block index.
+    pub fn new(eth_api: EthApi, block_index: Arc<BlockIndex>) -> Self {
+        Self { eth_api, block_index }
     }
 }
 

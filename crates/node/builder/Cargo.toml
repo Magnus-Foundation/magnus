@@ -20,3 +20,6 @@ commonware-consensus.workspace = true
 commonware-cryptography.workspace = true
 commonware-p2p.workspace = true
 commonware-parallel.workspace = true
+
+# Storage
+magnus-indexer.workspace = true
