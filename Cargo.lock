@@ -5987,6 +5987,7 @@ name = "magnus-indexer"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
+ "alloy-sol-types",
  "parking_lot",
  "thiserror 2.0.18",
  "tracing",

@@ -16,3 +16,8 @@ pub use store::BlockIndex;
 
 mod types;
 pub use types::{IndexStats, IndexedBlock, IndexedLog, IndexedReceipt, IndexedTransaction};
+
+pub mod events;
+
+mod mip20;
+pub use mip20::{IndexedRoleChange, IndexedToken, TokenStore};
