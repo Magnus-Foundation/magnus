@@ -2178,7 +2178,7 @@ mod tests {
             let db = CacheDB::new(EmptyDB::default());
             let journal = Journal::new(db);
             // Use T0 hardfork to enable gas limit validation
-            let cfg = CfgEnv::<MagnusHardfork>::default().with_spec(MagnusHardfork::T0);
+            let cfg = CfgEnv::<MagnusHardfork>::default().with_spec_and_mainnet_gas_params(MagnusHardfork::T0);
             let ctx = Context::mainnet()
                 .with_db(CacheDB::new(EmptyDB::default()))
                 .with_block(MagnusBlockEnv::default())

@@ -10,9 +10,9 @@ use alloy::{
 };
 use revm::precompile::{PrecompileError, PrecompileOutput, PrecompileResult};
 use magnus_contracts::precompiles::{
-    AccountKeychainError, FeeManagerError, NonceError, RolesAuthError, StablecoinDEXError,
-    MIP20FactoryError, MIP403RegistryError, MIPFeeAMMError, UnknownFunctionSelector,
-    ValidatorConfigError,
+    AccountKeychainError, FeeManagerError, KYCRegistryError, NonceError, OracleRegistryError,
+    RolesAuthError, StablecoinDEXError, MIP20FactoryError, MIP403RegistryError, MIPFeeAMMError,
+    UnknownFunctionSelector, ValidatorConfigError,
 };
 
 /// Top-level error type for all Magnus precompile operations
@@ -63,6 +63,14 @@ pub enum MagnusPrecompileError {
     #[error("Account keychain error: {0:?}")]
     AccountKeychainError(AccountKeychainError),
 
+    /// Error from oracle registry precompile
+    #[error("Oracle registry error: {0:?}")]
+    OracleRegistryError(OracleRegistryError),
+
+    /// Error from KYC registry precompile
+    #[error("KYC registry error: {0:?}")]
+    KYCRegistryError(KYCRegistryError),
+
     #[error("Gas limit exceeded")]
     OutOfGas,
 
@@ -105,6 +113,8 @@ impl MagnusPrecompileError {
             }
             Self::ValidatorConfigError(e) => e.abi_encode().into(),
             Self::AccountKeychainError(e) => e.abi_encode().into(),
+            Self::OracleRegistryError(e) => e.abi_encode().into(),
+            Self::KYCRegistryError(e) => e.abi_encode().into(),
             Self::OutOfGas => {
                 return Err(PrecompileError::OutOfGas);
             }
@@ -167,6 +177,8 @@ pub fn error_decoder_registry() -> MagnusPrecompileErrorRegistry {
     add_errors_to_registry(&mut registry, MagnusPrecompileError::NonceError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::ValidatorConfigError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::AccountKeychainError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::OracleRegistryError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::KYCRegistryError);
 
     registry
 }

@@ -17,6 +17,12 @@ use magnus_primitives::MagnusHeader;
 
 pub const MAGNUS_BASE_FEE: u64 = 10_000_000_000;
 
+/// Divisor for calculating non-payment gas limit.
+pub const MAGNUS_GENERAL_GAS_DIVISOR: u64 = 2;
+
+/// Divisor for calculating shared gas limit.
+pub const MAGNUS_SHARED_GAS_DIVISOR: u64 = 10;
+
 // End-of-block system transactions
 pub const SYSTEM_TX_COUNT: usize = 1;
 pub const SYSTEM_TX_ADDRESSES: [Address; SYSTEM_TX_COUNT] = [Address::ZERO];
@@ -270,7 +276,7 @@ impl EthereumHardforks for MagnusChainSpec {
 
 impl EthExecutorSpec for MagnusChainSpec {
     fn deposit_contract_address(&self) -> Option<Address> {
-        self.inner.deposit_contract_address()
+        self.inner.deposit_contract().map(|c| c.address)
     }
 }
 

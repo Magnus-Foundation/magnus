@@ -149,7 +149,7 @@ where
 
         // XXX: All hard-coded values here are the same as prior to Magnus core
         // making the resolver configurable in
-        //         let resolver_config = magnus_bft::marshal::resolver::p2p::Config {
+        let resolver_config = magnus_bft::marshal::resolver::p2p::Config {
             public_key: self.signer.public_key(),
             manager: self.peer_manager.clone(),
             mailbox_size: self.mailbox_size,

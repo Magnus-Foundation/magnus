@@ -1,6 +1,8 @@
 pub mod account_keychain;
 pub mod common_errors;
+pub mod kyc_registry;
 pub mod nonce;
+pub mod oracle_registry;
 pub mod stablecoin_dex;
 pub mod mip20;
 pub mod mip20_factory;
@@ -11,7 +13,9 @@ pub mod validator_config;
 pub use account_keychain::*;
 use alloy_primitives::{Address, address};
 pub use common_errors::*;
+pub use kyc_registry::*;
 pub use nonce::*;
+pub use oracle_registry::*;
 pub use stablecoin_dex::*;
 pub use mip_fee_manager::*;
 pub use mip20::*;
@@ -31,3 +35,7 @@ pub const VALIDATOR_CONFIG_ADDRESS: Address =
     address!("0xCCCCCCCC00000000000000000000000000000000");
 pub const ACCOUNT_KEYCHAIN_ADDRESS: Address =
     address!("0xAAAAAAAA00000000000000000000000000000000");
+pub const ORACLE_REGISTRY_ADDRESS: Address =
+    address!("0x0AC1000000000000000000000000000000000000");
+pub const KYC_REGISTRY_ADDRESS: Address =
+    address!("0xACC0000000000000000000000000000000000000");

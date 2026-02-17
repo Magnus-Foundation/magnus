@@ -100,12 +100,13 @@ where
 ///
 /// where each slot tracks the current nonce for a nonce key assigned to the transaction.
 /// The next executable nonce is the current value of in the contract's state.
-pub async fn maintain_2d_nonce_pool<Client>(pool: MagnusTransactionPool<Client>)
+pub async fn maintain_2d_nonce_pool<Client, Evm>(pool: MagnusTransactionPool<Client, Evm>)
 where
     Client: StateProviderFactory
         + ChainSpecProvider<ChainSpec = MagnusChainSpec>
         + CanonStateSubscriptions<Primitives = MagnusPrimitives>
         + 'static,
+    Evm: reth_evm::ConfigureEvm + 'static,
 {
     let mut events = pool.client().canonical_state_stream();
     while let Some(notification) = events.next().await {
@@ -117,12 +118,13 @@ where
 
 /// An endless future that updates the [`crate::amm::AmmLiquidityCache`] based
 /// on the storage changes of the `FeeManager` precompile.
-pub async fn maintain_amm_cache<Client>(pool: MagnusTransactionPool<Client>)
+pub async fn maintain_amm_cache<Client, Evm>(pool: MagnusTransactionPool<Client, Evm>)
 where
     Client: StateProviderFactory
         + ChainSpecProvider<ChainSpec = MagnusChainSpec>
         + CanonStateSubscriptions<Primitives = MagnusPrimitives>
         + 'static,
+    Evm: reth_evm::ConfigureEvm + 'static,
 {
     let amm_cache = pool.amm_liquidity_cache();
     let mut events = pool.client().canonical_state_stream();

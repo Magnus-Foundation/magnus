@@ -15,7 +15,7 @@
 //!
 //! ```rust
 //! # use eyre::{eyre, WrapErr as _};
-//! magnus_error::install();
+//! magnus_eyre::install();
 //!
 //! let err = eyre!("bottom error")
 //!     .wrap_err("middle error")

@@ -1,5 +1,9 @@
 //! Oracle Registry -- manages FX rate feeds for multi-currency gas.
 //!
+//! **DEPRECATED**: This is the prototype in-memory implementation.
+//! Use [`magnus_precompile_registry::oracle_registry`] for the production
+//! EVM precompile with persistent storage.
+//!
 //! Implements the Celo SortedOracles pattern with extensions:
 //! - Multiple rate pairs (e.g., VND/USD, EUR/USD, NGN/USD)
 //! - Whitelisted reporters (validators + external oracles)
@@ -39,6 +43,7 @@ pub fn rate_pair_id(base_token: Address, quote_token: Address) -> B256 {
 
 /// Oracle Registry state.
 #[derive(Debug)]
+#[deprecated(note = "Use magnus_precompile_registry::oracle_registry::OracleRegistry instead")]
 pub struct OracleRegistry {
     /// The precompile address of the oracle registry.
     pub address: Address,

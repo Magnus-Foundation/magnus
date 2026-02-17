@@ -24,15 +24,17 @@ use reth_transaction_pool::{
     error::{PoolError, PoolErrorKind},
     identifier::TransactionId,
 };
+use alloy_primitives::map::AddressHashSet;
+use reth_evm::ConfigureEvm;
 use revm::database::BundleAccount;
 use std::{collections::HashSet, sync::Arc, time::Instant};
 use magnus_chainspec::MagnusChainSpec;
 
 /// Magnus transaction pool that routes based on nonce_key
-pub struct MagnusTransactionPool<Client> {
+pub struct MagnusTransactionPool<Client, Evm: ConfigureEvm + 'static> {
     /// Vanilla pool for all standard transactions and AA transactions with regular nonce.
     protocol_pool: Pool<
-        TransactionValidationTaskExecutor<MagnusTransactionValidator<Client>>,
+        TransactionValidationTaskExecutor<MagnusTransactionValidator<Client, Evm>>,
         CoinbaseTipOrdering<MagnusPooledTransaction>,
         InMemoryBlobStore,
     >,
@@ -40,10 +42,10 @@ pub struct MagnusTransactionPool<Client> {
     aa_2d_pool: Arc<RwLock<AA2dPool>>,
 }
 
-impl<Client> MagnusTransactionPool<Client> {
+impl<Client, Evm: ConfigureEvm + 'static> MagnusTransactionPool<Client, Evm> {
     pub fn new(
         protocol_pool: Pool<
-            TransactionValidationTaskExecutor<MagnusTransactionValidator<Client>>,
+            TransactionValidationTaskExecutor<MagnusTransactionValidator<Client, Evm>>,
             CoinbaseTipOrdering<MagnusPooledTransaction>,
             InMemoryBlobStore,
         >,
@@ -55,7 +57,7 @@ impl<Client> MagnusTransactionPool<Client> {
         }
     }
 }
-impl<Client> MagnusTransactionPool<Client>
+impl<Client, Evm: ConfigureEvm + 'static> MagnusTransactionPool<Client, Evm>
 where
     Client: StateProviderFactory + ChainSpecProvider<ChainSpec = MagnusChainSpec> + 'static,
 {
@@ -185,7 +187,7 @@ where
 }
 
 // Manual Clone implementation
-impl<Client> Clone for MagnusTransactionPool<Client> {
+impl<Client, Evm: ConfigureEvm + 'static> Clone for MagnusTransactionPool<Client, Evm> {
     fn clone(&self) -> Self {
         Self {
             protocol_pool: self.protocol_pool.clone(),
@@ -195,7 +197,7 @@ impl<Client> Clone for MagnusTransactionPool<Client> {
 }
 
 // Manual Debug implementation
-impl<Client> std::fmt::Debug for MagnusTransactionPool<Client> {
+impl<Client, Evm: ConfigureEvm + 'static> std::fmt::Debug for MagnusTransactionPool<Client, Evm> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MagnusTransactionPool")
             .field("protocol_pool", &"Pool<...>")
@@ -205,7 +207,7 @@ impl<Client> std::fmt::Debug for MagnusTransactionPool<Client> {
 }
 
 // Implement the TransactionPool trait
-impl<Client> TransactionPool for MagnusTransactionPool<Client>
+impl<Client, Evm: ConfigureEvm + 'static> TransactionPool for MagnusTransactionPool<Client, Evm>
 where
     Client: StateProviderFactory
         + ChainSpecProvider<ChainSpec = MagnusChainSpec>
@@ -271,6 +273,34 @@ where
             .await;
 
         self.add_validated_transactions(origin, validated)
+    }
+
+    async fn add_transactions_with_origins(
+        &self,
+        transactions: impl IntoIterator<Item = (TransactionOrigin, Self::Transaction)> + Send,
+    ) -> Vec<PoolResult<AddedTransactionOutcome>> {
+        let transactions: Vec<_> = transactions.into_iter().collect();
+        if transactions.is_empty() {
+            return Vec::new();
+        }
+        let validated = self
+            .protocol_pool
+            .validator()
+            .validate_transactions(transactions.iter().map(|(o, t)| (*o, t.clone())))
+            .await;
+
+        let mut results = Vec::with_capacity(validated.len());
+        for ((origin, _), outcome) in transactions.into_iter().zip(validated) {
+            results.push(self.add_validated_transaction(origin, outcome));
+        }
+        results
+    }
+
+    fn prune_transactions(
+        &self,
+        hashes: Vec<B256>,
+    ) -> Vec<Arc<ValidPoolTransaction<Self::Transaction>>> {
+        self.protocol_pool.prune_transactions(hashes)
     }
 
     fn transaction_event_listener(&self, tx_hash: B256) -> Option<TransactionEvents> {
@@ -635,7 +665,7 @@ where
         txs
     }
 
-    fn unique_senders(&self) -> HashSet<Address> {
+    fn unique_senders(&self) -> AddressHashSet {
         let mut senders = self.protocol_pool.unique_senders();
         senders.extend(self.aa_2d_pool.read().senders_iter().copied());
         senders
@@ -708,18 +738,17 @@ where
     }
 }
 
-impl<Client> TransactionPoolExt for MagnusTransactionPool<Client>
+impl<Client, Evm: ConfigureEvm + 'static> TransactionPoolExt for MagnusTransactionPool<Client, Evm>
 where
     Client: StateProviderFactory + ChainSpecProvider<ChainSpec = MagnusChainSpec> + 'static,
 {
+    type Block = reth_primitives_traits::BlockTy<Evm::Primitives>;
+
     fn set_block_info(&self, info: BlockInfo) {
         self.protocol_pool.set_block_info(info)
     }
 
-    fn on_canonical_state_change<B>(&self, update: CanonicalStateUpdate<'_, B>)
-    where
-        B: Block,
-    {
+    fn on_canonical_state_change(&self, update: CanonicalStateUpdate<'_, Self::Block>) {
         self.protocol_pool.on_canonical_state_change(update)
     }
 

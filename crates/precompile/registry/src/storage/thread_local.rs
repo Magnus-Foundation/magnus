@@ -1,7 +1,7 @@
 use alloy::primitives::{Address, LogData, U256};
 use alloy_evm::{Database, EvmInternals};
 use revm::{
-    context::{Block, CfgEnv, JournalTr},
+    context::{Block, CfgEnv, JournalTr, TxEnv},
     state::{AccountInfo, Bytecode},
 };
 use scoped_tls::scoped_thread_local;
@@ -184,7 +184,8 @@ impl<'evm> StorageCtx {
     where
         J: JournalTr<Database: Database> + Debug,
     {
-        let internals = EvmInternals::new(journal, block_env);
+        let tx_env = TxEnv::default();
+        let internals = EvmInternals::new(journal, block_env, cfg, &tx_env);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(internals, cfg);
 
         // The core logic of setting up thread-local storage is here.

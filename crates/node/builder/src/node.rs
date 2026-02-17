@@ -403,7 +403,7 @@ impl<Node> PoolBuilder<Node> for MagnusPoolBuilder
 where
     Node: FullNodeTypes<Types = MagnusNode>,
 {
-    type Pool = MagnusTransactionPool<Node::Provider>;
+    type Pool = MagnusTransactionPool<Node::Provider, MagnusEvmConfig>;
 
     async fn build_pool(self, ctx: &BuilderContext<Node>) -> eyre::Result<Self::Pool> {
         let mut pool_config = ctx.pool_config();
@@ -485,7 +485,7 @@ pub struct MagnusPayloadBuilderBuilder {
     pub disable_state_cache: bool,
 }
 
-impl<Node> PayloadBuilderBuilder<Node, MagnusTransactionPool<Node::Provider>, MagnusEvmConfig>
+impl<Node> PayloadBuilderBuilder<Node, MagnusTransactionPool<Node::Provider, MagnusEvmConfig>, MagnusEvmConfig>
     for MagnusPayloadBuilderBuilder
 where
     Node: FullNodeTypes<Types = MagnusNode>,
@@ -495,7 +495,7 @@ where
     async fn build_payload_builder(
         self,
         ctx: &BuilderContext<Node>,
-        pool: MagnusTransactionPool<Node::Provider>,
+        pool: MagnusTransactionPool<Node::Provider, MagnusEvmConfig>,
         evm_config: MagnusEvmConfig,
     ) -> eyre::Result<Self::PayloadBuilder> {
         Ok(MagnusPayloadBuilder::new(

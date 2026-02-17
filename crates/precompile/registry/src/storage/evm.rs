@@ -1,13 +1,29 @@
 use alloy::primitives::{Address, Log, LogData, U256};
 use alloy_evm::{EvmInternals, EvmInternalsError};
 use revm::{
-    context::{Block, CfgEnv},
+    context::CfgEnv,
+    context_interface::{Block, cfg::GasParams},
     primitives::hardfork::SpecId,
     state::{AccountInfo, Bytecode},
 };
 use magnus_chainspec::hardfork::MagnusHardfork;
 
 use crate::{error::MagnusPrecompileError, storage::PrecompileStorageProvider};
+
+/// Returns gas for warm/cold storage access.
+#[inline]
+fn warm_cold_cost(is_cold: bool) -> u64 {
+    if is_cold {
+        revm::interpreter::gas::COLD_SLOAD_COST
+    } else {
+        revm::interpreter::gas::WARM_STORAGE_READ_COST
+    }
+}
+
+/// Gas parameters for AMSTERDAM spec, used for sstore/sload/log cost calculations.
+fn gas_params() -> GasParams {
+    GasParams::new_spec(SpecId::AMSTERDAM)
+}
 
 pub struct EvmPrecompileStorageProvider<'a> {
     internals: EvmInternals<'a>,
@@ -47,7 +63,7 @@ impl<'a> EvmPrecompileStorageProvider<'a> {
     /// Ensures that an account is loaded.
     pub fn ensure_loaded_account(&mut self, account: Address) -> Result<(), EvmInternalsError> {
         self.internals.load_account(account)?;
-        self.internals.touch_account(account);
+        let _ = self.internals.touch_account(account);
         Ok(())
     }
 }
@@ -70,7 +86,7 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
         self.ensure_loaded_account(address)?;
         self.deduct_gas(code.len() as u64 * revm::interpreter::gas::CODEDEPOSIT)?;
 
-        self.internals.set_code(address, code);
+        self.internals.set_code(address, code)?;
 
         Ok(())
     }
@@ -81,15 +97,15 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
         address: Address,
         f: &mut dyn FnMut(&AccountInfo),
     ) -> Result<(), MagnusPrecompileError> {
-        let account = self.internals.load_account_code(address)?.map(|a| &a.info);
+        let account = self.internals.load_account_code(address)?;
 
         // deduct gas
         self.gas_remaining = self
             .gas_remaining
-            .checked_sub(revm::interpreter::gas::warm_cold_cost(account.is_cold))
+            .checked_sub(warm_cold_cost(account.is_cold))
             .ok_or(MagnusPrecompileError::OutOfGas)?;
 
-        f(account.data);
+        f(&account.data.account().info);
         Ok(())
     }
 
@@ -103,15 +119,16 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
         self.ensure_loaded_account(address)?;
         let result = self.internals.sstore(address, key, value)?;
 
-        self.deduct_gas(revm::interpreter::gas::sstore_cost(
-            SpecId::AMSTERDAM,
+        let gp = gas_params();
+        self.deduct_gas(gp.sstore_dynamic_gas(
+            true, // is_istanbul: AMSTERDAM > ISTANBUL
             &result.data,
             result.is_cold,
         ))?;
 
         // refund gas.
-        self.refund_gas(revm::interpreter::gas::sstore_refund(
-            SpecId::AMSTERDAM,
+        self.refund_gas(gp.sstore_refund(
+            true, // is_istanbul
             &result.data,
         ));
 
@@ -134,8 +151,7 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
     #[inline]
     fn emit_event(&mut self, address: Address, event: LogData) -> Result<(), MagnusPrecompileError> {
         self.deduct_gas(
-            revm::interpreter::gas::log_cost(event.topics().len() as u8, event.data.len() as u64)
-                .unwrap_or(u64::MAX),
+            gas_params().log_cost(event.topics().len() as u8, event.data.len() as u64),
         )?;
 
         self.internals.log(Log {
@@ -151,10 +167,7 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
         self.ensure_loaded_account(address)?;
         let val = self.internals.sload(address, key)?;
 
-        self.deduct_gas(revm::interpreter::gas::sload_cost(
-            SpecId::AMSTERDAM,
-            val.is_cold,
-        ))?;
+        self.deduct_gas(warm_cold_cost(val.is_cold))?;
 
         Ok(val.data)
     }
@@ -223,7 +236,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
-        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block);
+        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(evm_internals, &ctx.cfg);
 
         let addr = Address::random();
@@ -243,7 +256,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
-        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block);
+        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(evm_internals, &ctx.cfg);
 
         let addr = Address::random();
@@ -264,7 +277,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
-        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block);
+        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(evm_internals, &ctx.cfg);
 
         let address = address!("3000000000000000000000000000000000000003");
@@ -288,7 +301,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
-        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block);
+        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(evm_internals, &ctx.cfg);
 
         let address = address!("4000000000000000000000000000000000000004");
@@ -310,7 +323,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
-        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block);
+        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(evm_internals, &ctx.cfg);
 
         let address = address!("5000000000000000000000000000000000000005");
@@ -338,7 +351,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
-        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block);
+        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(evm_internals, &ctx.cfg);
 
         let address = address!("6000000000000000000000000000000000000006");
@@ -362,7 +375,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
-        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block);
+        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(evm_internals, &ctx.cfg);
 
         let address1 = address!("7000000000000000000000000000000000000001");
@@ -388,7 +401,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
-        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block);
+        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(evm_internals, &ctx.cfg);
 
         let address = address!("8000000000000000000000000000000000000001");
@@ -416,7 +429,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
-        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block);
+        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(evm_internals, &ctx.cfg);
 
         let address = address!("9000000000000000000000000000000000000001");
@@ -440,7 +453,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
-        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block);
+        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(evm_internals, &ctx.cfg);
 
         let address1 = address!("a000000000000000000000000000000000000001");
@@ -466,7 +479,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
-        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block);
+        let evm_internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut provider = EvmPrecompileStorageProvider::new_max_gas(evm_internals, &ctx.cfg);
 
         let address = address!("b000000000000000000000000000000000000001");

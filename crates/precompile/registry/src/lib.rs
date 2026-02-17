@@ -8,7 +8,9 @@ pub use error::{IntoPrecompileResult, Result};
 pub mod storage;
 
 pub mod account_keychain;
+pub mod kyc_registry;
 pub mod nonce;
+pub mod oracle_registry;
 pub mod stablecoin_dex;
 pub mod mip20;
 pub mod mip20_factory;
@@ -21,7 +23,9 @@ pub mod test_util;
 
 use crate::{
     account_keychain::AccountKeychain,
+    kyc_registry::KYCRegistry,
     nonce::NonceManager,
+    oracle_registry::OracleRegistry,
     stablecoin_dex::StablecoinDEX,
     storage::StorageCtx,
     mip_fee_manager::MipFeeManager,
@@ -46,8 +50,9 @@ use revm::{
 };
 
 pub use magnus_contracts::precompiles::{
-    ACCOUNT_KEYCHAIN_ADDRESS, DEFAULT_FEE_TOKEN, NONCE_PRECOMPILE_ADDRESS, PATH_USD_ADDRESS,
-    STABLECOIN_DEX_ADDRESS, MIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS,
+    ACCOUNT_KEYCHAIN_ADDRESS, DEFAULT_FEE_TOKEN, KYC_REGISTRY_ADDRESS,
+    NONCE_PRECOMPILE_ADDRESS, ORACLE_REGISTRY_ADDRESS,
+    PATH_USD_ADDRESS, STABLECOIN_DEX_ADDRESS, MIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS,
     MIP403_REGISTRY_ADDRESS, VALIDATOR_CONFIG_ADDRESS,
 };
 
@@ -61,7 +66,8 @@ pub const INPUT_PER_WORD_COST: u64 = 6;
 
 #[inline]
 pub fn input_cost(calldata_len: usize) -> u64 {
-    revm::interpreter::gas::cost_per_word(calldata_len, INPUT_PER_WORD_COST).unwrap_or(u64::MAX)
+    let num_words = calldata_len.div_ceil(32) as u64;
+    num_words.checked_mul(INPUT_PER_WORD_COST).unwrap_or(u64::MAX)
 }
 
 pub trait Precompile {
@@ -88,6 +94,10 @@ pub fn extend_magnus_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<
             Some(ValidatorConfigPrecompile::create(chain_id, spec))
         } else if *address == ACCOUNT_KEYCHAIN_ADDRESS {
             Some(AccountKeychainPrecompile::create(chain_id, spec))
+        } else if *address == ORACLE_REGISTRY_ADDRESS {
+            Some(OracleRegistryPrecompile::create(chain_id, spec))
+        } else if *address == KYC_REGISTRY_ADDRESS {
+            Some(KYCRegistryPrecompile::create(chain_id, spec))
         } else {
             None
         }
@@ -190,6 +200,24 @@ impl ValidatorConfigPrecompile {
     pub fn create(chain_id: u64, spec: MagnusHardfork) -> DynPrecompile {
         magnus_precompile!("ValidatorConfig", chain_id, spec, |input| {
             ValidatorConfig::new()
+        })
+    }
+}
+
+pub struct OracleRegistryPrecompile;
+impl OracleRegistryPrecompile {
+    pub fn create(chain_id: u64, spec: MagnusHardfork) -> DynPrecompile {
+        magnus_precompile!("OracleRegistry", chain_id, spec, |input| {
+            OracleRegistry::new()
+        })
+    }
+}
+
+pub struct KYCRegistryPrecompile;
+impl KYCRegistryPrecompile {
+    pub fn create(chain_id: u64, spec: MagnusHardfork) -> DynPrecompile {
+        magnus_precompile!("KYCRegistry", chain_id, spec, |input| {
+            KYCRegistry::new()
         })
     }
 }
@@ -324,7 +352,9 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut evm = EthEvmFactory::default().create_evm(db, EvmEnv::default());
         let block = evm.block.clone();
-        let evm_internals = EvmInternals::new(evm.journal_mut(), &block);
+        let cfg = evm.cfg.clone();
+        let tx = evm.tx.clone();
+        let evm_internals = EvmInternals::new(evm.journal_mut(), &block, &cfg, &tx);
 
         let target_address = Address::random();
         let bytecode_address = Address::random();
@@ -371,7 +401,9 @@ mod tests {
             );
             let mut evm = EthEvmFactory::default().create_evm(db, EvmEnv::default());
             let block = evm.block.clone();
-            let evm_internals = EvmInternals::new(evm.journal_mut(), &block);
+            let cfg = evm.cfg.clone();
+            let tx = evm.tx.clone();
+            let evm_internals = EvmInternals::new(evm.journal_mut(), &block, &cfg, &tx);
 
             let input = PrecompileInput {
                 data: &calldata,

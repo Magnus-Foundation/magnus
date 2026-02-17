@@ -10,6 +10,8 @@ use reth_primitives_traits::{
     Block, GotExpected, SealedBlock, transaction::error::InvalidTransactionError,
 };
 use reth_storage_api::{StateProvider, StateProviderFactory, errors::ProviderError};
+use reth_evm::ConfigureEvm;
+use reth_primitives_traits::BlockTy;
 use reth_transaction_pool::{
     EthTransactionValidator, PoolTransaction, TransactionOrigin, TransactionValidationOutcome,
     TransactionValidator, error::InvalidPoolTransactionError,
@@ -30,21 +32,22 @@ const AA_VALID_BEFORE_MIN_SECS: u64 = 3;
 
 /// Validator for Magnus transactions.
 #[derive(Debug)]
-pub struct MagnusTransactionValidator<Client> {
+pub struct MagnusTransactionValidator<Client, Evm> {
     /// Inner validator that performs default Ethereum tx validation.
-    pub(crate) inner: EthTransactionValidator<Client, MagnusPooledTransaction>,
+    pub(crate) inner: EthTransactionValidator<Client, MagnusPooledTransaction, Evm>,
     /// Maximum allowed `valid_after` offset for AA txs.
     pub(crate) aa_valid_after_max_secs: u64,
     /// Cache of AMM liquidity for validator tokens.
     pub(crate) amm_liquidity_cache: AmmLiquidityCache,
 }
 
-impl<Client> MagnusTransactionValidator<Client>
+impl<Client, Evm> MagnusTransactionValidator<Client, Evm>
 where
     Client: ChainSpecProvider<ChainSpec = MagnusChainSpec> + StateProviderFactory,
+    Evm: ConfigureEvm,
 {
     pub fn new(
-        inner: EthTransactionValidator<Client, MagnusPooledTransaction>,
+        inner: EthTransactionValidator<Client, MagnusPooledTransaction, Evm>,
         aa_valid_after_max_secs: u64,
         amm_liquidity_cache: AmmLiquidityCache,
     ) -> Self {
@@ -487,11 +490,13 @@ where
     }
 }
 
-impl<Client> TransactionValidator for MagnusTransactionValidator<Client>
+impl<Client, Evm> TransactionValidator for MagnusTransactionValidator<Client, Evm>
 where
     Client: ChainSpecProvider<ChainSpec = MagnusChainSpec> + StateProviderFactory,
+    Evm: ConfigureEvm,
 {
     type Transaction = MagnusPooledTransaction;
+    type Block = BlockTy<Evm::Primitives>;
 
     async fn validate_transaction(
         &self,
@@ -510,8 +515,10 @@ where
 
     async fn validate_transactions(
         &self,
-        transactions: Vec<(TransactionOrigin, Self::Transaction)>,
+        transactions: impl IntoIterator<Item = (TransactionOrigin, Self::Transaction), IntoIter: Send>
+            + Send,
     ) -> Vec<TransactionValidationOutcome<Self::Transaction>> {
+        let transactions: Vec<_> = transactions.into_iter().collect();
         let state_provider = match self.inner.client().latest() {
             Ok(provider) => provider,
             Err(err) => {
@@ -533,7 +540,7 @@ where
     async fn validate_transactions_with_origin(
         &self,
         origin: TransactionOrigin,
-        transactions: impl IntoIterator<Item = Self::Transaction> + Send,
+        transactions: impl IntoIterator<Item = Self::Transaction, IntoIter: Send> + Send,
     ) -> Vec<TransactionValidationOutcome<Self::Transaction>> {
         let state_provider = match self.inner.client().latest() {
             Ok(provider) => provider,
@@ -553,10 +560,7 @@ where
             .collect()
     }
 
-    fn on_new_head_block<B>(&self, new_tip_block: &SealedBlock<B>)
-    where
-        B: Block,
-    {
+    fn on_new_head_block(&self, new_tip_block: &SealedBlock<Self::Block>) {
         self.inner.on_new_head_block(new_tip_block)
     }
 }
@@ -578,13 +582,17 @@ mod tests {
     use magnus_primitives::MagnusTxEnvelope;
 
     /// Helper to create a mock sealed block with the given timestamp.
-    fn create_mock_block(timestamp: u64) -> SealedBlock<reth_ethereum_primitives::Block> {
-        use alloy_consensus::Header;
-        let header = Header {
-            timestamp,
-            ..Default::default()
+    fn create_mock_block(timestamp: u64) -> SealedBlock<magnus_primitives::Block> {
+        let header = magnus_primitives::MagnusHeader {
+            inner: alloy_consensus::Header {
+                timestamp,
+                ..Default::default()
+            },
+            general_gas_limit: 0,
+            timestamp_millis_part: 0,
+            shared_gas_limit: 0,
         };
-        let block = reth_ethereum_primitives::Block {
+        let block = magnus_primitives::Block {
             header,
             body: Default::default(),
         };
@@ -664,17 +672,19 @@ mod tests {
         transaction: &MagnusPooledTransaction,
         tip_timestamp: u64,
     ) -> MagnusTransactionValidator<
-        MockEthProvider<reth_ethereum_primitives::EthPrimitives, MagnusChainSpec>,
+        MockEthProvider<magnus_primitives::MagnusPrimitives, MagnusChainSpec>,
+        magnus_evm::MagnusEvmConfig,
     > {
-        let provider =
-            MockEthProvider::default().with_chain_spec(Arc::unwrap_or_clone(MODERATO.clone()));
+        let provider = MockEthProvider::<magnus_primitives::MagnusPrimitives>::new()
+            .with_chain_spec(Arc::unwrap_or_clone(MODERATO.clone()));
         provider.add_account(
             transaction.sender(),
             ExtendedAccount::new(transaction.nonce(), alloy_primitives::U256::ZERO),
         );
         provider.add_block(B256::random(), Default::default());
 
-        let inner = EthTransactionValidatorBuilder::new(provider.clone())
+        let evm_config = magnus_evm::MagnusEvmConfig::new_with_default_factory(MODERATO.clone());
+        let inner = EthTransactionValidatorBuilder::new(provider.clone(), evm_config)
             .disable_balance_check()
             .build(InMemoryBlobStore::default());
         let amm_cache =
@@ -857,9 +867,9 @@ mod tests {
         let fee_payer = transaction.sender();
 
         // Setup provider with storage
-        let provider =
-            MockEthProvider::default().with_chain_spec(Arc::unwrap_or_clone(MODERATO.clone()));
-        provider.add_block(B256::random(), Block::default());
+        let provider = MockEthProvider::<magnus_primitives::MagnusPrimitives>::new()
+            .with_chain_spec(Arc::unwrap_or_clone(MODERATO.clone()));
+        provider.add_block(B256::random(), Default::default());
 
         // Add sender account
         provider.add_account(
@@ -899,7 +909,8 @@ mod tests {
         );
 
         // Create validator and validate
-        let inner = EthTransactionValidatorBuilder::new(provider.clone())
+        let evm_config = magnus_evm::MagnusEvmConfig::new_with_default_factory(MODERATO.clone());
+        let inner = EthTransactionValidatorBuilder::new(provider.clone(), evm_config)
             .disable_balance_check()
             .build(InMemoryBlobStore::default());
         let validator =

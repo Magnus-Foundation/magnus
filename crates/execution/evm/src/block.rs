@@ -1,13 +1,13 @@
 use crate::{MagnusBlockExecutionCtx, evm::MagnusEvm};
-use alloy_consensus::{Transaction, transaction::TxHashRef};
+use alloy_consensus::{Transaction, TransactionEnvelope, transaction::TxHashRef};
 use alloy_evm::{
-    Database, Evm,
+    Database, Evm, RecoveredTx,
     block::{
         BlockExecutionError, BlockExecutionResult, BlockExecutor, BlockValidationError,
-        ExecutableTx, OnStateHook,
+        ExecutableTx, OnStateHook, TxResult,
     },
     eth::{
-        EthBlockExecutor,
+        EthBlockExecutor, EthTxResult,
         receipt_builder::{ReceiptBuilder, ReceiptBuilderCtx},
     },
 };
@@ -22,7 +22,8 @@ use reth_revm::{Inspector, State, context::result::ResultAndState};
 use std::collections::{HashMap, HashSet};
 use magnus_chainspec::MagnusChainSpec;
 use magnus_primitives::{
-    SubBlock, SubBlockMetadata, MagnusReceipt, MagnusTxEnvelope, subblock::PartialValidatorKey,
+    SubBlock, SubBlockMetadata, MagnusReceipt, MagnusTxEnvelope, MagnusTxType,
+    subblock::PartialValidatorKey,
 };
 use magnus_vm::{MagnusHaltReason, evm::MagnusContext};
 use tracing::trace;
@@ -54,22 +55,39 @@ impl ReceiptBuilder for MagnusReceiptBuilder {
 
     fn build_receipt<E: Evm>(
         &self,
-        ctx: ReceiptBuilderCtx<'_, Self::Transaction, E>,
+        ctx: ReceiptBuilderCtx<'_, <Self::Transaction as TransactionEnvelope>::TxType, E>,
     ) -> Self::Receipt {
         let ReceiptBuilderCtx {
-            tx,
+            tx_type,
             result,
             cumulative_gas_used,
             ..
         } = ctx;
         MagnusReceipt {
-            tx_type: tx.tx_type(),
+            tx_type,
             // Success flag was added in `EIP-658: Embedding transaction status code in
             // receipts`.
             success: result.is_success(),
             cumulative_gas_used,
             logs: result.into_logs(),
         }
+    }
+}
+
+/// The result of executing a Magnus transaction. Wraps the inner [`EthTxResult`] and includes
+/// the original transaction for use in [`BlockExecutor::commit_transaction`].
+pub(crate) struct MagnusTxResult {
+    /// Inner Ethereum transaction result.
+    pub(crate) inner: EthTxResult<MagnusHaltReason, MagnusTxType>,
+    /// The original transaction, needed for Magnus-specific validation during commit.
+    pub(crate) tx: MagnusTxEnvelope,
+}
+
+impl TxResult for MagnusTxResult {
+    type HaltReason = MagnusHaltReason;
+
+    fn result(&self) -> &ResultAndState<Self::HaltReason> {
+        &self.inner.result
     }
 }
 
@@ -330,6 +348,7 @@ where
     type Transaction = MagnusTxEnvelope;
     type Receipt = MagnusReceipt;
     type Evm = MagnusEvm<&'a mut State<DB>, I>;
+    type Result = MagnusTxResult;
 
     fn apply_pre_execution_changes(&mut self) -> Result<(), alloy_evm::block::BlockExecutionError> {
         self.inner.apply_pre_execution_changes()
@@ -338,10 +357,14 @@ where
     fn execute_transaction_without_commit(
         &mut self,
         tx: impl ExecutableTx<Self>,
-    ) -> Result<ResultAndState<MagnusHaltReason>, BlockExecutionError> {
+    ) -> Result<Self::Result, BlockExecutionError> {
+        // Split into parts so we can access the transaction data before forwarding to inner.
+        let (tx_env, recovered) = tx.into_parts();
+        let tx_clone = recovered.tx().clone();
+
         let beneficiary = self.evm_mut().ctx_mut().block.beneficiary;
         // If we are dealing with a subblock transaction, configure the fee recipient context.
-        if let Some(validator) = tx.tx().subblock_proposer() {
+        if let Some(validator) = recovered.tx().subblock_proposer() {
             let fee_recipient = *self
                 .subblock_fee_recipients
                 .get(&validator)
@@ -349,21 +372,27 @@ where
 
             self.evm_mut().ctx_mut().block.beneficiary = fee_recipient;
         }
-        let result = self.inner.execute_transaction_without_commit(tx);
+
+        let result = self
+            .inner
+            .execute_transaction_without_commit((tx_env, recovered));
 
         self.evm_mut().ctx_mut().block.beneficiary = beneficiary;
 
-        result
+        Ok(MagnusTxResult {
+            inner: result?,
+            tx: tx_clone,
+        })
     }
 
     fn commit_transaction(
         &mut self,
-        output: ResultAndState<MagnusHaltReason>,
-        tx: impl ExecutableTx<Self>,
+        output: Self::Result,
     ) -> Result<u64, BlockExecutionError> {
-        let next_section = self.validate_tx(tx.tx(), output.result.gas_used())?;
+        let MagnusTxResult { inner, tx } = output;
+        let next_section = self.validate_tx(&tx, inner.result.result.gas_used())?;
 
-        let gas_used = self.inner.commit_transaction(output, &tx)?;
+        let gas_used = self.inner.commit_transaction(inner)?;
 
         // TODO: remove once revm supports emitting logs for reverted transactions
         //
@@ -386,7 +415,7 @@ where
             }
             BlockSection::NonShared => {
                 self.non_shared_gas_left -= gas_used;
-                if !tx.tx().is_payment() {
+                if !tx.is_payment() {
                     self.non_payment_gas_left -= gas_used;
                 }
             }
@@ -403,7 +432,7 @@ where
                     self.seen_subblocks.last_mut().unwrap()
                 };
 
-                last_subblock.1.push(tx.tx().clone());
+                last_subblock.1.push(tx);
             }
             BlockSection::GasIncentive => {
                 self.incentive_gas_used += gas_used;
@@ -442,6 +471,10 @@ where
 
     fn evm(&self) -> &Self::Evm {
         self.inner.evm()
+    }
+
+    fn receipts(&self) -> &[Self::Receipt] {
+        &self.inner.receipts
     }
 }
 
@@ -512,7 +545,6 @@ mod tests {
     #[test]
     fn test_build_receipt() {
         let builder = MagnusReceiptBuilder;
-        let tx = create_legacy_tx();
         let evm = test_evm(EmptyDB::default());
 
         let logs = vec![Log::new_unchecked(
@@ -531,7 +563,7 @@ mod tests {
         let cumulative_gas_used = 21000;
 
         let receipt = builder.build_receipt(ReceiptBuilderCtx {
-            tx: &tx,
+            tx_type: MagnusTxType::Legacy,
             evm: &evm,
             result,
             state: &Default::default(),
@@ -1027,20 +1059,26 @@ mod tests {
         executor.apply_pre_execution_changes().unwrap();
 
         // Create execution result
-        let output = ResultAndState {
-            result: revm::context::result::ExecutionResult::Success {
-                reason: revm::context::result::SuccessReason::Return,
-                gas_used: 21000,
-                gas_refunded: 0,
-                logs: vec![],
-                output: revm::context::result::Output::Call(Bytes::new()),
+        let tx = create_legacy_tx();
+        let output = MagnusTxResult {
+            inner: EthTxResult {
+                result: ResultAndState {
+                    result: revm::context::result::ExecutionResult::Success {
+                        reason: revm::context::result::SuccessReason::Return,
+                        gas_used: 21000,
+                        gas_refunded: 0,
+                        logs: vec![],
+                        output: revm::context::result::Output::Call(Bytes::new()),
+                    },
+                    state: Default::default(),
+                },
+                blob_gas_used: 0,
+                tx_type: tx.tx_type(),
             },
-            state: Default::default(),
+            tx: tx.clone(),
         };
 
-        let tx = create_legacy_tx();
-        let recovered_tx = Recovered::new_unchecked(tx, Address::ZERO);
-        let gas_used = executor.commit_transaction(output, &recovered_tx).unwrap();
+        let gas_used = executor.commit_transaction(output).unwrap();
 
         assert_eq!(gas_used, 21000);
         assert_eq!(executor.section(), BlockSection::NonShared);

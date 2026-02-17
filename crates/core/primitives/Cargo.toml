@@ -31,7 +31,7 @@ alloy-network = { workspace = true, optional = true }
 arbitrary = { workspace = true, features = ["derive"], optional = true }
 derive_more.workspace = true
 serde = { workspace = true, features = ["derive"], optional = true }
-modular-bitfield = { version = "0.11.2", optional = true }
+modular-bitfield = { workspace = true, optional = true }
 
 # Cryptography for P256 and WebAuthn signature verification
 p256 = { workspace = true, features = ["ecdsa"] }

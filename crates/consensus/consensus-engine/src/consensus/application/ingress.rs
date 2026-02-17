@@ -149,9 +149,9 @@ impl Automaton for Mailbox {
 // this trait:
 //  Associated issue:
 //  CertifiableAutomaton for Mailbox {
-    // NOTE: uses the default impl for CertifiableAutomaton which always
-    // returns true.
-}
+//     NOTE: uses the default impl for CertifiableAutomaton which always
+//     returns true.
+// }
 
 impl Relay for Mailbox {
     type Digest = Digest;

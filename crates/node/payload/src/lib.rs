@@ -43,7 +43,7 @@ use std::{
     time::Instant,
 };
 use magnus_chainspec::MagnusChainSpec;
-use magnus_consensus::{MAGNUS_GENERAL_GAS_DIVISOR, MAGNUS_SHARED_GAS_DIVISOR};
+use magnus_chainspec::spec::{MAGNUS_GENERAL_GAS_DIVISOR, MAGNUS_SHARED_GAS_DIVISOR};
 use magnus_evm::{MagnusEvmConfig, MagnusNextBlockEnvAttributes};
 use magnus_payload_types::MagnusPayloadBuilderAttributes;
 use magnus_primitives::{
@@ -62,7 +62,7 @@ use tracing::{Level, debug, error, info, instrument, trace, warn};
 
 #[derive(Debug, Clone)]
 pub struct MagnusPayloadBuilder<Provider> {
-    pool: MagnusTransactionPool<Provider>,
+    pool: MagnusTransactionPool<Provider, MagnusEvmConfig>,
     provider: Provider,
     evm_config: MagnusEvmConfig,
     metrics: MagnusPayloadBuilderMetrics,
@@ -84,7 +84,7 @@ pub struct MagnusPayloadBuilder<Provider> {
 
 impl<Provider> MagnusPayloadBuilder<Provider> {
     pub fn new(
-        pool: MagnusTransactionPool<Provider>,
+        pool: MagnusTransactionPool<Provider, MagnusEvmConfig>,
         provider: Provider,
         evm_config: MagnusEvmConfig,
         state_provider_metrics: bool,

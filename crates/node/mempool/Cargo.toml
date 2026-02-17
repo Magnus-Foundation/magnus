@@ -45,6 +45,7 @@ metrics.workspace = true
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
 reth-provider = { workspace = true, features = ["test-utils"] }
 reth-ethereum-primitives.workspace = true
+magnus-evm.workspace = true
 alloy-eips.workspace = true
 alloy-consensus.workspace = true
 tokio.workspace = true

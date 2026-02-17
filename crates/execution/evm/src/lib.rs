@@ -129,7 +129,7 @@ impl ConfigureEvm for MagnusEvmConfig {
         let spec = self.chain_spec().magnus_hardfork_at(header.timestamp());
 
         Ok(EvmEnv {
-            cfg_env: cfg_env.with_spec(spec),
+            cfg_env: cfg_env.with_spec_and_mainnet_gas_params(spec),
             block_env: MagnusBlockEnv {
                 inner: block_env,
                 timestamp_millis_part: header.timestamp_millis_part,
@@ -162,7 +162,7 @@ impl ConfigureEvm for MagnusEvmConfig {
         let spec = self.chain_spec().magnus_hardfork_at(attributes.timestamp);
 
         Ok(EvmEnv {
-            cfg_env: cfg_env.with_spec(spec),
+            cfg_env: cfg_env.with_spec_and_mainnet_gas_params(spec),
             block_env: MagnusBlockEnv {
                 inner: block_env,
                 timestamp_millis_part: attributes.timestamp_millis_part,
@@ -200,10 +200,11 @@ impl ConfigureEvm for MagnusEvmConfig {
                 ommers: &[],
                 withdrawals: block.body().withdrawals.as_ref().map(Cow::Borrowed),
                 extra_data: block.extra_data().clone(),
+                tx_count_hint: Some(block.body().transactions.len()),
             },
             general_gas_limit: block.header().general_gas_limit,
             shared_gas_limit: block.header().gas_limit()
-                / magnus_consensus::MAGNUS_SHARED_GAS_DIVISOR,
+                / magnus_chainspec::spec::MAGNUS_SHARED_GAS_DIVISOR,
             // Not available when we only have a block body.
             validator_set: None,
             subblock_fee_recipients,
@@ -222,10 +223,11 @@ impl ConfigureEvm for MagnusEvmConfig {
                 ommers: &[],
                 withdrawals: attributes.inner.withdrawals.map(Cow::Owned),
                 extra_data: attributes.inner.extra_data,
+                tx_count_hint: None,
             },
             general_gas_limit: attributes.general_gas_limit,
             shared_gas_limit: attributes.inner.gas_limit
-                / magnus_consensus::MAGNUS_SHARED_GAS_DIVISOR,
+                / magnus_chainspec::spec::MAGNUS_SHARED_GAS_DIVISOR,
             // Fine to not validate during block building.
             validator_set: None,
             subblock_fee_recipients: attributes.subblock_fee_recipients,
