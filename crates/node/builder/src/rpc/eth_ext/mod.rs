@@ -1,7 +1,6 @@
 use crate::rpc::eth_ext::transactions::TransactionsResponse;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 use magnus_indexer::BlockIndex;
-use reth_node_core::rpc::result::internal_rpc_err;
 use reth_rpc_eth_api::RpcNodeCore;
 use magnus_provider::rpc::pagination::PaginationParams;
 use std::sync::Arc;
@@ -39,9 +38,23 @@ impl<EthApi> MagnusEthExt<EthApi> {
 impl<EthApi: RpcNodeCore> MagnusEthExtApiServer for MagnusEthExt<EthApi> {
     async fn transactions(
         &self,
-        _params: PaginationParams<TransactionsFilter>,
+        params: PaginationParams<TransactionsFilter>,
     ) -> RpcResult<TransactionsResponse> {
-        Err(internal_rpc_err("unimplemented"))
+        let limit = params.limit.unwrap_or(10).min(100);
+        let filters = params.filters.unwrap_or_default();
+        let (_tx_hashes, next_cursor) = self.block_index.get_transactions_paginated(
+            filters.from,
+            filters.to,
+            params.cursor.as_deref(),
+            limit,
+        );
+
+        // TODO: look up full Transaction objects from the provider by hash.
+        // Requires wiring TransactionsProvider + RpcConverter into this handler.
+        Ok(TransactionsResponse {
+            next_cursor,
+            transactions: vec![],
+        })
     }
 }
 

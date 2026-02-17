@@ -198,6 +198,65 @@ impl BlockIndex {
         }
     }
 
+    /// Returns paginated transaction hashes matching the given filters.
+    ///
+    /// Transactions are returned in descending block order (most recent first).
+    pub fn get_transactions_paginated(
+        &self,
+        from: Option<alloy_primitives::Address>,
+        to: Option<alloy_primitives::Address>,
+        cursor: Option<&str>,
+        limit: usize,
+    ) -> (Vec<B256>, Option<String>) {
+        let txs = self.transactions.read();
+        let mut results: Vec<_> = txs
+            .values()
+            .filter(|tx| {
+                if let Some(f) = from {
+                    if tx.from != f {
+                        return false;
+                    }
+                }
+                if let Some(t) = to {
+                    if tx.to.as_ref() != Some(&t) {
+                        return false;
+                    }
+                }
+                true
+            })
+            .cloned()
+            .collect();
+
+        // Sort by block_number descending, then index descending.
+        results.sort_by(|a, b| {
+            b.block_number
+                .cmp(&a.block_number)
+                .then_with(|| b.index.cmp(&a.index))
+        });
+
+        // Apply cursor (block_number:index).
+        if let Some(cursor_str) = cursor {
+            if let Some((bn_str, idx_str)) = cursor_str.split_once(':') {
+                if let (Ok(bn), Ok(idx)) = (bn_str.parse::<u64>(), idx_str.parse::<u64>()) {
+                    results.retain(|tx| {
+                        tx.block_number < bn || (tx.block_number == bn && tx.index < idx)
+                    });
+                }
+            }
+        }
+
+        let next_cursor = if results.len() > limit {
+            results.truncate(limit);
+            results
+                .last()
+                .map(|tx| format!("{}:{}", tx.block_number, tx.index))
+        } else {
+            None
+        };
+
+        (results.into_iter().map(|tx| tx.hash).collect(), next_cursor)
+    }
+
     fn matches_filter(log: &IndexedLog, filter: &LogFilter) -> bool {
         if let Some(addresses) = &filter.address
             && !addresses.contains(&log.address)
