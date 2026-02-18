@@ -431,3 +431,470 @@ Institutional treasury operations leverage the 2D nonce system for concurrent tr
 
 ---
 
+## Appendix A: MIP-20 Token Specification
+
+The MIP-20 token standard defines the protocol-level token primitive for Magnus Chain. Every stablecoin, payment token, and fee token on the network is deployed as an MIP-20 contract through the MIP20Factory, which assigns each token a deterministic address with the prefix `0x20C0` (12 bytes) followed by 8 bytes derived from the creation parameters.
+
+### Storage Layout
+
+Each MIP-20 token maintains the following state:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `String` | Human-readable token name |
+| `symbol` | `String` | Short ticker symbol |
+| `currency` | `String` | ISO 4217 currency code (e.g., "VND", "USD", "EUR") |
+| `quote_token` | `Address` | Reference token for oracle price resolution |
+| `next_quote_token` | `Address` | Staged quote token pending finalization |
+| `transfer_policy_id` | `u64` | MIP-403 policy governing transfers |
+| `total_supply` | `U256` | Current circulating supply |
+| `supply_cap` | `U256` | Maximum allowed supply (default: `u128::MAX`) |
+| `balances` | `Mapping<Address, U256>` | Per-account balances |
+| `allowances` | `Mapping<Address, Mapping<Address, U256>>` | ERC-20 approval mappings |
+| `nonces` | `Mapping<Address, U256>` | EIP-712 permit nonces |
+| `paused` | `bool` | Emergency pause state |
+| `domain_separator` | `B256` | EIP-712 domain separator |
+
+All MIP-20 tokens use a fixed 6 decimal places (`MIP20_DECIMALS = 6`), providing sufficient precision for fiat-denominated stablecoins while avoiding the gas overhead of 18-decimal arithmetic.
+
+### Role-Based Access Control
+
+MIP-20 tokens implement a hierarchical role system with the following predefined roles:
+
+| Role | Hash | Permissions |
+|------|------|-------------|
+| `DEFAULT_ADMIN_ROLE` | `0x00` | Grant/revoke roles, change transfer policy, set supply cap, manage quote token |
+| `ISSUER_ROLE` | `keccak256("ISSUER_ROLE")` | Mint and burn tokens |
+| `PAUSE_ROLE` | `keccak256("PAUSE_ROLE")` | Pause the token contract |
+| `UNPAUSE_ROLE` | `keccak256("UNPAUSE_ROLE")` | Unpause the token contract |
+| `BURN_BLOCKED_ROLE` | `keccak256("BURN_BLOCKED_ROLE")` | Burn tokens from blocked accounts |
+
+### Standard Functions (ERC-20 Compatible)
+
+```
+function name() → string
+function symbol() → string
+function decimals() → uint8                              // Always returns 6
+function currency() → string                             // ISO 4217 code
+function totalSupply() → uint256
+function balanceOf(address account) → uint256
+function transfer(address to, uint256 amount) → bool
+function transferFrom(address from, address to, uint256 amount) → bool
+function approve(address spender, uint256 amount) → bool
+function allowance(address owner, address spender) → uint256
+```
+
+### Payment Extension Functions
+
+```
+function transferWithMemo(address to, uint256 amount, bytes32 memo)
+function transferWithPaymentData(
+    address to,
+    uint256 amount,
+    bytes endToEndId,           // Max 35 bytes (ISO 20022 Max35Text)
+    bytes4 purposeCode,         // ISO 20022 ExternalPurpose1Code
+    bytes remittanceInfo        // Max 140 bytes (ISO 20022 Max140Text)
+)
+function transferFromWithPaymentData(
+    address from, address to, uint256 amount,
+    bytes endToEndId, bytes4 purposeCode, bytes remittanceInfo
+) → bool
+function mintWithPaymentData(
+    address to, uint256 amount,
+    bytes endToEndId, bytes4 purposeCode, bytes remittanceInfo
+)
+```
+
+Payment data is emitted as event data only and is not stored in contract state. This design minimizes gas costs while enabling off-chain indexers to reconstruct full ISO 20022 payment records from the event log. The `endToEndId` field is validated against a maximum length of 35 characters conforming to the ISO 20022 `Max35Text` type, and the `remittanceInfo` field is validated against a maximum of 140 characters conforming to `Max140Text`.
+
+### Administrative Functions
+
+```
+function mint(address to, uint256 amount)                // Requires ISSUER_ROLE
+function burn(uint256 amount)                            // Requires ISSUER_ROLE
+function burnBlocked(address from, uint256 amount)       // Requires BURN_BLOCKED_ROLE
+function pause()                                         // Requires PAUSE_ROLE
+function unpause()                                       // Requires UNPAUSE_ROLE
+function setSupplyCap(uint256 newSupplyCap)              // Requires DEFAULT_ADMIN_ROLE
+function changeTransferPolicyId(uint64 newPolicyId)      // Requires DEFAULT_ADMIN_ROLE
+function setNextQuoteToken(address newQuoteToken)         // Requires DEFAULT_ADMIN_ROLE
+function completeQuoteTokenUpdate()                      // Requires DEFAULT_ADMIN_ROLE
+```
+
+The quote token update follows a two-phase process: `setNextQuoteToken` stages the new quote token, and `completeQuoteTokenUpdate` finalizes it after loop-detection validation ensures the quote token chain terminates at the root token (pathUSD) without cycles.
+
+### Transfer Authorization
+
+Every transfer (including `transfer`, `transferFrom`, `transferWithPaymentData`, and fee transfers) is checked against the MIP-403 Transfer Policy Registry. The `ensure_transfer_authorized` function verifies that both the sender and recipient are authorized under the token's assigned `transfer_policy_id`. This enforcement is automatic and cannot be bypassed by any user, including the token administrator.
+
+### Events
+
+```
+event Transfer(address indexed from, address indexed to, uint256 amount)
+event Approval(address indexed owner, address indexed spender, uint256 amount)
+event TransferWithMemo(address indexed from, address indexed to, uint256 amount, bytes32 memo)
+event TransferWithPaymentData(
+    address indexed from, address indexed to, uint256 amount,
+    bytes endToEndId, bytes4 purposeCode, bytes remittanceInfo
+)
+event Mint(address indexed to, uint256 amount)
+event Burn(address indexed from, uint256 amount)
+event BurnBlocked(address indexed from, uint256 amount)
+event PauseStateUpdate(address indexed updater, bool isPaused)
+event SupplyCapUpdate(address indexed updater, uint256 newSupplyCap)
+event TransferPolicyUpdate(address indexed updater, uint64 newPolicyId)
+event QuoteTokenUpdate(address indexed updater, address newQuoteToken)
+event NextQuoteTokenSet(address indexed updater, address nextQuoteToken)
+```
+
+---
+
+## Appendix B: Transaction Type 0x76 Encoding
+
+The Magnus transaction type (`0x76`) extends the EIP-2718 typed transaction envelope with fields for multi-currency gas payment and atomic batch execution. The type identifier `0x76` was chosen to avoid conflicts with the Ethereum standard type range (`0x00`–`0x03`) and common L2 extensions.
+
+### Wire Format
+
+```
+0x76 || RLP([chain_id, max_priority_fee_per_gas, max_fee_per_gas,
+             gas_limit, calls, access_list, nonce, fee_token])
+```
+
+The transaction is encoded as a single type byte (`0x76`) followed by an RLP-encoded list of fields. The field ordering places gas parameters first for efficient validation, followed by the call batch, access list, nonce, and the optional fee token.
+
+### Field Definitions
+
+| Field | RLP Type | Description |
+|-------|----------|-------------|
+| `chain_id` | `uint64` | Chain identifier for replay protection |
+| `max_priority_fee_per_gas` | `uint128` | EIP-1559 priority fee tip |
+| `max_fee_per_gas` | `uint128` | EIP-1559 maximum total fee |
+| `gas_limit` | `uint64` | Maximum gas units for the transaction |
+| `calls` | `RLP list` | Ordered list of `Call` structures |
+| `access_list` | `RLP list` | EIP-2930 access list entries |
+| `nonce` | `uint64` | Sender's transaction nonce |
+| `fee_token` | `Address` or `0x80` | MIP-20 token address for gas, or RLP empty string (`0x80`) for native currency |
+
+### Call Structure
+
+Each element in the `calls` list is an RLP-encoded list:
+
+```
+RLP([to, value, input])
+```
+
+| Field | RLP Type | Description |
+|-------|----------|-------------|
+| `to` | `TxKind` | Destination address (call) or empty (create) |
+| `value` | `U256` | Wei value transferred with this call |
+| `input` | `bytes` | ABI-encoded calldata |
+
+### Fee Token Encoding
+
+The `fee_token` field uses context-dependent encoding. When the transaction pays gas in a MIP-20 stablecoin, the field contains the 20-byte token address encoded per standard RLP address rules. When the transaction pays gas in the native currency, the field is encoded as the RLP empty string (`0x80`), a single byte. The decoder distinguishes between these cases by checking whether the first byte of the remaining buffer equals `0x80`.
+
+### Signing Hash
+
+The signing hash for a Magnus transaction is computed as:
+
+```
+keccak256(0x76 || RLP([chain_id, max_priority_fee_per_gas, max_fee_per_gas,
+                       gas_limit, calls, access_list, nonce, fee_token]))
+```
+
+This follows the EIP-2718 convention where the type byte is included in the hash preimage, binding the signature to the specific transaction type and preventing cross-type replay attacks.
+
+### Decoding Algorithm
+
+The decoder processes the byte stream as follows:
+
+1. Verify the first byte equals `0x76`; reject otherwise.
+2. Skip the type byte and decode the outer RLP list header.
+3. Decode `chain_id` and verify it matches the expected chain; reject on mismatch.
+4. Decode `max_priority_fee_per_gas`, `max_fee_per_gas`, and `gas_limit` as unsigned integers.
+5. Decode the inner `calls` list header, then iteratively decode each `Call` structure until the calls payload is exhausted.
+6. Decode the `access_list` as an EIP-2930 access list.
+7. Decode `nonce` as a `uint64`.
+8. If the remaining buffer is non-empty and the next byte is `0x80`, consume it and set `fee_token = None`. Otherwise, decode a 20-byte address and set `fee_token = Some(address)`. If the buffer is empty, set `fee_token = None`.
+
+---
+
+## Appendix C: Oracle Registry Technical Specification
+
+The Oracle Registry manages foreign exchange rate feeds that enable multi-currency gas payment on Magnus Chain. The design is based on the Celo SortedOracles pattern with extensions for circuit breaker protection and configurable expiry windows.
+
+### Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `DEFAULT_REPORT_EXPIRY` | 360 seconds | Default time-to-live for oracle reports |
+| `BREAKER_THRESHOLD_BPS` | 2000 (20%) | Maximum rate deviation before circuit breaker triggers |
+| `BPS_DENOMINATOR` | 10000 | Basis points divisor |
+
+### Rate Pair Identification
+
+Each rate pair is identified by the keccak256 hash of the concatenated base and quote token addresses:
+
+```
+pair_id = keccak256(base_token_address ++ quote_token_address)
+```
+
+The rate semantics follow the convention that `1 unit of base_token = rate units of quote_token`. For example, a VND/USD pair with rate 25,500 means 1 VND = 25,500 units in the oracle's fixed-point representation.
+
+### State
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rate_pairs` | `Map<B256, SortedOracleList>` | Per-pair sorted lists of active reports |
+| `reporters` | `Map<Address, bool>` | Whitelisted reporter addresses |
+| `expiry_overrides` | `Map<B256, u64>` | Custom expiry durations per pair |
+| `frozen_pairs` | `Map<B256, bool>` | Circuit breaker state per pair |
+
+### API
+
+**`report(reporter, base_token, quote_token, value, timestamp)`**
+
+Submits a rate observation. The function verifies that the caller is a whitelisted reporter, that the rate pair is not frozen by the circuit breaker, and that the reported value does not deviate from the current median by more than the breaker threshold. If the deviation exceeds the threshold, the pair is frozen and the report is rejected. Valid reports are inserted into the sorted list for the pair, maintaining sort order for efficient median computation.
+
+**`get_rate(base_token, quote_token, timestamp)`**
+
+Returns the median rate for the specified pair. The function first prunes expired reports (those older than the pair's expiry window), then computes the median of the remaining valid reports. If no valid reports remain, the function returns an error, ensuring that stale data is never used for fee conversions.
+
+**`num_reports(base_token, quote_token, timestamp)`**
+
+Returns the count of non-expired reports for a pair at the given timestamp.
+
+**`reset_breaker(base_token, quote_token)`**
+
+Governance action that unfreezes a rate pair after a circuit breaker event. After reset, reporters can submit new reports, but the existing reports in the sorted list are preserved.
+
+**`set_expiry(base_token, quote_token, expiry)`**
+
+Sets a custom report expiry duration for a specific pair, overriding the default 360-second window.
+
+### Circuit Breaker Mechanism
+
+The circuit breaker protects against oracle manipulation and extreme market volatility. When a new report is submitted, the registry computes the deviation from the current median:
+
+```
+deviation = |new_value - current_median| * 10000 / current_median
+```
+
+If `deviation > 2000` (i.e., more than 20% from the median), the pair is immediately frozen. No further reports are accepted for the frozen pair until governance explicitly resets the breaker via `reset_breaker`. This mechanism prevents a single compromised reporter from manipulating the rate used for fee conversions while allowing legitimate rate movements within the 20% band.
+
+### Median Computation
+
+Reports are maintained in a sorted list data structure. When a median is requested, expired reports are filtered out, and the median is computed as the middle element of the sorted valid reports. For an even number of reports, the lower-middle element is selected. This approach provides O(1) median retrieval after the O(n) expiry filtering pass, and ensures that the median is resistant to outlier manipulation as long as fewer than half of the reporters are compromised.
+
+---
+
+## Appendix D: ISO 20022 Message Formats
+
+Magnus Chain supports four ISO 20022 message types that collectively span the payment initiation, execution, reporting, and notification lifecycle. The on-chain representation stores essential fields as event data, while the complete XML documents are stored off-chain and referenced by content hash.
+
+### pain.001 — Customer Credit Transfer Initiation
+
+The pain.001 message initiates a payment from the debtor's account. On Magnus Chain, this corresponds to a `transferWithPaymentData` call where the sender specifies the recipient, amount, and payment metadata.
+
+| ISO 20022 Field | On-Chain Mapping | Constraints |
+|-----------------|------------------|-------------|
+| `MsgId` | Transaction hash | 32 bytes, unique per transaction |
+| `CreDtTm` | Block timestamp (millisecond precision via `MILLIS_TIMESTAMP`) | UTC |
+| `NbOfTxs` | Batch call count from 0x76 `calls.length` | Per-transaction |
+| `PmtInfId` | `endToEndId` parameter | Max 35 characters |
+| `EndToEndId` | `endToEndId` parameter | Max 35 characters |
+| `InstdAmt` | `amount` parameter | 6-decimal fixed point |
+| `InstdAmt@Ccy` | `currency()` from MIP-20 token | ISO 4217 code |
+| `Cdtr` | `to` address | 20-byte Ethereum address |
+| `Dbtr` | `from` address (msg.sender) | 20-byte Ethereum address |
+| `Purp/Cd` | `purposeCode` parameter | 4 bytes, ExternalPurpose1Code |
+| `RmtInf/Ustrd` | `remittanceInfo` parameter | Max 140 characters |
+
+### pacs.008 — Financial Institution Credit Transfer
+
+The pacs.008 message represents interbank settlement. On Magnus Chain, this maps to the actual on-chain transfer event, carrying the settlement details that financial institutions use for clearing and reconciliation.
+
+| ISO 20022 Field | On-Chain Mapping |
+|-----------------|------------------|
+| `GrpHdr/MsgId` | Block hash |
+| `GrpHdr/CreDtTm` | Block timestamp |
+| `GrpHdr/NbOfTxs` | Transaction count in block |
+| `GrpHdr/SttlmInf/SttlmMtd` | "CLRG" (cleared on-chain) |
+| `CdtTrfTxInf/PmtId/EndToEndId` | `endToEndId` from `TransferWithPaymentData` event |
+| `CdtTrfTxInf/IntrBkSttlmAmt` | `amount` from `Transfer` event |
+| `CdtTrfTxInf/IntrBkSttlmDt` | Block date |
+| `CdtTrfTxInf/Purp/Cd` | `purposeCode` from event |
+
+### camt.053 — Bank-to-Customer Statement
+
+The camt.053 message provides periodic account statements. The banking gateway generates these by aggregating on-chain `Transfer` and `TransferWithPaymentData` events over a reporting period.
+
+| ISO 20022 Field | Source |
+|-----------------|--------|
+| `GrpHdr/MsgId` | Gateway-generated identifier |
+| `Stmt/Id` | Account address + period |
+| `Stmt/CreDtTm` | Statement generation timestamp |
+| `Stmt/Acct/Id` | Account address |
+| `Stmt/Acct/Ccy` | Token `currency()` |
+| `Stmt/Bal/Amt` | Token `balanceOf(account)` at period end |
+| `Stmt/Ntry/Amt` | Individual transfer amounts |
+| `Stmt/Ntry/CdtDbtInd` | Credit or debit indicator |
+| `Stmt/Ntry/BookgDt` | Block timestamp of transfer |
+| `Stmt/Ntry/NtryDtls/TxDtls/RmtInf` | `remittanceInfo` from event |
+
+### camt.054 — Bank-to-Customer Debit/Credit Notification
+
+The camt.054 message provides real-time notifications for individual transactions. On Magnus Chain, the banking gateway emits these immediately upon observing a finalized `TransferWithPaymentData` event, leveraging the approximately 150-millisecond deterministic finality to deliver near-instant notification to the recipient's banking system.
+
+| ISO 20022 Field | Source |
+|-----------------|--------|
+| `GrpHdr/MsgId` | Transaction hash |
+| `Ntfctn/Id` | Transaction hash + log index |
+| `Ntfctn/CreDtTm` | Block timestamp (millisecond precision) |
+| `Ntfctn/Acct/Id` | Recipient address |
+| `Ntfctn/Ntry/Amt` | Transfer amount |
+| `Ntfctn/Ntry/CdtDbtInd` | "CRDT" for credits, "DBIT" for debits |
+| `Ntfctn/Ntry/NtryDtls/TxDtls/Refs/EndToEndId` | `endToEndId` from event |
+| `Ntfctn/Ntry/NtryDtls/TxDtls/Purp/Cd` | `purposeCode` from event |
+| `Ntfctn/Ntry/NtryDtls/TxDtls/RmtInf/Ustrd` | `remittanceInfo` from event |
+
+---
+
+## Appendix E: FAFO Benchmark Methodology
+
+The throughput claims for the FAFO parallel execution engine are derived from analytical modeling based on the formal analysis presented in the FAFO paper (arXiv:2507.10757). This appendix describes the methodology and assumptions underlying the benchmark projections.
+
+### Workload Model
+
+The benchmark workload models a payment-dominated transaction mix representative of Magnus Chain's target use case. The transaction population consists of three categories: simple token transfers (60% of transactions), which touch exactly two accounts (sender and receiver); payment-with-data transfers (30%), which touch two accounts plus emit event data; and DeFi interactions (10%), which touch variable account sets depending on the protocol.
+
+Each transaction's account access pattern is classified during the ParaLyze phase as either read-only, write-only, or read-write for each accessed account. The conflict ratio (the probability that two randomly selected transactions from the batch access at least one common account with at least one write) is the primary parameter governing parallelism.
+
+### Conflict Ratio Analysis
+
+For payment workloads on a network with `N` active accounts and a batch of `B` transactions, the expected conflict ratio follows:
+
+```
+P(conflict) ≈ 1 - (1 - 2/N)^(B-1)
+```
+
+For a network with one million active accounts and batch sizes of 10,000 transactions, the expected conflict ratio is approximately 2%, meaning 98% of transaction pairs can execute in parallel without coordination. This is substantially lower than general-purpose DeFi workloads, where hot contracts (AMM pools, lending markets) create conflict ratios of 30% or higher.
+
+### Throughput Model
+
+The FAFO throughput model accounts for the four pipeline stages:
+
+```
+TPS = batch_size / max(T_paralyze, T_parabloom, T_paraframer, T_execute)
+```
+
+Where each stage duration depends on the batch size, conflict ratio, and available hardware:
+
+- `T_paralyze`: O(B) account access classification, parallelizable across cores
+- `T_parabloom`: O(B) bloom filter insertions and queries, cache-friendly
+- `T_paraframer`: O(B * C) group assignment where C is the conflict ratio
+- `T_execute`: O(B / W) where W is the number of REVM worker threads
+
+For a 32-core validator with a 2% conflict ratio and batch sizes of 50,000 transactions, the model projects:
+
+| Stage | Duration (ms) | Notes |
+|-------|---------------|-------|
+| ParaLyze | 3.2 | Parallel account classification |
+| ParaBloom | 1.8 | 4-stage bloom filter pass |
+| ParaFramer | 5.1 | Conflict-free group assignment |
+| REVM Execution | 18.4 | 32 workers, ~1,562 tx/worker |
+| **Total** | **28.5** | Pipeline-limited by execution |
+
+This yields approximately 1.75 million transactions per second at the execution layer. Accounting for consensus overhead (approximately 150ms per block), network propagation, and state commitment, the practical sustained throughput is projected at 500,000 or more transactions per second.
+
+### Hardware Assumptions
+
+The benchmark projections assume validator hardware consistent with institutional-grade infrastructure:
+
+| Component | Specification |
+|-----------|--------------|
+| CPU | 32 physical cores, 3.0+ GHz |
+| Memory | 256 GB DDR5 |
+| Storage | NVMe SSD, 3+ GB/s sequential write |
+| Network | 10 Gbps dedicated |
+
+These specifications are commercially available and represent a reasonable baseline for validators operating in a payment-focused network where reliability and throughput are prioritized.
+
+### Comparison Notes
+
+The throughput projections are computed using the FAFO pipeline model and have not yet been validated through end-to-end benchmarking on the complete Magnus Chain stack. The 500,000+ TPS target represents a design goal based on the analytical model, and actual performance may vary depending on the transaction mix, state size, and network conditions. The FAFO paper (arXiv:2507.10757) provides the formal analysis of the parallelization strategy and its theoretical bounds.
+
+---
+
+## Appendix F: Glossary
+
+**BFT (Byzantine Fault Tolerance).** A consensus property ensuring correct operation as long as fewer than one-third of participants are faulty or malicious. Magnus Chain's Simplex consensus provides deterministic BFT finality.
+
+**BLS12-381.** An elliptic curve used for pairing-based cryptography, enabling efficient aggregate and threshold signature schemes. Magnus Chain uses BLS12-381 for validator threshold signatures via distributed key generation.
+
+**Circuit Breaker.** A safety mechanism in the Oracle Registry that freezes a rate pair when a reported value deviates more than 20% from the current median. Prevents oracle manipulation from propagating to fee conversions.
+
+**DKG (Distributed Key Generation).** A protocol by which validators collectively generate a shared public key and individual private key shares without any single party learning the complete private key. Used to bootstrap the BLS12-381 threshold signature scheme.
+
+**EIP-1559.** An Ethereum fee mechanism that splits transaction fees into a base fee (burned) and a priority fee (paid to validators). Magnus Chain's 0x76 transaction type extends EIP-1559 with a `fee_token` field.
+
+**EIP-2718.** The Ethereum typed transaction envelope standard. Magnus Chain's 0x76 transaction type follows this standard, using the type byte to distinguish Magnus transactions from standard Ethereum types.
+
+**FAFO (Fetch-Analyze-Filter-Order).** Magnus Chain's parallel execution pipeline, consisting of ParaLyze (static analysis), ParaBloom (bloom filter conflict detection), ParaFramer (group scheduling), and a REVM worker pool.
+
+**FeeManager.** The precompile contract that orchestrates multi-currency gas fee collection, managing the pre-execution fee lock, post-execution refund, oracle-based conversion, and fee accumulation for validators.
+
+**ISO 4217.** The international standard for currency codes (e.g., VND for Vietnamese Dong, USD for US Dollar). MIP-20 tokens store their `currency` field as an ISO 4217 code.
+
+**ISO 20022.** The international standard for financial messaging, defining XML-based message formats for payments, securities, and trade. Magnus Chain implements a hybrid on-chain/off-chain model for ISO 20022 compliance.
+
+**MIP-20.** The Magnus Improvement Proposal defining the native token standard. An ERC-20 superset with payment-specific extensions including `transferWithPaymentData`, ISO 4217 currency codes, role-based access control, and MIP-403 transfer policy integration.
+
+**MIP-403.** The Magnus Improvement Proposal defining the Transfer Policy Registry. Provides whitelist and blacklist policy types that are automatically enforced on all MIP-20 token transfers.
+
+**MILLIS_TIMESTAMP.** A custom EVM opcode (`0x4F`) that returns the current block timestamp with millisecond precision, enabling sub-second time resolution for payment processing and ISO 20022 `CreDtTm` fields.
+
+**Oracle Registry.** The precompile contract managing foreign exchange rate feeds. Whitelisted reporters submit rate observations that are sorted and aggregated via median calculation, with circuit breaker protection against manipulation.
+
+**ParaBloom.** The second stage of the FAFO pipeline, using a 4-stage bloom filter to efficiently detect potential account access conflicts between transactions.
+
+**ParaFramer.** The third stage of the FAFO pipeline, assigning conflict-free transaction groups to REVM worker threads for parallel execution.
+
+**ParaLyze.** The first stage of the FAFO pipeline, performing static analysis of transaction account access patterns to classify reads and writes.
+
+**Payment Lane.** A block structure mechanism using separate `general_gas_limit` and `shared_gas_limit` fields in the Magnus block header to isolate payment transaction capacity from general-purpose DeFi congestion.
+
+**QMDB (Quantum Merkle Database).** Magnus Chain's authenticated state storage, using a Merkle Mountain Range structure with generation-based copy-on-write semantics. Achieves O(1) amortized I/O per state update.
+
+**REVM.** The Rust Ethereum Virtual Machine implementation used as the execution backend in Magnus Chain's worker pool. Each REVM instance executes a conflict-free group of transactions in parallel.
+
+**Simplex BFT.** The consensus protocol used by Magnus Chain, providing deterministic finality with a target latency of approximately 150 milliseconds.
+
+**VNST.** A Vietnamese Dong-pegged stablecoin deployed as an MIP-20 token on Magnus Chain, with `currency = "VND"` and supply managed by an authorized issuer holding the `ISSUER_ROLE`.
+
+**2D Nonce System.** A dual-dimension nonce scheme where each account maintains a protocol nonce (key 0) in standard account state and additional user-defined nonce keys (1 through N) in the nonce precompile. Enables concurrent transaction streams from a single account without serialization.
+
+---
+
+## References
+
+1. FAFO: A Deterministic Parallel Execution Pipeline for EVM Blockchains. arXiv:2507.10757, 2025.
+
+2. QMDB: Quick Merkle Database for Blockchain State Storage. arXiv:2501.05262, 2025.
+
+3. ISO 20022 Financial Services — Universal Financial Industry Message Scheme. International Organization for Standardization, 2004–2025.
+
+4. ISO 4217 Currency Codes. International Organization for Standardization, 2015.
+
+5. EIP-1559: Fee Market Change for ETH 1.0 Chain. Ethereum Improvement Proposals, 2019.
+
+6. EIP-2718: Typed Transaction Envelope. Ethereum Improvement Proposals, 2020.
+
+7. EIP-2930: Optional Access Lists. Ethereum Improvement Proposals, 2020.
+
+8. SWIFT ISO 20022 Programme. Society for Worldwide Interbank Financial Telecommunication, 2018–2025.
+
+9. World Bank Remittance Prices Worldwide Quarterly, Issue 50. World Bank Group, 2024.
+
+10. BLS12-381: New zk-SNARK Elliptic Curve Construction. Bowe, S., 2017.
+
