@@ -58,3 +58,58 @@ Magnus Chain's architecture emerges from four design principles that collectivel
 
 ---
 
+## 3. Pillar I: FAFO Parallel Execution Engine
+
+The execution layer is the primary performance bottleneck in EVM-compatible blockchains. Standard implementations process transactions sequentially, executing each against a shared state database before advancing to the next. This design guarantees correctness but leaves the vast majority of available CPU cores idle during block execution. The Fetch-Analyze-Filter-Order (FAFO) architecture, formalized in arXiv:2507.10757, addresses this bottleneck through a fundamentally different approach: rather than executing transactions speculatively and detecting conflicts after the fact, FAFO analyzes transaction access patterns before execution, reorders them to minimize data contention, and dispatches conflict-free groups to a pool of concurrent EVM workers. The result is throughput that scales linearly with available CPU cores until the intrinsic parallelism of the transaction workload is fully exploited.
+
+### 3.1 The FAFO Pipeline
+
+The FAFO execution engine processes each block through a four-stage pipeline. Each stage transforms the transaction set into a progressively more refined representation that maximizes parallel execution potential while preserving deterministic output.
+
+```
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│   ParaLyze   │───▶│  ParaBloom   │───▶│ ParaFramer   │───▶│  REVM Worker │
+│  (Analyze)   │    │  (Filter)    │    │  (Schedule)  │    │    Pool      │
+│              │    │              │    │              │    │              │
+│ Extract R/W  │    │ Bloom filter │    │ Build DAG,   │    │ N concurrent │
+│ sets from    │    │ conflict     │    │ assign to    │    │ REVM workers │
+│ transactions │    │ detection    │    │ frames       │    │ execute      │
+└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘
+```
+
+**Stage 1: ParaLyze (Transaction Analysis).** The first stage performs static analysis on each transaction in the pending block to extract its anticipated read and write sets. For simple token transfers, the accessed storage slots are deterministic: the sender's balance slot, the recipient's balance slot, and the contract's total supply slot. For more complex contract interactions, ParaLyze employs bytecode analysis to approximate the set of storage keys that a transaction will access. The analysis is conservative: when a transaction's access pattern cannot be fully determined statically, ParaLyze overapproximates the write set to ensure that no undetected conflicts can produce incorrect state. This conservatism may reduce parallelism for complex DeFi transactions but imposes no penalty on the simple transfer workloads that dominate payment processing.
+
+**Stage 2: ParaBloom (Conflict Detection).** The second stage constructs a compact conflict representation using a novel bloom filter data structure optimized for CPU cache locality. For each transaction, ParaBloom builds separate bloom filters over its read set and write set. Conflict detection then reduces to a series of bitwise AND operations: two transactions conflict if and only if the write filter of one overlaps with either the read or write filter of the other. This approach achieves O(1) amortized conflict checking per transaction pair with a controllable false positive rate. False positives are safe — they cause two non-conflicting transactions to be serialized unnecessarily — while false negatives are impossible by construction. The memory overhead is approximately 2 gigabytes per 10,000 pending transactions, a modest cost on validator hardware.
+
+**Stage 3: ParaFramer (DAG Construction and Scheduling).** The third stage consumes the conflict graph produced by ParaBloom and constructs a directed acyclic graph (DAG) encoding the ordering dependencies between transactions. Transactions with no conflicts are independent and may execute in any order on any worker. Transactions that share a write-write or read-write conflict must execute in a defined sequence. ParaFramer performs a topological sort of this DAG and partitions the result into frames: sets of transactions that can execute concurrently without violating any dependency. The framing algorithm employs greedy assignment with load balancing to minimize worker idle time, distributing transactions across the available worker pool such that each frame achieves maximum concurrency. When the workload permits, dynamic work stealing allows idle workers to pull transactions from other workers' queues.
+
+**Stage 4: REVM Worker Pool (Concurrent Execution).** The final stage dispatches each frame to a pool of N REVM instances, where N corresponds to the number of available CPU cores. Each worker maintains its own REVM instance configured with the block's execution context. Workers within a frame execute their assigned transactions simultaneously on separate threads, collecting state changes into thread-local write buffers. After all workers in a frame complete, the state changes are merged into the shared state database in a deterministic order. The next frame then begins execution against the updated state. A critical architectural property is that FAFO does not modify REVM itself. Each worker runs an unmodified, standard REVM instance. Parallelism emerges entirely from the reordering performed in stages one through three, not from any modification to the EVM execution semantics. This preserves full compatibility with the Ethereum execution specification and eliminates a class of correctness risks associated with speculative or optimistic parallel execution strategies.
+
+### 3.2 Payment Lanes
+
+Magnus Chain extends the FAFO architecture with a payment lane mechanism that provides quality-of-service guarantees for payment transactions even during periods of high network congestion. The `MagnusHeader` structure encodes two distinct gas limits: `general_gas_limit` for arbitrary smart contract execution and `shared_gas_limit` allocated to a subblock section reserved for payment transactions. This separation ensures that a surge in DeFi activity, NFT minting, or other gas-intensive workloads cannot crowd out payment processing.
+
+The lane mechanism operates at the block construction level. When a validator builds a block, transactions are first classified by type. Payment transactions, identifiable by their interaction with MIP-20 token contracts and their use of the 0x76 transaction type, are allocated to the shared gas lane. Remaining transactions compete for the general gas allocation. Because payment transactions exhibit highly predictable access patterns involving a small number of balance slots, the FAFO pipeline achieves near-perfect parallelism for the payment lane, while the general lane may experience reduced parallelism due to complex contract interactions. The two lanes share the same REVM worker pool but process their respective transaction sets in isolated scheduling phases.
+
+The block header's `timestamp_millis_part` field provides millisecond-precision timestamps, complementing the standard second-resolution Ethereum timestamp. This precision is essential for payment processing, where settlement ordering at sub-second granularity affects reconciliation accuracy, interest calculations, and regulatory reporting. The Magnus EVM exposes this precision through a custom opcode (0x4F, `MILLIS_TIMESTAMP`) that returns the block timestamp in milliseconds, costing 2 gas units, identical to other block information opcodes.
+
+### 3.3 Performance Analysis
+
+The FAFO architecture achieves throughput that depends on two primary variables: the conflict ratio of the transaction workload and the number of available CPU cores. For payment workloads, the conflict ratio is exceptionally low. A block of 10,000 simple token transfers where no sender appears twice has zero conflicts and achieves perfect parallelism across all available workers. Real-world payment traffic approaches this ideal because individual users typically submit transactions at low frequency relative to the total network throughput.
+
+Benchmarks reported in the FAFO paper (arXiv:2507.10757) demonstrate over 1.1 million native transfers per second and over 500,000 ERC-20 transfers per second on a single node. Magnus Chain targets a conservative 500,000 transactions per second as its design throughput, providing substantial headroom above the peak requirements of national-scale payment systems. This target assumes 32-core validator hardware, which represents commodity server specifications available from major cloud providers.
+
+The throughput model can be expressed as TPS = B / (T_consensus + T_execution), where B is the number of transactions per block, T_consensus is the consensus round time, and T_execution is the block execution time. With FAFO, T_execution scales as T_sequential / (N * E), where N is the number of worker cores and E is the parallel efficiency factor. For payment workloads with conflict ratios below 5%, E exceeds 0.90, meaning that each additional core contributes over 90% of its theoretical maximum throughput. At 32 cores with 90% efficiency, the effective parallelism factor is approximately 29x, reducing execution time by nearly that factor relative to sequential processing.
+
+| Platform | Throughput (TPS) | Finality | Execution Model | Payment Primitives |
+|----------|-----------------|----------|-----------------|-------------------|
+| Ethereum | ~15 | ~13 min | Sequential EVM | None |
+| Solana | ~4,000 | ~400ms | Sealevel parallel | None |
+| MegaETH | ~100,000 (claimed) | ~10ms | Specialized nodes | None |
+| Stellar | ~1,000 | 3-5s | Non-EVM | Basic anchors |
+| **Magnus Chain** | **500,000+** | **~150ms** | **FAFO parallel EVM** | **Native (MIP-20, oracle gas, ISO 20022)** |
+
+The comparison table reveals a critical distinction: while several platforms achieve high raw throughput, none combines EVM-compatible parallel execution with native payment primitives and sub-second deterministic finality. Magnus Chain occupies a unique position in this design space, offering the throughput of a specialized execution engine within the developer ecosystem of the EVM while simultaneously providing the payment-specific features that regulated financial institutions require.
+
+---
+
