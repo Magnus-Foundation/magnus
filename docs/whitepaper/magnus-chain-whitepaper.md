@@ -113,3 +113,92 @@ The comparison table reveals a critical distinction: while several platforms ach
 
 ---
 
+## 4. Pillar II: Native Payment Primitives
+
+The execution engine described in the preceding section provides the throughput foundation, but throughput alone does not make a blockchain suitable for regulated payment processing. Magnus Chain's second pillar introduces a coordinated set of payment primitives implemented as protocol-level precompiled contracts rather than application-layer smart contracts. This distinction is critical: precompiled contracts execute at native speed, enforce invariants that user-deployed contracts cannot override, and compose with the execution engine's conflict analysis in ways that external contracts do not.
+
+### 4.1 MIP-20 Token Standard
+
+The MIP-20 token standard serves as the fundamental unit of value on Magnus Chain. It is a strict superset of the ERC-20 interface, meaning that any software or wallet capable of interacting with ERC-20 tokens can interact with MIP-20 tokens without modification. The extensions address three deficiencies that render ERC-20 inadequate for payment processing: the absence of structured payment data, the lack of currency identity, and the inability to enforce compliance constraints at the token level.
+
+Each MIP-20 token carries a `currency` field containing its ISO 4217 currency code (for example, "USD" for US dollar stablecoins or "VND" for Vietnamese dong stablecoins) and a `quote_token` reference establishing a pricing relationship with another token on the chain. The standard defines an `ISSUER_ROLE` that restricts minting authority to addresses explicitly authorized by the token administrator, a `supply_cap` that enforces a hard ceiling on total issuance, and integration with the MIP-403 transfer policy registry for compliance enforcement. Tokens use 6-decimal precision, aligning with the convention established by major stablecoins and simplifying integration with banking systems that operate at this precision.
+
+The signature extension that most directly enables payment processing is `transferWithPaymentData`, which augments a standard token transfer with three ISO 20022-aligned fields:
+
+```
+function transferWithPaymentData(
+    address to,
+    uint256 amount,
+    bytes calldata endToEndId,      // Max 35 chars (ISO Max35Text)
+    bytes4 purposeCode,              // 4 bytes (e.g., "SALA", "SUPP")
+    bytes calldata remittanceInfo    // Max 140 chars (ISO Max140Text)
+) external returns (bool);
+```
+
+The `endToEndId` field carries a unique payment identifier up to 35 characters in length, matching the ISO 20022 `EndToEndIdentification` element that banks use to track payments across institutional boundaries. The `purposeCode` is a four-byte code drawn from the ISO 20022 `ExternalPurpose1Code` vocabulary, classifying the payment's nature: `SALA` for salary, `SUPP` for supplier payment, `TAXS` for tax remittance, `PENS` for pension disbursement, and dozens of additional codes covering the full spectrum of commercial and personal payment categories. The `remittanceInfo` field provides up to 140 characters of unstructured remittance information, sufficient for invoice references, payment descriptions, or reconciliation notes.
+
+These fields are emitted as event data rather than stored in contract state, a deliberate design choice that preserves the gas efficiency of a simple balance update while making the full payment context available to off-chain indexers, banking gateways, and regulatory reporting systems. The `transferWithPaymentData` function enforces all standard MIP-20 checks — pause state, recipient validity, MIP-403 policy compliance, and spending limits — before executing the underlying balance transfer.
+
+### 4.2 Oracle-Based Multi-Stablecoin Gas Fees
+
+The gas fee mechanism is the most consequential architectural decision in Magnus Chain's payment stack. On every other EVM-compatible blockchain, users must hold the chain's native token to pay transaction fees, creating an onboarding barrier that is particularly acute in emerging markets where users may be unfamiliar with cryptocurrency. Magnus Chain replaces this requirement with an oracle-driven multi-stablecoin gas fee system that allows users to pay fees in any supported MIP-20 stablecoin.
+
+The system comprises three components: a custom transaction type, an oracle registry, and a fee manager. The Magnus transaction type (0x76) extends the EIP-1559 transaction format with two additional fields: `fee_token`, an optional address specifying the MIP-20 stablecoin in which the user wishes to pay gas, and `calls`, a vector of batched call instructions enabling atomic multi-operation transactions. The RLP encoding follows standard Ethereum conventions, with the type byte (0x76) preceding the encoded field list.
+
+```
+Magnus Transaction (0x76) Encoding:
+
+0x76 || RLP([
+    chain_id,
+    max_priority_fee_per_gas,
+    max_fee_per_gas,
+    gas_limit,
+    calls: [{ to, value, input }, ...],
+    access_list,
+    nonce,
+    fee_token         // MIP-20 address or empty (native)
+])
+```
+
+The Oracle Registry maintains real-time foreign exchange rates for supported currency pairs. Whitelisted reporters, comprising validators and authorized external oracle feeds, submit rate reports that are inserted into a sorted list for each currency pair. The median of valid (non-expired) reports serves as the canonical exchange rate. Reports expire after 360 seconds by default, and per-pair expiry overrides allow governance to adjust this window for pairs with different volatility characteristics. A circuit breaker mechanism monitors incoming reports against the current median; if a new report deviates by more than 2,000 basis points (20%), the circuit breaker trips and freezes the affected rate pair, preventing fee calculations based on potentially manipulated rates. Governance can reset the breaker after investigation.
+
+The fee collection flow operates in two phases bracketing transaction execution:
+
+```
+┌────────────┐    ┌────────────┐    ┌────────────┐    ┌────────────┐
+│  Pre-Tx    │───▶│  Execute   │───▶│  Post-Tx   │───▶│  Validator │
+│  Lock      │    │  TX        │    │  Settle    │    │  Collect   │
+│            │    │            │    │            │    │            │
+│ Lock max   │    │ Standard   │    │ Refund     │    │ Call       │
+│ fee in     │    │ REVM       │    │ unused,    │    │ distribute │
+│ user token │    │ execution  │    │ swap via   │    │ Fees()     │
+│            │    │            │    │ oracle     │    │            │
+└────────────┘    └────────────┘    └────────────┘    └────────────┘
+```
+
+In the pre-transaction phase, the FeeManager's `collect_fee_pre_tx` function transfers the maximum possible fee from the user's account into the fee manager contract, denominated in the user's chosen `fee_token`. If the user's token differs from the validator's preferred token, the fee manager verifies that sufficient liquidity exists for the conversion. After the transaction executes, `collect_fee_post_tx` refunds the unused gas portion to the user, executes the currency swap through the oracle rate if the user and validator tokens differ, and accumulates the converted fee for the validator. Validators call `distribute_fees` to withdraw their accumulated fee balance at any time.
+
+This design achieves a critical user experience goal: a Vietnamese user holding VNST can submit payment transactions paying gas in VNST, while the block-producing validator receives their fees in USDC or any other preferred stablecoin. The oracle rate ensures that the conversion reflects real market conditions rather than the liquidity depth of an on-chain automated market maker, and the 0.25% fee (25 basis points) applied by the fee manager is substantially lower than the spreads typically observed in AMM-based conversion pools.
+
+### 4.3 MIP-403 Transfer Policies
+
+The MIP-403 Transfer Policy Registry implements protocol-level compliance enforcement for MIP-20 tokens. Each token can be associated with a transfer policy that defines constraints on who may send, receive, or hold the token. The registry supports four policy types: whitelist policies that restrict transfers to a set of approved addresses, blacklist policies that block specific addresses from participation, freeze policies that temporarily suspend all transfers for a token, and time-lock policies that enforce vesting schedules or cliff-based release conditions.
+
+Policies are created by authorized administrators and identified by numeric policy identifiers. The registry maintains a counter starting at 2 (policy identifiers 0 and 1 are reserved as special-case policies), and each policy record stores its type and its administrative address. When a MIP-20 token has a non-zero `transfer_policy_id`, every transfer function — including `transfer`, `transferWithMemo`, and `transferWithPaymentData` — calls `ensure_transfer_authorized` on the MIP-403 registry before executing the balance update. This enforcement is not optional; it is embedded in the token contract's internal transfer logic and cannot be bypassed by calling lower-level functions.
+
+The integration with ISO 20022 reporting is bidirectional. Policy violations generate events that can be mapped to ISO 20022 camt.054 debit and credit notification messages, enabling banking gateways to receive structured alerts when transfers are blocked or frozen. Periodic policy state can be exported as camt.053 account statement data, providing regulators and auditors with a standards-compliant view of compliance activity.
+
+### 4.4 Supporting Primitives
+
+Magnus Chain includes several additional precompiled contracts that collectively address the operational requirements of payment processing beyond basic token transfers and fee management.
+
+**2D Nonce System.** The standard Ethereum nonce model associates a single monotonically increasing counter with each account, serializing all transactions from that account into a strict sequence. This constraint is problematic for payment processing, where a single institutional account may need to submit concurrent transaction streams — for example, payroll batches, supplier payments, and treasury operations — without any one stream blocking the others. Magnus Chain's NonceManager precompile implements a two-dimensional nonce space where each account has multiple independent nonce keys. The protocol nonce (key 0) remains stored in account state for backward compatibility, while user-defined nonce keys (1 through N) are managed by the precompile. Each key maintains its own counter, allowing concurrent transaction submission across different keys without ordering dependencies.
+
+**Account Keychain.** The Account Keychain precompile extends the standard secp256k1 signature model with support for P256 (NIST P-256) and WebAuthn signature types, enabling direct transaction signing from mobile secure enclaves, hardware security modules, and browser-based WebAuthn authenticators without intermediary relay contracts. Each authorized key carries an expiry timestamp, a revocation flag (once revoked, a key identifier cannot be reused, preventing replay attacks), and optional spending limits. When spending limits are enabled, the keychain tracks per-token cumulative spending against configured thresholds, providing institution-grade access controls for accounts that are shared across multiple operators or devices. The signature type field (0 = secp256k1, 1 = P256, 2 = WebAuthn) is stored as a single byte, and the complete key metadata is packed into a single 256-bit storage slot for gas efficiency.
+
+**Millisecond Timestamp Opcode.** The MILLIS_TIMESTAMP opcode (0x4F) exposes the block timestamp at millisecond resolution to smart contracts. The Magnus block header stores a `timestamp_millis_part` field representing the sub-second component, and the opcode returns the combined value: `timestamp_seconds * 1000 + timestamp_millis_part`. This precision is essential for payment applications that require accurate time ordering, interest accrual calculations, and regulatory timestamp compliance at sub-second granularity. The opcode costs 2 gas, identical to the standard TIMESTAMP opcode.
+
+**Atomic Batch Calls.** The 0x76 transaction type's `calls` field enables multiple contract interactions within a single atomic transaction. Each call specifies a destination address, a value transfer amount, and calldata. All calls execute sequentially within the transaction context, and if any call reverts, the entire batch reverts. This primitive supports complex payment workflows — such as transferring tokens, updating a compliance record, and emitting a notification — in a single atomic operation without requiring an intermediary orchestration contract.
+
+---
+
