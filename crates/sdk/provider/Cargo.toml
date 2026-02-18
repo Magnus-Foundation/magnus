@@ -37,7 +37,7 @@ derive_more.workspace = true
 serde.workspace = true
 
 [dev-dependencies]
-alloy = { workspace = true, features = ["providers", "rpc-types-eth", "sol-types"] }
+alloy = { workspace = true, features = ["providers", "rpc-types-eth", "sol-types", "signers", "signer-local"] }
 eyre.workspace = true
 futures.workspace = true
 test-case.workspace = true
