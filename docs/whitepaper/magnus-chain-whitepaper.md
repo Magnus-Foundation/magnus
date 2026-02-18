@@ -298,3 +298,45 @@ From a strategic perspective, the modular architecture enables selective composi
 
 ---
 
+## 7. Security and Resilience
+
+A payment settlement system that processes regulated financial transactions must provide security guarantees that extend beyond the standard Byzantine fault tolerance assumptions of general-purpose blockchains. Magnus Chain's security model addresses threats across five layers: consensus integrity, oracle manipulation resistance, payment lane isolation, compliance enforcement, and cryptographic key management. Each layer provides independent security properties that compose into a defense-in-depth architecture where compromise of any single layer does not compromise the system as a whole.
+
+### 7.1 Consensus Security
+
+The Simplex BFT consensus protocol provides safety (no two conflicting blocks can be finalized) and liveness (the chain continues to produce blocks) under the assumption that fewer than one-third of the validator set is Byzantine (arbitrarily malicious). This is the strongest safety guarantee achievable in asynchronous networks, as established by the impossibility results of Fischer, Lynch, and Paterson. In concrete terms, a Magnus Chain network with 100 validators tolerates up to 33 malicious or failed validators while continuing to finalize blocks with approximately 150-millisecond latency. The deterministic finality property means that once a payment transaction is included in a finalized block, no combination of adversarial behavior can cause it to be reverted, providing the settlement assurance that financial institutions require.
+
+The BLS12-381 threshold signature scheme strengthens the consensus security model by distributing signing authority across the validator set such that no individual validator possesses the complete signing key. The threshold is set to match the BFT bound: signatures require participation from more than two-thirds of the validator set. An attacker who compromises a minority of validators gains no ability to forge block signatures, and the regular key rotation performed through DKG ceremonies at epoch boundaries limits the window of exposure for any compromised key material.
+
+### 7.2 Oracle Security and Circuit Breaker
+
+The oracle registry represents a critical security surface because manipulated exchange rates could enable attackers to pay artificially low gas fees or extract value from the fee conversion mechanism. Magnus Chain mitigates this risk through multiple independent defenses.
+
+The reporter whitelist restricts rate submissions to validators and explicitly authorized external oracle feeds, preventing arbitrary addresses from injecting false rates. The median aggregation function provides robustness against minority manipulation: even if a minority of reporters submit extreme values, the median remains anchored to the honest majority's reports. The sorted oracle list maintains reports in value order, and the median computation automatically excludes outliers.
+
+The circuit breaker provides the final defense layer. When any new report deviates from the current median by more than 2,000 basis points (20%), the circuit breaker automatically freezes the affected rate pair. While frozen, no fee conversions using that pair can execute, preventing transactions from proceeding with manipulated rates. The threshold of 20% accommodates normal foreign exchange volatility while catching manipulation attempts. Governance can reset the circuit breaker after investigating the cause of the deviation, and the freeze mechanism ensures that even a successfully manipulated rate has no lasting effect on the system.
+
+Rate expiry provides temporal security. Reports expire after 360 seconds by default, ensuring that the system never relies on stale rate data. If all reporters for a pair go offline simultaneously, the pair's rate becomes unavailable rather than persisting at a potentially outdated value. This fail-closed behavior prioritizes safety over availability for the fee conversion mechanism.
+
+### 7.3 Payment Lane Isolation
+
+The dual gas limit architecture in the block header provides quality-of-service isolation between payment transactions and general smart contract execution. This separation has security implications beyond mere performance. A denial-of-service attack targeting the general execution lane — for example, deploying gas-intensive contracts or submitting computationally expensive transactions — cannot affect the payment lane's gas allocation. Payment transactions continue to be included and executed at their dedicated throughput level even while the general lane is congested or under attack.
+
+The isolation also prevents economic attacks where an adversary manipulates general-lane gas prices to make payment processing prohibitively expensive. Because payment transactions compete only within the shared gas lane, their effective gas price is determined by payment-lane demand rather than overall network demand. This decoupling ensures predictable transaction costs for payment applications, a requirement that financial institutions consider non-negotiable.
+
+### 7.4 Compliance Enforcement Security
+
+The MIP-403 transfer policy registry provides protocol-level compliance enforcement that is fundamentally more secure than application-layer alternatives. Because the `ensure_transfer_authorized` check is embedded in the MIP-20 token's internal transfer logic rather than in an external wrapper contract, there is no code path through which a transfer can execute without passing the policy check. This property holds regardless of how the transfer is initiated: direct calls, approved transfers, system transfers from precompiles, and batch calls within 0x76 transactions all traverse the same internal `_transfer` function that enforces MIP-403 policies.
+
+The policy administration model provides defense against unauthorized policy modifications. Each policy record stores its administrative address, and only that address can modify the policy's address set (whitelist or blacklist entries). The policy type (whitelist, blacklist, freeze, or time-lock) is immutable after creation, preventing an attacker who gains administrative access from converting a whitelist policy into a more permissive blacklist policy. The reserved policy identifiers (0 and 1) provide system-level default policies that cannot be overridden by user-created policies.
+
+### 7.5 Cryptographic Security
+
+Magnus Chain's cryptographic security rests on the BLS12-381 elliptic curve, which provides approximately 128 bits of security against classical adversaries. The curve was specifically designed for pairing-based cryptography and has been extensively analyzed by the cryptographic research community, including adoption by Ethereum 2.0, Zcash, and multiple other production systems.
+
+The DKG ceremony produces key material through verifiable secret sharing, where each participant can independently verify that their received share is consistent with the public commitments. This verifiability prevents a malicious dealer from distributing invalid shares that would later cause signing failures or enable key recovery attacks. The use of Ed25519 for dealer authentication during the ceremony and BLS12-381 for the resulting threshold keys provides cryptographic agility: the ceremony protocol and the consensus signing protocol use different key types optimized for their respective use cases.
+
+The Account Keychain's support for P256 and WebAuthn signature types extends the system's cryptographic perimeter to include hardware-backed key storage. Mobile secure enclaves and hardware security modules provide tamper-resistant key generation and signing that protects user keys even if the device's application processor is compromised. The per-key spending limits and revocation mechanisms provide additional defense-in-depth: even if a key is compromised, the damage is bounded by the spending limit configured for that key, and the compromised key can be revoked without affecting other authorized keys on the same account.
+
+---
+
