@@ -553,4 +553,178 @@ mod tests {
         assert_eq!(*token_bals.get(&from).unwrap(), U256::from(700));
         assert_eq!(*token_bals.get(&to).unwrap(), U256::from(300));
     }
+
+    #[test]
+    fn get_tokens_cursor_chains_through_all_pages() {
+        let store = TokenStore::new();
+        for i in 0..25 {
+            store.upsert_token(make_test_token(i, "USD"));
+        }
+
+        let mut all_ids = Vec::new();
+        let mut cursor: Option<String> = None;
+        for _ in 0..10 {
+            let (page, next) = store.get_tokens(None, None, None, None, None, cursor.as_deref(), 10);
+            all_ids.extend(page.iter().map(|t| t.token_id));
+            cursor = next;
+            if cursor.is_none() {
+                break;
+            }
+        }
+
+        assert_eq!(all_ids.len(), 25);
+        // Verify no duplicates.
+        let unique: std::collections::HashSet<u64> = all_ids.iter().copied().collect();
+        assert_eq!(unique.len(), 25);
+        // Verify ascending order.
+        assert!(all_ids.windows(2).all(|w| w[0] < w[1]));
+    }
+
+    #[test]
+    fn get_tokens_by_address_includes_roles() {
+        let store = TokenStore::new();
+        let account = address!("0x1111111111111111111111111111111111111111");
+        let token_addr = Address::with_last_byte(1);
+        let role = b256!("0x0000000000000000000000000000000000000000000000000000000000000042");
+
+        store.upsert_token(IndexedToken {
+            address: token_addr,
+            ..make_test_token(1, "USD")
+        });
+
+        // Give the account a role (no balance).
+        store
+            .account_roles
+            .write()
+            .entry(token_addr)
+            .or_default()
+            .entry(account)
+            .or_default()
+            .push(role);
+
+        let (results, _) = store.get_tokens_by_address(account, None, None, 100);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].1, U256::ZERO); // no balance
+        assert_eq!(results[0].2, vec![role]); // has role
+    }
+
+    #[test]
+    fn get_role_history_cursor_pagination() {
+        let store = TokenStore::new();
+        let token = address!("0x2222222222222222222222222222222222222222");
+        let account = address!("0x3333333333333333333333333333333333333333");
+        let role = b256!("0x0000000000000000000000000000000000000000000000000000000000000001");
+
+        // Insert 15 role changes at different block numbers.
+        for i in 1..=15 {
+            store.role_changes.write().push(IndexedRoleChange {
+                account,
+                block_number: i * 10,
+                granted: i % 2 == 1,
+                role,
+                sender: Address::ZERO,
+                timestamp: i * 1000,
+                token,
+                transaction_hash: B256::with_last_byte(i as u8),
+            });
+        }
+
+        // First page: 10 items (most recent first: block 150..60).
+        let (page1, cursor1) =
+            store.get_role_history(None, None, None, None, None, None, 10);
+        assert_eq!(page1.len(), 10);
+        assert!(cursor1.is_some());
+        assert_eq!(page1[0].block_number, 150);
+
+        // Second page: remaining 5 items.
+        let (page2, cursor2) =
+            store.get_role_history(None, None, None, None, None, cursor1.as_deref(), 10);
+        assert_eq!(page2.len(), 5);
+        assert!(cursor2.is_none());
+        assert_eq!(page2[0].block_number, 50);
+    }
+
+    #[test]
+    fn index_block_token_created_event() {
+        use alloy_sol_types::SolEvent;
+
+        let store = TokenStore::new();
+        let factory_addr = address!("0x20FC000000000000000000000000000000000000");
+        let token_addr = address!("0x20c0000000000000000000000000000000000099");
+        let admin = address!("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        let quote = address!("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+
+        let created = events::TokenCreated {
+            token: token_addr,
+            name: "TestCoin".to_string(),
+            symbol: "TST".to_string(),
+            currency: "USD".to_string(),
+            quoteToken: quote,
+            admin,
+            salt: B256::ZERO,
+        };
+
+        let topics: Vec<B256> = created
+            .encode_topics()
+            .into_iter()
+            .map(|t| B256::from(t.0))
+            .collect();
+        let data: Bytes = created.encode_data().into();
+        let log = Log::new(factory_addr, topics, data).expect("valid log");
+        let tx_hash = B256::repeat_byte(0xAA);
+
+        store.index_block(42, 5000, &[(log, tx_hash)]);
+
+        let tokens = store.get_all_tokens();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].address, token_addr);
+        assert_eq!(tokens[0].name, "TestCoin");
+        assert_eq!(tokens[0].symbol, "TST");
+        assert_eq!(tokens[0].currency, "USD");
+        assert_eq!(tokens[0].creator, admin);
+        assert_eq!(tokens[0].created_at, 5000);
+        assert_eq!(store.head_block(), 42);
+    }
+
+    #[test]
+    fn index_block_role_membership_updated() {
+        use alloy_sol_types::SolEvent;
+
+        let store = TokenStore::new();
+        let token_addr = address!("0x20c0000000000000000000000000000000000001");
+        let account = address!("0x1111111111111111111111111111111111111111");
+        let sender = address!("0x2222222222222222222222222222222222222222");
+        let role = b256!("0x0000000000000000000000000000000000000000000000000000000000000042");
+
+        let role_event = events::RoleMembershipUpdated {
+            role,
+            account,
+            sender,
+            hasRole: true,
+        };
+
+        let topics: Vec<B256> = role_event
+            .encode_topics()
+            .into_iter()
+            .map(|t| B256::from(t.0))
+            .collect();
+        let data: Bytes = role_event.encode_data().into();
+        let log = Log::new(token_addr, topics, data).expect("valid log");
+        let tx_hash = B256::repeat_byte(0xBB);
+
+        store.index_block(10, 2000, &[(log, tx_hash)]);
+
+        // Verify role change was recorded.
+        let (history, _) =
+            store.get_role_history(Some(account), Some(token_addr), None, None, None, None, 100);
+        assert_eq!(history.len(), 1);
+        assert!(history[0].granted);
+        assert_eq!(history[0].role, role);
+        assert_eq!(history[0].sender, sender);
+
+        // Verify account_roles index was updated.
+        let roles = store.account_roles.read();
+        let account_roles = &roles[&token_addr][&account];
+        assert!(account_roles.contains(&role));
+    }
 }
