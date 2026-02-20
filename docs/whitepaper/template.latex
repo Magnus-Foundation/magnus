@@ -107,21 +107,16 @@
   \renewcommand{\footrulewidth}{0pt}
 }
 
-% ---- Section Numbering: A, B, C for sections; 1, 2, 3 for subsections ----
-\renewcommand{\thesection}{\Alph{section}}
-\renewcommand{\thesubsection}{\arabic{subsection}}
-\renewcommand{\thesubsubsection}{\thesubsection.\arabic{subsubsection}}
-
-% ---- Section Formatting: clean hierarchy ----
+% ---- Section Formatting: no auto-numbering (markdown headings carry their own numbers) ----
 \titleformat{\section}
   {\LARGE\bfseries\color{primary}\sffamily}
-  {\thesection.}{0.7em}{}[\vspace{2pt}{\color{accent}\rule{\textwidth}{1.5pt}}]
+  {}{0em}{}[\vspace{2pt}{\color{accent}\rule{\textwidth}{1.5pt}}]
 \titleformat{\subsection}
   {\Large\bfseries\color{primary}\sffamily}
-  {\thesubsection.}{0.6em}{}
+  {}{0em}{}
 \titleformat{\subsubsection}
   {\large\color{primary}\sffamily}
-  {\thesubsubsection.}{0.5em}{}
+  {}{0em}{}
 
 \titlespacing*{\section}{0pt}{2.5ex plus 1ex minus 0.3ex}{1.5ex plus 0.3ex}
 \titlespacing*{\subsection}{0pt}{2.0ex plus 0.5ex minus 0.2ex}{0.8ex plus 0.2ex}
