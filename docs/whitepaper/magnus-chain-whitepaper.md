@@ -626,7 +626,7 @@ The camt.053 message provides periodic account statements. The banking gateway g
 
 ### camt.054 — Bank-to-Customer Debit/Credit Notification
 
-The camt.054 message provides real-time notifications for individual transactions. On Magnus Chain, the banking gateway emits these immediately upon observing a finalized `TransferWithPaymentData` event, leveraging the approximately 150-millisecond deterministic finality to deliver near-instant notification to the recipient's banking system.
+The camt.054 message provides real-time notifications for individual transactions. On Magnus Chain, the banking gateway emits these immediately upon observing a finalized `TransferWithPaymentData` event, leveraging the approximately 300-millisecond deterministic finality to deliver near-instant notification to the recipient's banking system.
 
 | ISO 20022 Field | Source |
 |-----------------|--------|

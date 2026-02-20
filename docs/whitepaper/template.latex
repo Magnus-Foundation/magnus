@@ -1,0 +1,253 @@
+\documentclass[11pt,a4paper,oneside]{article}
+
+% ---- Geometry: generous whitespace ----
+\usepackage[top=1.25in, bottom=1.1in, left=1.4in, right=1.4in]{geometry}
+
+% ---- Fonts: modern sans-serif ----
+\usepackage{fontspec}
+\setsansfont{Helvetica Neue}[
+  UprightFont = * Light,
+  BoldFont = * Bold,
+  ItalicFont = * Light Italic,
+  BoldItalicFont = * Bold Italic,
+]
+\setmainfont{Helvetica Neue}[
+  UprightFont = * Light,
+  BoldFont = * Bold,
+  ItalicFont = * Light Italic,
+  BoldItalicFont = * Bold Italic,
+]
+\setmonofont{Menlo}[Scale=0.82]
+
+% ---- Packages ----
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{calc}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{fancyvrb}
+\usepackage{microtype}
+\usepackage{etoolbox}
+\usepackage{tocloft}
+\usepackage{tikz}
+\usepackage{tabularx}
+\usepackage{colortbl}
+\usepackage{ragged2e}
+\usepackage{fontawesome5}
+\usepackage{setspace}
+
+% ---- Line spacing ----
+\setstretch{1.25}
+
+% ---- Colors: modern blockchain aesthetic ----
+\definecolor{primary}{RGB}{10, 25, 47}        % Deep navy
+\definecolor{accent}{RGB}{56, 132, 244}       % Electric blue
+\definecolor{accentlight}{RGB}{56, 132, 244}
+\definecolor{secondary}{RGB}{120, 140, 168}   % Steel gray
+\definecolor{textmain}{RGB}{30, 40, 55}       % Dark text
+\definecolor{textsecond}{RGB}{100, 115, 135}  % Secondary text
+\definecolor{codebg}{RGB}{17, 24, 39}         % Dark code bg
+\definecolor{codefg}{RGB}{209, 213, 219}      % Light code text
+\definecolor{codekey}{RGB}{129, 178, 254}     % Code keyword
+\definecolor{codestr}{RGB}{165, 214, 132}     % Code string
+\definecolor{tablebg}{RGB}{248, 250, 252}     % Table alt row
+\definecolor{tableborder}{RGB}{226, 232, 240} % Table border
+\definecolor{rulegray}{RGB}{203, 213, 225}    % Divider lines
+\definecolor{covergradtop}{RGB}{10, 25, 47}
+\definecolor{covergradbot}{RGB}{15, 40, 75}
+\definecolor{linkcolor}{RGB}{56, 132, 244}
+
+% ---- Hyperlinks ----
+\hypersetup{
+  colorlinks=true,
+  linkcolor=accent,
+  urlcolor=linkcolor,
+  citecolor=accent,
+  pdfauthor={Magnus Chain Foundation},
+  pdftitle={Magnus Chain: A Payment-Optimized Layer 1 Blockchain for Emerging Markets},
+  pdfsubject={Technical Whitepaper v1.0},
+  bookmarksnumbered=true,
+  bookmarksopen=true,
+}
+
+% ---- Default text color ----
+\color{textmain}
+
+% ---- Header / Footer: minimal ----
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\color{secondary}\textsf{MAGNUS CHAIN}}
+\fancyhead[R]{\footnotesize\color{secondary}\textsf{TECHNICAL WHITEPAPER}}
+\fancyfoot[L]{\footnotesize\color{secondary}\textsf{v1.0 — February 2026}}
+\fancyfoot[R]{\footnotesize\color{secondary}\textsf{\thepage}}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Cover page style
+\fancypagestyle{coverpage}{
+  \fancyhf{}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+% TOC page style
+\fancypagestyle{tocpage}{
+  \fancyhf{}
+  \fancyfoot[R]{\footnotesize\color{secondary}\textsf{\thepage}}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+% ---- Section Numbering: A, B, C for sections; 1, 2, 3 for subsections ----
+\renewcommand{\thesection}{\Alph{section}}
+\renewcommand{\thesubsection}{\arabic{subsection}}
+\renewcommand{\thesubsubsection}{\thesubsection.\arabic{subsubsection}}
+
+% ---- Section Formatting: clean hierarchy ----
+\titleformat{\section}
+  {\LARGE\bfseries\color{primary}\sffamily}
+  {\thesection.}{0.7em}{}[\vspace{2pt}{\color{accent}\rule{\textwidth}{1.5pt}}]
+\titleformat{\subsection}
+  {\Large\bfseries\color{primary}\sffamily}
+  {\thesubsection.}{0.6em}{}
+\titleformat{\subsubsection}
+  {\large\color{primary}\sffamily}
+  {\thesubsubsection.}{0.5em}{}
+
+\titlespacing*{\section}{0pt}{2.5ex plus 1ex minus 0.3ex}{1.5ex plus 0.3ex}
+\titlespacing*{\subsection}{0pt}{2.0ex plus 0.5ex minus 0.2ex}{0.8ex plus 0.2ex}
+\titlespacing*{\subsubsection}{0pt}{1.5ex plus 0.3ex minus 0.2ex}{0.5ex plus 0.1ex}
+
+% ---- TOC Styling ----
+\renewcommand{\cftsecfont}{\bfseries\sffamily\color{primary}}
+\renewcommand{\cftsecpagefont}{\bfseries\sffamily\color{primary}}
+\renewcommand{\cftsubsecfont}{\sffamily\color{textsecond}}
+\renewcommand{\cftsubsecpagefont}{\sffamily\color{textsecond}}
+\renewcommand{\cftsubsubsecfont}{\small\sffamily\color{textsecond}}
+\renewcommand{\cftsubsubsecpagefont}{\small\sffamily\color{textsecond}}
+\setlength{\cftbeforesecskip}{6pt}
+\setlength{\cftbeforesubsecskip}{2pt}
+\renewcommand{\cftdotsep}{4}
+\renewcommand{\cftsecdotsep}{\cftdotsep}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftsecdotsep}}
+\renewcommand{\contentsname}{\color{primary}\sffamily Table of Contents}
+
+% ---- Code Blocks: dark theme ----
+\lstset{
+  backgroundcolor=\color{codebg},
+  basicstyle=\small\ttfamily\color{codefg},
+  keywordstyle=\color{codekey},
+  stringstyle=\color{codestr},
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{codebg},
+  framesep=10pt,
+  xleftmargin=10pt,
+  xrightmargin=10pt,
+  aboveskip=14pt,
+  belowskip=14pt,
+  framexleftmargin=10pt,
+  framexrightmargin=10pt,
+  framextopmargin=6pt,
+  framexbottommargin=6pt,
+}
+
+% Pandoc fenced code via fancyvrb
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{
+  commandchars=\\\{\},
+  fontsize=\small,
+  frame=single,
+  framesep=10pt,
+  rulecolor=\color{codebg},
+  fillcolor=\color{codebg},
+  formatcom=\color{codefg},
+  xleftmargin=10pt,
+  xrightmargin=10pt,
+}
+
+% ---- Pandoc Shaded environment for code blocks ----
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{17, 24, 39}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+
+% ---- Pandoc tightlist ----
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{2pt}\setlength{\parskip}{0pt}}
+
+% ---- List styling ----
+\setlist[itemize]{leftmargin=1.5em, itemsep=3pt, parsep=0pt, label={\color{accent}\textbullet}}
+\setlist[enumerate]{leftmargin=1.5em, itemsep=3pt, parsep=0pt}
+
+% ---- Table styling ----
+\renewcommand{\arraystretch}{1.4}
+\arrayrulecolor{tableborder}
+
+% ---- Bold paragraph starts (for **text** at start of paragraph in whitepaper) ----
+% This is handled naturally by pandoc's strong emphasis
+
+% ---- Horizontal rules → accent colored thin line ----
+\renewcommand{\rule}[2]{\textcolor{rulegray}{\vrule height 0.5pt width #1}}
+
+% ========== DOCUMENT ==========
+\begin{document}
+
+% ---- Cover Page ----
+\thispagestyle{coverpage}
+\begin{tikzpicture}[remember picture, overlay]
+  % Full page dark background
+  \fill[primary] (current page.north west) rectangle (current page.south east);
+  % Subtle gradient overlay
+  \fill[covergradbot, opacity=0.3] (current page.center) ellipse (12cm and 8cm);
+  % Accent line
+  \fill[accent] ([yshift=-6cm, xshift=-1.4in]current page.north west) rectangle ([yshift=-6.04cm, xshift=1.4in]current page.north east);
+\end{tikzpicture}
+
+\begin{center}
+\vspace*{3cm}
+
+{\fontsize{42}{50}\selectfont\bfseries\color{white}\sffamily MAGNUS CHAIN}\\[1.0cm]
+
+{\fontsize{16}{22}\selectfont\color{accent}\sffamily A Payment-Optimized Layer 1 Blockchain\\[0.2cm]
+for Emerging Markets}\\[2.5cm]
+
+{\fontsize{14}{18}\selectfont\color{white}\sffamily\bfseries Technical Whitepaper}\\[0.4cm]
+{\fontsize{12}{16}\selectfont\color{secondary}\sffamily Version 1.0\enspace\textbar\enspace February 2026}\\[4cm]
+
+\vfill
+
+{\fontsize{10}{14}\selectfont\color{secondary}\sffamily
+Magnus Chain Foundation\\[1.5cm]
+}
+
+{\fontsize{9}{13}\selectfont\color{secondary}\sffamily
+\begin{minipage}{0.7\textwidth}\centering
+This document describes the architecture, design principles, and technical
+specifications of the Magnus Chain protocol. It is intended for engineers,
+researchers, investors, and regulators evaluating payment-optimized
+blockchain infrastructure for emerging markets.
+\end{minipage}
+}
+
+\vspace{1.5cm}
+\end{center}
+
+\newpage
+
+% ---- Table of Contents ----
+\thispagestyle{tocpage}
+\tableofcontents
+\newpage
+
+% ---- Main Content ----
+$body$
+
+\end{document}
