@@ -266,9 +266,9 @@ The following analysis compares Magnus Chain against five blockchain platforms t
 
 | Capability | Ethereum | Solana | MegaETH | Stellar | XRP Ledger | **Magnus Chain** |
 |-----------|----------|--------|---------|---------|------------|-----------------|
-| Throughput (TPS) | ~15 | ~4,000 | ~100,000 | ~1,000 | ~1,500 | **500,000+** |
-| Finality | ~13 min | ~400ms | ~10ms | 3-5s | 3-5s | **~150ms** |
-| Execution Model | Sequential EVM | Sealevel | Specialized | Non-EVM | Non-EVM | **MagnusParaEVM 2-path** |
+| Throughput (TPS) | ~15 | ~4,000 | ~100,000 | ~1,000 | ~1,500 | **700,000+** |
+| Finality | ~13 min | ~400ms | ~10ms | 3-5s | 3-5s | **~300ms** |
+| Execution Model | Sequential EVM | Sealevel | Specialized | Non-EVM | Non-EVM | **DAG parallel EVM** |
 | EVM Compatible | Native | No | Yes | No | No | **Yes** |
 | ISO 20022 Native | No | No | No | No | Via middleware | **Yes** |
 | Multi-Currency Gas | No | No | No | No | No | **Yes (oracle-driven)** |
@@ -278,7 +278,7 @@ The following analysis compares Magnus Chain against five blockchain platforms t
 
 The comparison reveals that no existing platform occupies the intersection of high throughput, EVM compatibility, native ISO 20022 support, and protocol-level compliance enforcement. Ethereum and Solana dominate general-purpose computation but lack payment-specific primitives. Stellar and XRP Ledger have targeted payments explicitly but sacrifice the programmability of a general-purpose execution environment and provide only rudimentary compliance tooling. MegaETH pursues raw throughput within the EVM ecosystem but offers no payment-specific features. Magnus Chain is the only platform that combines all five capabilities — throughput, EVM compatibility, ISO 20022, multi-currency gas, and compliance enforcement — in a single architecture.
 
-### 8.2 Transaction Cost Analysis
+### 6.2 Transaction Cost Analysis
 
 Transaction cost is the primary economic metric for payment infrastructure viability. A payment network that charges more per transaction than existing banking rails has no value proposition regardless of its technical capabilities. The following table compares the cost of four representative transaction types across platforms.
 
@@ -291,21 +291,31 @@ Transaction cost is the primary economic metric for payment infrastructure viabi
 
 The cost differential is most pronounced for ISO 20022 payments, where Magnus Chain's hybrid storage model reduces the on-chain data footprint from kilobytes (required for full XML storage on Ethereum) to approximately 200 bytes, achieving a 99.8% cost reduction. For simple transfers, Magnus Chain's costs are competitive with the lowest-cost networks while providing substantially richer payment data and compliance features. The cross-currency settlement cost reflects the oracle-based fee conversion at 25 basis points, which is lower than the typical 30-100 basis point spreads observed in AMM-based conversion pools.
 
-### 8.3 Throughput and Storage Benchmarks
+### 6.3 Throughput Benchmarks
 
-The MagnusParaEVM execution engine and QMDB storage backend have been benchmarked independently under controlled conditions, and the combined system's performance characteristics derive from these independent measurements.
+The 700,000 TPS throughput projection derives from analytical modeling calibrated against production parallel EVM benchmarks. A baseline parallel execution engine achieves approximately 41,000 TPS for ERC-20 transfers on 16-core hardware (1.5 gigagas per second with 36,000 gas per transfer). The 4× parallel speedup from DAG-based execution yields ~160,000 TPS. Banking-specific optimizations—static transpilation of hot contracts (2× speedup), pre-scheduling for known transaction types (1.2× speedup), and async storage pipelining (1.4× speedup)—combine multiplicatively to 3.36× additional improvement, yielding ~540,000 TPS on 16 cores. Scaling to 32 cores with >80% parallel efficiency yields 700,000-1,000,000 TPS.
 
-MagnusParaEVM's 2-path architecture delivers differentiated performance based on transaction type. Path 1 (exact scheduling for known payment transactions) achieves 12-14x speedup on 16 cores with zero speculative overhead, yielding over 2 million native transfers per second. Path 2 (operation-level OCC for unknown contracts) achieves 4-5x speedup, consistent with the operation-level OCC results reported in Ruan et al. (EuroSys 2025, arXiv:2211.07911), which demonstrated 4.28x speedup compared to 2.49x for transaction-level approaches. For a payment-dominated workload mix (70% Path 1, 30% Path 2), the blended throughput exceeds 2.1 million transactions per second on 16-core hardware, scaling further on higher core counts.
-
-QMDB achieves up to 2.28 million state updates per second, as reported in arXiv:2501.05262, with 6x throughput improvement over RocksDB and 8x over NOMT. The storage engine has been benchmarked with workloads exceeding 15 billion entries and has demonstrated scaling capacity to 280 billion entries. The in-memory Merkleization footprint of 2.3 bytes per entry means that a state database with 1 billion entries requires only 2.3 gigabytes of memory for state root computation, well within the capacity of commodity server hardware.
-
-The combined system's throughput is bounded by the slower of the two pipelines. At 500,000 transactions per second with an average of 2 state updates per transaction, the execution engine generates 1 million state updates per second, well within QMDB's demonstrated capacity of 2.28 million updates per second. This headroom ensures that the storage backend does not become the bottleneck as transaction complexity increases.
+For payment workloads where conflict ratios remain below 35% (typical for banking where individual accounts transact infrequently relative to network throughput), parallel efficiency exceeds 90% through task group optimization that handles sequential dependencies from the same sender.
 
 ---
 
-## 9. Market Opportunity and Roadmap
+## 7. Security and Resilience
 
-### 9.1 Vietnam: The Beachhead Market
+The security analysis in Section 5.3 demonstrates defense-in-depth across consensus, oracle, payment lane, compliance, and cryptographic layers. This section extends that analysis with operational security considerations.
+
+**Validator set security.** Magnus Chain's BFT security assumes fewer than one-third of validators are malicious. With a target validator set of 100 nodes, the network tolerates up to 33 Byzantine validators while maintaining safety and liveness. Validator selection employs stake-weighted random sampling with a minimum stake threshold to prevent Sybil attacks. The threshold signature scheme ensures that compromising a minority subset grants no signing authority.
+
+**Network-level attacks.** DDoS attacks targeting individual validators cannot halt consensus because the protocol maintains liveness as long as two-thirds of validators remain reachable. Payment lane isolation ensures that even successful DoS attacks flooding the general execution lane cannot prevent payment transactions from processing. The separation provides protocol-level quality of service that application-layer rate limiting cannot achieve.
+
+**Economic security.** The oracle circuit breaker prevents flash-crash manipulation where an attacker attempts to exploit temporary price dislocations. The 20% deviation threshold accommodates normal FX volatility (the Thai baht trades within 15% annual ranges) while catching manipulation attempts. The freeze-on-deviation behavior prefers false positives (temporary unavailability) over false negatives (accepting manipulated rates).
+
+**Recovery procedures.** Deterministic finality enables clean disaster recovery. Because finalized blocks cannot reorganize, nodes recovering from crashes need only replay from the last persisted state root. The MMR storage structure's append-only design prevents corruption during crashes—partially written updates do not invalidate existing authenticated state. Regular state snapshots enable fast-sync for new validators joining the network.
+
+---
+
+## 8. Market Opportunity and Roadmap
+
+### 8.1 Vietnam: The Beachhead Market
 
 Vietnam presents an optimal entry market for payment-optimized blockchain infrastructure due to the convergence of four factors: large and growing digital payment volumes, a regulatory environment that is actively encouraging fintech innovation, high smartphone penetration enabling mobile-first financial services, and a significant remittance market that suffers from the exact inefficiencies that Magnus Chain addresses.
 
@@ -315,7 +325,7 @@ The regulatory environment has evolved to accommodate fintech innovation through
 
 Vietnam's inbound remittance market exceeds $16 billion annually, with the majority of flows originating from the United States, Japan, South Korea, Australia, and other economies with large Vietnamese diaspora populations. Corridor fees range from 3.5% to 8% of transferred value, representing $560 million to $1.28 billion in annual fees extracted from a population that is disproportionately lower-income. Magnus Chain's combination of low transaction costs, multi-currency gas fees (enabling payment in VNST), and ISO 20022 banking integration provides a technically viable path to reducing these fees by an order of magnitude while maintaining the compliance data flows that regulators require.
 
-### 9.2 Southeast Asian Expansion
+### 8.2 Southeast Asian Expansion
 
 Beyond Vietnam, Magnus Chain's architecture is designed for deployment across Southeast Asian markets that share similar characteristics: large unbanked populations, growing digital payment adoption, emerging fintech regulatory frameworks, and significant intra-regional remittance corridors.
 
@@ -323,7 +333,7 @@ Thailand's PromptPay system processes over 30 million transactions daily and has
 
 The common thread across these markets is the need for payment infrastructure that combines the speed and cost efficiency of blockchain settlement with the compliance capabilities that regulators demand. Magnus Chain's MIP-20 token standard supports arbitrary currency codes, enabling deployment of local-currency stablecoins (THB, PHP, SGD, MYR, IDR) with the same compliance and interoperability features as VNST. The oracle registry supports arbitrary currency pairs, enabling cross-currency settlement between any combination of supported stablecoins. The ISO 20022 integration provides a universal bridge to each country's domestic payment network, adapting to local message formats while preserving the structured data that cross-border reconciliation requires.
 
-### 9.3 Development Roadmap
+### 8.3 Development Roadmap
 
 Magnus Chain's development follows a phased approach that prioritizes core infrastructure reliability before expanding payment-specific features and market coverage.
 
@@ -335,7 +345,7 @@ Magnus Chain's development follows a phased approach that prioritizes core infra
 
 **Phase 4: Market Expansion.** The fourth phase extends the platform to additional Southeast Asian markets through deployment of local-currency stablecoins, integration with domestic payment networks (PromptPay in Thailand, InstaPay in the Philippines, DuitNow in Malaysia), addition of new oracle currency pairs, and localized KYC registry configurations reflecting each jurisdiction's regulatory requirements.
 
-### 9.4 Target Use Cases
+### 8.4 Target Use Cases
 
 Magnus Chain's architecture enables four primary use case categories that collectively span the payment needs of emerging market economies.
 
