@@ -216,142 +216,21 @@ Blocks are structured in five sections: start-of-block system transactions (rewa
 
 The payment lane mechanism requires no user action. If a user sends a stablecoin payment on Magnus Chain, it automatically receives priority access to blockspace—DeFi congestion cannot crowd out payments. This isolation is core to Magnus Chain's identity as a payment-first blockchain, providing the quality-of-service guarantees that financial settlement infrastructure requires.
 
-### 4.1 MIP-20 Token Standard
-
-The MIP-20 token standard serves as the fundamental unit of value on Magnus Chain. It is a strict superset of the ERC-20 interface, meaning that any software or wallet capable of interacting with ERC-20 tokens can interact with MIP-20 tokens without modification. The extensions address three deficiencies that render ERC-20 inadequate for payment processing: the absence of structured payment data, the lack of currency identity, and the inability to enforce compliance constraints at the token level.
-
-Each MIP-20 token carries a `currency` field containing its ISO 4217 currency code (for example, "USD" for US dollar stablecoins or "VND" for Vietnamese dong stablecoins) and a `quote_token` reference establishing a pricing relationship with another token on the chain. The standard defines an `ISSUER_ROLE` that restricts minting authority to addresses explicitly authorized by the token administrator, a `supply_cap` that enforces a hard ceiling on total issuance, and integration with the MIP-403 transfer policy registry for compliance enforcement. Tokens use 6-decimal precision, aligning with the convention established by major stablecoins and simplifying integration with banking systems that operate at this precision.
-
-The signature extension that most directly enables payment processing is `transferWithPaymentData`, which augments a standard token transfer with three ISO 20022-aligned fields:
-
-```
-function transferWithPaymentData(
-    address to,
-    uint256 amount,
-    bytes calldata endToEndId,      // Max 35 chars (ISO Max35Text)
-    bytes4 purposeCode,              // 4 bytes (e.g., "SALA", "SUPP")
-    bytes calldata remittanceInfo    // Max 140 chars (ISO Max140Text)
-) external returns (bool);
-```
-
-The `endToEndId` field carries a unique payment identifier up to 35 characters in length, matching the ISO 20022 `EndToEndIdentification` element that banks use to track payments across institutional boundaries. The `purposeCode` is a four-byte code drawn from the ISO 20022 `ExternalPurpose1Code` vocabulary, classifying the payment's nature: `SALA` for salary, `SUPP` for supplier payment, `TAXS` for tax remittance, `PENS` for pension disbursement, and dozens of additional codes covering the full spectrum of commercial and personal payment categories. The `remittanceInfo` field provides up to 140 characters of unstructured remittance information, sufficient for invoice references, payment descriptions, or reconciliation notes.
-
-These fields are emitted as event data rather than stored in contract state, a deliberate design choice that preserves the gas efficiency of a simple balance update while making the full payment context available to off-chain indexers, banking gateways, and regulatory reporting systems. The `transferWithPaymentData` function enforces all standard MIP-20 checks — pause state, recipient validity, MIP-403 policy compliance, and spending limits — before executing the underlying balance transfer.
-
-### 4.2 Oracle-Based Multi-Stablecoin Gas Fees
-
-The gas fee mechanism is the most consequential architectural decision in Magnus Chain's payment stack. On every other EVM-compatible blockchain, users must hold the chain's native token to pay transaction fees, creating an onboarding barrier that is particularly acute in emerging markets where users may be unfamiliar with cryptocurrency. Magnus Chain replaces this requirement with an oracle-driven multi-stablecoin gas fee system that allows users to pay fees in any supported MIP-20 stablecoin.
-
-The system comprises three components: a custom transaction type, an oracle registry, and a fee manager. The Magnus transaction type (0x76) extends the EIP-1559 transaction format with two additional fields: `fee_token`, an optional address specifying the MIP-20 stablecoin in which the user wishes to pay gas, and `calls`, a vector of batched call instructions enabling atomic multi-operation transactions. The RLP encoding follows standard Ethereum conventions, with the type byte (0x76) preceding the encoded field list.
-
-```
-Magnus Transaction (0x76) Encoding:
-
-0x76 || RLP([
-    chain_id,
-    max_priority_fee_per_gas,
-    max_fee_per_gas,
-    gas_limit,
-    calls: [{ to, value, input }, ...],
-    access_list,
-    nonce,
-    fee_token         // MIP-20 address or empty (native)
-])
-```
-
-The Oracle Registry maintains real-time foreign exchange rates for supported currency pairs. Whitelisted reporters, comprising validators and authorized external oracle feeds, submit rate reports that are inserted into a sorted list for each currency pair. The median of valid (non-expired) reports serves as the canonical exchange rate. Reports expire after 360 seconds by default, and per-pair expiry overrides allow governance to adjust this window for pairs with different volatility characteristics. A circuit breaker mechanism monitors incoming reports against the current median; if a new report deviates by more than 2,000 basis points (20%), the circuit breaker trips and freezes the affected rate pair, preventing fee calculations based on potentially manipulated rates. Governance can reset the breaker after investigation.
-
-The fee collection flow operates in two phases bracketing transaction execution:
-
-```
-┌────────────┐    ┌────────────┐    ┌────────────┐    ┌────────────┐
-│  Pre-Tx    │───▶│  Execute   │───▶│  Post-Tx   │───▶│  Validator │
-│  Lock      │    │  TX        │    │  Settle    │    │  Collect   │
-│            │    │            │    │            │    │            │
-│ Lock max   │    │ Standard   │    │ Refund     │    │ Call       │
-│ fee in     │    │ REVM       │    │ unused,    │    │ distribute │
-│ user token │    │ execution  │    │ swap via   │    │ Fees()     │
-│            │    │            │    │ oracle     │    │            │
-└────────────┘    └────────────┘    └────────────┘    └────────────┘
-```
-
-In the pre-transaction phase, the FeeManager's `collect_fee_pre_tx` function transfers the maximum possible fee from the user's account into the fee manager contract, denominated in the user's chosen `fee_token`. If the user's token differs from the validator's preferred token, the fee manager verifies that sufficient liquidity exists for the conversion. After the transaction executes, `collect_fee_post_tx` refunds the unused gas portion to the user, executes the currency swap through the oracle rate if the user and validator tokens differ, and accumulates the converted fee for the validator. Validators call `distribute_fees` to withdraw their accumulated fee balance at any time.
-
-This design achieves a critical user experience goal: a Vietnamese user holding VNST can submit payment transactions paying gas in VNST, while the block-producing validator receives their fees in USDC or any other preferred stablecoin. The oracle rate ensures that the conversion reflects real market conditions rather than the liquidity depth of an on-chain automated market maker, and the 0.25% fee (25 basis points) applied by the fee manager is substantially lower than the spreads typically observed in AMM-based conversion pools.
-
-### 4.3 MIP-403 Transfer Policies
-
-The MIP-403 Transfer Policy Registry implements protocol-level compliance enforcement for MIP-20 tokens. Each token can be associated with a transfer policy that defines constraints on who may send, receive, or hold the token. The registry supports four policy types: whitelist policies that restrict transfers to a set of approved addresses, blacklist policies that block specific addresses from participation, freeze policies that temporarily suspend all transfers for a token, and time-lock policies that enforce vesting schedules or cliff-based release conditions.
-
-Policies are created by authorized administrators and identified by numeric policy identifiers. The registry maintains a counter starting at 2 (policy identifiers 0 and 1 are reserved as special-case policies), and each policy record stores its type and its administrative address. When a MIP-20 token has a non-zero `transfer_policy_id`, every transfer function — including `transfer`, `transferWithMemo`, and `transferWithPaymentData` — calls `ensure_transfer_authorized` on the MIP-403 registry before executing the balance update. This enforcement is not optional; it is embedded in the token contract's internal transfer logic and cannot be bypassed by calling lower-level functions.
-
-The integration with ISO 20022 reporting is bidirectional. Policy violations generate events that can be mapped to ISO 20022 camt.054 debit and credit notification messages, enabling banking gateways to receive structured alerts when transfers are blocked or frozen. Periodic policy state can be exported as camt.053 account statement data, providing regulators and auditors with a standards-compliant view of compliance activity.
-
-### 4.4 Supporting Primitives
-
-Magnus Chain includes several additional precompiled contracts that collectively address the operational requirements of payment processing beyond basic token transfers and fee management.
-
-**2D Nonce System.** The standard Ethereum nonce model associates a single monotonically increasing counter with each account, serializing all transactions from that account into a strict sequence. This constraint is problematic for payment processing, where a single institutional account may need to submit concurrent transaction streams — for example, payroll batches, supplier payments, and treasury operations — without any one stream blocking the others. Magnus Chain's NonceManager precompile implements a two-dimensional nonce space where each account has multiple independent nonce keys. The protocol nonce (key 0) remains stored in account state for backward compatibility, while user-defined nonce keys (1 through N) are managed by the precompile. Each key maintains its own counter, allowing concurrent transaction submission across different keys without ordering dependencies.
-
-**Account Keychain.** The Account Keychain precompile extends the standard secp256k1 signature model with support for P256 (NIST P-256) and WebAuthn signature types, enabling direct transaction signing from mobile secure enclaves, hardware security modules, and browser-based WebAuthn authenticators without intermediary relay contracts. Each authorized key carries an expiry timestamp, a revocation flag (once revoked, a key identifier cannot be reused, preventing replay attacks), and optional spending limits. When spending limits are enabled, the keychain tracks per-token cumulative spending against configured thresholds, providing institution-grade access controls for accounts that are shared across multiple operators or devices. The signature type field (0 = secp256k1, 1 = P256, 2 = WebAuthn) is stored as a single byte, and the complete key metadata is packed into a single 256-bit storage slot for gas efficiency.
-
-**Millisecond Timestamp Opcode.** The MILLIS_TIMESTAMP opcode (0x4F) exposes the block timestamp at millisecond resolution to smart contracts. The Magnus block header stores a `timestamp_millis_part` field representing the sub-second component, and the opcode returns the combined value: `timestamp_seconds * 1000 + timestamp_millis_part`. This precision is essential for payment applications that require accurate time ordering, interest accrual calculations, and regulatory timestamp compliance at sub-second granularity. The opcode costs 2 gas, identical to the standard TIMESTAMP opcode.
-
-**Atomic Batch Calls.** The 0x76 transaction type's `calls` field enables multiple contract interactions within a single atomic transaction. Each call specifies a destination address, a value transfer amount, and calldata. All calls execute sequentially within the transaction context, and if any call reverts, the entire batch reverts. This primitive supports complex payment workflows — such as transferring tokens, updating a compliance record, and emitting a notification — in a single atomic operation without requiring an intermediary orchestration contract.
-
 ---
 
-## 5. Pillar III: ISO 20022 and Banking Integration
+## 5. Part III: Technical Architecture
 
-The third pillar addresses a fundamental question that most blockchain platforms never confront: how does a decentralized ledger communicate with the financial institutions that control the endpoints of every real-world payment? Magnus Chain's answer is not to circumvent or replace the banking system but to speak its language natively. By implementing ISO 20022 messaging at the protocol level and providing a structured bridge between on-chain settlement and off-chain banking infrastructure, Magnus Chain positions itself as a settlement layer that banks can adopt without abandoning the data standards, compliance workflows, and reporting frameworks their regulators require.
+The preceding section described what Magnus Chain provides to solve the payment infrastructure gap. This section describes how the underlying technical components deliver those capabilities. The architecture prioritizes production-proven components over research prototypes, combining a parallel execution engine with battle-tested consensus and storage primitives.
 
-### 5.1 Hybrid On-Chain and Off-Chain Storage Model
+### 5.1 Execution Layer
 
-A naive approach to ISO 20022 integration would store complete XML payment messages on-chain. A typical pain.001 (payment initiation) message ranges from 2.5 to 8 kilobytes; a camt.053 (account statement) can exceed 50 kilobytes. At current gas costs, storing a single complex payment message on a conventional EVM chain would cost approximately $120 to $250, rendering on-chain ISO 20022 storage economically infeasible for high-volume payment processing.
+Beyond the core DAG-based parallel execution described in Section 4.3.1, the execution layer incorporates three performance optimizations that collectively enable sustained high throughput under continuous block production.
 
-Magnus Chain's hybrid model resolves this tension by partitioning payment data between two storage tiers. The essential fields required for on-chain settlement and compliance verification — the transfer amount, sender and recipient addresses, end-to-end identifier, purpose code, and a cryptographic hash of the full ISO 20022 message — are stored on-chain as part of the `transferWithPaymentData` event. These fields consume approximately 200 bytes per transaction, costing a fraction of a cent in gas fees. The complete ISO 20022 XML document, including full originator and beneficiary identification, structured remittance details, regulatory metadata, and compliance annotations, is stored off-chain on content-addressed storage (IPFS or Arweave) and linked to the on-chain transaction by its message hash.
+**Ahead-of-time compilation.** Hot contracts—those invoked frequently such as the gas token, major stablecoins (VNST, USDC, EURC), and payment router contracts—are compiled to native machine code at node initialization rather than interpreted during execution. This compilation uses LLVM-based translation from EVM bytecode to x86 or ARM machine code, eliminating interpreter overhead for the 60-70% of transactions that interact with these pre-compiled contracts. The speedup is approximately 1.5-2× for storage-heavy operations like token transfers.
 
-This architecture achieves a 99.8% reduction in on-chain storage costs compared to full XML storage and a 99.6% reduction compared to JSON alternatives, while preserving the ability to reconstruct the complete ISO 20022 message for any transaction by retrieving the off-chain document and verifying its hash against the on-chain record. The integrity guarantee is absolute: any modification to the off-chain document would invalidate the on-chain hash, making the hybrid model as tamper-evident as full on-chain storage.
+**Async pipeline architecture.** Block execution and Merkle tree computation are overlapped through a five-stage asynchronous pipeline. While block N undergoes state merkleization (computing the authenticated state root), block N+1 begins execution. This pipelining reduces effective latency from the sum of execution time plus merkleization time to the maximum of the two, improving throughput by approximately 40% under sustained block production.
 
-### 5.2 ISO 20022 Message Types
-
-Magnus Chain's banking integration layer supports the four ISO 20022 message types that collectively span the payment lifecycle from initiation through settlement to reconciliation.
-
-The pain.001 (Customer Credit Transfer Initiation) message captures the originator's payment instruction, including debtor identification, creditor details, payment amount and currency, purpose code, and remittance information. When a banking gateway receives an on-chain `transferWithPaymentData` event, it reconstructs the pain.001 message from the on-chain fields and the off-chain document, validates it against the ISO 20022 XSD schema, and forwards it to the appropriate domestic payment network or correspondent bank.
-
-The pacs.008 (Financial Institution to Financial Institution Credit Transfer) message governs the interbank settlement instruction. For cross-border payments, the banking gateway translates the on-chain settlement into a pacs.008 message that includes the settlement method, interbank settlement amount, charge bearer instructions, and complete party identification conforming to SWIFT's Business Identifier Code (BIC) requirements.
-
-The camt.053 (Bank to Customer Statement) message provides periodic account statements summarizing transaction activity over a defined period. The banking gateway aggregates on-chain events into camt.053 statements that reflect the balance and transaction history for each account, formatted for direct ingestion by enterprise resource planning systems and treasury management platforms.
-
-The camt.054 (Bank to Customer Debit/Credit Notification) message delivers real-time transaction notifications. Each `transferWithPaymentData` event on the Magnus Chain generates a corresponding camt.054 notification, enabling banking systems to receive immediate, structured alerts for every payment settled on the chain. When MIP-403 policy violations occur — a blocked transfer, a frozen account, a time-lock constraint — the notification includes the relevant status codes, enabling compliance teams to respond to exceptions using their existing monitoring workflows.
-
-### 5.3 Banking Gateway Architecture
-
-The banking gateway serves as the translation layer between Magnus Chain's on-chain settlement and the external financial system. It operates as an off-chain service that monitors the chain for payment events, retrieves full ISO 20022 documents from content-addressed storage, validates them against XSD schemas and business rules, and forwards the resulting messages to their destinations through either SWIFT connectors or direct API integrations with domestic payment networks.
-
-The gateway's event monitoring pipeline processes each `transferWithPaymentData` event by extracting the on-chain payment fields, resolving the off-chain document via the message hash, performing schema validation (XSD conformance), business rule validation (control sum verification, field consistency, currency code validation), and cross-field validation (party identification matching, date consistency). Validated messages are routed to the appropriate endpoint based on the creditor's BIC code: SWIFT-connected institutions receive messages through the SWIFT connector, while domestically connected banks receive messages through direct API integrations with national payment systems such as NAPAS in Vietnam.
-
-The gateway also generates confirmation messages in the reverse direction. When a SWIFT or domestic network acknowledges receipt and settlement of a payment, the gateway can submit an on-chain confirmation event that closes the payment loop, providing end-to-end settlement traceability from the originating blockchain transaction through the banking network and back.
-
-### 5.4 KYC Registry and Compliance Layer
-
-Magnus Chain's compliance architecture operates on the principle that identity verification should occur once and be reusable across all payment interactions, rather than being repeated for each transaction by each counterparty. The KYC Registry implements a tiered verification model that maps to the risk-based approach mandated by the Financial Action Task Force (FATF) and adopted by most Southeast Asian regulators.
-
-The tier structure associates each verified address with a verification level that determines the transaction limits and payment types available to that account. Lower tiers permit small-value domestic transfers with basic identity verification, while higher tiers unlock cross-border remittances, commercial payments, and institutional settlement with correspondingly more rigorous verification requirements. The registry stores verification level, the verifier's address, and the verification timestamp on-chain, while the underlying identity documents and verification evidence remain off-chain with the authorized verifier, preserving user privacy while enabling regulatory audit.
-
-The KYC Registry integrates directly with the MIP-403 transfer policy system. Token issuers can configure policies that reference KYC tier levels as preconditions for transfer authorization, ensuring that a VNST transaction exceeding a defined threshold automatically requires both counterparties to hold a sufficient KYC tier. This integration means that compliance enforcement is not a separate system bolted onto the payment infrastructure but an intrinsic property of the token itself.
-
-### 5.5 VNST: A Domestic Stablecoin Implementation
-
-VNST demonstrates the practical application of Magnus Chain's payment primitives for domestic payment processing. Denominated 1:1 against the Vietnamese dong (VND), VNST is issued by an authorized entity holding the `ISSUER_ROLE` on the MIP-20 token contract. The issuer maintains fiat reserves subject to periodic attestation, and the `supply_cap` parameter on the token contract provides a protocol-level ceiling on total issuance that can be independently verified by any network participant.
-
-Consider a concrete use case: a Vietnamese enterprise processing monthly salary payments for 500 employees. The enterprise submits a single Magnus 0x76 transaction containing 500 `transferWithPaymentData` calls, each carrying the purpose code `SALA`, an end-to-end identifier linking the payment to the enterprise's payroll system, and remittance information containing the employee reference number. The entire batch executes atomically within a single block, paying gas fees in VNST. The banking gateway monitoring the chain generates 500 individual camt.054 notifications for the employees' banking applications and a single camt.053 statement for the enterprise's treasury system. The employees' banks receive structured ISO 20022 messages that populate their transaction records with the salary purpose code, enabling automatic categorization, tax reporting, and financial planning without manual data entry. The entire process, from transaction submission to bank notification, completes within seconds at a fraction of the cost of processing 500 individual interbank transfers through traditional channels.
-
----
-
-## 6. Pillar IV: Infrastructure Foundation
-
-The three preceding pillars — parallel execution, payment primitives, and banking integration — define what Magnus Chain does differently from existing platforms. The fourth pillar defines the infrastructure upon which those innovations rest. Magnus Chain's consensus, cryptographic, and storage layers are not novel research contributions but carefully selected, production-grade implementations chosen for their suitability to payment workload requirements. The design philosophy here is explicitly conservative: use proven infrastructure where it exists, and invest engineering effort only at the layers where payment-specific demands create genuine requirements that no existing implementation satisfies.
+**Concurrent state cache.** A lock-free state cache maintains the latest view of frequently accessed accounts and storage slots in memory, tagged with block numbers to enable safe eviction after persistence. This prevents performance degradation that would otherwise occur during high block production rates when multiple unpersisted blocks accumulate in memory. The cache uses concurrent hash maps with block-tagged entries and achieves update latencies under 10 milliseconds for blocks containing 5,000 transactions.
 
 ### 6.1 Simplex BFT Consensus
 
