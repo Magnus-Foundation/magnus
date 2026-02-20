@@ -168,6 +168,54 @@ Policy administration is access-controlled. Each policy record stores an adminis
 
 Because the policy check is embedded in the token's internal `_transfer` function rather than an external wrapper, there is no code path through which a transfer can execute without passing the policy check. This property holds regardless of how the transfer is initiated—direct calls, approved transfers, system transfers from precompiles, and atomic batch calls all traverse the same internal function. The enforcement is protocol-level, not application-layer, providing the settlement assurance that regulated financial institutions require.
 
+### 4.2 Banking Integration
+
+Magnus Chain implements native ISO 20022 messaging through a hybrid storage model that balances on-chain verifiability with off-chain cost efficiency. Essential payment fields—`endToEndId`, `purposeCode`, and `remittanceInfo`—are emitted as event data in every `transferWithPaymentData` call, consuming approximately 200 bytes of on-chain storage. The complete ISO 20022 XML message, which can exceed 4KB for complex commercial payments, is stored off-chain by banking gateway operators who monitor chain events and generate standard-compliant messages (pain.001 for customer credit transfers, pacs.008 for interbank settlement, camt.053 for account statements, camt.054 for debit/credit notifications).
+
+The banking gateway architecture provides bidirectional connectivity between Magnus Chain and traditional payment networks. Outbound, the gateway monitors on-chain `Transfer` and `TransferWithPaymentData` events, extracts structured payment data, and submits ISO 20022 messages to SWIFT or domestic payment systems like Vietnam's NAPAS. Inbound, the gateway accepts payment instructions from banking channels, converts them to Magnus 0x76 transactions, and submits them to the chain, generating on-chain confirmation events that close the payment loop.
+
+The KYC Registry implements tiered identity verification that maps to risk-based approaches mandated by FATF guidelines. Each verified address is associated with a tier level (e.g., Tier 1 for basic verification, Tier 2 for enhanced due diligence, Tier 3 for institutional accounts) that determines transaction limits and eligible payment types. Token issuers configure MIP-403 policies that reference KYC tiers as authorization preconditions, ensuring that high-value or cross-border transfers automatically require verified counterparties.
+
+### 4.3 Scale and Performance
+
+#### 4.3.1 DAG-Based Parallel Execution
+
+The execution layer achieves 700,000 transactions per second on 16-core validator hardware through a directed acyclic graph (DAG) based parallel execution engine. The architecture operates in four phases that convert a sequential batch of transactions into a maximally parallel execution schedule.
+
+**Phase 1: Hint Generation.** All transactions are simulated in parallel to produce predicted read/write sets—the storage locations each transaction will access. This simulation uses a lightweight execution path (no state persistence, no event logging) that completes in approximately 10 microseconds per transaction. The predicted access patterns populate the initial dependency graph.
+
+**Phase 2: DAG Construction.** The engine builds a directed acyclic graph where nodes represent transactions and edges represent read-after-write dependencies. If transaction T_j reads a storage slot that transaction T_i writes, and i < j in block order, an edge T_i → T_j is added to the graph. A critical optimization—selective dependency updates—adds only the highest-index conflicting transaction as a dependency rather than all conflicts, reducing graph size and minimizing re-execution attempts.
+
+The DAG is partitioned into weakly connected components (WCCs): groups of transactions with dependencies within the group but no dependencies across groups. Independent WCCs execute in parallel with zero synchronization overhead.
+
+**Phase 3: Task Group Formation.** Transactions with dependency distance equal to 1—meaning they depend directly on the immediately preceding transaction—are grouped into task groups that execute sequentially on a single worker thread. This handles the common banking pattern of multiple payments from the same sender (e.g., a payroll batch) where each transaction writes the same gas token balance. Task groups execute these sequential dependencies at near-serial speed (only 3-5% slower than pure sequential execution) while freeing remaining cores for parallel work.
+
+**Phase 4: Parallel Execution and Validation.** Independent transactions and task groups execute concurrently across worker threads. After execution, a validator checks whether each transaction's actual read/write set matches its predicted set. Matches proceed to finalization. Mismatches trigger selective dependency updates: the conflicting transaction is re-inserted into the DAG with new dependencies derived from its actual access pattern, then re-executed. The selective update strategy ensures ≤2 execution attempts for typical workloads.
+
+This architecture achieves approximately 4× speedup on 16-core hardware for payment-dominated workloads where conflict ratios remain below 35%. The speedup scales near-linearly to 32 cores, yielding projected throughput of 700,000 to 1,000,000 transactions per second for simple MIP-20 transfers.
+
+#### 4.3.2 Payment Lanes
+
+Magnus Chain extends the parallel execution architecture with a payment lane mechanism that guarantees payment transactions always have block capacity, even during peak network congestion from DeFi or smart contract activity.
+
+The mechanism operates through dual gas limits enforced at the block construction level. Every Magnus block header encodes two constraints:
+
+- **`gas_limit`:** Total gas available for all transactions (standard Ethereum behavior)
+- **`general_gas_limit`:** Maximum gas that non-payment transactions can consume
+
+The difference (`gas_limit - general_gas_limit`) is effectively reserved for payment transactions. When a validator constructs a block, non-payment transactions in the proposer's lane can only fill up to `general_gas_limit`. Payment transactions can consume the remaining capacity beyond that threshold.
+
+Transaction classification requires no state lookups—it is performed entirely from the transaction payload. A transaction is classified as a payment if:
+
+1. Its `tx.to` address starts with the MIP-20 prefix `0x20c0000000000000000000000000`, or
+2. For 0x76 Magnus transactions, every entry in `tx.calls` targets a MIP-20 prefix address
+
+Everything else is classified as a non-payment (general) transaction.
+
+Blocks are structured in five sections: start-of-block system transactions (rewards distribution), proposer lane (user transactions with `general_gas_limit` enforced on non-payments), sub-block transactions (from other proposers), gas incentive transactions (consuming leftover shared gas capacity), and end-of-block system transactions. This structure ensures that payment capacity is protected throughout the block construction process.
+
+The payment lane mechanism requires no user action. If a user sends a stablecoin payment on Magnus Chain, it automatically receives priority access to blockspace—DeFi congestion cannot crowd out payments. This isolation is core to Magnus Chain's identity as a payment-first blockchain, providing the quality-of-service guarantees that financial settlement infrastructure requires.
+
 ### 4.1 MIP-20 Token Standard
 
 The MIP-20 token standard serves as the fundamental unit of value on Magnus Chain. It is a strict superset of the ERC-20 interface, meaning that any software or wallet capable of interacting with ERC-20 tokens can interact with MIP-20 tokens without modification. The extensions address three deficiencies that render ERC-20 inadequate for payment processing: the absence of structured payment data, the lack of currency identity, and the inability to enforce compliance constraints at the token level.
