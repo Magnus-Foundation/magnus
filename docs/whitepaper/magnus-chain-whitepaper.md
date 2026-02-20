@@ -729,7 +729,7 @@ The throughput projections are derived from the analytical model described above
 
 **EIP-2718.** The Ethereum typed transaction envelope standard. Magnus Chain's 0x76 transaction type follows this standard, using the type byte to distinguish Magnus transactions from standard Ethereum types.
 
-**MagnusParaEVM.** Magnus Chain's 2-path parallel execution engine. Path 1 routes known payment transactions through exact HashSet-based scheduling with zero false positives. Path 2 handles unknown contract interactions through operation-level optimistic concurrency control with SSA redo, re-executing only affected operations rather than entire transactions.
+**DAG Execution.** Directed Acyclic Graph-based parallel execution engine that builds dependency graphs from transaction access patterns, partitions into weakly connected components, forms task groups for sequential dependencies, and executes independent transactions across worker threads.
 
 **FeeManager.** The precompile contract that orchestrates multi-currency gas fee collection, managing the pre-execution fee lock, post-execution refund, oracle-based conversion, and fee accumulation for validators.
 
@@ -745,19 +745,17 @@ The throughput projections are derived from the analytical model described above
 
 **Oracle Registry.** The precompile contract managing foreign exchange rate feeds. Whitelisted reporters submit rate observations that are sorted and aggregated via median calculation, with circuit breaker protection against manipulation.
 
-**Transaction Router.** The O(1) classifier in MagnusParaEVM that routes transactions to Path 1 (exact scheduling) or Path 2 (OCC) based on a HashSet of known contract addresses and a HashMap of known contract-selector pairs.
+**MMR Storage.** Merkle Mountain Range authenticated storage structure used by Magnus Chain. Append-only design enables parallel merkleization where nodes at the same height are hashed concurrently, yielding 4-6× speedup compared to sequential tree-based structures.
 
-**SSA (Static Single Assignment) Redo.** The conflict resolution mechanism in MagnusParaEVM Path 2. Each EVM opcode is logged with its inputs and outputs during optimistic execution. When the OCC validator detects conflicts, only the affected operations are replayed rather than entire transactions.
+**Payment Lane.** A block structure mechanism using separate `gas_limit` and `general_gas_limit` fields in the Magnus block header to reserve blockspace for payment transactions, preventing DeFi congestion from crowding out payments.
 
-**Exact Scheduler.** The frame-based greedy packing algorithm in MagnusParaEVM Path 1. Groups non-conflicting transactions into frames for parallel execution using exact read/write sets derived from known contract storage layouts.
+**Simplex Consensus.** Byzantine fault tolerant consensus protocol achieving block proposal in ~200ms (2 network hops) and deterministic finality in ~300ms (3 network hops). Provides absolute finality where committed blocks cannot reorganize.
 
-**Payment Lane.** A block structure mechanism using separate `general_gas_limit` and `shared_gas_limit` fields in the Magnus block header to isolate payment transaction capacity from general-purpose DeFi congestion.
-
-**QMDB (Quantum Merkle Database).** Magnus Chain's authenticated state storage, using a Merkle Mountain Range structure with generation-based copy-on-write semantics. Achieves O(1) amortized I/O per state update.
+**Task Groups.** In DAG-based execution, transactions with dependency distance equal to 1 (direct sequential dependencies) that execute together on a single worker thread. Critical for handling hot accounts like gas tokens where multiple transactions from the same sender write the same balance.
 
 **REVM.** The Rust Ethereum Virtual Machine implementation used as the execution backend in Magnus Chain's worker pool. Each REVM instance executes a conflict-free group of transactions in parallel.
 
-**Simplex BFT.** The consensus protocol used by Magnus Chain, providing deterministic finality with a target latency of approximately 150 milliseconds.
+**Simplex BFT.** The consensus protocol used by Magnus Chain, providing deterministic finality with a target latency of approximately 300 milliseconds.
 
 **VNST.** A Vietnamese Dong-pegged stablecoin deployed as an MIP-20 token on Magnus Chain, with `currency = "VND"` and supply managed by an authorized issuer holding the `ISSUER_ROLE`.
 
@@ -767,23 +765,27 @@ The throughput projections are derived from the analytical model described above
 
 ## References
 
-1. Ruan, C. et al. ParallelEVM: Operation-Level Optimistic Concurrency Control for EVM Blockchains. EuroSys 2025. arXiv:2211.07911.
+1. DAG-Based Parallel Execution for EVM Blockchains. Gravity Chain, 2024.
 
-2. QMDB: Quick Merkle Database for Blockchain State Storage. arXiv:2501.05262, 2025.
+2. Payment Lanes for Blockspace Reservation. Tempo Labs, 2025.
 
-3. ISO 20022 Financial Services — Universal Financial Industry Message Scheme. International Organization for Standardization, 2004–2025.
+3. Quick Merkle Database: MMR-Based Authenticated Storage. Commonware, 2025.
 
-4. ISO 4217 Currency Codes. International Organization for Standardization, 2015.
+4. Simplex: Byzantine Fault Tolerant Consensus. Commonware, 2025.
 
-5. EIP-1559: Fee Market Change for ETH 1.0 Chain. Ethereum Improvement Proposals, 2019.
+5. ISO 20022 Financial Services — Universal Financial Industry Message Scheme. International Organization for Standardization, 2004–2025.
 
-6. EIP-2718: Typed Transaction Envelope. Ethereum Improvement Proposals, 2020.
+6. ISO 4217 Currency Codes. International Organization for Standardization, 2015.
 
-7. EIP-2930: Optional Access Lists. Ethereum Improvement Proposals, 2020.
+7. EIP-1559: Fee Market Change for ETH 1.0 Chain. Ethereum Improvement Proposals, 2019.
 
-8. SWIFT ISO 20022 Programme. Society for Worldwide Interbank Financial Telecommunication, 2018–2025.
+8. EIP-2718: Typed Transaction Envelope. Ethereum Improvement Proposals, 2020.
 
-9. World Bank Remittance Prices Worldwide Quarterly, Issue 50. World Bank Group, 2024.
+9. EIP-2930: Optional Access Lists. Ethereum Improvement Proposals, 2020.
 
-10. BLS12-381: New zk-SNARK Elliptic Curve Construction. Bowe, S., 2017.
+10. SWIFT ISO 20022 Programme. Society for Worldwide Interbank Financial Telecommunication, 2018–2025.
+
+11. World Bank Remittance Prices Worldwide Quarterly, Issue 50. World Bank Group, 2024.
+
+12. BLS12-381: New zk-SNARK Elliptic Curve Construction. Bowe, S., 2017.
 
