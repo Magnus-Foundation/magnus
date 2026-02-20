@@ -144,6 +144,30 @@ The `endToEndId` field carries a unique payment identifier up to 35 characters i
 
 These fields are emitted as event data rather than stored in contract state, a deliberate design choice that preserves the gas efficiency of a simple balance update while making the full payment context available to off-chain indexers, banking gateways, and regulatory reporting systems.
 
+#### 4.1.2 Multi-Currency Gas Fees
+
+The gas fee mechanism eliminates the onboarding barrier that every other EVM-compatible blockchain imposes: the requirement to hold a native token to pay transaction fees. Magnus Chain implements an oracle-driven system that allows users to pay fees in any supported MIP-20 stablecoin.
+
+The system operates through a custom transaction type (0x76) that extends the EIP-1559 format with a `fee_token` field specifying the MIP-20 stablecoin address. When a validator executes a 0x76 transaction, the fee collection flow operates in two phases. Pre-execution, the Fee Manager contract locks the maximum possible fee (`gas_limit × max_fee_per_gas`) in the user's chosen stablecoin, converted to the user's denomination using the current oracle exchange rate. Post-execution, the manager refunds unused gas, converts the actual fee to the validator's preferred denomination (typically a USD stablecoin), and transfers the converted amount to the validator's fee accumulator.
+
+The Oracle Registry maintains real-time foreign exchange rates through a decentralized price feed. Whitelisted reporters—comprising validators and authorized external oracles—submit rate observations for currency pairs (e.g., VND/USD, EUR/USD). The registry stores reports in a sorted list and computes the median of all valid (non-expired) reports as the canonical rate. Reports expire after 360 seconds by default, ensuring the system never relies on stale data.
+
+A circuit breaker provides manipulation resistance. When a new report deviates from the current median by more than 2,000 basis points (20%), the breaker automatically freezes the affected pair, preventing fee calculations based on potentially manipulated rates. The 20% threshold accommodates normal foreign exchange volatility while catching outlier attacks. Governance can reset the breaker after investigation.
+
+This design means that a Vietnamese user holding VNST can submit a payment transaction without ever acquiring or understanding a separate gas token. The validator receives fees in their preferred USD-denominated stablecoin. The foreign exchange conversion happens transparently at the protocol level, denominated in basis points rather than percentage spreads, ensuring predictable costs.
+
+#### 4.1.3 Transfer Policy Registry (MIP-403)
+
+Regulatory compliance in existing blockchain systems is implemented through application-layer smart contracts that cannot enforce invariants across the protocol. Magnus Chain embeds compliance primitives directly into the token transfer pipeline through the MIP-403 Transfer Policy Registry.
+
+Each MIP-20 token references a policy identifier in the MIP-403 registry. Before executing any transfer—whether initiated by `transfer`, `transferFrom`, `transferWithPaymentData`, or batch calls within a 0x76 transaction—the token contract queries the registry's `ensure_transfer_authorized` function. This function evaluates the policy associated with the token and returns a boolean authorization decision plus an optional denial reason code.
+
+The registry supports four policy types. **Whitelist policies** maintain a set of authorized addresses; transfers are permitted only if both sender and recipient appear in the set. **Blacklist policies** maintain a set of prohibited addresses; transfers are rejected if either party appears in the set. **Freeze policies** block all transfers for a specific token, typically used during security incidents or regulatory holds. **Time-lock policies** enforce minimum holding periods, rejecting transfers if the sender acquired the tokens within a configurable time window.
+
+Policy administration is access-controlled. Each policy record stores an administrative address that has exclusive authority to modify the policy's address set (add or remove whitelist/blacklist entries). The policy type itself is immutable after creation, preventing an attacker who gains administrative access from converting a restrictive whitelist into a permissive blacklist.
+
+Because the policy check is embedded in the token's internal `_transfer` function rather than an external wrapper, there is no code path through which a transfer can execute without passing the policy check. This property holds regardless of how the transfer is initiated—direct calls, approved transfers, system transfers from precompiles, and atomic batch calls all traverse the same internal function. The enforcement is protocol-level, not application-layer, providing the settlement assurance that regulated financial institutions require.
+
 ### 4.1 MIP-20 Token Standard
 
 The MIP-20 token standard serves as the fundamental unit of value on Magnus Chain. It is a strict superset of the ERC-20 interface, meaning that any software or wallet capable of interacting with ERC-20 tokens can interact with MIP-20 tokens without modification. The extensions address three deficiencies that render ERC-20 inadequate for payment processing: the absence of structured payment data, the lack of currency identity, and the inability to enforce compliance constraints at the token level.
