@@ -313,52 +313,6 @@ The security analysis in Section 5.3 demonstrates defense-in-depth across consen
 
 ---
 
-## 8. Market Opportunity and Roadmap
-
-### 8.1 Vietnam: The Beachhead Market
-
-Vietnam presents an optimal entry market for payment-optimized blockchain infrastructure due to the convergence of four factors: large and growing digital payment volumes, a regulatory environment that is actively encouraging fintech innovation, high smartphone penetration enabling mobile-first financial services, and a significant remittance market that suffers from the exact inefficiencies that Magnus Chain addresses.
-
-The Vietnamese fintech market reached approximately $3.4 billion in 2025 and is projected to grow at a compound annual rate exceeding 17% through 2030. Digital payments account for over 76% of fintech revenue, with NAPAS processing 8.2 billion transactions worth $156 billion in 2024. Mobile payment volumes are expanding rapidly, driven by smartphone penetration that has reached approximately 84% of the adult population and the proliferation of super-app ecosystems integrating payment functionality into daily commerce. QR code payments represent the fastest-growing payment segment, supported by the State Bank of Vietnam's (SBV) National Payment Strategy promoting cashless adoption.
-
-The regulatory environment has evolved to accommodate fintech innovation through Decree No. 94/2025/ND-CP, promulgated in April 2025 and effective from July 2025. This decree establishes a regulatory sandbox for fintech solutions, providing a controlled testing environment for credit institutions and eligible fintech companies to pilot new business models including peer-to-peer lending, open APIs, and credit scoring solutions. The sandbox framework signals the SBV's intent to foster rather than suppress financial technology innovation, creating a pathway for blockchain-based settlement infrastructure to operate within Vietnam's regulatory perimeter.
-
-Vietnam's inbound remittance market exceeds $16 billion annually, with the majority of flows originating from the United States, Japan, South Korea, Australia, and other economies with large Vietnamese diaspora populations. Corridor fees range from 3.5% to 8% of transferred value, representing $560 million to $1.28 billion in annual fees extracted from a population that is disproportionately lower-income. Magnus Chain's combination of low transaction costs, multi-currency gas fees (enabling payment in VNST), and ISO 20022 banking integration provides a technically viable path to reducing these fees by an order of magnitude while maintaining the compliance data flows that regulators require.
-
-### 8.2 Southeast Asian Expansion
-
-Beyond Vietnam, Magnus Chain's architecture is designed for deployment across Southeast Asian markets that share similar characteristics: large unbanked populations, growing digital payment adoption, emerging fintech regulatory frameworks, and significant intra-regional remittance corridors.
-
-Thailand's PromptPay system processes over 30 million transactions daily and has established the infrastructure for instant domestic payments, but cross-border settlement to neighboring countries remains slow and expensive. The Philippines receives over $36 billion in annual remittances, the highest in Southeast Asia relative to GDP, with corridor fees that rival those faced by Vietnamese recipients. Singapore serves as the region's financial hub, with a progressive regulatory framework for digital payment tokens under the Payment Services Act. Malaysia and Indonesia represent large populations with growing digital payment adoption and regulatory frameworks that are evolving toward controlled innovation through sandbox mechanisms.
-
-The common thread across these markets is the need for payment infrastructure that combines the speed and cost efficiency of blockchain settlement with the compliance capabilities that regulators demand. Magnus Chain's MIP-20 token standard supports arbitrary currency codes, enabling deployment of local-currency stablecoins (THB, PHP, SGD, MYR, IDR) with the same compliance and interoperability features as VNST. The oracle registry supports arbitrary currency pairs, enabling cross-currency settlement between any combination of supported stablecoins. The ISO 20022 integration provides a universal bridge to each country's domestic payment network, adapting to local message formats while preserving the structured data that cross-border reconciliation requires.
-
-### 8.3 Development Roadmap
-
-Magnus Chain's development follows a phased approach that prioritizes core infrastructure reliability before expanding payment-specific features and market coverage.
-
-**Phase 1: Foundation.** The initial phase establishes the core infrastructure stack: Simplex BFT consensus with deterministic finality, the DAG-based parallel execution engine integrated with QMDB state storage, and the base MIP-20 token standard with MIP-403 compliance policies. This phase delivers a functional, high-throughput EVM-compatible blockchain with payment-specific token primitives.
-
-**Phase 2: Payment Stack.** The second phase deploys the complete payment infrastructure: the oracle registry and multi-stablecoin gas fee mechanism, the 0x76 transaction type with atomic batch calls, the 2D nonce system and Account Keychain, and the VNST stablecoin as the first MIP-20 deployment. This phase delivers the full user-facing payment experience, enabling Vietnamese users to transact in their local currency with protocol-level compliance.
-
-**Phase 3: Banking Integration.** The third phase implements the ISO 20022 messaging layer, the banking gateway with SWIFT and NAPAS connectors, the KYC registry with tiered verification, and the hybrid on-chain and off-chain storage model for compliance data. This phase delivers the integration layer that connects Magnus Chain's on-chain settlement to the existing financial system.
-
-**Phase 4: Market Expansion.** The fourth phase extends the platform to additional Southeast Asian markets through deployment of local-currency stablecoins, integration with domestic payment networks (PromptPay in Thailand, InstaPay in the Philippines, DuitNow in Malaysia), addition of new oracle currency pairs, and localized KYC registry configurations reflecting each jurisdiction's regulatory requirements.
-
-### 8.4 Target Use Cases
-
-Magnus Chain's architecture enables four primary use case categories that collectively span the payment needs of emerging market economies.
-
-Domestic payments encompass salary disbursements, supplier payments, utility payments, and peer-to-peer transfers denominated in local currency. The VNST stablecoin combined with the `transferWithPaymentData` function provides structured, ISO 20022-compliant domestic payments at a fraction of the cost of traditional interbank transfers. The atomic batch call mechanism in the 0x76 transaction type enables payroll processors to settle thousands of salary payments in a single transaction.
-
-Cross-border remittances leverage the oracle-driven multi-currency gas mechanism and ISO 20022 messaging to provide low-cost, compliant international transfers. A user in Japan can send USDC that is automatically converted to VNST at the oracle rate and credited to the recipient's account with full ISO 20022 payment data, enabling the recipient's bank to process the credit notification through standard channels.
-
-Escrow and trade settlement utilize the MIP-403 time-lock policy and atomic batch calls to implement programmable payment conditions. A letter of credit, an invoice factoring arrangement, or a milestone-based service contract can be encoded as a series of conditional transfers that execute automatically when their conditions are met, with full ISO 20022 audit trails.
-
-Institutional treasury operations leverage the 2D nonce system for concurrent transaction streams, the Account Keychain for multi-operator access control with spending limits, and the camt.053 statement generation for automated reconciliation. Corporate treasurers can manage multiple payment workflows simultaneously without the serialization constraints of single-nonce accounts.
-
----
-
 ## Appendix A: MIP-20 Token Specification
 
 The MIP-20 token standard defines the protocol-level token primitive for Magnus Chain. Every stablecoin, payment token, and fee token on the network is deployed as an MIP-20 contract through the MIP20Factory, which assigns each token a deterministic address with the prefix `0x20C0` (12 bytes) followed by 8 bytes derived from the creation parameters.
