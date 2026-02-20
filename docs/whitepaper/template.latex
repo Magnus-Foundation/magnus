@@ -107,7 +107,11 @@
   \renewcommand{\footrulewidth}{0pt}
 }
 
-% ---- Section Formatting: no auto-numbering (markdown headings carry their own numbers) ----
+% ---- Remove LaTeX auto-numbering (markdown headings carry their own numbers) ----
+\setcounter{secnumdepth}{-1}
+\setcounter{tocdepth}{3}
+
+% ---- Section Formatting ----
 \titleformat{\section}
   {\LARGE\bfseries\color{primary}\sffamily}
   {}{0em}{}[\vspace{2pt}{\color{accent}\rule{\textwidth}{1.5pt}}]

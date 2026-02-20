@@ -1,9 +1,3 @@
-# Magnus Chain: A Payment-Optimized Layer 1 Blockchain for Emerging Markets
-
-**Version 1.0 — February 2026**
-
----
-
 ## Abstract
 
 Cross-border payment infrastructure in emerging markets remains fundamentally constrained by high transaction fees, multi-day settlement latency, and the absence of regulatory compliance primitives within existing blockchain architectures. Southeast Asia alone accounts for over 290 million unbanked and underbanked adults, while Vietnam's inbound remittance market exceeds $16 billion annually, with corridor fees consuming between 3% and 8% of transferred value. Current Layer 1 platforms force an artificial choice between throughput, compliance, and multi-currency support, rendering them unsuitable for regulated payment workloads at scale.
