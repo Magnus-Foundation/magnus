@@ -114,99 +114,35 @@ The settlement finality gap extends to finality latency. Ethereum's two-epoch fi
 
 ---
 
-## 3-old. Pillar I: MagnusParaEVM Parallel Execution Engine
+## 4. Part II: The Magnus Solution
 
-The execution layer is the primary performance bottleneck in EVM-compatible blockchains. Standard implementations process transactions sequentially, executing each against a shared state database before advancing to the next. This design guarantees correctness but leaves the vast majority of available CPU cores idle during block execution. MagnusParaEVM addresses this bottleneck through a 2-path architecture that exploits the predictability of payment workloads while handling arbitrary smart contract complexity: known transactions with deterministic storage access patterns are scheduled via exact conflict detection with zero false positives, while unknown or complex transactions are executed optimistically with operation-level conflict resolution that re-executes only the affected EVM operations rather than entire transactions. The result is throughput that scales linearly with available CPU cores, achieving projected speeds exceeding 2 million transactions per second on 16-core hardware for payment-dominated workloads.
+Magnus Chain addresses the payment infrastructure gap through three integrated components: native payment primitives that embed compliance and multi-currency support at the protocol level, banking integration primitives that enable direct interoperability with existing financial infrastructure, and a parallel execution architecture that delivers the throughput required for national-scale payment processing.
 
-### 3.1 The 2-Path Architecture
+### 4.1 Payment Primitives
 
-MagnusParaEVM classifies every transaction at block construction time and routes it to one of two execution paths. The classification is performed by a Transaction Router that maintains a registry of known contracts and their storage layouts.
+#### 4.1.1 MIP-20 Token Standard
 
-```
-                    Pending Transactions
-                           │
-                   ┌───────────────┐
-                   │  Transaction  │
-                   │    Router     │
-                   └───────┬───────┘
-                    ╱              ╲
-             Known Txns        Unknown Txns
-                │                    │
-    ┌───────────────────┐  ┌───────────────────┐
-    │  Path 1: Exact    │  │  Path 2: OpLevel  │
-    │  Scheduler        │  │  OCC + SSA Redo   │
-    └─────────┬─────────┘  └─────────┬─────────┘
-              ╲                      ╱
-           ┌──────────────────────────┐
-           │  Shared REVM Worker Pool │
-           └────────────┬─────────────┘
-                        │
-                ┌───────────────┐
-                │  QMDB State   │
-                └───────────────┘
+The MIP-20 token standard serves as the foundational unit of value on Magnus Chain. It is a strict superset of the ERC-20 interface, meaning that any wallet or application capable of interacting with ERC-20 tokens can interact with MIP-20 tokens without modification. The standard extends ERC-20 with three critical capabilities that regulated payment processing demands.
+
+First, each MIP-20 token carries an ISO 4217 currency code that identifies its denomination. A Vietnamese dong stablecoin stores `currency = "VND"`, a US dollar stablecoin stores `currency = "USD"`, and a euro stablecoin stores `currency = "EUR"`. This explicit currency identity eliminates ambiguity in multi-currency environments and enables automated foreign exchange rate lookups without relying on token contract names or off-chain metadata that can be spoofed.
+
+Second, MIP-20 tokens include role-based access control for minting authority. The `ISSUER_ROLE` restricts minting to addresses explicitly authorized by the token administrator, and the `supply_cap` parameter enforces a protocol-level ceiling on total issuance. These constraints enable regulatory-compliant stablecoin deployments where issuance is tied to fiat reserves held by a licensed entity. The on-chain `supply_cap` provides a verifiable upper bound that regulators and auditors can monitor without trusting the issuer's off-chain reporting.
+
+Third, the standard defines a `transferWithPaymentData` function that augments token transfers with structured payment information aligned to ISO 20022 data elements:
+
+```solidity
+function transferWithPaymentData(
+    address to,
+    uint256 amount,
+    bytes calldata endToEndId,      // Max 35 chars (ISO Max35Text)
+    bytes4 purposeCode,              // 4 bytes (e.g., "SALA", "SUPP")
+    bytes calldata remittanceInfo    // Max 140 chars (ISO Max140Text)
+) external returns (bool);
 ```
 
-**Path 1 (Exact Scheduler)** handles transactions targeting known contracts: MIP-20 token transfers, native value transfers, oracle updates, and verified DeFi deployments. For these transactions, the storage slots accessed are deterministic and can be computed from the transaction's target address and calldata without execution. The scheduler pre-computes exact read/write sets using the same keccak256 slot layout as the precompile storage system, then packs non-conflicting transactions into parallel frames using a single-pass O(n) greedy algorithm. Because conflict detection uses HashSet intersection rather than probabilistic filters, there are zero false positives: no non-conflicting transaction is ever unnecessarily serialized. For Magnus Chain's target workload, where approximately 70% of transactions are known payment operations, Path 1 eliminates all scheduling overhead and achieves near-perfect parallelism.
+The `endToEndId` field carries a unique payment identifier up to 35 characters in length, matching the ISO 20022 `EndToEndIdentification` element that banks use to track payments across institutional boundaries. The `purposeCode` is a four-byte code drawn from the ISO 20022 `ExternalPurpose1Code` vocabulary: `SALA` for salary, `SUPP` for supplier payment, `TAXS` for tax remittance, `PENS` for pension disbursement. The `remittanceInfo` field provides up to 140 characters of unstructured information for invoice references or reconciliation notes.
 
-**Path 2 (Operation-Level OCC with SSA Redo)** handles unknown or complex contract interactions whose storage access patterns cannot be predicted statically. Inspired by the ParallelEVM research (arXiv:2211.07911, EuroSys 2025), Path 2 executes transactions optimistically against a state snapshot while recording every EVM operation in a Static Single Assignment (SSA) log. Each opcode execution is logged with its inputs (references to prior log entries or constants), output value, and storage key (for SLOAD/SSTORE operations). A shadow stack mirrors the EVM operand stack, mapping each position to the log entry that produced its value. After optimistic execution completes, a validation phase checks whether any SLOAD values were overwritten by a concurrent transaction that committed earlier in block order. If conflicts are detected, the SSA redo engine walks the dependency graph forward from the stale reads and re-executes only the affected operations, typically 5-15% of the transaction's total operations rather than the entire transaction. This operation-level granularity achieves approximately 4.3x speedup over sequential execution on diverse workloads, compared to 2.5x for traditional transaction-level optimistic concurrency control.
-
-### 3.2 Transaction Router
-
-The Transaction Router classifies each transaction in O(1) time using a known contract registry populated at genesis for system precompiles and extended via governance for verified third-party contracts.
-
-Classification follows four rules applied in order: (1) native value transfers with no calldata are routed to Path 1; (2) calls to a known contract address with a known function selector are routed to Path 1; (3) calls to a known contract with an unknown selector are routed to Path 2; (4) all other transactions, including contract creation, are routed to Path 2. The registry stores contract addresses in a HashSet and (address, selector) pairs in a HashMap, ensuring constant-time lookup regardless of registry size.
-
-The known contract registry initially includes all Magnus system precompiles: MIP-20 token contracts (identifiable by their `0x20C0` address prefix), the MIP-20 factory, the MIP-403 transfer policy registry, the fee manager, the oracle registry, and the stablecoin DEX. As the ecosystem matures, governance proposals can register additional contracts whose storage layouts have been verified, progressively expanding the fraction of transactions eligible for Path 1's zero-overhead scheduling.
-
-### 3.3 Path 1: Frame-Based Exact Scheduling
-
-For transactions routed to Path 1, the scheduler derives exact read/write sets from the transaction's target contract and calldata. For an MIP-20 `transfer(to, amount)` call, the accessed slots are `balances[from]` and `balances[to]`, computed as `keccak256(abi.encode(address, base_slot))` where the balances mapping occupies storage slot 0. For an MIP-20 `approve(spender, amount)` call, the accessed slot is `allowances[from][spender]`, a nested mapping at base slot 1. For native value transfers, the accessed locations are the sender's and recipient's account balances.
-
-The frame packing algorithm iterates through transactions in block order, maintaining a HashSet of occupied storage locations. Each transaction's read/write set is tested for intersection with the occupied set. If no intersection exists, the transaction is added to the current frame and its locations are added to the occupied set. If an intersection is detected, the current frame is finalized, a new frame begins, and the occupied set is reset. This single-pass O(n) algorithm produces the minimum number of frames given the block's transaction ordering. Transactions within a frame execute in parallel across the worker pool; frames execute sequentially to preserve deterministic state transitions.
-
-For payment workloads, frame density is high. A block of 10,000 MIP-20 transfers where no sender appears twice produces a single frame with perfect parallelism across all available worker threads. Even with moderate sender overlap, the greedy packing algorithm typically produces 2-5 frames, achieving parallel efficiency above 90%.
-
-### 3.4 Path 2: Operation-Level OCC with SSA Redo
-
-Path 2 handles the remaining transactions through a three-phase process that maximizes parallelism while guaranteeing correctness.
-
-**Phase 1: Optimistic Execution.** All Path 2 transactions execute concurrently against an immutable state snapshot. Each transaction's REVM instance is instrumented to record an SSA (Static Single Assignment) operation log. Every EVM opcode that produces a value generates a log entry containing: a monotonically increasing log sequence number (LSN), the opcode, references to the inputs (either prior log entry LSNs or constant values), the output value, and for storage operations (SLOAD/SSTORE) the storage key. A shadow stack runs in parallel with the EVM operand stack, mapping each stack position to the LSN of the entry that produced it. SLOAD operations read from the state snapshot and may read stale data if a concurrent transaction has written to the same slot. SSTORE operations write to a thread-local write buffer rather than shared state.
-
-**Phase 2: Validation.** After all optimistic executions complete, the validator checks each transaction's SSA log for conflicts. For every SLOAD entry, it checks whether the storage slot was written by a concurrent transaction that committed earlier in block order. If the written value differs from the value the SLOAD originally returned, the entry is marked as stale. If no stale entries are found, the transaction's write buffer is committed to the shared state. If stale entries exist, the transaction proceeds to Phase 3.
-
-**Phase 3: SSA Redo.** For conflicted transactions, the redo engine walks the SSA dependency graph forward from the stale SLOAD entries. Each entry whose inputs include a dirty (changed) entry is recomputed using the corrected input values. If an entry's recomputed output differs from its original output, it is marked dirty and propagation continues to its dependents. If the recomputed output matches the original, propagation stops along that branch, as downstream operations are unaffected. This selective re-execution typically touches only 5-15% of a transaction's operations, compared to 100% for transaction-level optimistic concurrency control. The redo engine implements a pure arithmetic evaluator covering the EVM's arithmetic, comparison, bitwise, and storage opcodes, enabling re-execution without invoking the full REVM interpreter.
-
-### 3.5 Payment Lanes
-
-Magnus Chain extends the MagnusParaEVM architecture with a payment lane mechanism that provides quality-of-service guarantees for payment transactions even during periods of high network congestion. The `MagnusHeader` structure encodes two distinct gas limits: `general_gas_limit` for arbitrary smart contract execution and `shared_gas_limit` allocated to a subblock section reserved for payment transactions. This separation ensures that a surge in DeFi activity, NFT minting, or other gas-intensive workloads cannot crowd out payment processing.
-
-The lane mechanism operates at the block construction level. When a validator builds a block, transactions are first classified by type. Payment transactions, identifiable by their interaction with MIP-20 token contracts and their use of the 0x76 transaction type, are allocated to the shared gas lane. Remaining transactions compete for the general gas allocation. Because payment transactions are routed to Path 1 with its exact scheduling, the payment lane achieves near-perfect parallelism, while the general lane uses Path 2's operation-level OCC for complex contract interactions. The two lanes share the same REVM worker pool but process their respective transaction sets in isolated scheduling phases.
-
-The block header's `timestamp_millis_part` field provides millisecond-precision timestamps, complementing the standard second-resolution Ethereum timestamp. This precision is essential for payment processing, where settlement ordering at sub-second granularity affects reconciliation accuracy, interest calculations, and regulatory reporting. The Magnus EVM exposes this precision through a custom opcode (0x4F, `MILLIS_TIMESTAMP`) that returns the block timestamp in milliseconds, costing 2 gas units, identical to other block information opcodes.
-
-### 3.6 Performance Analysis
-
-The MagnusParaEVM architecture achieves throughput that depends on three primary variables: the fraction of transactions routed to Path 1 versus Path 2, the conflict ratio within each path, and the number of available CPU cores. For payment workloads, the majority of transactions are routed to Path 1, where the conflict ratio is exceptionally low. A block of 10,000 simple token transfers where no sender appears twice has zero conflicts and achieves perfect parallelism across all available workers. Real-world payment traffic approaches this ideal because individual users typically submit transactions at low frequency relative to the total network throughput.
-
-Path 1 achieves speedups of 12-14x on 16 cores for payment-dominated workloads due to the near-absence of conflicts and zero scheduling overhead. Path 2 achieves speedups of approximately 4-5x on the same hardware, consistent with the benchmarks reported in the ParallelEVM paper (arXiv:2211.07911) which demonstrated 4.28x speedup on Ethereum mainnet traces using operation-level concurrency, compared to 2.49x for traditional transaction-level optimistic concurrency control. For Magnus Chain's target workload of 70% known payments and 30% unknown contracts, the blended speedup is approximately 9-11x, yielding projected throughput of 2.1-2.5 million transactions per second on 16-core hardware. Magnus Chain targets a conservative 500,000 transactions per second as its design throughput, providing substantial headroom above the peak requirements of national-scale payment systems.
-
-The throughput model can be expressed as TPS = B / (T_consensus + T_execution), where B is the number of transactions per block, T_consensus is the consensus round time, and T_execution is the block execution time. For Path 1 transactions, T_execution scales as T_sequential / (N * E_1), where N is the number of worker cores and E_1 is the parallel efficiency factor for exact scheduling (exceeding 0.90 for payment workloads). For Path 2 transactions, the effective speedup is approximately 4.3x regardless of core count, bounded by the operation-level conflict resolution overhead. A Lazy Beneficiary mechanism defers all fee distribution to the block proposer until after execution completes, eliminating the proposer's balance as a universal write conflict that would otherwise serialize every transaction.
-
-| Platform | Throughput (TPS) | Finality | Execution Model | Payment Primitives |
-|----------|-----------------|----------|-----------------|-------------------|
-| Ethereum | ~15 | ~13 min | Sequential EVM | None |
-| Solana | ~4,000 | ~400ms | Sealevel parallel | None |
-| MegaETH | ~100,000 (claimed) | ~10ms | Specialized nodes | None |
-| Stellar | ~1,000 | 3-5s | Non-EVM | Basic anchors |
-| **Magnus Chain** | **500,000+** | **~150ms** | **MagnusParaEVM 2-path** | **Native (MIP-20, oracle gas, ISO 20022)** |
-
-The comparison table reveals that no existing platform occupies the intersection of high throughput, EVM compatibility, native ISO 20022 support, and protocol-level compliance enforcement. Magnus Chain occupies a unique position in this design space, offering the throughput of a specialized execution engine within the developer ecosystem of the EVM while simultaneously providing the payment-specific features that regulated financial institutions require.
-
----
-
-## 4. Pillar II: Native Payment Primitives
-
-The execution engine described in the preceding section provides the throughput foundation, but throughput alone does not make a blockchain suitable for regulated payment processing. Magnus Chain's second pillar introduces a coordinated set of payment primitives implemented as protocol-level precompiled contracts rather than application-layer smart contracts. This distinction is critical: precompiled contracts execute at native speed, enforce invariants that user-deployed contracts cannot override, and compose with the execution engine's conflict analysis in ways that external contracts do not.
+These fields are emitted as event data rather than stored in contract state, a deliberate design choice that preserves the gas efficiency of a simple balance update while making the full payment context available to off-chain indexers, banking gateways, and regulatory reporting systems.
 
 ### 4.1 MIP-20 Token Standard
 
