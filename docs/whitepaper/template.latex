@@ -159,7 +159,7 @@
 % Pandoc fenced code via fancyvrb
 \DefineVerbatimEnvironment{Highlighting}{Verbatim}{
   commandchars=\\\{\},
-  fontsize=\small,
+  fontsize=\footnotesize,
   frame=single,
   framesep=10pt,
   rulecolor=\color{codebg},
@@ -167,7 +167,14 @@
   formatcom=\color{codefg},
   xleftmargin=10pt,
   xrightmargin=10pt,
+  breaklines=true,
 }
+
+% Make all verbatim environments use smaller font and break lines
+\usepackage{fvextra}
+\fvset{fontsize=\footnotesize,breaklines=true}
+\RecustomVerbatimEnvironment{verbatim}{Verbatim}{fontsize=\footnotesize,breaklines=true}
+\RecustomVerbatimEnvironment{Verbatim}{Verbatim}{fontsize=\footnotesize,breaklines=true}
 
 % ---- Pandoc Shaded environment for code blocks ----
 \usepackage{framed}
@@ -185,6 +192,14 @@
 % ---- Table styling ----
 \renewcommand{\arraystretch}{1.4}
 \arrayrulecolor{tableborder}
+
+% ---- Prevent overfull hbox: allow stretching and shrinking ----
+\tolerance=2000
+\emergencystretch=3em
+\setlength{\hfuzz}{5pt}
+
+% ---- Scale longtable font to reduce overflow ----
+\AtBeginEnvironment{longtable}{\scriptsize}
 
 % ---- Bold paragraph starts (for **text** at start of paragraph in whitepaper) ----
 % This is handled naturally by pandoc's strong emphasis

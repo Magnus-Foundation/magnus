@@ -18,29 +18,71 @@ Magnus Chain comprises 73% proprietary code built upon production-grade open-sou
 
 ### 1.1 The Broken State of Cross-Border Payments
 
-The global cross-border payments market processes over $150 trillion annually, yet the infrastructure underpinning these flows remains anchored to correspondent banking networks designed in the 1970s. Nowhere is this dysfunction more acute than in Southeast Asia, a region of 680 million people where approximately 290 million adults remain unbanked or underbanked and where informal workers constitute over 70% of the labor force. Vietnam alone receives more than $16 billion in annual remittances, placing it among the top ten recipient nations worldwide, yet corridor fees between major sending countries and Vietnam range from 3.5% to 8% of transferred value. A Vietnamese factory worker in Japan sending $200 home may lose $7 to $16 in fees and wait two to five business days for settlement through traditional correspondent banking channels. These costs and delays are not incidental inefficiencies but structural consequences of an architecture that routes each payment through multiple intermediary banks, each extracting margin and introducing settlement risk.
+The global cross-border payments market processes over $150 trillion
+annually, yet remains anchored to correspondent banking networks
+designed in the 1970s. Southeast Asia—680 million people, 290 million
+unbanked or underbanked adults—exemplifies this dysfunction. Vietnam
+receives over $16 billion in annual remittances with corridor fees of
+3.5–8%, costing recipients $560 million to $1.28 billion per year.
+Settlement takes two to five business days through chains of
+intermediary banks, each extracting margin and introducing risk.
 
-The scale of this problem extends well beyond remittances. Domestic payment infrastructure in Vietnam and neighboring markets processes an increasing share of economic activity, yet the gap between digital payment adoption and the underlying settlement layer continues to widen. The Vietnam National Payment System (NAPAS) handles hundreds of millions of domestic transactions monthly, but settlement remains batch-oriented, denominated in a single currency, and disconnected from the cross-border corridors that link Vietnamese households to the diaspora economies of the United States, Japan, South Korea, and Australia. The result is a fragmented financial landscape in which domestic payments, cross-border remittances, and commercial settlement each operate on separate infrastructure stacks with no shared compliance layer and no common data standard.
+Domestically, Vietnam's NAPAS processes billions of transactions
+annually, but settlement remains batch-oriented, single-currency, and
+disconnected from cross-border corridors. Domestic payments,
+remittances, and commercial settlement operate on separate stacks
+with no shared compliance layer or common data standard.
 
-### 1.2 Why Existing Blockchains Fail for Regulated Payments
+### 1.2 Why Existing Blockchains Fail
 
-Blockchain technology has long promised to disintermediate correspondent banking, yet after more than a decade of development, no Layer 1 platform has achieved meaningful adoption for regulated payment flows in emerging markets. The reasons are structural rather than incidental. Ethereum, the most widely adopted smart contract platform, processes approximately 15 transactions per second with finality measured in minutes, throughput that is orders of magnitude below the requirements of a national payment system. Solana achieves approximately 4,000 actual transactions per second with sub-second confirmation, yet offers no native support for multi-currency gas fees, ISO 20022 messaging, or jurisdiction-specific compliance enforcement. Stellar and Ripple have targeted cross-border payments explicitly, but neither provides a general-purpose execution environment capable of supporting the programmable compliance logic that emerging market regulators increasingly demand.
+No Layer 1 platform has achieved meaningful adoption for regulated
+payment flows. The reasons are structural:
 
-The fundamental limitation is architectural. Existing Layer 1 platforms were designed as general-purpose computation networks, not as payment settlement infrastructure. They lack native primitives for structured payment data, treating all token transfers as undifferentiated state transitions with no fields for remittance information, purpose codes, or end-to-end transaction identifiers. They price gas in a single volatile denomination, forcing users in Vietnam or the Philippines to acquire and hold a cryptocurrency they neither understand nor trust before executing a simple payment. They offer no protocol-level mechanism for enforcing the know-your-customer, anti-money-laundering, and transfer restriction policies that regulators in Vietnam, Thailand, and Indonesia require as preconditions for legal operation. Each of these deficiencies can be addressed at the application layer through smart contracts and middleware, but doing so sacrifices the performance, composability, and auditability that protocol-level integration provides.
+- **Throughput.** Ethereum processes ~15 TPS; Solana ~4,000 TPS.
+  Neither approaches the hundreds of thousands of TPS that national
+  payment systems require.
+- **No payment primitives.** Token transfers carry no fields for
+  remittance information, purpose codes, or end-to-end identifiers.
+- **Single-currency gas.** Users must acquire a volatile native token
+  before transacting—an unacceptable barrier in emerging markets
+  where users hold only local currency.
+- **No compliance enforcement.** No protocol-level mechanism for
+  KYC, AML, or transfer restriction policies. Application-layer
+  workarounds sacrifice performance and composability.
+- **No banking interoperability.** No native ISO 20022 support,
+  forcing lossy translation between on-chain and banking data models.
 
 ### 1.3 The ISO 20022 Convergence
 
-The completion of SWIFT's ISO 20022 migration in November 2025 marks a watershed moment for blockchain-based payment infrastructure. As of that date, all cross-border payment instructions traversing the SWIFT network must conform to the ISO 20022 XML message standard, replacing the legacy MT format that has governed interbank messaging for decades. The Federal Reserve completed its own Fedwire transition to ISO 20022 in July 2025, and domestic payment systems across Asia have adopted or are actively implementing the standard. ISO 20022 defines a rich, structured data model for payment messages, including originator and beneficiary identification, purpose codes, remittance information, and regulatory reporting fields that legacy formats could not accommodate.
+SWIFT completed its ISO 20022 migration in November 2025; the Federal
+Reserve's Fedwire transitioned in July 2025. All cross-border payment
+instructions now conform to ISO 20022's structured XML standard,
+carrying originator identification, purpose codes, remittance
+information, and regulatory reporting fields.
 
-This convergence creates an unprecedented opportunity for blockchain settlement infrastructure. A Layer 1 platform that speaks ISO 20022 natively can serve as a direct settlement backend for banking gateways, eliminating the translation layers and data loss that characterize current blockchain-to-bank integration approaches. Rather than forcing banks to adapt to blockchain-native data formats, such a platform meets the financial system on its own terms, accepting and producing the same structured messages that flow between correspondent banks, central payment systems, and regulatory reporting engines. The value proposition shifts from disintermediation to integration: not replacing banks, but providing them with a faster, cheaper, and more transparent settlement layer that preserves the compliance data they are legally obligated to maintain.
+A Layer 1 that speaks ISO 20022 natively can serve as a direct
+settlement backend for banking gateways—not replacing banks, but
+providing faster, cheaper settlement that preserves the compliance
+data they are legally obligated to maintain.
 
 ### 1.4 The Magnus Chain Thesis
 
-Magnus Chain is designed around a single organizing principle: every architectural decision must optimize for the specific requirements of regulated payment processing in emerging markets. This principle manifests across four technical pillars that collectively address the throughput, compliance, interoperability, and infrastructure demands that payment workloads impose.
+Magnus Chain is designed around a single principle: every
+architectural decision optimizes for regulated payment processing in
+emerging markets. This manifests across four pillars:
 
-The first pillar is a DAG-based parallel execution engine that achieves throughput exceeding 700,000 transactions per second on 16-32 core validator hardware. The engine operates in four phases: hint generation simulates transactions to predict read/write sets, DAG construction builds a directed acyclic graph of transaction dependencies, task group formation clusters sequential dependencies for efficient execution, and parallel execution distributes independent transactions across worker threads. Payment lanes extend this architecture by reserving blockspace for payment transactions through dual gas limits (`gas_limit` and `general_gas_limit`), ensuring that DeFi congestion cannot crowd out payment processing. The second pillar is a suite of native payment primitives, including a token standard with ISO 4217 currency codes and structured payment data fields, an oracle-driven multi-stablecoin gas fee mechanism, and a transfer policy registry that enforces compliance rules at the protocol level. The third pillar is native ISO 20022 messaging through a hybrid storage model that places essential payment fields on-chain while storing full XML documents off-chain, reducing compliance data costs by 99.8% while enabling direct integration with SWIFT and domestic payment networks. The fourth pillar is an infrastructure foundation combining Simplex BFT consensus with approximately 300-millisecond deterministic finality, MMR-based authenticated storage optimized for parallel merkleization, and BLS12-381 threshold cryptography.
-
-The remainder of this paper describes each pillar in detail, analyzes the security properties of the combined system, presents comparative benchmarks against existing platforms, and outlines the market opportunity that Magnus Chain is positioned to capture.
+1. **DAG-based parallel execution** achieving 700,000+ TPS through
+   hint generation, conflict graph construction, task group
+   optimization, and payment lanes with dual gas limits.
+2. **Native payment primitives:** MIP-20 tokens with ISO 4217
+   currency codes, oracle-driven multi-stablecoin gas fees, and the
+   MIP-403 transfer policy registry for protocol-level compliance.
+3. **ISO 20022 messaging** via hybrid on-chain/off-chain storage,
+   reducing compliance data costs by 99.8% while enabling direct
+   SWIFT and domestic payment network integration.
+4. **Infrastructure foundation:** Simplex BFT consensus (~300ms
+   deterministic finality), MMR-based storage with parallel
+   merkleization, and BLS12-381 threshold cryptography.
 
 ---
 
