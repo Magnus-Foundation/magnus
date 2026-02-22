@@ -2,7 +2,7 @@
 
 Cross-border payment infrastructure in emerging markets remains constrained by high fees (3--8% per corridor), multi-day settlement latency, and the absence of compliance primitives in existing blockchains. Southeast Asia's 290 million unbanked adults and Vietnam's \$16 billion annual remittance market exemplify the scale of this failure. No current Layer 1 platform combines the throughput, compliance enforcement, multi-currency support, and banking interoperability required for regulated payment workloads.
 
-This paper presents Magnus Chain, a payment-optimized Layer 1 blockchain built on four pillars: (1) a DAG-based parallel execution engine achieving 700,000+ TPS with payment lanes reserving blockspace through dual gas limits; (2) native payment primitives including MIP-20 tokens with ISO 4217 currency codes, oracle-driven multi-stablecoin gas fees, and the MIP-403 transfer policy registry; (3) native ISO 20022 messaging via hybrid on-chain/off-chain storage, reducing compliance data costs by 99.8%; and (4) Simplex BFT consensus with ~300ms deterministic finality, MMR-based storage, and BLS12-381 threshold cryptography. The codebase is 73% proprietary, built upon production-grade open-source consensus and networking foundations.
+This paper presents Magnus Chain, a payment-optimized Layer 1 blockchain built on four pillars: (1) a DAG-based parallel execution engine targeting over 500,000 TPS on 96-core production hardware, with payment lanes reserving blockspace through dual gas limits; (2) native payment primitives including MIP-20 tokens with ISO 4217 currency codes, oracle-driven multi-stablecoin gas fees, and the MIP-403 transfer policy registry; (3) native ISO 20022 messaging via hybrid on-chain/off-chain storage, reducing compliance data costs by 99.8%; and (4) Simplex BFT consensus with ~300ms deterministic finality, MMR-based storage, and BLS12-381 threshold cryptography. The codebase is 73% proprietary, built upon production-grade open-source consensus and networking foundations.
 
 ---
 
@@ -63,9 +63,10 @@ Magnus Chain is designed around a single principle: every
 architectural decision optimizes for regulated payment processing in
 emerging markets. This manifests across four pillars:
 
-1. **DAG-based parallel execution** achieving 700,000+ TPS through
-   hint generation, conflict graph construction, task group
-   optimization, and payment lanes with dual gas limits.
+1. **DAG-based parallel execution** targeting over 500,000 TPS on
+   96-core hardware through hint generation, conflict graph
+   construction, task group optimization, banking-specific
+   optimizations, and payment lanes with dual gas limits.
 2. **Native payment primitives:** MIP-20 tokens with ISO 4217
    currency codes, oracle-driven multi-stablecoin gas fees, and the
    MIP-403 transfer policy registry for protocol-level compliance.
@@ -122,7 +123,7 @@ Banking gateways must maintain parallel databases linking transaction hashes to 
 
 ### 3.5 Settlement Risk
 
-Payment settlement requires deterministic finality: mathematical certainty that a transaction cannot be reversed. Ethereum provides probabilistic finality after ~90 seconds, with no absolute guarantee. Solana achieves practical finality in ~400ms but edge cases during validator failures can reorganize blocks.
+Payment settlement requires deterministic finality: mathematical certainty that a transaction cannot be reversed. Ethereum achieves deterministic finality via Casper FFG after approximately 12.8 minutes (two epochs), but this latency is incompatible with real-time payment settlement. Solana achieves practical finality in ~400ms but edge cases during validator failures can reorganize blocks.
 
 Probabilistic finality is unsuitable for payments. A merchant needs certainty, not probability. A bank cannot explain to regulators that a credit was issued when reversal likelihood dropped below 0.1%. Payment infrastructure demands deterministic, sub-second finality equivalent to traditional settlement rails.
 
@@ -170,7 +171,21 @@ A circuit breaker provides manipulation resistance. When a new report deviates f
 
 This design means that a Vietnamese user holding VNST can submit a payment transaction without ever acquiring or understanding a separate gas token. The validator receives fees in their preferred USD-denominated stablecoin. The foreign exchange conversion happens transparently at the protocol level, denominated in basis points rather than percentage spreads, ensuring predictable costs.
 
-#### 4.1.3 Transfer Policy Registry (MIP-403)
+#### 4.1.3 Oracle Registry Design
+
+Existing oracle networks—Chainlink [15], Pyth [16], and Band Protocol—optimize for cryptocurrency price feeds on high-liquidity trading pairs. Their architectures assume 24/7 market availability, deep on-chain liquidity for price validation, and sufficient DeFi total value locked to justify per-feed operational costs of \$5,000–\$30,000 per month [15]. These assumptions fail systematically for emerging market foreign exchange: VND/USD, NGN/USD, and KES/USD have no on-chain liquidity pools, operate during limited banking hours, and generate insufficient DeFi demand to justify dedicated oracle infrastructure. No institutional-grade oracle network provides reliable feeds for these currencies.
+
+Magnus Chain addresses this structural gap through four design innovations that distinguish its oracle registry from both general-purpose oracle networks and existing sorted oracle implementations [17].
+
+**Precompile implementation.** The oracle registry executes as a native precompile rather than an EVM smart contract. Precompiles achieve 10–100× gas savings over equivalent Solidity implementations for compute-intensive operations, with cryptographic verification costs reducing from ~140,000 gas to ~3,000 gas [18]. Because the oracle registry is queried on every cross-currency gas payment—the hot path of the fee conversion pipeline—precompile performance directly affects transaction throughput. The well-defined, stable interface of rate queries (write reports, read median) satisfies the criteria for precompile suitability: performance-critical, unchanging functionality where the upgrade cost of hard forks is justified by per-invocation savings across millions of transactions.
+
+**Validator-as-reporter model.** Rather than relying on external oracle networks with independent economic models, Magnus Chain designates validators as primary oracle reporters. Validators already operate infrastructure for block production; adding FX rate reporting as a validator duty amortizes the cost into block rewards rather than requiring separate per-feed economic justification. This eliminates the chicken-and-egg problem where oracle feeds require DeFi demand that cannot exist without oracle feeds. The whitelisted reporter set is bootstrapped at genesis with validators and extended through governance to include authorized external feeds—local exchanges, banking data providers, and remittance platforms with first-party access to emerging market FX rates.
+
+**Business-hours-aware parametrization.** Emerging market currencies differ fundamentally from cryptocurrency pairs: they have trading hours, central bank intervention events, and parallel market dynamics. The oracle registry supports per-pair configuration of report expiry, circuit breaker thresholds, and minimum reporter counts. A VND/USD pair can operate with 600-second expiry during Vietnamese banking hours and automatically revert to the last valid rate outside trading hours, while a BTC/USD pair maintains the default 360-second expiry with continuous reporting. The 20% circuit breaker threshold (2,000 basis points) accommodates the higher volatility characteristic of emerging market currencies—the Nigerian naira depreciated 55% against the dollar in 2023—while catching manipulation attempts that deviate from the current reporter consensus.
+
+**Median aggregation with sorted insertion.** The registry maintains reports in a sorted data structure that provides O(1) median retrieval—matching the Celo SortedOracles pattern [17]—but extends it with per-reporter uniqueness enforcement (each reporter maintains at most one active report), automatic expiry-based pruning on read, and pair-level circuit breaker isolation. The median of *n* reports can only be influenced by controlling at least $\lfloor n/2 \rfloor + 1$ reporters, providing quantifiable manipulation resistance: with 10 active reporters, an attacker must compromise 6 to influence the rate. This exceeds the BFT security threshold of the consensus layer (f < n/3), ensuring that an adversary capable of manipulating oracle rates would also need to compromise consensus—a strictly harder attack.
+
+#### 4.1.4 Transfer Policy Registry (MIP-403)
 
 Regulatory compliance in existing blockchain systems is implemented through application-layer smart contracts that cannot enforce invariants across the protocol. Magnus Chain embeds compliance primitives directly into the token transfer pipeline through the MIP-403 Transfer Policy Registry.
 
@@ -190,25 +205,226 @@ The banking gateway architecture provides bidirectional connectivity between Mag
 
 The KYC Registry implements tiered identity verification that maps to risk-based approaches mandated by FATF guidelines. Each verified address is associated with a tier level (e.g., Tier 1 for basic verification, Tier 2 for enhanced due diligence, Tier 3 for institutional accounts) that determines transaction limits and eligible payment types. Token issuers configure MIP-403 policies that reference KYC tiers as authorization preconditions, ensuring that high-value or cross-border transfers automatically require verified counterparties.
 
+```{=latex}
+\newpage
+```
+
 ### 4.3 Scale and Performance
+
+Magnus Chain's execution layer targets over 500,000 transactions per second on 96-core validator hardware through four reinforcing innovations: DAG-based parallel execution, a five-stage asynchronous pipeline, banking-specific optimizations that exploit payment workload characteristics, and payment lane blockspace reservation. The architecture builds on a production-proven parallel EVM baseline of 41,000 TPS on 16 cores [1], with software optimizations delivering approximately 3× improvement on identical hardware and sub-linear hardware scaling to the target throughput [19].
 
 #### 4.3.1 DAG-Based Parallel Execution
 
-The execution layer achieves 700,000 transactions per second on 16-core validator hardware through a directed acyclic graph (DAG) based parallel execution engine. The architecture operates in four phases that convert a sequential batch of transactions into a maximally parallel execution schedule.
+The parallel execution engine converts a sequential batch of transactions into a maximally parallel schedule through six phases:
 
-**Phase 1: Hint Generation.** All transactions are simulated in parallel to produce predicted read/write sets—the storage locations each transaction will access. This simulation uses a lightweight execution path (no state persistence, no event logging) that completes in approximately 10 microseconds per transaction. The predicted access patterns populate the initial dependency graph.
+```{=latex}
+\begin{figure}[ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.3cm,
+  phase/.style={draw=black!70, thin, rounded corners=1.5pt, minimum height=0.7cm,
+    minimum width=1.7cm, font=\sffamily\scriptsize, text=black, fill=black!4, align=center},
+  arr/.style={-{Stealth[length=4pt,width=3pt]}, thin, black!60},
+]
+  \node[phase] (tx) {Transactions\\[-1pt]\tiny(batch)};
+  \node[phase, right=of tx] (hint) {Hint\\[-1pt]Generation};
+  \node[phase, right=of hint] (dag) {DAG\\[-1pt]Construction};
+  \node[phase, right=of dag] (wcc) {WCC\\[-1pt]Partitioning};
+  \node[phase, right=of wcc] (tg) {Task Group\\[-1pt]Formation};
+  \node[phase, right=of tg] (sched) {Lock-Free\\[-1pt]Scheduling};
+  \node[phase, right=of sched] (exec) {Parallel\\[-1pt]Execution};
+  \node[phase, right=of exec] (val) {Validation};
+  \draw[arr] (tx) -- (hint);
+  \draw[arr] (hint) -- (dag);
+  \draw[arr] (dag) -- (wcc);
+  \draw[arr] (wcc) -- (tg);
+  \draw[arr] (tg) -- (sched);
+  \draw[arr] (sched) -- (exec);
+  \draw[arr] (exec) -- (val);
+  % Re-execution feedback
+  \draw[arr, dashed, black!40] (val.south) -- ++(0,-0.45) -| node[below, pos=0.25, font=\sffamily\tiny, text=black!50] {re-execute on mismatch} (dag.south);
+\end{tikzpicture}%
+}
+\caption{DAG-based parallel execution pipeline. Dashed arrow indicates selective re-execution on validation mismatch.}
+\label{fig:dag-pipeline}
+\end{figure}
+```
 
-**Phase 2: DAG Construction.** The engine builds a directed acyclic graph where nodes represent transactions and edges represent read-after-write dependencies. If transaction T_j reads a storage slot that transaction T_i writes, and i < j in block order, an edge T_i → T_j is added to the graph. A critical optimization—selective dependency updates—adds only the highest-index conflicting transaction as a dependency rather than all conflicts, reducing graph size and minimizing re-execution attempts.
+**Hint Generation.** All transactions are simulated in parallel to produce predicted read/write sets—the storage locations each transaction will access. This lightweight simulation (~10 microseconds per transaction) uses no state persistence or event logging, populating the initial dependency graph.
 
-The DAG is partitioned into weakly connected components (WCCs): groups of transactions with dependencies within the group but no dependencies across groups. Independent WCCs execute in parallel with zero synchronization overhead.
+**DAG Construction.** The engine builds a directed acyclic graph where nodes represent transactions and edges represent read-after-write dependencies. Selective dependency updates—adding only the highest-index conflicting transaction rather than all conflicts—reduce graph density and minimize re-execution attempts.
 
-**Phase 3: Task Group Formation.** Transactions with dependency distance equal to 1—meaning they depend directly on the immediately preceding transaction—are grouped into task groups that execute sequentially on a single worker thread. This handles the common banking pattern of multiple payments from the same sender (e.g., a payroll batch) where each transaction writes the same gas token balance. Task groups execute these sequential dependencies at near-serial speed (only 3-5% slower than pure sequential execution) while freeing remaining cores for parallel work.
+**WCC Partitioning.** The DAG is decomposed into weakly connected components: groups of transactions with internal dependencies but no cross-group dependencies. Independent WCCs execute in parallel with zero synchronization overhead.
 
-**Phase 4: Parallel Execution and Validation.** Independent transactions and task groups execute concurrently across worker threads. After execution, a validator checks whether each transaction's actual read/write set matches its predicted set. Matches proceed to finalization. Mismatches trigger selective dependency updates: the conflicting transaction is re-inserted into the DAG with new dependencies derived from its actual access pattern, then re-executed. The selective update strategy ensures ≤2 execution attempts for typical workloads.
+**Task Group Formation.** Transactions with direct sequential dependencies (dependency distance = 1) are grouped for sequential execution on a single worker thread. This handles the common banking pattern of multiple payments from the same sender—payroll batches, settlement disbursements—where each transaction writes the same balance. Task groups execute these at near-serial speed (3–5% overhead) while freeing remaining cores for parallel work.
 
-This architecture achieves approximately 4× speedup on 16-core hardware for payment-dominated workloads where conflict ratios remain below 35%. The speedup scales near-linearly to 32 cores, yielding projected throughput of 700,000 to 1,000,000 transactions per second for simple MIP-20 transfers.
+**Lock-Free Scheduling.** An atomic cursor provides non-blocking ready-transaction polling, reducing scheduling overhead by 60% compared to lock-based alternatives and achieving near-linear scaling across worker threads.
 
-#### 4.3.2 Payment Lanes
+**Execution and Validation.** Independent transactions and task groups execute concurrently, each worker running an EVM instance. Post-execution validation checks whether actual read/write sets match predictions. Mismatches trigger selective re-insertion with updated dependencies; the strategy ensures at most two execution attempts for typical workloads.
+
+For payment-dominated workloads with conflict ratios below 35%, this architecture achieves approximately 4× speedup on 16-core hardware. At 100% contention (fully dependent transaction chains), the engine degrades by only 5% versus sequential execution—never dropping transactions, a critical property for settlement systems.
+
+#### 4.3.2 Asynchronous Pipeline Architecture
+
+Block processing operates as a five-stage asynchronous pipeline where successive blocks overlap in execution:
+
+```{=latex}
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  bar/.style={draw=black!50, thin, minimum height=0.5cm, anchor=west, inner sep=0pt},
+  lbl/.style={font=\sffamily\scriptsize, text=black!70, anchor=east},
+  slbl/.style={font=\sffamily\tiny, text=black!80, midway},
+]
+  % Scale: 1cm = 40ms
+  \pgfmathsetmacro{\sc}{1/40}
+
+  % Time axis
+  \draw[-{Stealth[length=3pt]}, thin, black!40] (0,-0.5) -- (11,-0.5);
+  \node[font=\sffamily\tiny, text=black!50, anchor=west] at (11.1,-0.5) {ms};
+  \foreach \t in {0, 50, 100, 150, 200, 250, 300, 350, 400} {
+    \draw[thin, black!25] (\t*\sc, -0.65) -- (\t*\sc, -0.35);
+    \node[font=\sffamily\tiny, text=black!45, below] at (\t*\sc, -0.65) {\t};
+  }
+
+  % Block N  (row y=0.8)
+  \node[lbl] at (-0.3, 0.8) {Block $N$};
+  \draw[bar, fill=black!20] (0, 0.55) rectangle node[slbl] {Execute} (50*\sc, 1.05);
+  \draw[bar, fill=black!12] (50*\sc, 0.55) rectangle node[slbl] {Merk.} (75*\sc, 1.05);
+  \draw[bar, fill=black!7] (75*\sc, 0.55) rectangle node[slbl] {} (85*\sc, 1.05);
+  \draw[bar, fill=black!3, densely dashed] (200*\sc, 0.55) rectangle node[slbl] {Persist} (350*\sc, 1.05);
+  \draw[bar, fill=black!5] (85*\sc, 0.55) rectangle node[slbl] {Commit} (200*\sc, 1.05);
+
+  % Block N+1  (row y=2.0)
+  \node[lbl] at (-0.3, 2.0) {Block $N\!+\!1$};
+  \draw[bar, fill=black!20] (50*\sc, 1.75) rectangle node[slbl] {Execute} (100*\sc, 2.25);
+  \draw[bar, fill=black!12] (100*\sc, 1.75) rectangle node[slbl] {Merk.} (125*\sc, 2.25);
+  \draw[bar, fill=black!7] (125*\sc, 1.75) rectangle node[slbl] {} (135*\sc, 2.25);
+  \draw[bar, fill=black!5] (135*\sc, 1.75) rectangle node[slbl] {Commit} (250*\sc, 2.25);
+  \draw[bar, fill=black!3, densely dashed] (250*\sc, 1.75) rectangle node[slbl] {Persist} (400*\sc, 2.25);
+
+  % Block N+2  (row y=3.2)
+  \node[lbl] at (-0.3, 3.2) {Block $N\!+\!2$};
+  \draw[bar, fill=black!20] (100*\sc, 2.95) rectangle node[slbl] {Execute} (150*\sc, 3.45);
+  \draw[bar, fill=black!12] (150*\sc, 2.95) rectangle node[slbl] {Merk.} (175*\sc, 3.45);
+
+  % Overlap annotations
+  \draw[thin, dashed, black!30] (50*\sc, -0.3) -- (50*\sc, 3.5);
+  \draw[thin, dashed, black!30] (100*\sc, -0.3) -- (100*\sc, 3.5);
+
+  % Legend
+  \node[font=\sffamily\tiny, text=black!55, anchor=west] at (5.5, 4.0) {%
+    \tikz\draw[bar, fill=black!20, minimum height=0.25cm, minimum width=0.5cm] (0,0) rectangle (0.5,0.25); Execute\quad
+    \tikz\draw[bar, fill=black!12, minimum height=0.25cm, minimum width=0.5cm] (0,0) rectangle (0.5,0.25); Merkleize\quad
+    \tikz\draw[bar, fill=black!5, minimum height=0.25cm, minimum width=0.5cm] (0,0) rectangle (0.5,0.25); Commit\quad
+    \tikz\draw[bar, fill=black!3, densely dashed, minimum height=0.25cm, minimum width=0.5cm] (0,0) rectangle (0.5,0.25); Persist};
+\end{tikzpicture}
+\caption{Asynchronous block pipeline. Successive blocks overlap: block $N\!+\!1$ begins execution while block $N$ merkleizes. Dashed vertical lines mark overlap boundaries.}
+\label{fig:async-pipeline}
+\end{figure}
+```
+
+**Execution** (Stage 1). The parallel engine processes the block's transactions, producing state changes applied immediately to a concurrent in-memory cache for instant read availability by subsequent blocks.
+
+**Merkleization** (Stage 2). The MMR storage engine computes the authenticated state root through parallel by-height hashing—nodes at the same tree height are hashed concurrently without contention, yielding 4–6× speedup over sequential merkleization. This stage runs in the background while the next block begins execution.
+
+**Verification** (Stage 3). The block identifier is computed and submitted to the consensus layer for notarization.
+
+**Commit** (Stage 4). After two-thirds-plus-one validator notarization (~200ms via Simplex BFT), state transitions are committed to durable authenticated storage.
+
+**Persistence** (Stage 5). Durable disk writes execute asynchronously, batched across blocks to amortize I/O overhead.
+
+The pipeline reduces effective per-block latency from the sequential sum of all stages to the maximum of execution and consensus, improving sustained throughput by approximately 40% under continuous block production. A concurrent state cache with block-number-tagged entries provides instant latest-state lookups (O(1)) for the execution stage, preventing the linear performance degradation that would otherwise occur as unpersisted blocks accumulate in memory.
+
+#### 4.3.3 Parallel Merkleization
+
+The storage layer uses a Merkle Mountain Range (MMR)—an append-only authenticated data structure of strictly decreasing perfect binary trees. Unlike Ethereum's Merkle Patricia Trie, where state mutations require tree traversal and structural reorganization, MMR appends produce stable node positions that enable parallelization.
+
+```{=latex}
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  level distance=1.2cm, sibling distance=1.4cm,
+  inode/.style={draw=black!60, thin, circle, minimum size=0.55cm, inner sep=0pt,
+    font=\sffamily\tiny, fill=black!4},
+  leaf/.style={draw=black!60, thin, rectangle, rounded corners=1pt, minimum width=0.7cm,
+    minimum height=0.4cm, font=\sffamily\tiny, fill=black!4},
+  htlbl/.style={font=\sffamily\tiny\itshape, text=black!45},
+]
+  % Root
+  \node[inode] (root) {$r$}
+    child { node[inode] (n1) {$h_1$}
+      child { node[inode] (n3) {$h_3$}
+        child { node[leaf] (l0) {$\ell_0$} }
+        child { node[leaf] (l1) {$\ell_1$} }
+      }
+      child { node[inode] (n4) {$h_4$}
+        child { node[leaf] (l2) {$\ell_2$} }
+        child { node[leaf] (l3) {$\ell_3$} }
+      }
+    }
+    child { node[inode] (n2) {$h_2$}
+      child { node[inode] (n5) {$h_5$}
+        child { node[leaf] (l4) {$\ell_4$} }
+        child { node[leaf] (l5) {$\ell_5$} }
+      }
+      child { node[inode] (n6) {$h_6$}
+        child { node[leaf] (l6) {$\ell_6$} }
+        child { node[leaf] (l7) {$\ell_7$} }
+      }
+    };
+  % Height labels
+  \node[htlbl, left=0.8cm of root] {height 3 \textnormal{(1 core)}};
+  \node[htlbl, left=0.8cm of n1] {height 2 \textnormal{(2 cores)}};
+  \node[htlbl, left=0.8cm of n3] {height 1 \textnormal{(4 cores)}};
+  \node[htlbl, left=0.8cm of l0] {height 0 \textnormal{(4 cores)}};
+  % Parallel bracket
+  \draw[decorate, decoration={brace, amplitude=3pt, mirror}, thin, black!40]
+    ([xshift=-0.15cm]l0.south west) -- ([xshift=0.15cm]l7.south east)
+    node[midway, below=4pt, font=\sffamily\tiny, text=black!50] {parallel hashing by height};
+\end{tikzpicture}
+\caption{MMR parallel merkleization. Nodes at each height are hashed concurrently; parallelism decreases toward the root.}
+\label{fig:parallel-merkle}
+\end{figure}
+```
+
+The merkleization algorithm parallelizes hashing by tree height: all nodes at the same height are independent and can be hashed concurrently across available cores. At height 0, leaf digests are computed in parallel from raw state entries. At height 1, parent digests are computed from pairs of leaf digests—again in parallel. This continues up the tree, with parallelism decreasing at each level but the total work dominated by the wide lower levels. For blocks modifying 5,000+ accounts, parallel merkleization achieves 4–6× speedup over sequential computation, reducing merkleization from ~100ms to ~25ms per block. A minimum threshold of 20 pending nodes triggers parallelization; below this threshold, sequential hashing is faster due to thread coordination overhead.
+
+#### 4.3.4 Banking-Specific Optimizations
+
+Three optimizations exploit the predictable characteristics of payment workloads—high volume, low complexity, and repetitive contract interactions.
+
+**Ahead-of-time compilation.** Hot contracts—the gas token, major stablecoins, and payment router contracts—are compiled to native machine code at node initialization using LLVM-based translation from EVM bytecode. This eliminates interpreter overhead for the 60–70% of transactions that invoke these contracts, yielding 1.5–2× speedup for storage-heavy operations like token transfers.
+
+**Conflict-aware pre-scheduling.** MIP-20 transfer transactions have deterministic read/write sets derivable from calldata alone: `balances[sender]`, `balances[recipient]`, and optionally `allowances[sender][spender]`. These transactions bypass hint generation entirely—no simulation required—reducing per-transaction overhead by ~10 microseconds and improving throughput by approximately 20% for payment-dominated workloads.
+
+**Asynchronous storage pipelining.** Block execution and state commitment overlap: while block N commits to durable storage, block N+1 begins execution against a cached state snapshot. Direct state reads for frequently accessed accounts bypass tree traversal, and asynchronous node loading prefetches cold state concurrently with execution. This hides 30–60ms of storage I/O latency per block, delivering approximately 1.5× throughput improvement.
+
+#### 4.3.5 Performance Scaling
+
+The optimizations stack multiplicatively on a production-proven baseline [1]:
+
+| Stage | Optimization | Multiplier | Cumulative TPS (16 cores) |
+|-------|-------------|------------|---------------------------|
+| Baseline | DAG-based parallel execution | 1× | 41,000 |
+| + Storage pipeline | QMDB async commit/merkleize/persist | 1.5× | 61,500 |
+| + AOT compilation | Native code for hot contracts | 1.5× | 92,000 |
+| + Pre-scheduling | Zero-simulation conflict detection | 1.2× | 110,000 |
+| + Parallel merkleization | By-height MMR hashing | 1.2× | ~130,000 |
+
+Hardware scaling extends throughput sub-linearly as state access I/O becomes the bottleneck at higher core counts. Independent academic research has demonstrated over 1 million TPS on 96-core hardware with full merkleization using synthetic workloads [19], establishing the theoretical ceiling:
+
+| Validator Hardware | Projected TPS | Scaling Efficiency |
+|-------------------|---------------|--------------------|
+| 16 cores | ~130,000 | (baseline) |
+| 32 cores | ~220,000 | ~85% |
+| 64 cores | ~370,000 | ~70% |
+| 96 cores | **~500,000** | ~60% |
+
+The 96-core projection accounts for diminishing returns from shared memory bandwidth and SSD I/O contention. For payment workloads with conflict ratios below 10%, parallel efficiency remains above 60% through task group optimization. The detailed benchmark methodology is available in the supplementary technical documentation.
+
+#### 4.3.6 Payment Lanes
 
 Magnus Chain extends the parallel execution architecture with a payment lane mechanism that guarantees payment transactions always have block capacity, even during peak network congestion from DeFi or smart contract activity.
 
@@ -238,23 +454,173 @@ The preceding section described what Magnus Chain provides to solve the payment 
 
 ### 5.1 Execution Layer
 
-Beyond the core DAG-based parallel execution described in Section 4.3.1, the execution layer incorporates three performance optimizations that collectively enable sustained high throughput under continuous block production.
-
-**Ahead-of-time compilation.** Hot contracts—those invoked frequently such as the gas token, major stablecoins (VNST, USDC, EURC), and payment router contracts—are compiled to native machine code at node initialization rather than interpreted during execution. This compilation uses LLVM-based translation from EVM bytecode to x86 or ARM machine code, eliminating interpreter overhead for the 60-70% of transactions that interact with these pre-compiled contracts. The speedup is approximately 1.5-2× for storage-heavy operations like token transfers.
-
-**Async pipeline architecture.** Block execution and Merkle tree computation are overlapped through a five-stage asynchronous pipeline. While block N undergoes state merkleization (computing the authenticated state root), block N+1 begins execution. This pipelining reduces effective latency from the sum of execution time plus merkleization time to the maximum of the two, improving throughput by approximately 40% under sustained block production.
-
-**Concurrent state cache.** A lock-free state cache maintains the latest view of frequently accessed accounts and storage slots in memory, tagged with block numbers to enable safe eviction after persistence. This prevents performance degradation that would otherwise occur during high block production rates when multiple unpersisted blocks accumulate in memory. The cache uses concurrent hash maps with block-tagged entries and achieves update latencies under 10 milliseconds for blocks containing 5,000 transactions.
+The execution layer architecture is described in detail in Section 4.3. At its core, a DAG-based parallel execution engine (Section 4.3.1) achieves approximately 4× speedup on 16-core hardware for payment workloads. A five-stage asynchronous pipeline (Section 4.3.2) overlaps block execution with merkleization and consensus. Parallel MMR merkleization (Section 4.3.3) hashes tree nodes concurrently by height, achieving 4–6× speedup. Banking-specific optimizations—ahead-of-time compilation, conflict-aware pre-scheduling, and asynchronous storage pipelining (Section 4.3.4)—deliver an additional ~3× throughput multiplier. The combined architecture scales from a production-proven 41,000 TPS baseline on 16 cores to over 500,000 TPS on 96-core validator hardware (Section 4.3.5).
 
 ### 5.2 Infrastructure Foundation
 
-**Consensus.** Magnus Chain implements Simplex BFT consensus, a Byzantine fault tolerant protocol that achieves block proposal in approximately 200 milliseconds (2 network hops) and deterministic finality in approximately 300 milliseconds (3 network hops). Unlike probabilistic finality models where confirmation strengthens over time, Simplex provides absolute finality: once a block is committed, no reorganization is possible under the BFT assumptions (fewer than one-third of validators are malicious). This deterministic settlement is non-negotiable for payment processing where merchants and banks must know with certainty that transactions cannot be reversed.
+#### 5.2.1 Simplex BFT Consensus
 
-**Storage.** The state storage engine uses a Merkle Mountain Range (MMR) structure rather than the Merkle Patricia Trie employed by Ethereum. MMR is an append-only authenticated data structure where state updates require only logarithmic hashing rather than tree traversal and structural mutations. This design enables parallel merkleization: nodes at the same height can be hashed concurrently without contention, yielding 4-6× speedup compared to sequential merkleization. The storage engine has been benchmarked with workloads exceeding 15 billion entries and demonstrates capacity to scale to 280 billion entries on commodity hardware.
+Magnus Chain implements Simplex BFT consensus, a Byzantine fault tolerant protocol that achieves block proposal in approximately 200 milliseconds (2 network hops) and deterministic finality in approximately 300 milliseconds (3 network hops).
 
-**Cryptography.** Magnus Chain uses BLS12-381 elliptic curve cryptography for all consensus-layer operations. BLS signatures support aggregation—multiple individual signatures over the same message combine into a single constant-size signature—reducing bandwidth for block propagation. The consensus employs a threshold signature scheme where the validator set collectively holds a shared public key and any subset exceeding the Byzantine fault tolerance threshold (more than two-thirds) can produce a valid signature. This threshold signature serves as the finality certificate for each block. Distributed Key Generation (DKG) ceremonies at epoch boundaries produce fresh key material and enable validator set evolution.
+```{=latex}
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  x=2.2cm, y=0.55cm,
+  arr/.style={-{Stealth[length=3pt,width=2.5pt]}, thin, black!60},
+  plbl/.style={font=\sffamily\tiny, text=black!70, midway},
+  note/.style={draw=black!30, thin, fill=black!3, rounded corners=1pt,
+    font=\sffamily\tiny, text=black!60, inner sep=3pt},
+]
+  % Participants
+  \foreach \i/\name in {0/Leader, 1/$V_1$, 2/$V_2$, 3/$V_3$} {
+    \node[font=\sffamily\scriptsize, text=black!80] at (\i, 1) {\name};
+    \draw[thin, black!25] (\i, 0.5) -- (\i, -13);
+  }
 
-**Modularity.** The codebase is organized as 46 Rust crates structured into functional domains: core primitives, consensus, execution, storage, networking, precompiles, and application binaries. This modular architecture enforces separation of concerns at the compilation level—the consensus engine depends on abstract traits for block validation, not concrete execution implementations. The architecture enables independent development and testing of each layer and ensures that component replacements or upgrades do not cascade changes across the codebase.
+  % Phase 1: Propose (notarize)
+  \node[note, anchor=east] at (-0.3, -0.5) {propose};
+  \draw[arr] (0,-1) -- node[plbl, above, sloped] {\texttt{notarize}} (1,-2);
+  \draw[arr] (0,-1) -- node[plbl, above, sloped] {} (2,-2);
+  \draw[arr] (0,-1) -- node[plbl, above, sloped] {} (3,-2);
+
+  % Phase 2: Vote notarize
+  \draw[arr] (1,-3) -- node[plbl, above, sloped] {\texttt{notarize}} (0,-4);
+  \draw[arr] (2,-3) -- (0,-4);
+  \draw[arr] (3,-3) -- (0,-4);
+
+  % Notarization certificate
+  \node[note] at (1.5, -5) {$2f\!+\!1$ notarize votes $\rightarrow$ notarization certificate};
+
+  % Phase 3: Finalize
+  \draw[arr] (0,-6) -- node[plbl, above, sloped] {\texttt{finalize}} (1,-7);
+  \draw[arr] (0,-6) -- (2,-7);
+  \draw[arr] (0,-6) -- (3,-7);
+
+  % Phase 4: Vote finalize
+  \draw[arr] (1,-8) -- node[plbl, above, sloped] {\texttt{finalize}} (0,-9);
+  \draw[arr] (2,-8) -- (0,-9);
+
+  % Finalization
+  \node[note] at (1.5, -10.5) {$2f\!+\!1$ finalize votes $\rightarrow$ \textbf{block finalized}};
+
+  % Timing annotation
+  \draw[decorate, decoration={brace, amplitude=3pt}, thin, black!35]
+    (3.4, -1) -- (3.4, -10.5) node[midway, right=4pt, font=\sffamily\tiny, text=black!50, align=left] {$\sim$300\,ms\\3 hops};
+\end{tikzpicture}
+\caption{Simplex BFT consensus. The leader proposes, validators notarize, then finalize---achieving deterministic finality in 3 network hops.}
+\label{fig:simplex}
+\end{figure}
+```
+
+For each view (block height), a deterministic leader proposes a block. Validators verify the block and broadcast `notarize` votes. Upon collecting 2f+1 notarize votes, a notarization certificate is assembled, and validators broadcast `finalize` votes. Upon 2f+1 finalize votes, the block is irrevocably finalized. If the leader is unresponsive or proposes an invalid block, validators broadcast `nullify` votes to skip the view and advance to the next leader.
+
+Key properties for payment settlement:
+
+- **Absolute finality.** Once a block is finalized, no reorganization is possible under the BFT assumptions (fewer than one-third Byzantine validators). This is non-negotiable for payment processing where merchants and banks must know with certainty that transactions cannot be reversed.
+- **Lazy verification.** Notarizations are assembled before block verification completes—enabling network-speed view times without sacrificing safety. If verification later fails, the validator nullifies the view.
+- **Application-defined certification.** Between notarization and finalization, the application certifies the block (e.g., verifying state transitions). This decouples consensus from execution, allowing the execution layer to reject blocks without stalling consensus.
+- **Externalized fault proofs.** Conflicting votes from the same validator produce cryptographic evidence of misbehavior, enabling automated slashing.
+
+#### 5.2.2 Ordered Broadcast
+
+Transaction dissemination uses an ordered, reliable broadcast protocol inspired by Autobahn. The system separates two roles: sequencers broadcast transaction data, and validators acknowledge receipt.
+
+```{=latex}
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  x=2.2cm, y=0.55cm,
+  arr/.style={-{Stealth[length=3pt,width=2.5pt]}, thin, black!60},
+  plbl/.style={font=\sffamily\tiny, text=black!70, midway},
+  note/.style={draw=black!30, thin, fill=black!3, rounded corners=1pt,
+    font=\sffamily\tiny, text=black!60, inner sep=3pt},
+]
+  % Participants
+  \foreach \i/\name in {0/Sequencer, 1/$V_1$, 2/$V_2$, 3/$V_3$} {
+    \node[font=\sffamily\scriptsize, text=black!80] at (\i, 1) {\name};
+    \draw[thin, black!25] (\i, 0.5) -- (\i, -11.5);
+  }
+
+  % Chunk 1 broadcast
+  \draw[arr] (0,-0.5) -- node[plbl, above, sloped] {chunk$_1$, cert$_0$} (1,-1.5);
+  \draw[arr] (0,-0.5) -- (2,-1.5);
+  \draw[arr] (0,-0.5) -- (3,-1.5);
+
+  % Acks
+  \draw[arr] (1,-2.5) -- node[plbl, above, sloped] {ack$_1$} (0,-3.5);
+  \draw[arr] (2,-2.5) -- (0,-3.5);
+  \draw[arr] (3,-2.5) -- (0,-3.5);
+
+  % Certificate
+  \node[note] at (0, -4.5) {$2f\!+\!1$ acks $\rightarrow$ cert$_1$};
+
+  % Chunk 2 broadcast
+  \draw[arr] (0,-5.5) -- node[plbl, above, sloped] {chunk$_2$, cert$_1$} (1,-6.5);
+  \draw[arr] (0,-5.5) -- (2,-6.5);
+  \draw[arr] (0,-5.5) -- (3,-6.5);
+
+  % Annotation
+  \node[note, text width=5.5cm, align=center] at (1.5, -8.5) {cert$_1$ in chunk$_2$ proves chunk$_1$ was reliably\\broadcast to a quorum of validators};
+
+  % Link annotation
+  \draw[dashed, thin, black!35] (0, -4.5) -- (0, -5.5);
+\end{tikzpicture}
+\caption{Ordered reliable broadcast. Each chunk carries the certificate from the previous chunk, forming a linked proof-of-availability chain.}
+\label{fig:ordered-broadcast}
+\end{figure}
+```
+
+Each sequencer maintains a chain of chunks—signed messages containing transaction batches. Each new chunk includes the certificate from the previous chunk, forming a linked chain where the certificate proves the previous chunk was reliably broadcast to a quorum of validators. Validators sign chunks they receive, and these signatures are aggregated into quorum certificates.
+
+This architecture provides three critical properties: (1) **reliable delivery**—if any honest validator received a chunk, the certificate proves it was broadcast to a quorum; (2) **equivocation detection**—conflicting chunks at the same height are cryptographically detectable; and (3) **reconfigurability**—sequencer and validator sets can change across epochs without protocol disruption. The protocol supports pluggable cryptography: BLS12-381 threshold signatures for succinct constant-size certificates, or Ed25519 for attributable individual signatures.
+
+#### 5.2.3 Authenticated Storage (QMDB)
+
+The state storage engine implements QMDB (Quick Merkle Database), an authenticated database built on an append-only log of operations with MMR-based integrity proofs.
+
+```{=latex}
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  state/.style={draw=black!60, thin, rounded corners=2pt, minimum width=2.8cm,
+    minimum height=1.1cm, font=\sffamily\scriptsize, text=black!80, align=center, fill=black!3},
+  arr/.style={-{Stealth[length=4pt,width=3pt]}, thin, black!55},
+  lbl/.style={font=\sffamily\tiny, text=black!60, fill=white, inner sep=1.5pt},
+]
+  % States
+  \node[state] (clean) at (0, 0) {\textbf{Clean}\\[-1pt]\tiny Merkleized + Durable};
+  \node[state] (mut) at (0, -3) {\textbf{Mutable}\\[-1pt]\tiny Unmerkleized + NonDurable};
+  \node[state] (mnd) at (-4, -3) {\textbf{MerkleizedNonDurable}\\[-1pt]\tiny Merkleized + NonDurable};
+  \node[state] (ud) at (4, -3) {\textbf{UnmerkleizedDurable}\\[-1pt]\tiny Unmerkleized + Durable};
+
+  % Transitions
+  \draw[arr] (clean) -- node[lbl, right] {\texttt{into\_mutable()}} (mut);
+  \draw[arr] (mut) -- node[lbl, above] {\texttt{into\_merkleized()}} (mnd);
+  \draw[arr] (mut) -- node[lbl, above] {\texttt{commit()}} (ud);
+  \draw[arr] (ud) to[bend left=18] node[lbl, right] {\texttt{into\_merkleized()}} (clean);
+  \draw[arr] (ud) to[bend right=15] node[lbl, below] {\texttt{into\_mutable()}} (mut);
+  \draw[arr] (mnd) to[bend right=15] node[lbl, below] {\texttt{into\_mutable()}} (mut);
+
+  % Init
+  \node[font=\sffamily\tiny, text=black!50] (init) at (0, 1.2) {init()};
+  \draw[arr] (init) -- (clean);
+  \fill[black!50] (0, 1.5) circle (2.5pt);
+\end{tikzpicture}
+\caption{QMDB state machine. Four states along two dimensions (merkleization $\times$ durability) with type-safe compile-time transitions.}
+\label{fig:qmdb-states}
+\end{figure}
+```
+
+QMDB maintains four orthogonal states along two dimensions—merkleization (root computed or not) and durability (committed to disk or not). The combined (Merkleized, Durable) state is called "Clean" and represents a fully persisted, provable database. The combined (Unmerkleized, NonDurable) state is "Mutable"—the only state where key-value modifications are allowed. Type-state transitions enforce correctness at compile time: `into_mutable()` enables writes, `commit()` persists to disk, and `into_merkleized()` computes the authenticated root.
+
+This design directly supports the asynchronous pipeline (Section 4.3.2): block execution operates on a Mutable database, `commit()` persists state changes while the next block begins executing, and `into_merkleized()` computes the state root in the background via parallel by-height hashing. The decoupled transitions eliminate serialization bottlenecks—merkleization and persistence never block the execution stage.
+
+QMDB supports both ordered and unordered key-value variants, fixed and variable-size values, and provides succinct inclusion proofs for any value ever associated with a key. The storage engine has been benchmarked with workloads exceeding 15 billion entries and demonstrates capacity to scale to 280 billion entries on commodity hardware.
+
+#### 5.2.4 Cryptography
+
+Magnus Chain uses BLS12-381 elliptic curve cryptography for all consensus-layer operations. BLS signatures support aggregation—multiple individual signatures over the same message combine into a single constant-size signature—reducing bandwidth for block propagation. The consensus employs a threshold signature scheme where the validator set collectively holds a shared public key and any subset exceeding the Byzantine fault tolerance threshold (more than two-thirds) can produce a valid signature. This threshold signature serves as the finality certificate for each block. Distributed Key Generation (DKG) ceremonies at epoch boundaries produce fresh key material and enable validator set evolution.
 
 ### 5.3 Security Model
 
@@ -276,21 +642,37 @@ Magnus Chain's security architecture addresses threats across five layers that c
 
 ### 6.1 Platform Comparison
 
-The following analysis compares Magnus Chain against five blockchain platforms that represent the current state of the art across different points in the design space: Ethereum as the dominant smart contract platform, Solana as the leading high-throughput general-purpose chain, MegaETH as the most ambitious throughput claimant in the EVM ecosystem, Stellar as an established payment-focused network, and XRP Ledger as the most widely deployed cross-border payment blockchain.
+The real competitors for regulated payment infrastructure are not general-purpose blockchains—they are enterprise payment networks purpose-built for financial institutions. The following analysis compares Magnus Chain against five platforms that represent the current state of enterprise payment settlement: RippleNet/ODL as the most widely deployed cross-border payment network, R3 Corda as the dominant enterprise DLT, Hyperledger Fabric as the leading open-source permissioned framework, Partior as the tier-1 interbank settlement network, and Fnality as the central-bank-backed wholesale payment system.
 
-| Capability | Ethereum | Solana | MegaETH | Stellar | XRP Ledger | **Magnus Chain** |
-|-----------|----------|--------|---------|---------|------------|-----------------|
-| Throughput (TPS) | ~15 | ~4,000 | ~100,000 | ~1,000 | ~1,500 | **700,000+** |
-| Finality | ~13 min | ~400ms | ~10ms | 3-5s | 3-5s | **~300ms** |
-| Execution Model | Sequential EVM | Sealevel | Specialized | Non-EVM | Non-EVM | **DAG parallel EVM** |
-| EVM Compatible | Native | No | Yes | No | No | **Yes** |
-| ISO 20022 Native | No | No | No | No | Via middleware | **Yes** |
-| Multi-Currency Gas | No | No | No | No | No | **Yes (oracle-driven)** |
-| Payment Data Fields | No | No | No | Memo only | 1KB memo | **ISO 20022 fields** |
-| Compliance Primitives | No | No | No | Basic anchors | Basic | **MIP-403 policies** |
-| Transfer Policies | No | No | No | No | Freeze only | **Whitelist/blacklist/freeze/time-lock** |
+```{=latex}
+\begin{table}[ht]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l l l l l l l}
+\toprule
+\textbf{Capability} & \textbf{RippleNet/ODL} & \textbf{R3 Corda} & \textbf{HLF} & \textbf{Partior} & \textbf{Fnality} & \textbf{Magnus Chain} \\
+\midrule
+Throughput (TPS) & $\sim$1,500 & $\sim$1,000/node & 1K--20K & Undisclosed & 800--1,200 & \textbf{500,000+} \\
+Finality & 3--5\,s & Instant (notary) & Seconds & Instant (atomic) & Instant (PoA) & \textbf{$\sim$300\,ms} \\
+Permissioning & Hybrid public & Permissioned & Permissioned & Permissioned & Permissioned & \textbf{Public + compliance} \\
+EVM Compatible & Sidechain only & No (Kotlin/Java) & No (Go/Java) & No & No & \textbf{Yes (native)} \\
+ISO 20022 & Via middleware & Custom CorDapp & Custom chaincode & Partial & No & \textbf{Protocol-level} \\
+Multi-Currency Gas & No (XRP only) & N/A & N/A & N/A & N/A & \textbf{Oracle-driven} \\
+EM FX Oracle & No & Custom & Custom & No & No & \textbf{Native precompile} \\
+Compliance & Basic & Custom CorDapp & Custom chaincode & Bank-level & Bank-level & \textbf{MIP-403 policies} \\
+EM Currencies & 55+ countries & Per-deployment & Per-deployment & 3 live & GBP only & \textbf{Any MIP-20} \\
+Open/Composable & Partial & No & Partial & No & No & \textbf{Yes (EVM)} \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Enterprise payment infrastructure comparison. HLF = Hyperledger Fabric; EM = Emerging Market.}
+\label{tab:enterprise-comparison}
+\end{table}
+```
 
-The comparison reveals that no existing platform occupies the intersection of high throughput, EVM compatibility, native ISO 20022 support, and protocol-level compliance enforcement. Ethereum and Solana dominate general-purpose computation but lack payment-specific primitives. Stellar and XRP Ledger have targeted payments explicitly but sacrifice the programmability of a general-purpose execution environment and provide only rudimentary compliance tooling. MegaETH pursues raw throughput within the EVM ecosystem but offers no payment-specific features. Magnus Chain is the only platform that combines all five capabilities — throughput, EVM compatibility, ISO 20022, multi-currency gas, and compliance enforcement — in a single architecture.
+The comparison reveals a structural trade-off in existing enterprise payment infrastructure: permissioned networks achieve regulatory acceptance but sacrifice throughput, programmability, and composability. RippleNet reaches emerging markets through 300+ bank partnerships but constrains settlement to XRP as a bridge asset, exposing users to cryptocurrency volatility. R3 Corda and Hyperledger Fabric offer programmable settlement but require custom development for each deployment—no out-of-box payment primitives, no standard oracle infrastructure, and no native multi-currency gas mechanism. Partior delivers atomic multi-currency settlement for tier-1 banks but supports only three currencies in production (USD, EUR, SGD) with no emerging market coverage. Fnality provides central-bank-backed wholesale settlement but is limited to Sterling with USD and EUR years away, and has no emerging market roadmap.
+
+Magnus Chain occupies an uncontested position: a public, EVM-compatible network with the throughput of enterprise infrastructure (500,000+ TPS), the compliance enforcement of permissioned systems (MIP-403), and native payment primitives—multi-currency gas, ISO 20022 fields, and emerging market FX oracles—that no enterprise competitor provides as protocol-level features. The public architecture enables composability with the broader EVM ecosystem (wallets, DEXs, bridges, developer tooling) while MIP-403 transfer policies deliver the regulatory controls that financial institutions require.
 
 ### 6.2 Transaction Cost Analysis
 
@@ -307,9 +689,9 @@ The cost differential is most pronounced for ISO 20022 payments, where Magnus Ch
 
 ### 6.3 Throughput Benchmarks
 
-The 700,000 TPS throughput projection derives from analytical modeling calibrated against production parallel EVM benchmarks. A baseline parallel execution engine achieves approximately 41,000 TPS for ERC-20 transfers on 16-core hardware (1.5 gigagas per second with 36,000 gas per transfer). The 4× parallel speedup from DAG-based execution yields ~160,000 TPS. Banking-specific optimizations—static transpilation of hot contracts (2× speedup), pre-scheduling for known transaction types (1.2× speedup), and async storage pipelining (1.4× speedup)—combine multiplicatively to 3.36× additional improvement, yielding ~540,000 TPS on 16 cores. Scaling to 32 cores with >80% parallel efficiency yields 700,000-1,000,000 TPS.
+The 500,000+ TPS throughput projection derives from analytical modeling calibrated against production parallel EVM benchmarks [1]. A baseline parallel execution engine achieves approximately 41,000 TPS for ERC-20 transfers on 16-core hardware (1.5 gigagas per second with 36,000 gas per transfer). Banking-specific optimizations—QMDB asynchronous storage pipelining (1.5×), ahead-of-time compilation of hot contracts (1.5×), conflict-aware pre-scheduling (1.2×), and parallel merkleization (1.2×)—stack multiplicatively to approximately 3× improvement, yielding ~130,000 TPS on 16 cores. Sub-linear hardware scaling to 96 cores—with diminishing efficiency from 85% at 32 cores to 60% at 96 cores due to shared memory bandwidth and SSD I/O contention—delivers over 500,000 TPS on commodity server hardware. Independent academic research has demonstrated over 1 million TPS on a single 96-core node with full merkleization under synthetic workloads [19], establishing a theoretical ceiling well above the Magnus projection.
 
-For payment workloads where conflict ratios remain below 35% (typical for banking where individual accounts transact infrequently relative to network throughput), parallel efficiency exceeds 90% through task group optimization that handles sequential dependencies from the same sender.
+For payment workloads where conflict ratios remain below 10% (typical for banking where individual accounts transact infrequently relative to network throughput), parallel efficiency remains above 60% at 96 cores through task group optimization that handles sequential dependencies from the same sender. The detailed benchmark methodology is available in the supplementary technical documentation.
 
 ---
 
@@ -324,448 +706,6 @@ The security analysis in Section 5.3 demonstrates defense-in-depth across consen
 **Economic security.** The oracle circuit breaker prevents flash-crash manipulation where an attacker attempts to exploit temporary price dislocations. The 20% deviation threshold accommodates normal FX volatility (the Thai baht trades within 15% annual ranges) while catching manipulation attempts. The freeze-on-deviation behavior prefers false positives (temporary unavailability) over false negatives (accepting manipulated rates).
 
 **Recovery procedures.** Deterministic finality enables clean disaster recovery. Because finalized blocks cannot reorganize, nodes recovering from crashes need only replay from the last persisted state root. The MMR storage structure's append-only design prevents corruption during crashes—partially written updates do not invalidate existing authenticated state. Regular state snapshots enable fast-sync for new validators joining the network.
-
----
-
-## Appendix A: MIP-20 Token Specification
-
-The MIP-20 token standard defines the protocol-level token primitive for Magnus Chain. Every stablecoin, payment token, and fee token on the network is deployed as an MIP-20 contract through the MIP20Factory, which assigns each token a deterministic address with the prefix `0x20C0` (12 bytes) followed by 8 bytes derived from the creation parameters.
-
-### Storage Layout
-
-Each MIP-20 token maintains the following state:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | `String` | Human-readable token name |
-| `symbol` | `String` | Short ticker symbol |
-| `currency` | `String` | ISO 4217 currency code (e.g., "VND", "USD", "EUR") |
-| `quote_token` | `Address` | Reference token for oracle price resolution |
-| `next_quote_token` | `Address` | Staged quote token pending finalization |
-| `transfer_policy_id` | `u64` | MIP-403 policy governing transfers |
-| `total_supply` | `U256` | Current circulating supply |
-| `supply_cap` | `U256` | Maximum allowed supply (default: `u128::MAX`) |
-| `balances` | `Mapping<Address, U256>` | Per-account balances |
-| `allowances` | `Mapping<Address, Mapping<Address, U256>>` | ERC-20 approval mappings |
-| `nonces` | `Mapping<Address, U256>` | EIP-712 permit nonces |
-| `paused` | `bool` | Emergency pause state |
-| `domain_separator` | `B256` | EIP-712 domain separator |
-
-All MIP-20 tokens use a fixed 6 decimal places (`MIP20_DECIMALS = 6`), providing sufficient precision for fiat-denominated stablecoins while avoiding the gas overhead of 18-decimal arithmetic.
-
-### Role-Based Access Control
-
-MIP-20 tokens implement a hierarchical role system with the following predefined roles:
-
-| Role | Hash | Permissions |
-|------|------|-------------|
-| `DEFAULT_ADMIN_ROLE` | `0x00` | Grant/revoke roles, change transfer policy, set supply cap, manage quote token |
-| `ISSUER_ROLE` | `keccak256("ISSUER_ROLE")` | Mint and burn tokens |
-| `PAUSE_ROLE` | `keccak256("PAUSE_ROLE")` | Pause the token contract |
-| `UNPAUSE_ROLE` | `keccak256("UNPAUSE_ROLE")` | Unpause the token contract |
-| `BURN_BLOCKED_ROLE` | `keccak256("BURN_BLOCKED_ROLE")` | Burn tokens from blocked accounts |
-
-### Standard Functions (ERC-20 Compatible)
-
-```
-function name() → string
-function symbol() → string
-function decimals() → uint8                              // Always returns 6
-function currency() → string                             // ISO 4217 code
-function totalSupply() → uint256
-function balanceOf(address account) → uint256
-function transfer(address to, uint256 amount) → bool
-function transferFrom(address from, address to, uint256 amount) → bool
-function approve(address spender, uint256 amount) → bool
-function allowance(address owner, address spender) → uint256
-```
-
-### Payment Extension Functions
-
-```
-function transferWithMemo(address to, uint256 amount, bytes32 memo)
-function transferWithPaymentData(
-    address to,
-    uint256 amount,
-    bytes endToEndId,           // Max 35 bytes (ISO 20022 Max35Text)
-    bytes4 purposeCode,         // ISO 20022 ExternalPurpose1Code
-    bytes remittanceInfo        // Max 140 bytes (ISO 20022 Max140Text)
-)
-function transferFromWithPaymentData(
-    address from, address to, uint256 amount,
-    bytes endToEndId, bytes4 purposeCode, bytes remittanceInfo
-) → bool
-function mintWithPaymentData(
-    address to, uint256 amount,
-    bytes endToEndId, bytes4 purposeCode, bytes remittanceInfo
-)
-```
-
-Payment data is emitted as event data only and is not stored in contract state. This design minimizes gas costs while enabling off-chain indexers to reconstruct full ISO 20022 payment records from the event log. The `endToEndId` field is validated against a maximum length of 35 characters conforming to the ISO 20022 `Max35Text` type, and the `remittanceInfo` field is validated against a maximum of 140 characters conforming to `Max140Text`.
-
-### Administrative Functions
-
-```
-function mint(address to, uint256 amount)                // Requires ISSUER_ROLE
-function burn(uint256 amount)                            // Requires ISSUER_ROLE
-function burnBlocked(address from, uint256 amount)       // Requires BURN_BLOCKED_ROLE
-function pause()                                         // Requires PAUSE_ROLE
-function unpause()                                       // Requires UNPAUSE_ROLE
-function setSupplyCap(uint256 newSupplyCap)              // Requires DEFAULT_ADMIN_ROLE
-function changeTransferPolicyId(uint64 newPolicyId)      // Requires DEFAULT_ADMIN_ROLE
-function setNextQuoteToken(address newQuoteToken)         // Requires DEFAULT_ADMIN_ROLE
-function completeQuoteTokenUpdate()                      // Requires DEFAULT_ADMIN_ROLE
-```
-
-The quote token update follows a two-phase process: `setNextQuoteToken` stages the new quote token, and `completeQuoteTokenUpdate` finalizes it after loop-detection validation ensures the quote token chain terminates at the root token (pathUSD) without cycles.
-
-### Transfer Authorization
-
-Every transfer (including `transfer`, `transferFrom`, `transferWithPaymentData`, and fee transfers) is checked against the MIP-403 Transfer Policy Registry. The `ensure_transfer_authorized` function verifies that both the sender and recipient are authorized under the token's assigned `transfer_policy_id`. This enforcement is automatic and cannot be bypassed by any user, including the token administrator.
-
-### Events
-
-```
-event Transfer(address indexed from, address indexed to, uint256 amount)
-event Approval(address indexed owner, address indexed spender, uint256 amount)
-event TransferWithMemo(address indexed from, address indexed to, uint256 amount, bytes32 memo)
-event TransferWithPaymentData(
-    address indexed from, address indexed to, uint256 amount,
-    bytes endToEndId, bytes4 purposeCode, bytes remittanceInfo
-)
-event Mint(address indexed to, uint256 amount)
-event Burn(address indexed from, uint256 amount)
-event BurnBlocked(address indexed from, uint256 amount)
-event PauseStateUpdate(address indexed updater, bool isPaused)
-event SupplyCapUpdate(address indexed updater, uint256 newSupplyCap)
-event TransferPolicyUpdate(address indexed updater, uint64 newPolicyId)
-event QuoteTokenUpdate(address indexed updater, address newQuoteToken)
-event NextQuoteTokenSet(address indexed updater, address nextQuoteToken)
-```
-
----
-
-## Appendix B: Transaction Type 0x76 Encoding
-
-The Magnus transaction type (`0x76`) extends the EIP-2718 typed transaction envelope with fields for multi-currency gas payment and atomic batch execution. The type identifier `0x76` was chosen to avoid conflicts with the Ethereum standard type range (`0x00`–`0x03`) and common L2 extensions.
-
-### Wire Format
-
-```
-0x76 || RLP([chain_id, max_priority_fee_per_gas, max_fee_per_gas,
-             gas_limit, calls, access_list, nonce, fee_token])
-```
-
-The transaction is encoded as a single type byte (`0x76`) followed by an RLP-encoded list of fields. The field ordering places gas parameters first for efficient validation, followed by the call batch, access list, nonce, and the optional fee token.
-
-### Field Definitions
-
-| Field | RLP Type | Description |
-|-------|----------|-------------|
-| `chain_id` | `uint64` | Chain identifier for replay protection |
-| `max_priority_fee_per_gas` | `uint128` | EIP-1559 priority fee tip |
-| `max_fee_per_gas` | `uint128` | EIP-1559 maximum total fee |
-| `gas_limit` | `uint64` | Maximum gas units for the transaction |
-| `calls` | `RLP list` | Ordered list of `Call` structures |
-| `access_list` | `RLP list` | EIP-2930 access list entries |
-| `nonce` | `uint64` | Sender's transaction nonce |
-| `fee_token` | `Address` or `0x80` | MIP-20 token address for gas, or RLP empty string (`0x80`) for native currency |
-
-### Call Structure
-
-Each element in the `calls` list is an RLP-encoded list:
-
-```
-RLP([to, value, input])
-```
-
-| Field | RLP Type | Description |
-|-------|----------|-------------|
-| `to` | `TxKind` | Destination address (call) or empty (create) |
-| `value` | `U256` | Wei value transferred with this call |
-| `input` | `bytes` | ABI-encoded calldata |
-
-### Fee Token Encoding
-
-The `fee_token` field uses context-dependent encoding. When the transaction pays gas in a MIP-20 stablecoin, the field contains the 20-byte token address encoded per standard RLP address rules. When the transaction pays gas in the native currency, the field is encoded as the RLP empty string (`0x80`), a single byte. The decoder distinguishes between these cases by checking whether the first byte of the remaining buffer equals `0x80`.
-
-### Signing Hash
-
-The signing hash for a Magnus transaction is computed as:
-
-```
-keccak256(0x76 || RLP([chain_id, max_priority_fee_per_gas, max_fee_per_gas,
-                       gas_limit, calls, access_list, nonce, fee_token]))
-```
-
-This follows the EIP-2718 convention where the type byte is included in the hash preimage, binding the signature to the specific transaction type and preventing cross-type replay attacks.
-
-### Decoding Algorithm
-
-The decoder processes the byte stream as follows:
-
-1. Verify the first byte equals `0x76`; reject otherwise.
-2. Skip the type byte and decode the outer RLP list header.
-3. Decode `chain_id` and verify it matches the expected chain; reject on mismatch.
-4. Decode `max_priority_fee_per_gas`, `max_fee_per_gas`, and `gas_limit` as unsigned integers.
-5. Decode the inner `calls` list header, then iteratively decode each `Call` structure until the calls payload is exhausted.
-6. Decode the `access_list` as an EIP-2930 access list.
-7. Decode `nonce` as a `uint64`.
-8. If the remaining buffer is non-empty and the next byte is `0x80`, consume it and set `fee_token = None`. Otherwise, decode a 20-byte address and set `fee_token = Some(address)`. If the buffer is empty, set `fee_token = None`.
-
----
-
-## Appendix C: Oracle Registry Technical Specification
-
-The Oracle Registry manages foreign exchange rate feeds that enable multi-currency gas payment on Magnus Chain. The design is based on the Celo SortedOracles pattern with extensions for circuit breaker protection and configurable expiry windows.
-
-### Constants
-
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `DEFAULT_REPORT_EXPIRY` | 360 seconds | Default time-to-live for oracle reports |
-| `BREAKER_THRESHOLD_BPS` | 2000 (20%) | Maximum rate deviation before circuit breaker triggers |
-| `BPS_DENOMINATOR` | 10000 | Basis points divisor |
-
-### Rate Pair Identification
-
-Each rate pair is identified by the keccak256 hash of the concatenated base and quote token addresses:
-
-```
-pair_id = keccak256(base_token_address ++ quote_token_address)
-```
-
-The rate semantics follow the convention that `1 unit of base_token = rate units of quote_token`. For example, a VND/USD pair with rate 25,500 means 1 VND = 25,500 units in the oracle's fixed-point representation.
-
-### State
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `rate_pairs` | `Map<B256, SortedOracleList>` | Per-pair sorted lists of active reports |
-| `reporters` | `Map<Address, bool>` | Whitelisted reporter addresses |
-| `expiry_overrides` | `Map<B256, u64>` | Custom expiry durations per pair |
-| `frozen_pairs` | `Map<B256, bool>` | Circuit breaker state per pair |
-
-### API
-
-**`report(reporter, base_token, quote_token, value, timestamp)`**
-
-Submits a rate observation. The function verifies that the caller is a whitelisted reporter, that the rate pair is not frozen by the circuit breaker, and that the reported value does not deviate from the current median by more than the breaker threshold. If the deviation exceeds the threshold, the pair is frozen and the report is rejected. Valid reports are inserted into the sorted list for the pair, maintaining sort order for efficient median computation.
-
-**`get_rate(base_token, quote_token, timestamp)`**
-
-Returns the median rate for the specified pair. The function first prunes expired reports (those older than the pair's expiry window), then computes the median of the remaining valid reports. If no valid reports remain, the function returns an error, ensuring that stale data is never used for fee conversions.
-
-**`num_reports(base_token, quote_token, timestamp)`**
-
-Returns the count of non-expired reports for a pair at the given timestamp.
-
-**`reset_breaker(base_token, quote_token)`**
-
-Governance action that unfreezes a rate pair after a circuit breaker event. After reset, reporters can submit new reports, but the existing reports in the sorted list are preserved.
-
-**`set_expiry(base_token, quote_token, expiry)`**
-
-Sets a custom report expiry duration for a specific pair, overriding the default 360-second window.
-
-### Circuit Breaker Mechanism
-
-The circuit breaker protects against oracle manipulation and extreme market volatility. When a new report is submitted, the registry computes the deviation from the current median:
-
-```
-deviation = |new_value - current_median| * 10000 / current_median
-```
-
-If `deviation > 2000` (i.e., more than 20% from the median), the pair is immediately frozen. No further reports are accepted for the frozen pair until governance explicitly resets the breaker via `reset_breaker`. This mechanism prevents a single compromised reporter from manipulating the rate used for fee conversions while allowing legitimate rate movements within the 20% band.
-
-### Median Computation
-
-Reports are maintained in a sorted list data structure. When a median is requested, expired reports are filtered out, and the median is computed as the middle element of the sorted valid reports. For an even number of reports, the lower-middle element is selected. This approach provides O(1) median retrieval after the O(n) expiry filtering pass, and ensures that the median is resistant to outlier manipulation as long as fewer than half of the reporters are compromised.
-
----
-
-## Appendix D: ISO 20022 Message Formats
-
-Magnus Chain supports four ISO 20022 message types that collectively span the payment initiation, execution, reporting, and notification lifecycle. The on-chain representation stores essential fields as event data, while the complete XML documents are stored off-chain and referenced by content hash.
-
-### pain.001 — Customer Credit Transfer Initiation
-
-The pain.001 message initiates a payment from the debtor's account. On Magnus Chain, this corresponds to a `transferWithPaymentData` call where the sender specifies the recipient, amount, and payment metadata.
-
-| ISO 20022 Field | On-Chain Mapping | Constraints |
-|-----------------|------------------|-------------|
-| `MsgId` | Transaction hash | 32 bytes, unique per transaction |
-| `CreDtTm` | Block timestamp (millisecond precision via `MILLIS_TIMESTAMP`) | UTC |
-| `NbOfTxs` | Batch call count from 0x76 `calls.length` | Per-transaction |
-| `PmtInfId` | `endToEndId` parameter | Max 35 characters |
-| `EndToEndId` | `endToEndId` parameter | Max 35 characters |
-| `InstdAmt` | `amount` parameter | 6-decimal fixed point |
-| `InstdAmt@Ccy` | `currency()` from MIP-20 token | ISO 4217 code |
-| `Cdtr` | `to` address | 20-byte Ethereum address |
-| `Dbtr` | `from` address (msg.sender) | 20-byte Ethereum address |
-| `Purp/Cd` | `purposeCode` parameter | 4 bytes, ExternalPurpose1Code |
-| `RmtInf/Ustrd` | `remittanceInfo` parameter | Max 140 characters |
-
-### pacs.008 — Financial Institution Credit Transfer
-
-The pacs.008 message represents interbank settlement. On Magnus Chain, this maps to the actual on-chain transfer event, carrying the settlement details that financial institutions use for clearing and reconciliation.
-
-| ISO 20022 Field | On-Chain Mapping |
-|-----------------|------------------|
-| `GrpHdr/MsgId` | Block hash |
-| `GrpHdr/CreDtTm` | Block timestamp |
-| `GrpHdr/NbOfTxs` | Transaction count in block |
-| `GrpHdr/SttlmInf/SttlmMtd` | "CLRG" (cleared on-chain) |
-| `CdtTrfTxInf/PmtId/EndToEndId` | `endToEndId` from `TransferWithPaymentData` event |
-| `CdtTrfTxInf/IntrBkSttlmAmt` | `amount` from `Transfer` event |
-| `CdtTrfTxInf/IntrBkSttlmDt` | Block date |
-| `CdtTrfTxInf/Purp/Cd` | `purposeCode` from event |
-
-### camt.053 — Bank-to-Customer Statement
-
-The camt.053 message provides periodic account statements. The banking gateway generates these by aggregating on-chain `Transfer` and `TransferWithPaymentData` events over a reporting period.
-
-| ISO 20022 Field | Source |
-|-----------------|--------|
-| `GrpHdr/MsgId` | Gateway-generated identifier |
-| `Stmt/Id` | Account address + period |
-| `Stmt/CreDtTm` | Statement generation timestamp |
-| `Stmt/Acct/Id` | Account address |
-| `Stmt/Acct/Ccy` | Token `currency()` |
-| `Stmt/Bal/Amt` | Token `balanceOf(account)` at period end |
-| `Stmt/Ntry/Amt` | Individual transfer amounts |
-| `Stmt/Ntry/CdtDbtInd` | Credit or debit indicator |
-| `Stmt/Ntry/BookgDt` | Block timestamp of transfer |
-| `Stmt/Ntry/NtryDtls/TxDtls/RmtInf` | `remittanceInfo` from event |
-
-### camt.054 — Bank-to-Customer Debit/Credit Notification
-
-The camt.054 message provides real-time notifications for individual transactions. On Magnus Chain, the banking gateway emits these immediately upon observing a finalized `TransferWithPaymentData` event, leveraging the approximately 300-millisecond deterministic finality to deliver near-instant notification to the recipient's banking system.
-
-| ISO 20022 Field | Source |
-|-----------------|--------|
-| `GrpHdr/MsgId` | Transaction hash |
-| `Ntfctn/Id` | Transaction hash + log index |
-| `Ntfctn/CreDtTm` | Block timestamp (millisecond precision) |
-| `Ntfctn/Acct/Id` | Recipient address |
-| `Ntfctn/Ntry/Amt` | Transfer amount |
-| `Ntfctn/Ntry/CdtDbtInd` | "CRDT" for credits, "DBIT" for debits |
-| `Ntfctn/Ntry/NtryDtls/TxDtls/Refs/EndToEndId` | `endToEndId` from event |
-| `Ntfctn/Ntry/NtryDtls/TxDtls/Purp/Cd` | `purposeCode` from event |
-| `Ntfctn/Ntry/NtryDtls/TxDtls/RmtInf/Ustrd` | `remittanceInfo` from event |
-
----
-
-## Appendix E: Performance Benchmark Methodology
-
-The throughput claims for Magnus Chain's parallel execution engine are derived from analytical modeling calibrated against production parallel EVM benchmarks and banking-specific optimization analysis.
-
-### Baseline Parallel EVM Performance
-
-Production parallel EVM implementations achieve approximately 41,000 TPS for ERC-20 transfers on 16-core hardware, as measured in real-world deployments. This baseline represents 1.5 gigagas per second throughput with 36,000 gas per transfer.
-
-The parallel speedup derives from four architectural components:
-
-1. **Hint Generation:** Lightweight transaction simulation (~10µs per transaction) produces predicted read/write sets
-2. **DAG Construction:** Dependency graph with selective updates (only highest-index conflict) reduces re-execution
-3. **Task Group Formation:** Sequential dependencies execute on single threads at near-serial speed (3-5% overhead)
-4. **Parallel Execution:** Independent transactions execute across worker threads with lock-free scheduling
-
-For payment workloads with conflict ratios below 35%, this architecture achieves approximately 4× speedup on 16 cores, yielding ~160,000 TPS.
-
-### Banking-Specific Optimizations
-
-Three banking-specific optimizations multiply the baseline performance:
-
-**Static Transpilation (2× speedup).** Hot contracts (gas token, major stablecoins, payment router) are analyzed offline to identify storage access patterns for common functions (transfer, balanceOf, approve). These functions are hand-optimized to native Rust implementations that bypass EVM interpretation entirely, achieving 15-50× speedup for individual operations. For workloads where 60-70% of transactions invoke pre-transpiled functions, overall throughput improvement is approximately 2×.
-
-**Pre-Scheduling (1.2× speedup).** MIP-20 transfer transactions have deterministic read/write sets derivable from calldata alone: `balances[from]`, `balances[to]`, and optionally `allowances[from][spender]`. These transactions bypass hint generation (no simulation required), reducing per-transaction overhead by ~10µs. For payment-dominated workloads, this yields ~20% throughput improvement.
-
-**Async Storage Pipelining (1.4× speedup).** Block execution and state merkleization overlap through asynchronous pipelining: while block N completes Merkle tree computation, block N+1 begins execution. This reduces effective latency from sum(execution + merkleization) to max(execution, merkleization), improving sustained throughput by ~40%.
-
-### Stacked Performance Analysis
-
-| Stage | Optimization | Multiplier | Cumulative TPS (16 cores) |
-|-------|--------------|------------|---------------------------|
-| Baseline | Parallel EVM | 4× | 160,000 |
-| + Banking Opt 1 | Static transpilation | 2× | 320,000 |
-| + Banking Opt 2 | Pre-scheduling | 1.2× | 384,000 |
-| + Banking Opt 3 | Async pipeline | 1.4× | 537,600 |
-
-Rounding conservatively and accounting for operational overhead: **~540,000 TPS on 16 cores**.
-
-### Hardware Scaling
-
-Near-linear scaling to 32 cores (>90% parallel efficiency for payment workloads):
-- 32 cores: ~1,000,000 TPS
-- 16 cores: ~540,000 TPS (conservative estimate)
-- Target: **700,000-1,000,000 TPS** (achievable range)
-
-### Workload Assumptions
-
-The projections assume payment-dominated transaction mix:
-- 60% simple MIP-20 transfers (two accounts, deterministic access)
-- 30% payment-with-data transfers (two accounts + event emission)
-- 10% complex contracts (variable access patterns)
-
-Conflict ratio: 35% (typical for banking where individual accounts transact infrequently relative to network throughput). Task groups handle sequential dependencies from same sender (e.g., payroll batches) with <5% overhead compared to pure sequential execution.
-
-### Validation Status
-
-The performance projections are based on:
-1. Production parallel EVM data (41K TPS baseline)
-2. Analytical modeling of banking optimizations (static transpilation, pre-scheduling, async pipeline)
-3. Conservative hardware scaling assumptions (>80% efficiency to 32 cores)
-
-End-to-end validation on complete Magnus Chain stack is planned for implementation Phase 4-5. Actual performance may vary based on transaction mix, state size, and network conditions.
-
----
-
-## Appendix F: Glossary
-
-**BFT (Byzantine Fault Tolerance).** A consensus property ensuring correct operation as long as fewer than one-third of participants are faulty or malicious. Magnus Chain's Simplex consensus provides deterministic BFT finality.
-
-**BLS12-381.** An elliptic curve used for pairing-based cryptography, enabling efficient aggregate and threshold signature schemes. Magnus Chain uses BLS12-381 for validator threshold signatures via distributed key generation.
-
-**Circuit Breaker.** A safety mechanism in the Oracle Registry that freezes a rate pair when a reported value deviates more than 20% from the current median. Prevents oracle manipulation from propagating to fee conversions.
-
-**DKG (Distributed Key Generation).** A protocol by which validators collectively generate a shared public key and individual private key shares without any single party learning the complete private key. Used to bootstrap the BLS12-381 threshold signature scheme.
-
-**EIP-1559.** An Ethereum fee mechanism that splits transaction fees into a base fee (burned) and a priority fee (paid to validators). Magnus Chain's 0x76 transaction type extends EIP-1559 with a `fee_token` field.
-
-**EIP-2718.** The Ethereum typed transaction envelope standard. Magnus Chain's 0x76 transaction type follows this standard, using the type byte to distinguish Magnus transactions from standard Ethereum types.
-
-**DAG Execution.** Directed Acyclic Graph-based parallel execution engine that builds dependency graphs from transaction access patterns, partitions into weakly connected components, forms task groups for sequential dependencies, and executes independent transactions across worker threads.
-
-**FeeManager.** The precompile contract that orchestrates multi-currency gas fee collection, managing the pre-execution fee lock, post-execution refund, oracle-based conversion, and fee accumulation for validators.
-
-**ISO 4217.** The international standard for currency codes (e.g., VND for Vietnamese Dong, USD for US Dollar). MIP-20 tokens store their `currency` field as an ISO 4217 code.
-
-**ISO 20022.** The international standard for financial messaging, defining XML-based message formats for payments, securities, and trade. Magnus Chain implements a hybrid on-chain/off-chain model for ISO 20022 compliance.
-
-**MIP-20.** The Magnus Improvement Proposal defining the native token standard. An ERC-20 superset with payment-specific extensions including `transferWithPaymentData`, ISO 4217 currency codes, role-based access control, and MIP-403 transfer policy integration.
-
-**MIP-403.** The Magnus Improvement Proposal defining the Transfer Policy Registry. Provides whitelist and blacklist policy types that are automatically enforced on all MIP-20 token transfers.
-
-**MILLIS_TIMESTAMP.** A custom EVM opcode (`0x4F`) that returns the current block timestamp with millisecond precision, enabling sub-second time resolution for payment processing and ISO 20022 `CreDtTm` fields.
-
-**Oracle Registry.** The precompile contract managing foreign exchange rate feeds. Whitelisted reporters submit rate observations that are sorted and aggregated via median calculation, with circuit breaker protection against manipulation.
-
-**MMR Storage.** Merkle Mountain Range authenticated storage structure used by Magnus Chain. Append-only design enables parallel merkleization where nodes at the same height are hashed concurrently, yielding 4-6× speedup compared to sequential tree-based structures.
-
-**Payment Lane.** A block structure mechanism using separate `gas_limit` and `general_gas_limit` fields in the Magnus block header to reserve blockspace for payment transactions, preventing DeFi congestion from crowding out payments.
-
-**Simplex Consensus.** Byzantine fault tolerant consensus protocol achieving block proposal in ~200ms (2 network hops) and deterministic finality in ~300ms (3 network hops). Provides absolute finality where committed blocks cannot reorganize.
-
-**Task Groups.** In DAG-based execution, transactions with dependency distance equal to 1 (direct sequential dependencies) that execute together on a single worker thread. Critical for handling hot accounts like gas tokens where multiple transactions from the same sender write the same balance.
-
-**REVM.** The Rust Ethereum Virtual Machine implementation used as the execution backend in Magnus Chain's worker pool. Each REVM instance executes a conflict-free group of transactions in parallel.
-
-**Simplex BFT.** The consensus protocol used by Magnus Chain, providing deterministic finality with a target latency of approximately 300 milliseconds.
-
-**VNST.** A Vietnamese Dong-pegged stablecoin deployed as an MIP-20 token on Magnus Chain, with `currency = "VND"` and supply managed by an authorized issuer holding the `ISSUER_ROLE`.
-
-**2D Nonce System.** A dual-dimension nonce scheme where each account maintains a protocol nonce (key 0) in standard account state and additional user-defined nonce keys (1 through N) in the nonce precompile. Enables concurrent transaction streams from a single account without serialization.
 
 ---
 
@@ -794,4 +734,18 @@ End-to-end validation on complete Magnus Chain stack is planned for implementati
 11. World Bank Remittance Prices Worldwide Quarterly, Issue 50. World Bank Group, 2024.
 
 12. BLS12-381: New zk-SNARK Elliptic Curve Construction. Bowe, S., 2017.
+
+13. Autobahn: Reliable Broadcast in Decoupled Systems. Müller, M., Motepalli, S., Zhang, Y., Malkhi, D., 2024. arxiv.org/abs/2401.10369.
+
+14. QMDB: Quick Merkle Database. Commonware, 2025. arxiv.org/abs/2501.05262.
+
+15. Chainlink 2.0: Next Steps in the Evolution of Decentralized Oracle Networks. Breidenbach, L., Cachin, C., Chan, B., Coventry, A., Ellis, S., Juels, A., Koushanfar, F., Miller, A., Magauran, B., Moroz, D., Nazarov, S., Topliceanu, A., Tramèr, F., Zhang, F., 2021. research.chain.link/whitepaper-v2.pdf.
+
+16. Pyth Network: A First-Party Financial Oracle Network. Pyth Data Association, 2024. pyth.network/whitepaper.
+
+17. SortedOracles: Decentralized Price Feeds for Celo Stablecoins. Celo Foundation, 2020–2025. docs.celo.org/protocol/stability/oracles.
+
+18. EIP-2537: Precompile for BLS12-381 Curve Operations. Ethereum Improvement Proposals, 2020.
+
+19. FAFO: Over 1 Million TPS on a Single Node Running EVM. arXiv:2507.10757, 2025.
 
