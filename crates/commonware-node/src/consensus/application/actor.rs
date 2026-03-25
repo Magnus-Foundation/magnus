@@ -28,11 +28,7 @@ use prometheus_client::metrics::counter::Counter;
 
 use commonware_utils::{SystemTimeExt, channel::oneshot};
 use eyre::{OptionExt as _, WrapErr as _, bail, ensure, eyre};
-use futures::{
-    StreamExt as _, TryFutureExt as _,
-    channel::mpsc,
-    future::{ready, try_join},
-};
+use futures::{StreamExt as _, TryFutureExt as _, channel::mpsc, future::try_join};
 use rand_08::{CryptoRng, Rng};
 use reth_ethereum::chainspec::EthChainSpec as _;
 use reth_node_builder::{Block as _, BuiltPayload, ConsensusEngineHandle};
@@ -483,15 +479,6 @@ impl Inner<Init> {
             eyre::bail!("the proposal parent block is not valid");
         }
 
-        ready(
-            self.state
-                .executor
-                .canonicalize_head(parent.height(), parent.digest()),
-        )
-        .and_then(|ack| ack.map_err(eyre::Report::new))
-        .await
-        .wrap_err("failed updating canonical head to parent")?;
-
         // Query DKG manager for ceremony data before building payload
         // This data will be passed to the payload builder via attributes
         let extra_data = if parent_epoch_info.last() == parent.height().next()
@@ -570,14 +557,11 @@ impl Inner<Init> {
         let interrupt_handle = attrs.interrupt_handle().clone();
 
         let payload_id = self
-            .execution_node
-            .payload_builder_handle
-            .send_new_payload(parent_hash, attrs)
-            .pace(&context, Duration::from_millis(20))
+            .state
+            .executor
+            .canonicalize_and_build(parent.height(), parent.digest(), attrs)
             .await
-            .map_err(|_| eyre!("channel was closed before a response was returned"))
-            .and_then(|ret| ret.wrap_err("execution layer rejected request"))
-            .wrap_err("failed requesting new payload from the execution layer")?;
+            .wrap_err("failed requesting a new payload build")?;
 
         debug!(
             resolve_time_ms = self.payload_resolve_time.as_millis(),
