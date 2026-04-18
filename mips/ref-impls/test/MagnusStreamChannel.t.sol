@@ -2,14 +2,14 @@
 pragma solidity ^0.8.20;
 
 import { MIP20 } from "../src/MIP20.sol";
-import { TempoStreamChannel } from "../src/TempoStreamChannel.sol";
-import { ITempoStreamChannel } from "../src/interfaces/ITempoStreamChannel.sol";
+import { MagnusStreamChannel } from "../src/MagnusStreamChannel.sol";
+import { IMagnusStreamChannel } from "../src/interfaces/IMagnusStreamChannel.sol";
 import { BaseTest } from "./BaseTest.t.sol";
 import { MockTIP20 } from "./mocks/MockTIP20.sol";
 
-contract TempoStreamChannelTest is BaseTest {
+contract MagnusStreamChannelTest is BaseTest {
 
-    TempoStreamChannel public channel;
+    MagnusStreamChannel public channel;
     MIP20 public token;
 
     address public payer;
@@ -22,7 +22,7 @@ contract TempoStreamChannelTest is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        channel = new TempoStreamChannel();
+        channel = new MagnusStreamChannel();
         token = MIP20(
             factory.createToken("Stream Token", "STR", "USD", pathUSD, admin, bytes32("stream"))
         );
@@ -56,7 +56,7 @@ contract TempoStreamChannelTest is BaseTest {
         vm.prank(payer);
         bytes32 channelId = channel.open(payee, address(token), DEPOSIT, SALT, address(0));
 
-        TempoStreamChannel.Channel memory ch = channel.getChannel(channelId);
+        MagnusStreamChannel.Channel memory ch = channel.getChannel(channelId);
         assertEq(ch.payer, payer);
         assertEq(ch.payee, payee);
         assertEq(ch.token, address(token));
@@ -71,7 +71,7 @@ contract TempoStreamChannelTest is BaseTest {
         _openChannel();
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ChannelAlreadyExists.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelAlreadyExists.selector);
         channel.open(payee, address(token), DEPOSIT, SALT, address(0));
     }
 
@@ -86,7 +86,7 @@ contract TempoStreamChannelTest is BaseTest {
         vm.prank(payee);
         channel.settle(channelId, amount, sig);
 
-        TempoStreamChannel.Channel memory ch = channel.getChannel(channelId);
+        MagnusStreamChannel.Channel memory ch = channel.getChannel(channelId);
         assertEq(ch.settled, amount);
         assertEq(token.balanceOf(payee), amount);
     }
@@ -115,7 +115,7 @@ contract TempoStreamChannelTest is BaseTest {
 
         bytes memory sig2 = _signVoucher(channelId, 400_000);
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.AmountNotIncreasing.selector);
+        vm.expectRevert(IMagnusStreamChannel.AmountNotIncreasing.selector);
         channel.settle(channelId, 400_000, sig2);
     }
 
@@ -124,7 +124,7 @@ contract TempoStreamChannelTest is BaseTest {
 
         bytes memory sig = _signVoucher(channelId, DEPOSIT + 1);
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.AmountExceedsDeposit.selector);
+        vm.expectRevert(IMagnusStreamChannel.AmountExceedsDeposit.selector);
         channel.settle(channelId, DEPOSIT + 1, sig);
     }
 
@@ -137,7 +137,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes memory sig = abi.encodePacked(r, s, v);
 
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.InvalidSignature.selector);
+        vm.expectRevert(IMagnusStreamChannel.InvalidSignature.selector);
         channel.settle(channelId, 500_000, sig);
     }
 
@@ -157,7 +157,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes32 channelId = _openChannel();
 
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.NotPayer.selector);
+        vm.expectRevert(IMagnusStreamChannel.NotPayer.selector);
         channel.topUp(channelId, 500_000);
     }
 
@@ -176,7 +176,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes32 channelId = _openChannel();
 
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.NotPayer.selector);
+        vm.expectRevert(IMagnusStreamChannel.NotPayer.selector);
         channel.requestClose(channelId);
     }
 
@@ -216,7 +216,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes32 channelId = _openChannel();
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.NotPayee.selector);
+        vm.expectRevert(IMagnusStreamChannel.NotPayee.selector);
         channel.close(channelId, 0, "");
     }
 
@@ -245,7 +245,7 @@ contract TempoStreamChannelTest is BaseTest {
         channel.requestClose(channelId);
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.CloseNotReady.selector);
+        vm.expectRevert(IMagnusStreamChannel.CloseNotReady.selector);
         channel.withdraw(channelId);
     }
 
@@ -253,7 +253,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes32 channelId = _openChannel();
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.CloseNotReady.selector);
+        vm.expectRevert(IMagnusStreamChannel.CloseNotReady.selector);
         channel.withdraw(channelId);
     }
 
@@ -268,7 +268,7 @@ contract TempoStreamChannelTest is BaseTest {
         channel.withdraw(channelId);
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ChannelFinalized.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelFinalized.selector);
         channel.withdraw(channelId);
     }
 
@@ -289,7 +289,7 @@ contract TempoStreamChannelTest is BaseTest {
         channelIds[0] = channelId1;
         channelIds[1] = channelId2;
 
-        TempoStreamChannel.Channel[] memory states = channel.getChannelsBatch(channelIds);
+        MagnusStreamChannel.Channel[] memory states = channel.getChannelsBatch(channelIds);
 
         assertEq(states.length, 2);
         assertEq(states[0].settled, 500_000);
@@ -326,7 +326,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes memory sig = abi.encodePacked(r, s, v);
 
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.InvalidSignature.selector);
+        vm.expectRevert(IMagnusStreamChannel.InvalidSignature.selector);
         channel.settle(channelId, 500_000, sig);
     }
 
@@ -387,7 +387,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes32 channelId = _openChannel();
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ZeroDeposit.selector);
+        vm.expectRevert(IMagnusStreamChannel.ZeroDeposit.selector);
         channel.topUp(channelId, 0);
     }
 
@@ -398,7 +398,7 @@ contract TempoStreamChannelTest is BaseTest {
         channel.requestClose(channelId);
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ZeroDeposit.selector);
+        vm.expectRevert(IMagnusStreamChannel.ZeroDeposit.selector);
         channel.topUp(channelId, 0);
 
         assertEq(channel.getChannel(channelId).closeRequestedAt, block.timestamp);
@@ -424,7 +424,7 @@ contract TempoStreamChannelTest is BaseTest {
         channel.close(channelId, 0, "");
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ChannelFinalized.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelFinalized.selector);
         channel.topUp(channelId, 100_000);
     }
 
@@ -588,7 +588,7 @@ contract TempoStreamChannelTest is BaseTest {
         channel.close(channelId, 0, "");
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ChannelFinalized.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelFinalized.selector);
         channel.requestClose(channelId);
     }
 
@@ -602,7 +602,7 @@ contract TempoStreamChannelTest is BaseTest {
 
         bytes memory sig = _signVoucher(channelId, 100_000);
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.ChannelFinalized.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelFinalized.selector);
         channel.settle(channelId, 100_000, sig);
     }
 
@@ -611,7 +611,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes memory sig = _signVoucher(fakeId, 100_000);
 
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.ChannelNotFound.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelNotFound.selector);
         channel.settle(fakeId, 100_000, sig);
     }
 
@@ -624,7 +624,7 @@ contract TempoStreamChannelTest is BaseTest {
 
         bytes memory sig2 = _signVoucher(channelId, 500_000);
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.AmountNotIncreasing.selector);
+        vm.expectRevert(IMagnusStreamChannel.AmountNotIncreasing.selector);
         channel.settle(channelId, 500_000, sig2);
     }
 
@@ -635,7 +635,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes memory sig = _signVoucher(channelId, 500_000);
 
         vm.prank(randomCaller);
-        vm.expectRevert(ITempoStreamChannel.NotPayee.selector);
+        vm.expectRevert(IMagnusStreamChannel.NotPayee.selector);
         channel.settle(channelId, 500_000, sig);
     }
 
@@ -665,7 +665,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes memory sig = _signVoucher(channelId, 500_000);
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.NotPayee.selector);
+        vm.expectRevert(IMagnusStreamChannel.NotPayee.selector);
         channel.settle(channelId, 500_000, sig);
     }
 
@@ -675,7 +675,7 @@ contract TempoStreamChannelTest is BaseTest {
 
         address stranger = makeAddr("stranger");
         vm.prank(stranger);
-        vm.expectRevert(ITempoStreamChannel.NotPayee.selector);
+        vm.expectRevert(IMagnusStreamChannel.NotPayee.selector);
         channel.settle(channelId, 500_000, sig);
     }
 
@@ -685,7 +685,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes32 channelId = _openChannel();
         bytes memory sig = _signVoucher(channelId, 500_000);
 
-        TempoStreamChannel channel2 = new TempoStreamChannel();
+        MagnusStreamChannel channel2 = new MagnusStreamChannel();
         MIP20 token2 = MIP20(
             factory.createToken("Stream Token 2", "ST2", "USD", pathUSD, admin, bytes32("stream2"))
         );
@@ -702,7 +702,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes32 channelId2 = channel2.open(payee, address(token2), DEPOSIT, SALT, address(0));
 
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.InvalidSignature.selector);
+        vm.expectRevert(IMagnusStreamChannel.InvalidSignature.selector);
         channel2.settle(channelId2, 500_000, sig);
     }
 
@@ -713,7 +713,7 @@ contract TempoStreamChannelTest is BaseTest {
         uint256 originalChainId = block.chainid;
         vm.chainId(originalChainId + 1);
 
-        TempoStreamChannel channel2 = new TempoStreamChannel();
+        MagnusStreamChannel channel2 = new MagnusStreamChannel();
         MIP20 token2 = MIP20(
             factory.createToken("Stream Token 3", "ST3", "USD", pathUSD, admin, bytes32("stream3"))
         );
@@ -730,7 +730,7 @@ contract TempoStreamChannelTest is BaseTest {
         bytes32 channelId2 = channel2.open(payee, address(token2), DEPOSIT, SALT, address(0));
 
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.InvalidSignature.selector);
+        vm.expectRevert(IMagnusStreamChannel.InvalidSignature.selector);
         channel2.settle(channelId2, 500_000, sig);
 
         vm.chainId(originalChainId);
@@ -740,7 +740,7 @@ contract TempoStreamChannelTest is BaseTest {
 
     function test_open_zeroDeposit() public {
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ZeroDeposit.selector);
+        vm.expectRevert(IMagnusStreamChannel.ZeroDeposit.selector);
         channel.open(payee, address(token), 0, bytes32(uint256(99)), address(0));
     }
 
@@ -829,7 +829,7 @@ contract TempoStreamChannelTest is BaseTest {
 
         uint256 tooLarge = uint256(type(uint128).max);
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.DepositOverflow.selector);
+        vm.expectRevert(IMagnusStreamChannel.DepositOverflow.selector);
         channel.topUp(channelId, tooLarge);
     }
 
@@ -838,7 +838,7 @@ contract TempoStreamChannelTest is BaseTest {
 
         uint256 maxAdditional = uint256(type(uint128).max) - DEPOSIT;
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.DepositOverflow.selector);
+        vm.expectRevert(IMagnusStreamChannel.DepositOverflow.selector);
         channel.topUp(channelId, maxAdditional + 1);
     }
 
@@ -866,7 +866,7 @@ contract TempoStreamChannelTest is BaseTest {
         mockToken.approve(address(channel), type(uint256).max);
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.InvalidToken.selector);
+        vm.expectRevert(IMagnusStreamChannel.InvalidToken.selector);
         channel.open(payee, address(mockToken), DEPOSIT, SALT, address(0));
     }
 
@@ -901,7 +901,7 @@ contract TempoStreamChannelTest is BaseTest {
         assertTrue(channel.getChannel(channelId).finalized);
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ChannelAlreadyExists.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelAlreadyExists.selector);
         channel.open(payee, address(token), DEPOSIT, SALT, address(0));
     }
 
@@ -918,7 +918,7 @@ contract TempoStreamChannelTest is BaseTest {
         assertTrue(channel.getChannel(channelId).finalized);
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ChannelAlreadyExists.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelAlreadyExists.selector);
         channel.open(payee, address(token), DEPOSIT, SALT, address(0));
     }
 
@@ -931,23 +931,23 @@ contract TempoStreamChannelTest is BaseTest {
         bytes memory sig = _signVoucher(channelId, 1);
 
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.ChannelFinalized.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelFinalized.selector);
         channel.settle(channelId, 1, sig);
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ChannelFinalized.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelFinalized.selector);
         channel.topUp(channelId, 1);
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ChannelFinalized.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelFinalized.selector);
         channel.requestClose(channelId);
 
         vm.prank(payee);
-        vm.expectRevert(ITempoStreamChannel.ChannelFinalized.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelFinalized.selector);
         channel.close(channelId, 0, "");
 
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.ChannelFinalized.selector);
+        vm.expectRevert(IMagnusStreamChannel.ChannelFinalized.selector);
         channel.withdraw(channelId);
     }
 
@@ -965,7 +965,7 @@ contract TempoStreamChannelTest is BaseTest {
         ids[0] = channelId1;
         ids[1] = channelId2;
 
-        TempoStreamChannel.Channel[] memory states = channel.getChannelsBatch(ids);
+        MagnusStreamChannel.Channel[] memory states = channel.getChannelsBatch(ids);
 
         assertTrue(states[0].finalized);
         assertFalse(states[1].finalized);
@@ -976,7 +976,7 @@ contract TempoStreamChannelTest is BaseTest {
 
     function test_open_revert_zeroPayee() public {
         vm.prank(payer);
-        vm.expectRevert(ITempoStreamChannel.InvalidPayee.selector);
+        vm.expectRevert(IMagnusStreamChannel.InvalidPayee.selector);
         channel.open(address(0), address(token), DEPOSIT, SALT, address(0));
     }
 

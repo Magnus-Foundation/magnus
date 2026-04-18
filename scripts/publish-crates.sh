@@ -110,7 +110,7 @@ EOF
 TMP_WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_WORK_DIR"' EXIT
 
-log "Copying crates to temporary directory …"
+log "Copying crates to magnusrary directory …"
 cp -R "$REPO_ROOT/crates/contracts"  "$TMP_WORK_DIR/contracts"
 cp -R "$REPO_ROOT/crates/primitives" "$TMP_WORK_DIR/primitives"
 cp -R "$REPO_ROOT/crates/chainspec"  "$TMP_WORK_DIR/chainspec"
@@ -232,7 +232,7 @@ grep -qE "^\s*reth\s*=" "$TMP_WORK_DIR/alloy/Cargo.toml" && \
 grep -rq 'feature = "reth"' "$TMP_WORK_DIR/alloy/src/" && \
     err "reth-gated code still in magnus-alloy source"
 
-# Exclude hardfork.rs: the tempo_hardfork! macro generates #[cfg(feature = "reth")]
+# Exclude hardfork.rs: the magnus_hardfork! macro generates #[cfg(feature = "reth")]
 # blocks that are dead code when the reth feature is absent (suppressed via check-cfg).
 grep -rq --exclude='hardfork.rs' 'feature = "reth"' "$TMP_WORK_DIR/chainspec/src/" && \
     err "reth-gated code still in magnus-chainspec source"

@@ -115,7 +115,7 @@ Blacklist testing uses a simple approach: `toggleBlacklist` randomly adds/remove
 
 - **MAGNUS-AMM32**: Blacklisted actors cannot receive tokens from AMM operations. Operations that would transfer tokens to a blacklisted recipient (burn, rebalanceSwap, distributeFees) revert with `PolicyForbids`. Frozen fees/LP remain intact and are not lost.
 - **MAGNUS-AMM33**: Blacklisted actors cannot deposit tokens into the AMM. Mint operations from blacklisted actors revert with `PolicyForbids`.
-- **MAGNUS-AMM34**: Blacklist recovery - after being removed from blacklist, validators can claim their frozen fees and LPs can burn their positions. Blacklisting is a temporary freeze, not permanent loss. Verified in the two-phase exit check: Phase 1 exits with blacklisted actors frozen, Phase 2 unblacklists all actors and verifies complete recovery.
+- **MAGNUS-AMM34**: Blacklist recovery - after being removed from blacklist, validators can claim their frozen fees and LPs can burn their positions. Blacklisting is a magnusrary freeze, not permanent loss. Verified in the two-phase exit check: Phase 1 exits with blacklisted actors frozen, Phase 2 unblacklists all actors and verifies complete recovery.
 
 ## FeeManager
 
@@ -218,7 +218,7 @@ The Nonce precompile manages 2D nonces for accounts, enabling multiple independe
 
 ### Edge Case Invariants
 
-- **MAGNUS-NON7**: Large nonce key support - `type(uint256).max - 1` works correctly as a nonce key. Note: `type(uint256).max` is reserved for `TEMPO_EXPIRING_NONCE_KEY`.
+- **MAGNUS-NON7**: Large nonce key support - `type(uint256).max - 1` works correctly as a nonce key. Note: `type(uint256).max` is reserved for `MAGNUS_EXPIRING_NONCE_KEY`.
 - **MAGNUS-NON8**: Strict monotonicity - multiple sequential increments produce strictly increasing values with no gaps.
 
 ### Overflow Invariants
@@ -228,7 +228,7 @@ The Nonce precompile manages 2D nonces for accounts, enabling multiple independe
 
 ### Reserved Key Invariants
 
-- **MAGNUS-NON11**: Reserved expiring nonce key - `type(uint256).max` is reserved for `TEMPO_EXPIRING_NONCE_KEY`. Reading it returns 0 for uninitialized accounts (readable but reserved for special use).
+- **MAGNUS-NON11**: Reserved expiring nonce key - `type(uint256).max` is reserved for `MAGNUS_EXPIRING_NONCE_KEY`. Reading it returns 0 for uninitialized accounts (readable but reserved for special use).
 
 ## MIP-1015 Compound Policies
 

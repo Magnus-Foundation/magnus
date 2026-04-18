@@ -592,7 +592,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_tempo_transaction_preserves_validity_window() {
+    fn test_from_magnus_transaction_preserves_validity_window() {
         let tx = MagnusTransaction {
             chain_id: 1,
             nonce: 0,
@@ -670,7 +670,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_tempo_transaction_preserves_fee_payer_signature() {
+    fn test_from_magnus_transaction_preserves_fee_payer_signature() {
         let sig = Signature::test_signature();
         let tx = MagnusTransaction {
             chain_id: 1,

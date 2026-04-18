@@ -75,12 +75,12 @@ contract FeeManagerTest is BaseTest {
         vm.prank(validator, validator);
         vm.coinbase(validator);
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectRevert("CANNOT_CHANGE_WITHIN_BLOCK");
         }
 
         try amm.setValidatorToken(address(validatorToken)) {
-            if (isTempo) {
+            if (isMagnus) {
                 revert CallShouldHaveReverted();
             }
         } catch {
@@ -92,12 +92,12 @@ contract FeeManagerTest is BaseTest {
         vm.prank(validator);
         vm.coinbase(validator);
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectRevert("INVALID_TOKEN");
         }
 
         try amm.setValidatorToken(address(0x123)) {
-            if (isTempo) {
+            if (isMagnus) {
                 revert CallShouldHaveReverted();
             }
         } catch {
@@ -112,12 +112,12 @@ contract FeeManagerTest is BaseTest {
         MIP20 eurToken =
             MIP20(factory.createToken("EuroToken", "EUR", "EUR", pathUSD, admin, bytes32("eur")));
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectRevert("INVALID_TOKEN");
         }
 
         try amm.setValidatorToken(address(eurToken)) {
-            if (isTempo) {
+            if (isMagnus) {
                 revert CallShouldHaveReverted();
             }
         } catch {
@@ -139,12 +139,12 @@ contract FeeManagerTest is BaseTest {
     function test_setUserToken_RevertsIf_InvalidToken() public {
         vm.prank(user);
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectRevert("INVALID_TOKEN");
         }
 
         try amm.setUserToken(address(0x123)) {
-            if (isTempo) {
+            if (isMagnus) {
                 revert CallShouldHaveReverted();
             }
         } catch {
@@ -177,12 +177,12 @@ contract FeeManagerTest is BaseTest {
     function test_collectFeePreTx_RevertsIf_NotProtocol() public {
         vm.prank(user);
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectRevert("ONLY_PROTOCOL");
         }
 
         try amm.collectFeePreTx(user, address(userToken), 100e18) {
-            if (isTempo) {
+            if (isMagnus) {
                 revert CallShouldHaveReverted();
             }
         } catch {
@@ -201,12 +201,12 @@ contract FeeManagerTest is BaseTest {
         vm.prank(address(0));
         vm.coinbase(validator);
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectRevert("INSUFFICIENT_LIQUIDITY_FOR_FEE_SWAP");
         }
 
         try amm.collectFeePreTx(user, address(userToken), 100e18) {
-            if (isTempo) {
+            if (isMagnus) {
                 revert CallShouldHaveReverted();
             }
         } catch {
@@ -216,7 +216,7 @@ contract FeeManagerTest is BaseTest {
 
     function test_collectFeePreTx_RevertsIf_FeePayerNotAuthorizedSender() public {
         // TODO: collectFeePreTx fn is not exposed by precompiles
-        if (isTempo) {
+        if (isMagnus) {
             return;
         }
 
@@ -242,7 +242,7 @@ contract FeeManagerTest is BaseTest {
 
     function test_collectFeePreTx_RevertsIf_FeeManagerNotAuthorizedRecipient() public {
         // TODO: collectFeePreTx fn is not exposed by precompiles
-        if (isTempo) {
+        if (isMagnus) {
             return;
         }
 
@@ -297,12 +297,12 @@ contract FeeManagerTest is BaseTest {
     function test_collectFeePostTx_RevertsIf_NotProtocol() public {
         vm.prank(user);
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectRevert("ONLY_PROTOCOL");
         }
 
         try amm.collectFeePostTx(user, 100e18, 80e18, address(userToken)) {
-            if (isTempo) {
+            if (isMagnus) {
                 revert CallShouldHaveReverted();
             }
         } catch {
@@ -311,7 +311,7 @@ contract FeeManagerTest is BaseTest {
     }
 
     function test_distributeFees() public {
-        if (isTempo) return;
+        if (isMagnus) return;
 
         vm.prank(validator, validator);
         amm.setValidatorToken(address(validatorToken));
@@ -345,7 +345,7 @@ contract FeeManagerTest is BaseTest {
     }
 
     function test_distributeFees_ZeroBalance() public {
-        if (isTempo) return;
+        if (isMagnus) return;
 
         vm.prank(validator, validator);
         amm.setValidatorToken(address(validatorToken));
@@ -359,7 +359,7 @@ contract FeeManagerTest is BaseTest {
     }
 
     function test_collectedFees() public {
-        if (isTempo) return;
+        if (isMagnus) return;
 
         vm.prank(validator, validator);
         amm.setValidatorToken(address(userToken));
@@ -409,7 +409,7 @@ contract FeeManagerTest is BaseTest {
     //////////////////////////////////////////////////////////////*/
 
     function testFuzz_FeeSwap(uint256 actualUsed) public {
-        if (isTempo) return;
+        if (isMagnus) return;
 
         vm.prank(validator, validator);
         amm.setValidatorToken(address(validatorToken));
@@ -437,7 +437,7 @@ contract FeeManagerTest is BaseTest {
     }
 
     function testFuzz_SameToken_NoSwap(uint256 actualUsed) public {
-        if (isTempo) return;
+        if (isMagnus) return;
 
         vm.prank(validator, validator);
         amm.setValidatorToken(address(userToken));
@@ -462,7 +462,7 @@ contract FeeManagerTest is BaseTest {
     }
 
     function testFuzz_DistributeFees_ClearsBalance(uint256 actualUsed) public {
-        if (isTempo) return;
+        if (isMagnus) return;
 
         vm.prank(validator, validator);
         amm.setValidatorToken(address(validatorToken));
@@ -488,7 +488,7 @@ contract FeeManagerTest is BaseTest {
     }
 
     function testFuzz_Refund_Calculation(uint256 maxAmount, uint256 actualUsed) public {
-        if (isTempo) return;
+        if (isMagnus) return;
 
         vm.prank(validator, validator);
         amm.setValidatorToken(address(validatorToken));

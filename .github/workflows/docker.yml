@@ -60,14 +60,14 @@ jobs:
           LABELS
           fi
 
-      - name: Docker metadata for tempo
-        id: meta-tempo
+      - name: Docker metadata for magnus
+        id: meta-magnus
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: |
-            ${{ env.REGISTRY }}/tempo
+            ${{ env.REGISTRY }}/magnus
             docker.io/magnus-foundation/magnus
-          bake-target: tempo
+          bake-target: magnus
           labels: ${{ steps.docker-labels.outputs.value }}
           tags: |
             type=schedule,pattern=nightly
@@ -165,7 +165,7 @@ jobs:
         with:
           files: |
             docker-bake.hcl
-            ${{ steps.meta-tempo.outputs.bake-file }}
+            ${{ steps.meta-magnus.outputs.bake-file }}
             ${{ steps.meta-magnus-bench.outputs.bake-file }}
             ${{ steps.meta-magnus-sidecar.outputs.bake-file }}
             ${{ steps.meta-magnus-xtask.outputs.bake-file }}
@@ -184,7 +184,7 @@ jobs:
         run: |
           set -euo pipefail
           images=(
-            "${{ steps.meta-tempo.outputs.tags }}"
+            "${{ steps.meta-magnus.outputs.tags }}"
             "${{ steps.meta-magnus-bench.outputs.tags }}"
             "${{ steps.meta-magnus-sidecar.outputs.tags }}"
             "${{ steps.meta-magnus-xtask.outputs.tags }}"

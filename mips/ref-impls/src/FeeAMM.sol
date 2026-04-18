@@ -2,7 +2,7 @@
 pragma solidity >=0.8.13 <0.9.0;
 
 import { MIP20Factory } from "./MIP20Factory.sol";
-import { TempoUtilities } from "./TempoUtilities.sol";
+import { MagnusUtilities } from "./MagnusUtilities.sol";
 import { IERC20 } from "./interfaces/IERC20.sol";
 import { IFeeAMM } from "./interfaces/IFeeAMM.sol";
 import { IMIP20 } from "./interfaces/IMIP20.sol";
@@ -29,7 +29,7 @@ contract FeeAMM is IFeeAMM {
     // Reverts if token is not a MIP20 with "USD" currency
     function _requireUSDTIP20(address token) internal view {
         // Check that the token is a deployed MIP20 (prefix + tokenIdCounter check)
-        if (!TempoUtilities.isTIP20(token)) revert InvalidToken();
+        if (!MagnusUtilities.isTIP20(token)) revert InvalidToken();
         if (keccak256(bytes(IMIP20(token).currency())) != keccak256(bytes("USD"))) {
             revert InvalidCurrency();
         }

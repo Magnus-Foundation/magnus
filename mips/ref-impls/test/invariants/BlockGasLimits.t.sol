@@ -135,7 +135,7 @@ contract BlockGasLimitsInvariantTest is InvariantBase {
     /// @param gasMultiplier Multiplier to test various gas levels
     function handler_txGasCapEnforcement(uint256 actorSeed, uint256 gasMultiplier) external {
         // Skip when not on Magnus (vmExec.executeTransaction not available)
-        if (!isTempo) return;
+        if (!isMagnus) return;
 
         ghost_txGasCapTests++;
 
@@ -190,7 +190,7 @@ contract BlockGasLimitsInvariantTest is InvariantBase {
     /// @param sizeFraction Fraction of max size to deploy (50-100%)
     function handler_maxDeploymentFits(uint256 actorSeed, uint256 sizeFraction) external {
         // Skip when not on Magnus (vmExec.executeTransaction not available)
-        if (!isTempo) return;
+        if (!isMagnus) return;
 
         ghost_deploymentTests++;
 

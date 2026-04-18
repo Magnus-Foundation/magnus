@@ -79,7 +79,7 @@ Next, grab some stablecoins to test with from Magnus's [Faucet](https://docs.mag
 Alternatively, use [`cast`](https://github.com/foundry-rs/foundry):
 
 ```bash
-cast rpc tempo_fundAddress <ADDRESS> --rpc-url https://rpc.moderato.magnus.xyz
+cast rpc magnus_fundAddress <ADDRESS> --rpc-url https://rpc.moderato.magnus.xyz
 ```
 
 ### As an operator
@@ -155,10 +155,9 @@ shall be dual licensed as above, without any additional terms or conditions.
 
 ## Heritage
 
-Magnus is a hard fork of [Tempo](https://github.com/tempoxyz/tempo) at SHA
-`786c8ce34`. The Tempo project — created by Stripe with consensus work by
-Commonware — provided the foundation for consensus, EVM integration, and the
-overall node architecture. Tempo and Stripe copyright lines remain in
+Magnus is a hard fork of its upstream predecessor at SHA `786c8ce34`, which
+provided the foundation for consensus, EVM integration, and the overall node
+architecture. Original upstream copyright lines remain in
 [`LICENSE-MIT`](./LICENSE-MIT) and [`LICENSE-APACHE`](./LICENSE-APACHE) per the
 MIT/Apache-2.0 attribution requirements. Magnus extends this foundation with
 payments, gateway, and bridge subsystems described in the project's design

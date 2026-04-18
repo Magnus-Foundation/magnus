@@ -874,7 +874,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_tx_initial_gas() -> eyre::Result<()> {
+    fn test_magnus_tx_initial_gas() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
         let caller = key_pair.address;
 
@@ -974,7 +974,7 @@ mod tests {
     /// - Authorization list (aa_auth_list)
     /// - Two calls to the identity precompile (0x04)
     #[test]
-    fn test_tempo_tx() -> eyre::Result<()> {
+    fn test_magnus_tx() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
         let caller = key_pair.address;
 
@@ -1264,7 +1264,7 @@ mod tests {
     /// Test that Magnus transaction time window validation works correctly.
     /// Tests `valid_after` and `valid_before` fields against block timestamp.
     #[test]
-    fn test_tempo_tx_time_window() -> eyre::Result<()> {
+    fn test_magnus_tx_time_window() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
         let caller = key_pair.address;
 
@@ -1423,7 +1423,7 @@ mod tests {
     /// Test executing a Magnus transaction where the first call is a Create kind.
     /// This should succeed as CREATE is allowed as the first call.
     #[test]
-    fn test_tempo_tx_create_first_call() -> eyre::Result<()> {
+    fn test_magnus_tx_create_first_call() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
         let caller = key_pair.address;
 
@@ -1452,7 +1452,7 @@ mod tests {
     /// Test that a Magnus transaction fails when CREATE is the second call.
     /// CREATE must be the first call if used.
     #[test]
-    fn test_tempo_tx_create_second_call_fails() -> eyre::Result<()> {
+    fn test_magnus_tx_create_second_call_fails() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
         let caller = key_pair.address;
 
@@ -1674,7 +1674,7 @@ mod tests {
 
     /// Test that MagnusEvm preserves initial fields when using with_inspector.
     #[test]
-    fn test_tempo_evm_with_inspector_preserves_fields() {
+    fn test_magnus_evm_with_inspector_preserves_fields() {
         let evm = create_evm();
 
         // Use with_inspector to get a new EVM with CountInspector

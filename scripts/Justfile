@@ -1,7 +1,7 @@
 magnus-dev-up:
 	#!/bin/bash
 	mkdir -p logs
-	RUST_LOG=debug,magnus=trace,tempo_precompiles=trace \
+	RUST_LOG=debug,magnus=trace,magnus_precompiles=trace \
 	cargo run --bin magnus node \
 		--chain genesis/staccato.json \
 		--datadir data \

@@ -135,7 +135,7 @@ jobs:
 
       - name: Run Forge tests
         working-directory: tips/ref-impls
-        run: forge test -vvv --no-match-contract TempoTransactionInvariantTest
+        run: forge test -vvv --no-match-contract MagnusTransactionInvariantTest
 
   foundry-test:
     name: Forge Test (Rust Precompiles)
@@ -147,11 +147,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout tempo
+      - name: Checkout magnus
         uses: actions/checkout@v6
         with:
           submodules: recursive
-          path: tempo
+          path: magnus
           persist-credentials: false
 
       - name: Checkout foundry
@@ -175,8 +175,8 @@ jobs:
         if: needs.check-precompiles.outputs.coverage == 'true'
         run: rustup component add llvm-tools-preview
 
-      - name: Patch foundry to use checked-out tempo crates
-        run: tempo/scripts/foundry-patch.sh "$GITHUB_WORKSPACE/tempo" "$GITHUB_WORKSPACE/foundry"
+      - name: Patch foundry to use checked-out magnus crates
+        run: magnus/scripts/foundry-patch.sh "$GITHUB_WORKSPACE/magnus" "$GITHUB_WORKSPACE/foundry"
 
       # Build and run WITH coverage (only on PR when precompiles changed)
       - name: Build foundry forge with coverage instrumentation
@@ -186,10 +186,10 @@ jobs:
 
       - name: Run Forge tests with Rust precompiles (with coverage)
         if: needs.check-precompiles.outputs.coverage == 'true'
-        working-directory: tempo/tips/ref-impls
+        working-directory: magnus/tips/ref-impls
         run: |
-          echo "Running forge test with Rust precompiles (isTempo=true)"
-          FOUNDRY_PROFILE=tempo_ci LLVM_PROFILE_FILE="$(pwd)/forge-coverage-%p.profraw" ../../../foundry/target/release/forge test -vvv
+          echo "Running forge test with Rust precompiles (isMagnus=true)"
+          FOUNDRY_PROFILE=magnus_ci LLVM_PROFILE_FILE="$(pwd)/forge-coverage-%p.profraw" ../../../foundry/target/release/forge test -vvv
 
       # Build and run WITHOUT coverage (main/merge_group or no precompiles changes)
       - name: Build foundry forge
@@ -199,17 +199,17 @@ jobs:
 
       - name: Run Forge tests with Rust precompiles
         if: needs.check-precompiles.outputs.coverage != 'true'
-        working-directory: tempo/tips/ref-impls
+        working-directory: magnus/tips/ref-impls
         run: |
-          echo "Running forge test with Rust precompiles (isTempo=true)"
-          FOUNDRY_PROFILE=tempo_ci ../../../foundry/target/release/forge test -vvv
+          echo "Running forge test with Rust precompiles (isMagnus=true)"
+          FOUNDRY_PROFILE=magnus_ci ../../../foundry/target/release/forge test -vvv
 
       - name: Generate coverage profdata
         if: needs.check-precompiles.outputs.coverage == 'true'
         run: |
           LLVM_BIN="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | grep host | cut -d' ' -f2)/bin"
           mkdir -p coverage
-          "$LLVM_BIN/llvm-profdata" merge -sparse tempo/tips/ref-impls/*.profraw -o coverage/forge-test.profdata
+          "$LLVM_BIN/llvm-profdata" merge -sparse magnus/tips/ref-impls/*.profraw -o coverage/forge-test.profdata
 
       - name: Upload forge coverage artifacts
         if: needs.check-precompiles.outputs.coverage == 'true'

@@ -244,7 +244,7 @@ impl GenesisArgs {
 
         let pathusd_admin = self.pathusd_admin.unwrap_or_else(|| addresses[0]);
         let validator_admin = self.validator_admin.unwrap_or_else(|| addresses[0]);
-        let mut evm = setup_tempo_evm(self.chain_id);
+        let mut evm = setup_magnus_evm(self.chain_id);
 
         deploy_arachnid_create2_factory(&mut evm);
         deploy_permit2(&mut evm)?;
@@ -576,7 +576,7 @@ impl GenesisArgs {
     }
 }
 
-fn setup_tempo_evm(chain_id: u64) -> MagnusEvm<CacheDB<EmptyDB>> {
+fn setup_magnus_evm(chain_id: u64) -> MagnusEvm<CacheDB<EmptyDB>> {
     let db = CacheDB::default();
     // revm sets timestamp to 1 by default, override it to 0 for genesis initializations
     let mut env = EvmEnv::default().with_timestamp(U256::ZERO);

@@ -4,7 +4,7 @@
 
 **Goal:** Working demo in 7 days. "USDT in, VND out, 300ms, one transaction."
 
-**Base:** magnus-chain (Tempo fork with MIP20 tokens, StablecoinDEX, MIP403 compliance, MipFeeManager, Reth EVM, Commonware Simplex consensus). Already has 80% of what we need.
+**Base:** magnus-chain (Magnus fork with MIP20 tokens, StablecoinDEX, MIP403 compliance, MipFeeManager, Reth EVM, Commonware Simplex consensus). Already has 80% of what we need.
 
 **What we ADD:**
 - Gateway precompile (~300 LOC Rust)
@@ -20,7 +20,7 @@
 
 ---
 
-## Existing Infrastructure (from Tempo fork)
+## Existing Infrastructure (from Magnus fork)
 
 Already built and working in magnus-chain. We use these as-is:
 

@@ -2,7 +2,7 @@
 pragma solidity >=0.8.13 <0.9.0;
 
 import { MIP20 } from "./MIP20.sol";
-import { TempoUtilities } from "./TempoUtilities.sol";
+import { MagnusUtilities } from "./MagnusUtilities.sol";
 import { IMIP20 } from "./interfaces/IMIP20.sol";
 import { IMIP20Factory } from "./interfaces/IMIP20Factory.sol";
 import { Vm } from "forge-std/Vm.sol";
@@ -25,7 +25,7 @@ contract MIP20Factory is IMIP20Factory {
         external
         returns (address)
     {
-        if (!TempoUtilities.isTIP20(address(quoteToken))) {
+        if (!MagnusUtilities.isTIP20(address(quoteToken))) {
             revert InvalidQuoteToken();
         }
 
@@ -70,7 +70,7 @@ contract MIP20Factory is IMIP20Factory {
     }
 
     function isTIP20(address token) external view returns (bool) {
-        return TempoUtilities.isTIP20(token);
+        return MagnusUtilities.isTIP20(token);
     }
 
     function getTokenAddress(address sender, bytes32 salt) external pure returns (address) {

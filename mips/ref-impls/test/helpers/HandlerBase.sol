@@ -6,17 +6,17 @@ import { IMIP20 } from "../../src/interfaces/IMIP20.sol";
 import { InvariantBase } from "./InvariantBase.sol";
 import { TxBuilder } from "./TxBuilder.sol";
 import {
-    TempoCall,
-    TempoTransaction,
-    TempoTransactionLib
-} from "magnus-std/tx/TempoTransactionLib.sol";
+    MagnusCall,
+    MagnusTransaction,
+    MagnusTransactionLib
+} from "magnus-std/tx/MagnusTransactionLib.sol";
 
 /// @title HandlerBase - Common patterns for invariant test handlers
 /// @notice Extracts duplicated handler logic into reusable functions
 /// @dev Inherit from this contract to reduce boilerplate in handler implementations
 abstract contract HandlerBase is InvariantBase {
 
-    using TempoTransactionLib for TempoTransaction;
+    using MagnusTransactionLib for MagnusTransaction;
     using TxBuilder for *;
 
     // ============ Common Error Selectors ============
@@ -43,7 +43,7 @@ abstract contract HandlerBase is InvariantBase {
         uint256 amount;
         uint64 nonceKey;
         uint64 currentNonce;
-        TempoCall[] calls;
+        MagnusCall[] calls;
     }
 
     /// @notice Context for transaction setup to reduce stack depth
@@ -537,8 +537,8 @@ abstract contract HandlerBase is InvariantBase {
     /// @param txNonce The nonce value
     /// @param actorIdx The actor index for signing
     /// @return signedTx The signed transaction bytes
-    function _buildAndSignTempoTx(
-        TempoCall[] memory calls,
+    function _buildAndSignMagnusTx(
+        MagnusCall[] memory calls,
         uint64 nonceKey,
         uint64 txNonce,
         uint256 actorIdx
@@ -559,11 +559,11 @@ abstract contract HandlerBase is InvariantBase {
             gasLimit += TxBuilder.GAS_LIMIT_BUFFER;
         }
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(txNonce);
 
-        signedTx = TxBuilder.signTempo(
+        signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -610,8 +610,8 @@ abstract contract HandlerBase is InvariantBase {
         ctx.nonceKey = uint64(bound(nonceKeySeed, 1, 100));
         ctx.currentNonce = uint64(ghost_2dNonce[ctx.sender][ctx.nonceKey]);
 
-        ctx.calls = new TempoCall[](1);
-        ctx.calls[0] = TempoCall({
+        ctx.calls = new MagnusCall[](1);
+        ctx.calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, ctx.amount))

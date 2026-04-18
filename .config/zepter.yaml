@@ -19,7 +19,7 @@ workflows:
         "--left-side-outside-workspace=ignore",
         # PublicKey serializes via B256, not ed25519-consensus's serde impl.
         # Propagating would also break no_std (ed25519-consensus/serde pulls serde/std).
-        "--ignore-missing-propagate=tempo-primitives/serde:ed25519-consensus/serde",
+        "--ignore-missing-propagate=magnus-primitives/serde:ed25519-consensus/serde",
         # Auxiliary flags:
         "--offline",
         "--locked",
@@ -33,7 +33,7 @@ workflows:
 # Will be displayed when any workflow fails:
 help:
   text: |
-    Tempo uses the Zepter CLI to detect abnormalities in Cargo features, e.g. missing propagation.
+    Magnus uses the Zepter CLI to detect abnormalities in Cargo features, e.g. missing propagation.
 
     It looks like one or more checks failed; please check the console output.
 

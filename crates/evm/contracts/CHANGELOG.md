@@ -1,9 +1,9 @@
 # Changelog
 
-## `tempo-contracts@1.6.0`
+## `magnus-contracts@1.6.0`
 
 
-## `tempo-contracts@1.5.1`
+## `magnus-contracts@1.5.1`
 
 ### Patch Changes
 

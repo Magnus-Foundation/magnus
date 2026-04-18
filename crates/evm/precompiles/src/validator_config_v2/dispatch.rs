@@ -189,7 +189,7 @@ mod tests {
             let private_key = PrivateKey::from_seed(seed);
             let public_key_obj = private_key.public_key();
 
-            // Build message (remove lines with "TEMPO" prefix)
+            // Build message (remove lines with "MAGNUS" prefix)
             let mut msg_data = Vec::new();
             msg_data.extend_from_slice(&1u64.to_be_bytes());
             msg_data.extend_from_slice(

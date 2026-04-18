@@ -238,7 +238,7 @@ jobs:
             if [[ -s coverage-report/combined.lcov ]]; then
               genhtml coverage-report/combined.lcov \
                 --output-directory coverage-report/html \
-                --title "Tempo Precompiles Coverage (Combined)" \
+                --title "Magnus Precompiles Coverage (Combined)" \
                 --legend 2>/dev/null || true
               echo "Generated combined HTML report"
             fi
@@ -264,7 +264,7 @@ jobs:
               return;
             }
 
-            let body = '## 📊 Tempo Precompiles Coverage\n\n';
+            let body = '## 📊 Magnus Precompiles Coverage\n\n';
 
             try {
               const report = fs.readFileSync('coverage-report/summary.txt', 'utf-8');
@@ -377,7 +377,7 @@ jobs:
             });
 
             const botComment = comments.find(c =>
-              c.user.type === 'Bot' && c.body.includes('Tempo Precompiles Coverage')
+              c.user.type === 'Bot' && c.body.includes('Magnus Precompiles Coverage')
             );
 
             if (botComment) {

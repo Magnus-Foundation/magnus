@@ -284,7 +284,7 @@ contract NonceInvariantTest is InvariantBaseTest {
 
     /// @notice Handler for testing max nonce key
     /// @dev Tests MAGNUS-NON7 (large nonce keys work)
-    /// Note: type(uint256).max is reserved for TEMPO_EXPIRING_NONCE_KEY, so we use max-1
+    /// Note: type(uint256).max is reserved for MAGNUS_EXPIRING_NONCE_KEY, so we use max-1
     function testLargeNonceKey(uint256 actorSeed) external {
         address actor = _selectActor(actorSeed);
         uint256 largeKey = type(uint256).max - 1;
@@ -339,7 +339,7 @@ contract NonceInvariantTest is InvariantBaseTest {
     /// Uses a small bounded key range to avoid conflicts and prevent unbounded key growth:
     /// - Normal handlers (1 to MAX_NORMAL_NONCE_KEY)
     /// - testLargeNonceKey (max-1)
-    /// - Reserved TEMPO_EXPIRING_NONCE_KEY (max)
+    /// - Reserved MAGNUS_EXPIRING_NONCE_KEY (max)
     function testNonceOverflow(uint256 actorSeed, uint256 keySeed) external {
         address actor = _selectActor(actorSeed);
         // Use a small bounded range to prevent unbounded _accountNonceKeys growth
@@ -380,7 +380,7 @@ contract NonceInvariantTest is InvariantBaseTest {
         _totalInvalidKeyRejections++;
     }
 
-    /// @notice Handler for testing reserved TEMPO_EXPIRING_NONCE_KEY readability
+    /// @notice Handler for testing reserved MAGNUS_EXPIRING_NONCE_KEY readability
     /// @dev Tests MAGNUS-NON11 (reserved key type(uint256).max is readable via getNonce)
     /// @dev Expiring nonces use tx-hash-based replay protection (separate storage). This
     ///      test verifies the key is accessible and returns 0 for uninitialized accounts.

@@ -3,7 +3,7 @@ pragma solidity >=0.8.13 <0.9.0;
 
 import { MIP20Factory } from "./MIP20Factory.sol";
 import { MIP403Registry } from "./MIP403Registry.sol";
-import { TempoUtilities } from "./TempoUtilities.sol";
+import { MagnusUtilities } from "./MagnusUtilities.sol";
 import { IStablecoinDEX } from "./interfaces/IStablecoinDEX.sol";
 import { IMIP20 } from "./interfaces/IMIP20.sol";
 
@@ -150,7 +150,7 @@ contract StablecoinDEX is IStablecoinDEX {
     /// @dev Automatically sets tick bounds to ±2% from the peg price of 1.0
     function createPair(address base) external returns (bytes32 key) {
         // Validate that base is a MIP20 token
-        if (!TempoUtilities.isTIP20(base)) {
+        if (!MagnusUtilities.isTIP20(base)) {
             revert IMIP20.InvalidBaseToken();
         }
 
@@ -1239,10 +1239,10 @@ contract StablecoinDEX is IStablecoinDEX {
         if (tokenIn == tokenOut) revert IStablecoinDEX.IdenticalTokens();
 
         // Validate that both tokens are MIP20 tokens
-        if (!TempoUtilities.isTIP20(tokenIn)) {
+        if (!MagnusUtilities.isTIP20(tokenIn)) {
             revert IStablecoinDEX.InvalidToken();
         }
-        if (!TempoUtilities.isTIP20(tokenOut)) {
+        if (!MagnusUtilities.isTIP20(tokenOut)) {
             revert IStablecoinDEX.InvalidToken();
         }
 

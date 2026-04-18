@@ -801,7 +801,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
         bool cachedDexRecipient = registry.isAuthorizedRecipient(pid, address(exchange));
         bool cachedMakerPathUsdMint = registry.isAuthorizedMintRecipient(_pathUsdPolicyId, maker);
 
-        // Temporarily authorize in all policies to allow order placement
+        // Magnusrarily authorize in all policies to allow order placement
         if (!cachedMakerSender) _authorize(senderPid, maker, true);
         if (!cachedMakerRecipient) _authorize(recipientPid, maker, true);
         if (!cachedMakerMint) _authorize(mintPid, maker, true);

@@ -46,7 +46,7 @@ use magnus_transaction_pool::{
     AA2dPool, AA2dPoolConfig, MagnusTransactionPool,
     amm::AmmLiquidityCache,
     validator::{
-        DEFAULT_AA_VALID_AFTER_MAX_SECS, DEFAULT_MAX_TEMPO_AUTHORIZATIONS,
+        DEFAULT_AA_VALID_AFTER_MAX_SECS, DEFAULT_MAX_MAGNUS_AUTHORIZATIONS,
         MagnusTransactionValidator,
     },
 };
@@ -59,8 +59,8 @@ pub struct MagnusNodeArgs {
     pub aa_valid_after_max_secs: u64,
 
     /// Maximum number of authorizations allowed in an AA transaction.
-    #[arg(long = "txpool.max-magnus-authorizations", default_value_t = DEFAULT_MAX_TEMPO_AUTHORIZATIONS)]
-    pub max_tempo_authorizations: usize,
+    #[arg(long = "txpool.max-magnus-authorizations", default_value_t = DEFAULT_MAX_MAGNUS_AUTHORIZATIONS)]
+    pub max_magnus_authorizations: usize,
 
     /// Enable state provider metrics for the payload builder.
     #[arg(long = "builder.state-provider-metrics", default_value_t = false)]
@@ -76,7 +76,7 @@ impl MagnusNodeArgs {
     pub fn pool_builder(&self) -> MagnusPoolBuilder {
         MagnusPoolBuilder {
             aa_valid_after_max_secs: self.aa_valid_after_max_secs,
-            max_tempo_authorizations: self.max_tempo_authorizations,
+            max_magnus_authorizations: self.max_magnus_authorizations,
         }
     }
 
@@ -389,7 +389,7 @@ pub struct MagnusPoolBuilder {
     /// Maximum allowed `valid_after` offset for AA txs.
     pub aa_valid_after_max_secs: u64,
     /// Maximum number of authorizations allowed in an AA transaction.
-    pub max_tempo_authorizations: usize,
+    pub max_magnus_authorizations: usize,
 }
 
 impl MagnusPoolBuilder {
@@ -400,8 +400,8 @@ impl MagnusPoolBuilder {
     }
 
     /// Sets the maximum number of authorizations allowed in an AA transaction.
-    pub const fn with_max_tempo_authorizations(mut self, max: usize) -> Self {
-        self.max_tempo_authorizations = max;
+    pub const fn with_max_magnus_authorizations(mut self, max: usize) -> Self {
+        self.max_magnus_authorizations = max;
         self
     }
 }
@@ -410,7 +410,7 @@ impl Default for MagnusPoolBuilder {
     fn default() -> Self {
         Self {
             aa_valid_after_max_secs: DEFAULT_AA_VALID_AFTER_MAX_SECS,
-            max_tempo_authorizations: DEFAULT_MAX_TEMPO_AUTHORIZATIONS,
+            max_magnus_authorizations: DEFAULT_MAX_MAGNUS_AUTHORIZATIONS,
         }
     }
 }
@@ -458,7 +458,7 @@ where
             MagnusTransactionValidator::new(
                 v,
                 self.aa_valid_after_max_secs,
-                self.max_tempo_authorizations,
+                self.max_magnus_authorizations,
                 amm_liquidity_cache.clone(),
             )
         });
@@ -475,7 +475,7 @@ where
         // This consolidates: expired AA txs, 2D nonce updates, AMM cache, and keychain revocations
         ctx.task_executor().spawn_critical_task(
             "txpool maintenance - magnus pool",
-            magnus_transaction_pool::maintain::maintain_tempo_pool(transaction_pool.clone()),
+            magnus_transaction_pool::maintain::maintain_magnus_pool(transaction_pool.clone()),
         );
 
         info!(target: "reth::cli", "Transaction pool initialized");

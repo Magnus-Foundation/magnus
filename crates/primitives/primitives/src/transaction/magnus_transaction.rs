@@ -936,7 +936,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_transaction_validation() {
+    fn test_magnus_transaction_validation() {
         // Create a dummy call to satisfy validation
         let dummy_call = Call {
             to: TxKind::Create,
@@ -1691,7 +1691,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_transaction_envelope_roundtrip_without_key_auth() {
+    fn test_magnus_transaction_envelope_roundtrip_without_key_auth() {
         // Test that MagnusTransaction in envelope works without key_authorization
         let call = Call {
             to: TxKind::Create,
@@ -1768,7 +1768,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_transaction_decode_rejects_malformed_rlp() {
+    fn test_magnus_transaction_decode_rejects_malformed_rlp() {
         // Test that MagnusTransaction decoding rejects RLP with mismatched header length
         let call = Call {
             to: TxKind::Call(Address::random()),

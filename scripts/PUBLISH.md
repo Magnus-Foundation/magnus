@@ -63,8 +63,8 @@ Strips reth/node-specific code from `.rs` files using two strategies:
 - **Simple line deletion** for alloy — removes the cfg-gated `mod reth_compat;` declaration from `rpc/mod.rs` (the file itself is already deleted by the shell script).
 
 **`magnus-primitives` edits:**
-- Removes `#[cfg(feature = "reth")] mod reth_compat;` and `pub use reth_compat::TempoReceipt;` from `lib.rs`
-- Removes `#[cfg(not(feature = "reth"))]` gate from the `TempoReceipt` type alias in `lib.rs`
+- Removes `#[cfg(feature = "reth")] mod reth_compat;` and `pub use reth_compat::MagnusReceipt;` from `lib.rs`
+- Removes `#[cfg(not(feature = "reth"))]` gate from the `MagnusReceipt` type alias in `lib.rs`
 - Removes `#[cfg_attr(feature = "reth-codec", derive(reth_codecs::Compact))]` from any file
 - Removes `#[cfg_attr(test, reth_codecs::add_arbitrary_tests(...))]` from any file (single- and multi-line)
 - Removes `#[cfg(feature = "rpc")]` impl blocks from `envelope.rs`
@@ -89,7 +89,7 @@ Transforms `Cargo.toml` files. Uses depth-aware brace/bracket tracking for robus
 
 **`resolve_deps <toml> <ws_toml>`** — Replaces `workspace = true` references with concrete versions parsed from the workspace root. Preserves `default-features = false` (from both workspace and local specs), `features`, `optional`, and `package` flags. Uses depth-aware multi-line collection. Fails immediately if a dep has no version (git-only or missing).
 
-**`gen_workspace <ws_toml> <out_toml> [crate1,crate2,...]`** — Generates a temporary workspace `Cargo.toml` for the compilation check step. Dynamically discovers internal path-only crates from the workspace root (no hardcoded list) and filters them out along with `reth-*` deps. Re-adds the specified publish crates as local path overrides.
+**`gen_workspace <ws_toml> <out_toml> [crate1,crate2,...]`** — Generates a magnusrary workspace `Cargo.toml` for the compilation check step. Dynamically discovers internal path-only crates from the workspace root (no hardcoded list) and filters them out along with `reth-*` deps. Re-adds the specified publish crates as local path overrides.
 
 **`get_version <ws_toml>`** — Prints the workspace package version to stdout. Used by `publish-crates.sh` to avoid duplicating version extraction logic.
 

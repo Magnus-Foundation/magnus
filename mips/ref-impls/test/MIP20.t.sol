@@ -538,7 +538,7 @@ contract MIP20Test is BaseTest {
         // 6. systemTransferFrom - blocked from
         // We skip this test on Magnus, as the systemTransferFrom function is not exposed via the MIP20 interface
         // it is just an internal function that is called by the fee manager precompile directly.
-        if (!isTempo) {
+        if (!isMagnus) {
             address feeManager = 0xfeEC000000000000000000000000000000000000;
             vm.prank(feeManager);
             try token.systemTransferFrom(alice, bob, 100e18) {
@@ -941,14 +941,14 @@ contract MIP20Test is BaseTest {
         try token.systemTransferFrom(alice, bob, 100e18) {
             revert CallShouldHaveReverted();
         } catch (bytes memory err) {
-            if (isTempo) {
+            if (isMagnus) {
                 // On Magnus, this function doesnt exist so expect invalid function selector error
                 bytes4 errorSelector = bytes4(err);
                 assertEq(uint32(errorSelector), uint32(0xaa4bc69a));
             }
         }
 
-        if (!isTempo) {
+        if (!isMagnus) {
             // Success case - called by FEE_MANAGER
             address feeManager = 0xfeEC000000000000000000000000000000000000;
             uint256 aliceBefore = token.balanceOf(alice);
@@ -971,14 +971,14 @@ contract MIP20Test is BaseTest {
         try token.transferFeePreTx(alice, 100e18) {
             revert CallShouldHaveReverted();
         } catch (bytes memory err) {
-            if (isTempo) {
+            if (isMagnus) {
                 // On Magnus, this function doesnt exist so expect invalid function selector error
                 bytes4 errorSelector = bytes4(err);
                 assertEq(uint32(errorSelector), uint32(0xaa4bc69a));
             }
         }
 
-        if (!isTempo) {
+        if (!isMagnus) {
             // from == address(0)
             vm.prank(feeManager);
             try token.transferFeePreTx(address(0), 100e18) {
@@ -999,7 +999,7 @@ contract MIP20Test is BaseTest {
     function testTransferFeePostTx() public {
         address feeManager = 0xfeEC000000000000000000000000000000000000;
 
-        if (!isTempo) {
+        if (!isMagnus) {
             // Setup: pre-transfer to fee manager
             vm.prank(feeManager);
             token.transferFeePreTx(alice, 100e18);
@@ -1123,7 +1123,7 @@ contract MIP20Test is BaseTest {
     function testSetRewardRecipientOptIn() public {
         vm.startPrank(alice);
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectEmit(true, true, false, false);
             emit RewardRecipientSet(alice, alice);
         }
@@ -1143,7 +1143,7 @@ contract MIP20Test is BaseTest {
         token.setRewardRecipient(alice);
 
         // Then opt out
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectEmit(true, true, false, false);
             emit RewardRecipientSet(alice, address(0));
         }
@@ -1160,7 +1160,7 @@ contract MIP20Test is BaseTest {
     function testSetRewardRecipientToDifferentAddress() public {
         vm.startPrank(alice);
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectEmit(true, true, false, false);
             emit RewardRecipientSet(alice, bob);
         }
@@ -1198,7 +1198,7 @@ contract MIP20Test is BaseTest {
 
         uint256 rewardAmount = 100e18;
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectEmit(true, true, true, true);
             emit Transfer(admin, address(token), rewardAmount);
 
@@ -1215,7 +1215,7 @@ contract MIP20Test is BaseTest {
         // Claim the rewards
         uint256 balanceBeforeClaim = token.balanceOf(alice);
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectEmit(true, true, true, true);
             emit Transfer(address(token), alice, 100e18);
         }
@@ -2562,7 +2562,7 @@ contract MIP20Test is BaseTest {
     }
 
     function test_Permit() public {
-        vm.skip(isTempo); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
+        vm.skip(isMagnus); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
         address signer = vm.addr(SIGNER_KEY);
         uint256 value = 500e18;
         uint256 deadline = block.timestamp + 1 hours;
@@ -2589,7 +2589,7 @@ contract MIP20Test is BaseTest {
     }
 
     function test_Permit_OverridesExistingAllowance() public {
-        vm.skip(isTempo); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
+        vm.skip(isMagnus); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
         address signer = vm.addr(SIGNER_KEY);
         uint256 deadline = block.timestamp + 1 hours;
 
@@ -2608,7 +2608,7 @@ contract MIP20Test is BaseTest {
     }
 
     function test_Permit_Replay() public {
-        vm.skip(isTempo); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
+        vm.skip(isMagnus); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
         address signer = vm.addr(SIGNER_KEY);
         uint256 value = 500e18;
         uint256 deadline = block.timestamp + 1 hours;
@@ -2632,7 +2632,7 @@ contract MIP20Test is BaseTest {
     }
 
     function test_Permit_Fail() public {
-        vm.skip(isTempo); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
+        vm.skip(isMagnus); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
         address signer = vm.addr(SIGNER_KEY);
         uint256 value = 500e18;
 
@@ -2678,7 +2678,7 @@ contract MIP20Test is BaseTest {
     }
 
     function test_Nonces() public {
-        vm.skip(isTempo); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
+        vm.skip(isMagnus); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
         address signer = vm.addr(SIGNER_KEY);
         uint256 deadline = block.timestamp + 1 hours;
 
@@ -2698,7 +2698,7 @@ contract MIP20Test is BaseTest {
     }
 
     function test_DomainSeparator() public {
-        vm.skip(isTempo); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
+        vm.skip(isMagnus); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
         bytes32 expected = keccak256(
             abi.encode(
                 keccak256(

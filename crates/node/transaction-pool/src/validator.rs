@@ -36,7 +36,7 @@ use magnus_revm::{
 const AA_VALID_BEFORE_MIN_SECS: u64 = 3;
 
 /// Default maximum number of authorizations allowed in an AA transaction's authorization list.
-pub const DEFAULT_MAX_TEMPO_AUTHORIZATIONS: usize = 16;
+pub const DEFAULT_MAX_MAGNUS_AUTHORIZATIONS: usize = 16;
 
 /// Maximum number of calls allowed per AA transaction (DoS protection).
 pub const MAX_AA_CALLS: usize = 32;
@@ -78,7 +78,7 @@ pub struct MagnusTransactionValidator<Client> {
     /// Maximum allowed `valid_after` offset for AA txs.
     pub(crate) aa_valid_after_max_secs: u64,
     /// Maximum number of authorizations allowed in an AA transaction.
-    pub(crate) max_tempo_authorizations: usize,
+    pub(crate) max_magnus_authorizations: usize,
     /// Cache of AMM liquidity for validator tokens.
     pub(crate) amm_liquidity_cache: AmmLiquidityCache,
     /// Cached EVM environment from the latest tip block, updated on each `on_new_head_block`.
@@ -92,7 +92,7 @@ where
     pub fn new(
         inner: EthTransactionValidator<Client, MagnusPooledTransaction, MagnusEvmConfig>,
         aa_valid_after_max_secs: u64,
-        max_tempo_authorizations: usize,
+        max_magnus_authorizations: usize,
         amm_liquidity_cache: AmmLiquidityCache,
     ) -> Self
     where
@@ -112,7 +112,7 @@ where
         Self {
             inner,
             aa_valid_after_max_secs,
-            max_tempo_authorizations,
+            max_magnus_authorizations,
             amm_liquidity_cache,
             cached_evm_env: parking_lot::RwLock::new(evm_env),
         }
@@ -184,10 +184,10 @@ where
         };
 
         let count = aa_tx.tx().magnus_authorization_list.len();
-        if count > self.max_tempo_authorizations {
+        if count > self.max_magnus_authorizations {
             return Err(MagnusPoolTransactionError::TooManyAuthorizations {
                 count,
-                max_allowed: self.max_tempo_authorizations,
+                max_allowed: self.max_magnus_authorizations,
             });
         }
 
@@ -775,7 +775,7 @@ mod tests {
         let validator = MagnusTransactionValidator::new(
             inner,
             DEFAULT_AA_VALID_AFTER_MAX_SECS,
-            DEFAULT_MAX_TEMPO_AUTHORIZATIONS,
+            DEFAULT_MAX_MAGNUS_AUTHORIZATIONS,
             amm_cache,
         );
 
@@ -1983,7 +1983,7 @@ mod tests {
 
         // Create transaction with more authorizations than the default limit
         let transaction =
-            create_aa_transaction_with_authorizations(DEFAULT_MAX_TEMPO_AUTHORIZATIONS + 1);
+            create_aa_transaction_with_authorizations(DEFAULT_MAX_MAGNUS_AUTHORIZATIONS + 1);
         let validator = setup_validator(&transaction, current_time);
 
         let outcome = validator
@@ -2011,7 +2011,7 @@ mod tests {
 
         // Create transaction with exactly the limit
         let transaction =
-            create_aa_transaction_with_authorizations(DEFAULT_MAX_TEMPO_AUTHORIZATIONS);
+            create_aa_transaction_with_authorizations(DEFAULT_MAX_MAGNUS_AUTHORIZATIONS);
         let validator = setup_validator(&transaction, current_time);
 
         let outcome = validator

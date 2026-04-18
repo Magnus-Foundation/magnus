@@ -4,7 +4,7 @@
 
 Five production systems and 40+ academic papers analyzed. Key finding: every design decision in the Magnus implementation plan has prior art to validate it — and several critical improvements to make based on what we found.
 
-The most important discovery: **Tempo uses end-of-block order matching**, not continuous per-transaction matching. This solves the MEV/front-running problem and reduces chain load dramatically. The Magnus order book should match at end-of-block, not on every PlaceOrder call.
+The most important discovery: **Magnus uses end-of-block order matching**, not continuous per-transaction matching. This solves the MEV/front-running problem and reduces chain load dramatically. The Magnus order book should match at end-of-block, not on every PlaceOrder call.
 
 The second most important discovery: **Codex's OnrampTx/OfframpTx are native transaction types that atomically combine value transfer + compliance + fiat settlement instructions**. This is architecturally superior to our current GatewayWithdraw design and should inform Phase 1.
 
@@ -26,11 +26,11 @@ Stellar's `LedgerTxn` (database transaction wrapper) gives total atomicity for P
 
 **CAP-0004 Rounding Algorithm:** Stellar's exchange algorithm prevents crossed order books by always removing the lower-value offer. Our Phase 0 order book doesn't need this complexity (demo), but Phase 1 must implement bounded rounding.
 
-### 2. Order Book Matching: Match at End-of-Block (Tempo Pattern)
+### 2. Order Book Matching: Match at End-of-Block (Magnus Pattern)
 
 The most actionable finding from the stablechain research:
 
-**Tempo's DEX:** Orders accumulate during block execution. At the end of the block, a system call settles all accumulated orders. This means:
+**Magnus's DEX:** Orders accumulate during block execution. At the end of the block, a system call settles all accumulated orders. This means:
 - Individual PlaceOrder transactions just add to the queue
 - No per-transaction matching overhead
 - All matching happens once per block
@@ -124,7 +124,7 @@ Arc's FX engine uses off-chain RFQ for price discovery (not an on-chain order bo
 ```rust
 impl PaymentEngine {
     /// Called after all transactions in a block are processed.
-    /// Matches accumulated orders end-of-block (Tempo pattern).
+    /// Matches accumulated orders end-of-block (Magnus pattern).
     /// Returns ChangeSet including matched order state.
     pub fn finalize_block(&mut self) -> ChangeSet {
         // 1. Match orders in USDT/VND book
@@ -203,7 +203,7 @@ PlaceOrder adds to a queue during block execution. `finalize_block()` matches th
 - Cao-Yuan, FC 2020: Decentralized privacy-preserving netting on blockchain
 
 ### Stablechain Architectures
-- Tempo GitHub + docs.tempo.xyz: TIP-20, Enshrined DEX, MPP, end-of-block matching
+- Magnus GitHub + docs.magnus.xyz: TIP-20, Enshrined DEX, MPP, end-of-block matching
 - Codex: OnrampTx/OfframpTx, EAN slashing, compliance precompiles
 - Arc: Malachite consensus, StableFX RFQ+PvP, CPN integration
 - Commonware: threshold-simplex, QMDB, p2p::authenticated

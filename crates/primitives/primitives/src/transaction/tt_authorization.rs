@@ -174,7 +174,7 @@ impl Deref for MagnusSignedAuthorization {
 /// is recovered on first access and cached.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct RecoveredTempoAuthorization {
+pub struct RecoveredMagnusAuthorization {
     /// Signed authorization (contains inner auth and signature)
     signed: MagnusSignedAuthorization,
     /// Lazily recovered authority (cached after first access)
@@ -182,7 +182,7 @@ pub struct RecoveredTempoAuthorization {
     authority: OnceLock<RecoveredAuthority>,
 }
 
-impl RecoveredTempoAuthorization {
+impl RecoveredMagnusAuthorization {
     /// Creates a new authorization from a signed authorization.
     ///
     /// Authority recovery is deferred until first access.
@@ -264,21 +264,21 @@ impl RecoveredTempoAuthorization {
     }
 }
 
-impl PartialEq for RecoveredTempoAuthorization {
+impl PartialEq for RecoveredMagnusAuthorization {
     fn eq(&self, other: &Self) -> bool {
         self.signed == other.signed
     }
 }
 
-impl Eq for RecoveredTempoAuthorization {}
+impl Eq for RecoveredMagnusAuthorization {}
 
-impl core::hash::Hash for RecoveredTempoAuthorization {
+impl core::hash::Hash for RecoveredMagnusAuthorization {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.signed.hash(state);
     }
 }
 
-impl Deref for RecoveredTempoAuthorization {
+impl Deref for RecoveredMagnusAuthorization {
     type Target = Authorization;
 
     fn deref(&self) -> &Self::Target {
@@ -286,7 +286,7 @@ impl Deref for RecoveredTempoAuthorization {
     }
 }
 
-impl AuthorizationTr for RecoveredTempoAuthorization {
+impl AuthorizationTr for RecoveredMagnusAuthorization {
     fn chain_id(&self) -> U256 {
         self.chain_id
     }
@@ -403,30 +403,30 @@ pub mod tests {
         let std_recovered = signed_for_into.into_recovered();
         assert_eq!(std_recovered.authority(), Some(expected_address));
 
-        // RecoveredTempoAuthorization - lazy recovery
+        // RecoveredMagnusAuthorization - lazy recovery
         let signed_for_lazy =
             MagnusSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
-        let lazy_recovered = RecoveredTempoAuthorization::new(signed_for_lazy);
+        let lazy_recovered = RecoveredMagnusAuthorization::new(signed_for_lazy);
         assert_eq!(lazy_recovered.authority(), Some(expected_address));
         assert!(matches!(
             lazy_recovered.authority_status(),
             RecoveredAuthority::Valid(_)
         ));
 
-        // RecoveredTempoAuthorization::recover() - eager recovery
+        // RecoveredMagnusAuthorization::recover() - eager recovery
         let signed_for_eager =
             MagnusSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
-        let eager_recovered = RecoveredTempoAuthorization::recover(signed_for_eager);
+        let eager_recovered = RecoveredMagnusAuthorization::recover(signed_for_eager);
         assert_eq!(eager_recovered.authority(), Some(expected_address));
 
-        // Accessors on RecoveredTempoAuthorization
+        // Accessors on RecoveredMagnusAuthorization
         assert_eq!(eager_recovered.signed().inner(), &auth);
         assert_eq!(eager_recovered.inner(), &auth);
         assert_eq!(eager_recovered.signature(), &signature);
 
         // into_recovered_authorization()
         let signed_for_convert = MagnusSignedAuthorization::new_unchecked(auth.clone(), signature);
-        let converted = RecoveredTempoAuthorization::new(signed_for_convert);
+        let converted = RecoveredMagnusAuthorization::new(signed_for_convert);
         let std_auth = converted.into_recovered_authorization();
         assert_eq!(std_auth.authority(), Some(expected_address));
 
@@ -440,8 +440,8 @@ pub mod tests {
         assert!(recovered.is_ok());
         assert_ne!(recovered.unwrap(), expected_address);
 
-        // RecoveredTempoAuthorization with wrong sig still recovers (to wrong address)
-        let bad_lazy = RecoveredTempoAuthorization::new(bad_signed);
+        // RecoveredMagnusAuthorization with wrong sig still recovers (to wrong address)
+        let bad_lazy = RecoveredMagnusAuthorization::new(bad_signed);
         assert!(bad_lazy.authority().is_some());
         assert_ne!(bad_lazy.authority().unwrap(), expected_address);
     }

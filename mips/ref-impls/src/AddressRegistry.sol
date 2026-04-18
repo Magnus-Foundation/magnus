@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 pragma solidity >=0.8.13 <0.9.0;
 
-import { TempoUtilities } from "./TempoUtilities.sol";
+import { MagnusUtilities } from "./MagnusUtilities.sol";
 import { IAddressRegistry } from "./interfaces/IAddressRegistry.sol";
 
 /// @title MIP-1022 virtual address registry
@@ -11,7 +11,7 @@ contract AddressRegistry is IAddressRegistry {
     mapping(bytes4 => address) internal _masters;
 
     function registerVirtualMaster(bytes32 salt) external returns (bytes4 masterId) {
-        if (!TempoUtilities.isValidVirtualMaster(msg.sender)) {
+        if (!MagnusUtilities.isValidVirtualMaster(msg.sender)) {
             revert InvalidMasterAddress();
         }
 
@@ -41,7 +41,7 @@ contract AddressRegistry is IAddressRegistry {
             return effectiveRecipient;
         }
 
-        if (TempoUtilities.isVirtualAddress(to)) {
+        if (MagnusUtilities.isVirtualAddress(to)) {
             revert VirtualAddressUnregistered();
         }
 
@@ -49,7 +49,7 @@ contract AddressRegistry is IAddressRegistry {
     }
 
     function resolveVirtualAddress(address virtualAddr) public view returns (address master) {
-        (bool isVirtual, bytes4 masterId,) = TempoUtilities.decodeVirtualAddress(virtualAddr);
+        (bool isVirtual, bytes4 masterId,) = MagnusUtilities.decodeVirtualAddress(virtualAddr);
         if (!isVirtual) {
             return address(0);
         }
@@ -58,7 +58,7 @@ contract AddressRegistry is IAddressRegistry {
     }
 
     function isVirtualAddress(address addr) external pure returns (bool) {
-        return TempoUtilities.isVirtualAddress(addr);
+        return MagnusUtilities.isVirtualAddress(addr);
     }
 
     function decodeVirtualAddress(address addr)
@@ -66,7 +66,7 @@ contract AddressRegistry is IAddressRegistry {
         pure
         returns (bool isVirtual, bytes4 masterId, bytes6 userTag)
     {
-        return TempoUtilities.decodeVirtualAddress(addr);
+        return MagnusUtilities.decodeVirtualAddress(addr);
     }
 
 }

@@ -88,7 +88,7 @@ enum Commands {
     Add(ManagementArgs),
 
     /// Update magnus and/or extensions. Without arguments, updates magnus
-    /// itself via tempoup and then updates all installed extensions.
+    /// itself via magnusup and then updates all installed extensions.
     #[command(
         after_help = "Examples:\n  magnus update          # update magnus + all extensions\n  magnus update wallet   # update a single extension"
     )]
@@ -158,26 +158,26 @@ struct RemoveArgs {
     dry_run: bool,
 }
 
-/// Runs `tempoup` to update the magnus binary itself.
+/// Runs `magnusup` to update the magnus binary itself.
 ///
-/// Passes `MAGNUS_BIN_DIR` so tempoup installs into the same directory as the
-/// running binary. If tempoup is not found on `PATH`, it is installed first
+/// Passes `MAGNUS_BIN_DIR` so magnusup installs into the same directory as the
+/// running binary. If magnusup is not found on `PATH`, it is installed first
 /// via `https://magnus.xyz/install`.
-fn run_tempoup(bin_dir: &Path) -> Result<bool, LauncherError> {
-    let status = match Command::new("tempoup")
+fn run_magnusup(bin_dir: &Path) -> Result<bool, LauncherError> {
+    let status = match Command::new("magnusup")
         .env("MAGNUS_BIN_DIR", bin_dir)
         .status()
     {
         Ok(s) => s,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            println!("tempoup not found, installing...");
+            println!("magnusup not found, installing...");
             let install_status = Command::new("sh")
                 .arg("-c")
                 .arg("curl -fsSL https://magnus.xyz/install | bash")
                 .env("MAGNUS_BIN_DIR", bin_dir)
                 .status()?;
             if !install_status.success() {
-                tracing::error!("failed to install tempoup");
+                tracing::error!("failed to install magnusup");
                 return Ok(false);
             }
 
@@ -234,7 +234,7 @@ impl Launcher {
 
     /// Handles `magnus update [extension]`.
     ///
-    /// Without an extension name, updates magnus itself via `tempoup` and then
+    /// Without an extension name, updates magnus itself via `magnusup` and then
     /// updates all installed extensions. With an extension name, only updates
     /// that extension (and unpins it). With an explicit version, behaves like
     /// `add`.
@@ -325,16 +325,16 @@ impl Launcher {
         Ok(0)
     }
 
-    /// Updates magnus itself via `tempoup`, then updates all installed extensions.
+    /// Updates magnus itself via `magnusup`, then updates all installed extensions.
     fn handle_update_all(&self, dry_run: bool) -> Result<i32, LauncherError> {
         let installer = Installer::from_env(self.exe_dir.as_deref())?;
 
-        // 1. Update magnus itself via tempoup.
+        // 1. Update magnus itself via magnusup.
         if dry_run {
-            println!("dry-run: update magnus via tempoup");
+            println!("dry-run: update magnus via magnusup");
         } else {
             println!("Updating magnus...");
-            if !run_tempoup(&installer.bin_dir)? {
+            if !run_magnusup(&installer.bin_dir)? {
                 tracing::error!("magnus update failed");
             }
         }

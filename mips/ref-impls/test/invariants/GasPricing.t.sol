@@ -151,7 +151,7 @@ contract GasPricingInvariantTest is InvariantBase {
     /// @param slotSeed Seed for generating unique slot
     function handler_sstoreNewSlot(uint256 actorSeed, uint256 slotSeed) external {
         // Skip when not on Magnus (vmExec.executeTransaction not available)
-        if (!isTempo) return;
+        if (!isMagnus) return;
 
         ghost_sstoreTests++;
 
@@ -209,7 +209,7 @@ contract GasPricingInvariantTest is InvariantBase {
     /// @param actorSeed Seed for selecting actor
     function handler_createContract(uint256 actorSeed) external {
         // Skip when not on Magnus (vmExec.executeTransaction not available)
-        if (!isTempo) return;
+        if (!isMagnus) return;
 
         ghost_createTests++;
 
@@ -267,7 +267,7 @@ contract GasPricingInvariantTest is InvariantBase {
     /// @param numSlots Number of slots to write (2-5)
     function handler_multipleNewSlots(uint256 actorSeed, uint256 numSlots) external {
         // Skip when not on Magnus (vmExec.executeTransaction not available)
-        if (!isTempo) return;
+        if (!isMagnus) return;
 
         numSlots = bound(numSlots, 2, 5);
         ghost_multiSlotTests++;

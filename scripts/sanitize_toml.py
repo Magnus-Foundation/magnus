@@ -390,7 +390,7 @@ def main():
         # Remove "reth" and "cli" from the default feature array
         text = strip_feature_array_entries(text, {'reth', 'cli'})
 
-        # The tempo_hardfork! macro generates #[cfg(feature = "reth")] blocks that remain in source.
+        # The magnus_hardfork! macro generates #[cfg(feature = "reth")] blocks that remain in source.
         # Tell check-cfg that "reth" is an expected (but never enabled) feature to suppress warnings.
         if '[lints.rust]' not in text:
             text += '\n[lints.rust]\nunexpected_cfgs = { level = "allow", check-cfg = [\'cfg(feature, values("reth"))\'] }\n'
@@ -478,7 +478,7 @@ def main():
         text = '\n'.join(result)
 
     elif action == "gen_workspace":
-        # Generate a temporary workspace Cargo.toml with workspace deps,
+        # Generate a magnusrary workspace Cargo.toml with workspace deps,
         # filtering out reth-* and internal path-only deps dynamically.
         #
         # Usage: sanitize_toml.py gen_workspace <ws_toml> <out_toml> [crate1,crate2,...]

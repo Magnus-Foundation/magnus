@@ -1,4 +1,4 @@
-//! Pool for transactions whose fee token is temporarily paused.
+//! Pool for transactions whose fee token is magnusrarily paused.
 //!
 //! When a MIP20 fee token emits `PauseStateUpdate(isPaused=true)`, transactions
 //! using that fee token are moved here instead of being evicted entirely.
@@ -39,7 +39,7 @@ struct PausedTokenMeta {
     entries: Vec<PausedEntry>,
 }
 
-/// Pool for transactions whose fee token is temporarily paused.
+/// Pool for transactions whose fee token is magnusrarily paused.
 ///
 /// Transactions are indexed by fee token address for efficient batch operations.
 /// Since all transactions for a token are paused/unpaused together, we track

@@ -10,7 +10,7 @@ use magnus_node::rpc::simulate::MagnusSimulateV1Response;
 use crate::utils::{TestNodeBuilder, setup_test_token};
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_tempo_simulate_v1() -> eyre::Result<()> {
+async fn test_magnus_simulate_v1() -> eyre::Result<()> {
     reth_tracing::init_test_tracing();
 
     let setup = TestNodeBuilder::new().build_http_only().await?;

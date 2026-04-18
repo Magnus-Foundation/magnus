@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { MIP20 } from "../../src/MIP20.sol";
-import { TempoUtilities as Magnus } from "../../src/TempoUtilities.sol";
+import { MagnusUtilities as Magnus } from "../../src/MagnusUtilities.sol";
 import { IAddressRegistry } from "../../src/interfaces/IAddressRegistry.sol";
 import { IMIP20 } from "../../src/interfaces/IMIP20.sol";
 import { IMIP403Registry } from "../../src/interfaces/IMIP403Registry.sol";

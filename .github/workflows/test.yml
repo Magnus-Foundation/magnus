@@ -134,8 +134,8 @@ jobs:
           "$LLVM_BIN/llvm-profdata" merge -sparse coverage/*.profraw -o coverage/cargo-test.profdata
           mkdir -p coverage/precompiles-bin
           # Copy precompiles and contracts test binaries
-          find target/debug/deps -name 'tempo_precompiles-*' -type f -executable ! -name '*.d' -exec cp {} coverage/precompiles-bin/ \;
-          find target/debug/deps -name 'tempo_contracts-*' -type f -executable ! -name '*.d' -exec cp {} coverage/precompiles-bin/ \;
+          find target/debug/deps -name 'magnus_precompiles-*' -type f -executable ! -name '*.d' -exec cp {} coverage/precompiles-bin/ \;
+          find target/debug/deps -name 'magnus_contracts-*' -type f -executable ! -name '*.d' -exec cp {} coverage/precompiles-bin/ \;
       - name: Upload precompiles coverage artifacts
         if: needs.check-precompiles.outputs.coverage == 'true'
         uses: actions/upload-artifact@v4
@@ -211,8 +211,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: rui314/setup-mold@725a8794d15fc7563f59595bd9556495c0564878 # v1
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
-      - name: Build tempo
-        run: cargo build --bin tempo
+      - name: Build magnus
+        run: cargo build --bin magnus
       - name: Run CLI tests
         run: ./scripts/test-cli.sh
 
@@ -232,7 +232,7 @@ jobs:
       - uses: rui314/setup-mold@725a8794d15fc7563f59595bd9556495c0564878 # v1
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - name: Build with MSRV
-        run: cargo build --bin tempo
+        run: cargo build --bin magnus
         env:
           RUSTFLAGS: -D warnings
 

@@ -94,7 +94,7 @@ pub trait Precompile {
 /// Returns the full Magnus precompiles for the given config.
 ///
 /// Pre-T1C hardforks use Prague precompiles, T1C+ uses Osaka precompiles.
-/// Magnus-specific precompiles are also registered via [`extend_tempo_precompiles`].
+/// Magnus-specific precompiles are also registered via [`extend_magnus_precompiles`].
 pub fn magnus_precompiles(cfg: &CfgEnv<MagnusHardfork>) -> PrecompilesMap {
     let spec = if cfg.spec.is_t1c() {
         cfg.spec.into()
@@ -102,7 +102,7 @@ pub fn magnus_precompiles(cfg: &CfgEnv<MagnusHardfork>) -> PrecompilesMap {
         SpecId::PRAGUE
     };
     let mut precompiles = PrecompilesMap::from_static(EthPrecompiles::new(spec).precompiles);
-    extend_tempo_precompiles(&mut precompiles, cfg);
+    extend_magnus_precompiles(&mut precompiles, cfg);
     precompiles
 }
 
@@ -111,7 +111,7 @@ pub fn magnus_precompiles(cfg: &CfgEnv<MagnusHardfork>) -> PrecompilesMap {
 /// MIP20Factory, MIP403Registry, MipFeeManager, StablecoinDEX, NonceManager, ValidatorConfig,
 /// AccountKeychain, and ValidatorConfigV2. Each precompile is wrapped via the `magnus_precompile!`
 /// macro which enforces direct-call-only (no delegatecall) and sets up the storage context.
-pub fn extend_tempo_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<MagnusHardfork>) {
+pub fn extend_magnus_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<MagnusHardfork>) {
     let cfg = cfg.clone();
 
     precompiles.set_precompile_lookup(move |address: &Address| {
@@ -735,7 +735,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extend_tempo_precompiles_registers_precompiles() {
+    fn test_extend_magnus_precompiles_registers_precompiles() {
         let mut cfg = CfgEnv::<MagnusHardfork>::default();
         cfg.set_spec_and_mainnet_gas_params(MagnusHardfork::T3);
         let precompiles = magnus_precompiles(&cfg);

@@ -66,7 +66,7 @@ contract ValidatorConfigV2Test is BaseTest {
         // Forge's signEd25519 does simple concat(namespace, message), but the Rust
         // precompile uses commonware's union_unique: varint(len) || namespace || message.
         // Prepend uint8(len) to the namespace so Forge's concat matches commonware.
-        bytes memory ns = bytes("TEMPO_VALIDATOR_CONFIG_V2_ADD_VALIDATOR");
+        bytes memory ns = bytes("MAGNUS_VALIDATOR_CONFIG_V2_ADD_VALIDATOR");
         return vm.signEd25519(
             abi.encodePacked(uint8(ns.length), ns), abi.encodePacked(message), privateKey
         );
@@ -93,7 +93,7 @@ contract ValidatorConfigV2Test is BaseTest {
                 egress
             )
         );
-        bytes memory ns = bytes("TEMPO_VALIDATOR_CONFIG_V2_ROTATE_VALIDATOR");
+        bytes memory ns = bytes("MAGNUS_VALIDATOR_CONFIG_V2_ROTATE_VALIDATOR");
         return vm.signEd25519(
             abi.encodePacked(uint8(ns.length), ns), abi.encodePacked(message), privateKey
         );
@@ -235,7 +235,7 @@ contract ValidatorConfigV2Test is BaseTest {
             );
         }
 
-        if (isTempo) {
+        if (isMagnus) {
             // 6. InvalidSignatureFormat (short — wrong length)
             try validatorConfigV2.addValidator(
                 validator1, PUB_KEY_0, ingress1, egress1, validator1, hex"0000"
@@ -467,7 +467,7 @@ contract ValidatorConfigV2Test is BaseTest {
             );
         }
 
-        if (isTempo) {
+        if (isMagnus) {
             // 6. InvalidSignatureFormat (short — wrong length)
             validatorConfigV2.addValidator(
                 validator3,

@@ -70,7 +70,7 @@
           ];
         };
 
-        mkTempo =
+        mkMagnus =
           overrides:
           craneLib.buildPackage (
             composeAttrOverrides {
@@ -92,7 +92,7 @@
         # Cargo.toml would fix it by letting crane use allRefs=false.
         #
         # packages = rec {
-        #   magnus = mkTempo (
+        #   magnus = mkMagnus (
         #     [
         #       withClang
         #       withMaxPerf

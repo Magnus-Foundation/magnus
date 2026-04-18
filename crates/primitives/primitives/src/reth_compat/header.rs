@@ -296,7 +296,7 @@ mod codec {
         }
 
         #[derive(reth_codecs::Compact)]
-        struct TestPreT4TempoHeader {
+        struct TestPreT4MagnusHeader {
             pub general_gas_limit: u64,
             pub shared_gas_limit: u64,
             pub timestamp_millis_part: u64,
@@ -306,7 +306,7 @@ mod codec {
         #[test]
         fn presto_block_1_compact_roundtrip() {
             let header = presto_block_1();
-            let pre_t4_header = TestPreT4TempoHeader {
+            let pre_t4_header = TestPreT4MagnusHeader {
                 general_gas_limit: header.general_gas_limit,
                 shared_gas_limit: header.shared_gas_limit,
                 timestamp_millis_part: header.timestamp_millis_part,

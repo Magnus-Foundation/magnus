@@ -129,7 +129,7 @@ update_magnusup() {
         error "curl not found. Please install curl."
     fi
 
-    # Create temporary file
+    # Create magnusrary file
     local tmp_file=$(mktemp)
     trap "rm -f $tmp_file" EXIT
 
@@ -341,7 +341,7 @@ main() {
 
     ARCHIVE_NAME="magnus-${VERSION_TAG}-${TARGET}.${ARCHIVE_EXT}"
 
-    # Create temporary directory
+    # Create magnusrary directory
     TMP_DIR=$(mktemp -d)
     trap "rm -rf $TMP_DIR" EXIT
 

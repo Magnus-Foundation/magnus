@@ -889,7 +889,7 @@ mod tests {
     }
 
     #[test]
-    fn test_payment_v2_aa_rejects_tempo_authorization_list() {
+    fn test_payment_v2_aa_rejects_magnus_authorization_list() {
         let calldata = IMIP20::transferCall {
             to: Address::random(),
             amount: U256::from(1),

@@ -7,17 +7,17 @@ This directory contains Solidity specifications and fuzz tests for Magnus's prec
 
 ## How Tests Work
 
-The tests use an `isTempo` flag (defined in `BaseTest.t.sol`) to detect which implementation is being tested:
+The tests use an `isMagnus` flag (defined in `BaseTest.t.sol`) to detect which implementation is being tested:
 
-- **`isTempo = false`**: Tests run against Solidity implementations deployed via `deployCodeTo()`. This is the default `forge` path.
-- **`isTempo = true`**: Tests run against Rust precompiles built into upstream Foundry's Magnus EVM. This is the Magnus profile path.
+- **`isMagnus = false`**: Tests run against Solidity implementations deployed via `deployCodeTo()`. This is the default `forge` path.
+- **`isMagnus = true`**: Tests run against Rust precompiles built into upstream Foundry's Magnus EVM. This is the Magnus profile path.
 
 This allows the same test suite to verify both implementations are in sync.
 
 The checked-in `foundry.toml` keeps these two modes separate with profiles:
 
-- `default` / `ci`: Solidity reference implementations (`isTempo = false`)
-- `magnus` / `tempo_ci`: Native Rust precompiles (`isTempo = true`)
+- `default` / `ci`: Solidity reference implementations (`isMagnus = false`)
+- `magnus` / `magnus_ci`: Native Rust precompiles (`isMagnus = true`)
 
 ## Running Tests
 
@@ -101,6 +101,6 @@ forge test
 The CI runs both test modes:
 
 1. `forge test` - Validates Solidity implementations
-2. `FOUNDRY_PROFILE=tempo_ci forge test` - Validates Rust precompiles match Solidity specs
+2. `FOUNDRY_PROFILE=magnus_ci forge test` - Validates Rust precompiles match Solidity specs
 
 This ensures the Rust and Solidity implementations stay in sync.

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.20 <0.9.0;
 
-/// @title ITempoStreamChannel
-/// @notice Interface for the TempoStreamChannel escrow contract.
+/// @title IMagnusStreamChannel
+/// @notice Interface for the MagnusStreamChannel escrow contract.
 /// @dev Unidirectional payment channel for streaming payments using EIP-712 signed vouchers.
 ///      Spec: https://paymentauth.magnus.xyz/draft-magnus-stream-00
-interface ITempoStreamChannel {
+interface IMagnusStreamChannel {
 
     struct Channel {
         bool finalized;

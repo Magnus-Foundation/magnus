@@ -71,7 +71,7 @@ pub(crate) fn binary_candidates(base: &str) -> Vec<String> {
     vec![base.to_string()]
 }
 
-/// Verifies that `dir` is writable by creating a temporary file in it.
+/// Verifies that `dir` is writable by creating a magnusrary file in it.
 pub(super) fn check_dir_writable(dir: &Path) -> Result<(), InstallerError> {
     tempfile::NamedTempFile::new_in(dir).map_err(|err| {
         InstallerError::Io(std::io::Error::new(

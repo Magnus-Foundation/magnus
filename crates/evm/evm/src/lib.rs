@@ -278,7 +278,7 @@ mod tests {
     };
 
     #[test]
-    fn test_evm_config_can_query_tempo_hardforks() {
+    fn test_evm_config_can_query_magnus_hardforks() {
         let evm_config = MagnusEvmConfig::new(test_chainspec());
         let activation = evm_config
             .chain_spec()

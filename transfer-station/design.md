@@ -177,14 +177,14 @@ For the 66% of stablecoin holders in emerging markets (Goldman Sachs), this is t
 
 **The stablecoin fragmentation numbers:**
 - USDT on 107 chains. USDC on 125. 214 distinct stablecoin assets.
-- BIS (Shin, March 2026) proved this fragmentation is an equilibrium, not a temporary bug.
+- BIS (Shin, March 2026) proved this fragmentation is an equilibrium, not a magnusrary bug.
 - $4.3B lost to bridge exploits trying to connect these chains.
 - $7.2T monthly stablecoin volume (Feb 2026), overtaking ACH.
 
 **What exists today and why it fails for retail users:**
 - Bridges (Wormhole, LayerZero): require gas tokens on source chain. Can't help gasless users.
 - BVNK/Bridge/Stripe: enterprise-only, $500K/month minimums.
-- Arc/Tempo/Codex: institutional, no fiat rails, still require gas tokens per chain.
+- Arc/Magnus/Codex: institutional, no fiat rails, still require gas tokens per chain.
 - Stellar: has anchors but no EVM, no compliance, no netting, 3-5s finality.
 
 The gap: **nobody gives retail users a stablecoin wallet where deposits, sends, and withdrawals work without ever touching a gas token.** Where the fee is always in stablecoins. Where one balance routes to 125 chains and 195 countries. That's Magnus.
@@ -220,10 +220,10 @@ The result: fragmented, non-interoperable, compliance-questionable, expensive. E
 ## Constraints
 
 - Alliance DAO deadline: May 27, 2026 (need demo, not production chain)
-- Must differentiate from Arc (Circle), Codex (Dragonfly), Tempo (Stripe)
+- Must differentiate from Arc (Circle), Codex (Dragonfly), Magnus (Stripe)
 - Must support USDT (60%+ market share), not just USDC
 - Must connect to local fiat rails, not just other chains
-- Built on magnus-chain (Tempo fork, Commonware Simplex + Reth EVM + precompiles)
+- Built on magnus-chain (Magnus fork, Commonware Simplex + Reth EVM + precompiles)
 - Regulatory compliance non-negotiable for payment use case
 
 ## Premises
@@ -265,7 +265,7 @@ Protocol on Base first, L1 roadmap. Both codebases.
 
 ## Recommended Approach
 
-**B: L1-First.** Fork Tempo (magnus-chain), add Gateway Protocol + bridges + netting.
+**B: L1-First.** Fork Magnus (magnus-chain), add Gateway Protocol + bridges + netting.
 
 ### Architecture
 
@@ -285,19 +285,19 @@ Protocol on Base first, L1 roadmap. Both codebases.
 
 ### Core Components
 
-Magnus is built on magnus-chain (a Tempo fork). Every stablechain (Arc, Tempo, Codex)
+Magnus is built on magnus-chain (a Magnus fork). Every stablechain (Arc, Magnus, Codex)
 uses the same pattern: EVM + precompiles. Magnus follows this proven architecture and
 adds the Gateway Protocol, bridges, and netting that no other stablechain has.
 
-**1. Commonware Simplex Consensus (from Tempo, unchanged)**
+**1. Commonware Simplex Consensus (from Magnus, unchanged)**
 - 200ms blocks, 300ms deterministic finality
 - Threshold BLS certificates (~240 bytes) for cross-chain finality proofs
 - No public mempool (FCFS ordering, no front-running)
-- Same consensus used by Tempo ($5B, Visa as validator)
+- Same consensus used by Magnus ($5B, Visa as validator)
 
-**2. Reth EVM + MIP20 Precompiles (from Tempo fork, unchanged)**
-- MIP20 tokens: ERC-20 compatible precompiles with memo fields, ISO 20022 payment data, currency identifiers, compliance policies (MIP403). Same interface as Tempo's TIP-20.
-- StablecoinDEX: enshrined order book precompile with limit orders, flip orders (perpetual liquidity), swaps. End-of-block matching. Same as Tempo's enshrined DEX.
+**2. Reth EVM + MIP20 Precompiles (from Magnus fork, unchanged)**
+- MIP20 tokens: ERC-20 compatible precompiles with memo fields, ISO 20022 payment data, currency identifiers, compliance policies (MIP403). Same interface as Magnus's TIP-20.
+- StablecoinDEX: enshrined order book precompile with limit orders, flip orders (perpetual liquidity), swaps. End-of-block matching. Same as Magnus's enshrined DEX.
 - MipFeeManager: multi-stablecoin gas fees. Users pay in any registered stablecoin.
 - Full EVM compatibility: Solidity, MetaMask, ethers.js, all Ethereum tooling works.
 
@@ -325,7 +325,7 @@ adds the Gateway Protocol, bridges, and netting that no other stablechain has.
 - Enables zero destination gas fees (protocol absorbs gas from netting savings)
 - No other L1 has protocol-level netting
 
-**6. Compliance Pipeline (from Tempo fork, extended)**
+**6. Compliance Pipeline (from Magnus fork, extended)**
 - MIP403 policy registry: whitelist/blacklist per token, per jurisdiction (exists)
 - Circuit breaker: emergency freeze precompile (Phase 3, new)
 - Sanctions screening: precompile check on every transfer (Phase 3, new)
@@ -335,18 +335,18 @@ adds the Gateway Protocol, bridges, and netting that no other stablechain has.
 
 ### Competitive Positioning
 
-| Feature | Stellar | Arc (Circle) | Codex (Dragonfly) | Tempo (Stripe) | Magnus (us) |
+| Feature | Stellar | Arc (Circle) | Codex (Dragonfly) | Magnus (Stripe) | Magnus (us) |
 |---|---|---|---|---|---|
 | Gas-free deposits | No | No | No | No | Yes (permit + relayer) |
 | Gas-free sends | No | No | No | No | Yes (netting + treasury) |
 | Fiat rail connectivity | SEP (app-layer) | CPN (permissioned) | OnrampTx/OfframpTx | No | Native Gateway Protocol (open) |
 | Protocol-level netting | No | No | No | No | Yes (90%+ efficiency) |
-| Compliance | App-layer | Partial | Precompiles | MIP403/TIP-403 | MIP403 (from Tempo) + extensions |
-| EVM composability | No (Soroban) | No (custom) | Yes (OP Stack) | Yes (Reth) | Yes (Reth, from Tempo fork) |
+| Compliance | App-layer | Partial | Precompiles | MIP403/TIP-403 | MIP403 (from Magnus) + extensions |
+| EVM composability | No (Soroban) | No (custom) | Yes (OP Stack) | Yes (Reth) | Yes (Reth, from Magnus fork) |
 | USDT support | Limited | Secondary | Yes | No | First-class |
 | Emerging market focus | Yes (anchors) | No (institutional) | No (institutional) | No (USD-only) | Yes (VietQR, M-Pesa, UPI) |
 | Finality | 3-5s | Sub-second | Optimistic | 300ms (Simplex) | 300ms (Simplex) |
-| Base infrastructure | Custom | Malachite+Reth | OP Stack | Commonware+Reth | Tempo fork (Commonware+Reth) |
+| Base infrastructure | Custom | Malachite+Reth | OP Stack | Commonware+Reth | Magnus fork (Commonware+Reth) |
 | Maturity | 10 years, $55B vol | 100+ institutions | $15.8M, OP Stack L2 | $5B, mainnet Mar 2026 | Pre-launch |
 
 ### Why not Stellar?
@@ -394,10 +394,10 @@ For fiat rails, the same pattern: user pays stablecoin fee, Gateway handles the 
 
 ## Phased Scope
 
-Magnus is built on magnus-chain (Tempo fork). The base chain already has: Commonware Simplex consensus, Reth EVM, MIP20 tokens, StablecoinDEX, MIP403 compliance, MipFeeManager (multi-stablecoin gas). We don't build a custom payment engine. We add precompiles for the features Tempo doesn't have.
+Magnus is built on magnus-chain (Magnus fork). The base chain already has: Commonware Simplex consensus, Reth EVM, MIP20 tokens, StablecoinDEX, MIP403 compliance, MipFeeManager (multi-stablecoin gas). We don't build a custom payment engine. We add precompiles for the features Magnus doesn't have.
 
 ### Phase 0: Demo (Unchained Summit Da Nang, May 28-29, 2026)
-**Base:** magnus-chain (Tempo fork) running with all existing precompiles.
+**Base:** magnus-chain (Magnus fork) running with all existing precompiles.
 **Add:** Gateway precompile (~300 LOC). Genesis config (deploy USDT + VND tokens via MIP20Factory, seed StablecoinDEX with USDT/VND liquidity). Demo wallet (standard ethers.js, MetaMask compatible).
 
 Demo proves: "USDT in, VND out via VietQR, 300ms, standard Ethereum calls."
@@ -459,10 +459,10 @@ Routing tokens are transient. Gateway and issuer tokens are persistent. DeFi ope
 
 ## Dependencies
 
-- magnus-chain (Tempo fork): compiles and runs today. Apache 2.0 + MIT license.
-- Commonware Simplex consensus: operational in Tempo mainnet since March 2026.
+- magnus-chain (Magnus fork): compiles and runs today. Apache 2.0 + MIT license.
+- Commonware Simplex consensus: operational in Magnus mainnet since March 2026.
 - Reth EVM: production-grade, maintained by Paradigm.
-- MIP20/StablecoinDEX/MIP403 precompiles: from Tempo fork, working.
+- MIP20/StablecoinDEX/MIP403 precompiles: from Magnus fork, working.
 - Phase 0: No external dependencies (simulated Gateway)
 - Phase 1: VietQR specification (public, open standard), licensed exchange partner
 - Phase 2: Commonware threshold BLS (existing primitive, used by commonware-bridge example)
@@ -470,10 +470,10 @@ Routing tokens are transient. Gateway and issuer tokens are persistent. DeFi ope
 
 ## Build Approach
 
-Magnus follows the same pattern as every successful stablechain (Arc, Tempo, Codex, Plasma): EVM + precompiles. No custom payment engine. No custom transaction types. Standard Ethereum tooling works.
+Magnus follows the same pattern as every successful stablechain (Arc, Magnus, Codex, Plasma): EVM + precompiles. No custom payment engine. No custom transaction types. Standard Ethereum tooling works.
 
 ```
-WHAT TEMPO BUILT:               WHAT MAGNUS ADDS:
+WHAT MAGNUS BUILT:               WHAT MAGNUS ADDS:
   Simplex consensus               Gateway precompile (MGP)
   Reth EVM                        MagnusBridge.sol (MBS)
   TIP-20 → MIP20 precompiles      Netting engine

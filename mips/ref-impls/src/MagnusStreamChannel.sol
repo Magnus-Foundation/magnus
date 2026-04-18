@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { TempoUtilities } from "./TempoUtilities.sol";
+import { MagnusUtilities } from "./MagnusUtilities.sol";
 import { IMIP20 } from "./interfaces/IMIP20.sol";
-import { ITempoStreamChannel } from "./interfaces/ITempoStreamChannel.sol";
+import { IMagnusStreamChannel } from "./interfaces/IMagnusStreamChannel.sol";
 import { ECDSA } from "solady/utils/ECDSA.sol";
 import { EIP712 } from "solady/utils/EIP712.sol";
 
 /**
- * @title TempoStreamChannel
+ * @title MagnusStreamChannel
  * @notice Unidirectional payment channel escrow for streaming payments.
  * @dev Users deposit MIP-20 tokens, sign cumulative vouchers, and servers
  *      can settle or close at any time. Channels have no expiry - they are
  *      closed either cooperatively by the server or after a grace period
  *      following a user's close request.
  */
-contract TempoStreamChannel is ITempoStreamChannel, EIP712 {
+contract MagnusStreamChannel is IMagnusStreamChannel, EIP712 {
 
     // --- Constants ---
 
@@ -65,7 +65,7 @@ contract TempoStreamChannel is ITempoStreamChannel, EIP712 {
         if (payee == address(0)) {
             revert InvalidPayee();
         }
-        if (!TempoUtilities.isTIP20(token)) {
+        if (!MagnusUtilities.isTIP20(token)) {
             revert InvalidToken();
         }
         if (deposit == 0) {

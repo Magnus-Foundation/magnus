@@ -419,7 +419,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_payload_attributes_serde() {
+    fn test_magnus_payload_attributes_serde() {
         let timestamp = 1234567890;
         let timestamp_millis_part = 999;
         let attrs = MagnusPayloadAttributes {
@@ -453,7 +453,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_payload_attributes_trait_impl() {
+    fn test_magnus_payload_attributes_trait_impl() {
         let withdrawal_addr = Address::random();
         let beacon_root = B256::random();
 

@@ -38,7 +38,7 @@ use magnus_chainspec::spec::MagnusChainSpecParser;
 use tracing::info;
 
 /// Magic bytes for the state bloat binary format (8 bytes)
-const MAGIC: &[u8; 8] = b"TEMPOSB\x00";
+const MAGIC: &[u8; 8] = b"MAGNUSB\x00";
 
 /// Expected format version
 const VERSION: u16 = 1;

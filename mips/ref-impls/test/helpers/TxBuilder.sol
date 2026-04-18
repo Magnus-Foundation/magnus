@@ -5,11 +5,11 @@ import { Vm } from "forge-std/Vm.sol";
 import { VmRlp } from "magnus-std/StdVm.sol";
 import { LegacyTransaction, LegacyTransactionLib } from "magnus-std/tx/LegacyTransactionLib.sol";
 import {
-    TempoAuthorization,
-    TempoCall,
-    TempoTransaction,
-    TempoTransactionLib
-} from "magnus-std/tx/TempoTransactionLib.sol";
+    MagnusAuthorization,
+    MagnusCall,
+    MagnusTransaction,
+    MagnusTransactionLib
+} from "magnus-std/tx/MagnusTransactionLib.sol";
 import { TxRlp } from "magnus-std/tx/TxRlp.sol";
 
 /// @title TxBuilder - Transaction Building Library
@@ -17,7 +17,7 @@ import { TxRlp } from "magnus-std/tx/TxRlp.sol";
 library TxBuilder {
 
     using LegacyTransactionLib for LegacyTransaction;
-    using TempoTransactionLib for TempoTransaction;
+    using MagnusTransactionLib for MagnusTransaction;
 
     // ============ Default Transaction Parameters ============
 
@@ -96,7 +96,7 @@ library TxBuilder {
     /// @notice Estimate gas for multicall (MIP-1000)
     /// @param calls The calls in the batch
     /// @param nonce The sender's current nonce (0 = first tx, account creation cost applies)
-    function multicallGas(TempoCall[] memory calls, uint64 nonce) internal pure returns (uint64) {
+    function multicallGas(MagnusCall[] memory calls, uint64 nonce) internal pure returns (uint64) {
         uint64 gas = TX_BASE_COST;
 
         if (nonce == 0) {
@@ -222,7 +222,7 @@ library TxBuilder {
     // ============ Magnus Transactions with Secp256k1 ============
 
     /// @notice Build and sign a Magnus single-call transaction with secp256k1
-    function buildTempoCall(
+    function buildMagnusCall(
         VmRlp vmRlp,
         Vm vm,
         address to,
@@ -235,22 +235,22 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({ to: to, value: 0, data: data });
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({ to: to, value: 0, data: data });
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(callGas(data, txNonce) + GAS_LIMIT_BUFFER).withCalls(calls)
             .withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempo(vmRlp, vm, tx_, privateKey);
+        return _signMagnus(vmRlp, vm, tx_, privateKey);
     }
 
     /// @notice Build and sign a Magnus multi-call transaction with secp256k1
-    function buildTempoMultiCall(
+    function buildMagnusMultiCall(
         VmRlp vmRlp,
         Vm vm,
-        TempoCall[] memory calls,
+        MagnusCall[] memory calls,
         uint64 nonceKey,
         uint64 txNonce,
         uint256 privateKey
@@ -261,17 +261,17 @@ library TxBuilder {
     {
         uint64 gasLimit = multicallGas(calls, txNonce) + GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempo(vmRlp, vm, tx_, privateKey);
+        return _signMagnus(vmRlp, vm, tx_, privateKey);
     }
 
     // ============ Magnus Transactions with P256 ============
 
     /// @notice Build and sign a Magnus single-call transaction with P256 signature
-    function buildTempoCallP256(
+    function buildMagnusCallP256(
         VmRlp vmRlp,
         Vm vm,
         address to,
@@ -286,22 +286,22 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({ to: to, value: 0, data: data });
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({ to: to, value: 0, data: data });
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(callGas(data, txNonce) + GAS_LIMIT_BUFFER).withCalls(calls)
             .withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempoP256(vmRlp, vm, tx_, p256PrivateKey, pubKeyX, pubKeyY);
+        return _signMagnusP256(vmRlp, vm, tx_, p256PrivateKey, pubKeyX, pubKeyY);
     }
 
     /// @notice Build and sign a Magnus multi-call transaction with P256 signature
-    function buildTempoMultiCallP256(
+    function buildMagnusMultiCallP256(
         VmRlp vmRlp,
         Vm vm,
-        TempoCall[] memory calls,
+        MagnusCall[] memory calls,
         uint64 nonceKey,
         uint64 txNonce,
         uint256 p256PrivateKey,
@@ -314,17 +314,17 @@ library TxBuilder {
     {
         uint64 gasLimit = multicallGas(calls, txNonce) + GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempoP256(vmRlp, vm, tx_, p256PrivateKey, pubKeyX, pubKeyY);
+        return _signMagnusP256(vmRlp, vm, tx_, p256PrivateKey, pubKeyX, pubKeyY);
     }
 
     // ============ Magnus Transactions with WebAuthn ============
 
     /// @notice Build and sign a Magnus single-call transaction with WebAuthn signature
-    function buildTempoCallWebAuthn(
+    function buildMagnusCallWebAuthn(
         VmRlp vmRlp,
         Vm vm,
         address to,
@@ -339,22 +339,22 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({ to: to, value: 0, data: data });
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({ to: to, value: 0, data: data });
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(callGas(data, txNonce) + GAS_LIMIT_BUFFER).withCalls(calls)
             .withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempoWebAuthn(vmRlp, vm, tx_, p256PrivateKey, pubKeyX, pubKeyY);
+        return _signMagnusWebAuthn(vmRlp, vm, tx_, p256PrivateKey, pubKeyX, pubKeyY);
     }
 
     /// @notice Build and sign a Magnus multi-call transaction with WebAuthn signature
-    function buildTempoMultiCallWebAuthn(
+    function buildMagnusMultiCallWebAuthn(
         VmRlp vmRlp,
         Vm vm,
-        TempoCall[] memory calls,
+        MagnusCall[] memory calls,
         uint64 nonceKey,
         uint64 txNonce,
         uint256 p256PrivateKey,
@@ -367,17 +367,17 @@ library TxBuilder {
     {
         uint64 gasLimit = multicallGas(calls, txNonce) + GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempoWebAuthn(vmRlp, vm, tx_, p256PrivateKey, pubKeyX, pubKeyY);
+        return _signMagnusWebAuthn(vmRlp, vm, tx_, p256PrivateKey, pubKeyX, pubKeyY);
     }
 
     // ============ Magnus Transactions with Keychain ============
 
     /// @notice Build and sign a Magnus single-call transaction with Keychain signature (secp256k1 access key)
-    function buildTempoCallKeychain(
+    function buildMagnusCallKeychain(
         VmRlp vmRlp,
         Vm vm,
         address to,
@@ -391,22 +391,22 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({ to: to, value: 0, data: data });
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({ to: to, value: 0, data: data });
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(callGas(data, txNonce) + GAS_LIMIT_BUFFER).withCalls(calls)
             .withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempoKeychain(vmRlp, vm, tx_, accessKeyPrivateKey, userAddress);
+        return _signMagnusKeychain(vmRlp, vm, tx_, accessKeyPrivateKey, userAddress);
     }
 
     /// @notice Build and sign a Magnus multi-call transaction with Keychain signature
-    function buildTempoMultiCallKeychain(
+    function buildMagnusMultiCallKeychain(
         VmRlp vmRlp,
         Vm vm,
-        TempoCall[] memory calls,
+        MagnusCall[] memory calls,
         uint64 nonceKey,
         uint64 txNonce,
         uint256 accessKeyPrivateKey,
@@ -418,15 +418,15 @@ library TxBuilder {
     {
         uint64 gasLimit = multicallGas(calls, txNonce) + GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempoKeychain(vmRlp, vm, tx_, accessKeyPrivateKey, userAddress);
+        return _signMagnusKeychain(vmRlp, vm, tx_, accessKeyPrivateKey, userAddress);
     }
 
     /// @notice Build and sign a Magnus single-call transaction with Keychain P256 signature
-    function buildTempoCallKeychainP256(
+    function buildMagnusCallKeychainP256(
         VmRlp vmRlp,
         Vm vm,
         address to,
@@ -442,15 +442,15 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({ to: to, value: 0, data: data });
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({ to: to, value: 0, data: data });
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(callGas(data, txNonce) + GAS_LIMIT_BUFFER).withCalls(calls)
             .withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempoKeychainP256(
+        return _signMagnusKeychainP256(
             vmRlp, vm, tx_, accessKeyP256PrivateKey, pubKeyX, pubKeyY, userAddress
         );
     }
@@ -458,7 +458,7 @@ library TxBuilder {
     // ============ Magnus CREATE Transactions ============
 
     /// @notice Build and sign a Magnus CREATE transaction (CREATE as first call with to=0)
-    function buildTempoCreate(
+    function buildMagnusCreate(
         VmRlp vmRlp,
         Vm vm,
         bytes memory initcode,
@@ -470,19 +470,19 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({ to: address(0), value: 0, data: initcode });
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({ to: address(0), value: 0, data: initcode });
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(createGas(initcode, txNonce) + GAS_LIMIT_BUFFER).withCalls(calls)
             .withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempo(vmRlp, vm, tx_, privateKey);
+        return _signMagnus(vmRlp, vm, tx_, privateKey);
     }
 
     /// @notice Build and sign a Magnus CREATE transaction with custom gas limit
-    function buildTempoCreateWithGas(
+    function buildMagnusCreateWithGas(
         VmRlp vmRlp,
         Vm vm,
         bytes memory initcode,
@@ -495,18 +495,18 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({ to: address(0), value: 0, data: initcode });
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({ to: address(0), value: 0, data: initcode });
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempo(vmRlp, vm, tx_, privateKey);
+        return _signMagnus(vmRlp, vm, tx_, privateKey);
     }
 
     /// @notice Build Magnus multicall with CREATE as second call (invalid - C1)
-    function buildTempoCreateNotFirst(
+    function buildMagnusCreateNotFirst(
         VmRlp vmRlp,
         Vm vm,
         address callTarget,
@@ -520,22 +520,22 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        TempoCall[] memory calls = new TempoCall[](2);
-        calls[0] = TempoCall({ to: callTarget, value: 0, data: callData });
-        calls[1] = TempoCall({ to: address(0), value: 0, data: initcode }); // CREATE as second call
+        MagnusCall[] memory calls = new MagnusCall[](2);
+        calls[0] = MagnusCall({ to: callTarget, value: 0, data: callData });
+        calls[1] = MagnusCall({ to: address(0), value: 0, data: initcode }); // CREATE as second call
 
         // Mixed CALL + CREATE: use createGas for the CREATE + buffer for the CALL
         uint64 gasLimit = createGas(initcode, txNonce) + GAS_LIMIT_BUFFER + DEFAULT_GAS_LIMIT;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(txNonce);
 
-        return _signTempo(vmRlp, vm, tx_, privateKey);
+        return _signMagnus(vmRlp, vm, tx_, privateKey);
     }
 
     /// @notice Build Magnus multicall with two CREATEs (invalid - C2)
-    function buildTempoMultipleCreates(
+    function buildMagnusMultipleCreates(
         VmRlp vmRlp,
         Vm vm,
         bytes memory initcode1,
@@ -548,20 +548,20 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        TempoCall[] memory calls = new TempoCall[](2);
-        calls[0] = TempoCall({ to: address(0), value: 0, data: initcode1 }); // First CREATE
-        calls[1] = TempoCall({ to: address(0), value: 0, data: initcode2 }); // Second CREATE
+        MagnusCall[] memory calls = new MagnusCall[](2);
+        calls[0] = MagnusCall({ to: address(0), value: 0, data: initcode1 }); // First CREATE
+        calls[1] = MagnusCall({ to: address(0), value: 0, data: initcode2 }); // Second CREATE
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(DEFAULT_CREATE_GAS_LIMIT * 2).withCalls(calls).withNonceKey(nonceKey)
             .withNonce(txNonce);
 
-        return _signTempo(vmRlp, vm, tx_, privateKey);
+        return _signMagnus(vmRlp, vm, tx_, privateKey);
     }
 
     /// @notice Build Magnus CREATE with value > 0 (invalid for Magnus - C4)
-    function buildTempoCreateWithValue(
+    function buildMagnusCreateWithValue(
         VmRlp vmRlp,
         Vm vm,
         bytes memory initcode,
@@ -574,23 +574,23 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({ to: address(0), value: value, data: initcode });
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({ to: address(0), value: value, data: initcode });
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(DEFAULT_CREATE_GAS_LIMIT).withCalls(calls).withNonceKey(nonceKey)
             .withNonce(txNonce);
 
-        return _signTempo(vmRlp, vm, tx_, privateKey);
+        return _signMagnus(vmRlp, vm, tx_, privateKey);
     }
 
     /// @notice Build Magnus CREATE with authorization list (invalid - C3)
-    function buildTempoCreateWithAuthList(
+    function buildMagnusCreateWithAuthList(
         VmRlp vmRlp,
         Vm vm,
         bytes memory initcode,
-        TempoAuthorization[] memory authList,
+        MagnusAuthorization[] memory authList,
         uint64 nonceKey,
         uint64 txNonce,
         uint256 privateKey
@@ -599,15 +599,15 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({ to: address(0), value: 0, data: initcode });
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({ to: address(0), value: 0, data: initcode });
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(DEFAULT_GAS_PRICE)
             .withGasLimit(DEFAULT_CREATE_GAS_LIMIT).withCalls(calls).withNonceKey(nonceKey)
             .withNonce(txNonce).withAuthorizationList(authList);
 
-        return _signTempo(vmRlp, vm, tx_, privateKey);
+        return _signMagnus(vmRlp, vm, tx_, privateKey);
     }
 
     // ============ Internal Helpers - Legacy Signing ============
@@ -630,17 +630,17 @@ library TxBuilder {
         );
     }
 
-    function _signTempo(
+    function _signMagnus(
         VmRlp vmRlp,
         Vm vm,
-        TempoTransaction memory tx_,
+        MagnusTransaction memory tx_,
         uint256 privateKey
     )
         internal
         view
         returns (bytes memory)
     {
-        return signTempo(
+        return signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -743,10 +743,10 @@ library TxBuilder {
     }
 
     /// @notice Sign a magnus tx with unified params
-    function signTempo(
+    function signMagnus(
         VmRlp vmRlp,
         Vm vm,
-        TempoTransaction memory tx_,
+        MagnusTransaction memory tx_,
         SigningParams memory params
     )
         internal
@@ -762,15 +762,15 @@ library TxBuilder {
         }
 
         bytes memory signature = _createSignature(vm, txHash, params);
-        return _encodeSignedTempo(vmRlp, tx_, signature);
+        return _encodeSignedMagnus(vmRlp, tx_, signature);
     }
 
     // ============ Legacy Internal Helpers (for backward compat) ============
 
-    function _signTempoP256(
+    function _signMagnusP256(
         VmRlp vmRlp,
         Vm vm,
-        TempoTransaction memory tx_,
+        MagnusTransaction memory tx_,
         uint256 p256PrivateKey,
         bytes32 pubKeyX,
         bytes32 pubKeyY
@@ -779,7 +779,7 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        return signTempo(
+        return signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -787,10 +787,10 @@ library TxBuilder {
         );
     }
 
-    function _signTempoWebAuthn(
+    function _signMagnusWebAuthn(
         VmRlp vmRlp,
         Vm vm,
-        TempoTransaction memory tx_,
+        MagnusTransaction memory tx_,
         uint256 p256PrivateKey,
         bytes32 pubKeyX,
         bytes32 pubKeyY
@@ -799,7 +799,7 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        return signTempo(
+        return signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -807,10 +807,10 @@ library TxBuilder {
         );
     }
 
-    function _signTempoKeychain(
+    function _signMagnusKeychain(
         VmRlp vmRlp,
         Vm vm,
-        TempoTransaction memory tx_,
+        MagnusTransaction memory tx_,
         uint256 accessKeyPrivateKey,
         address userAddress
     )
@@ -818,7 +818,7 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        return signTempo(
+        return signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -832,10 +832,10 @@ library TxBuilder {
         );
     }
 
-    function _signTempoKeychainP256(
+    function _signMagnusKeychainP256(
         VmRlp vmRlp,
         Vm vm,
-        TempoTransaction memory tx_,
+        MagnusTransaction memory tx_,
         uint256 accessKeyP256PrivateKey,
         bytes32 pubKeyX,
         bytes32 pubKeyY,
@@ -845,7 +845,7 @@ library TxBuilder {
         view
         returns (bytes memory)
     {
-        return signTempo(
+        return signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -856,9 +856,9 @@ library TxBuilder {
     }
 
     /// @notice Encode a signed Magnus transaction with arbitrary signature bytes
-    function _encodeSignedTempo(
+    function _encodeSignedMagnus(
         VmRlp vmRlp,
-        TempoTransaction memory tx_,
+        MagnusTransaction memory tx_,
         bytes memory signature
     )
         internal
@@ -874,8 +874,8 @@ library TxBuilder {
         fields[1] = TxRlp.encodeString(TxRlp.encodeUint(tx_.maxPriorityFeePerGas));
         fields[2] = TxRlp.encodeString(TxRlp.encodeUint(tx_.maxFeePerGas));
         fields[3] = TxRlp.encodeString(TxRlp.encodeUint(tx_.gasLimit));
-        fields[4] = TempoTransactionLib.encodeCalls(vmRlp, tx_.calls);
-        fields[5] = TempoTransactionLib.encodeAccessList(vmRlp, tx_.accessList);
+        fields[4] = MagnusTransactionLib.encodeCalls(vmRlp, tx_.calls);
+        fields[5] = MagnusTransactionLib.encodeAccessList(vmRlp, tx_.accessList);
         fields[6] = TxRlp.encodeString(TxRlp.encodeUint(tx_.nonceKey));
         fields[7] = TxRlp.encodeString(TxRlp.encodeUint(tx_.nonce));
         fields[8] = TxRlp.encodeString(
@@ -890,7 +890,7 @@ library TxBuilder {
         fields[11] = tx_.hasFeePayerSignature
             ? _encodeFeePayerSignature(tx_.feePayerSignature)
             : TxRlp.encodeString(TxRlp.encodeNone());
-        fields[12] = TempoTransactionLib.encodeAuthorizationList(vmRlp, tx_.authorizationList);
+        fields[12] = MagnusTransactionLib.encodeAuthorizationList(vmRlp, tx_.authorizationList);
 
         uint256 sigFieldIdx;
         if (tx_.hasKeyAuthorization) {

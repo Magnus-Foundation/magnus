@@ -1313,7 +1313,7 @@ mod tests {
     }
 
     #[test]
-    fn magnus_rpc_module_validator_allows_tempo_custom_modules() {
+    fn magnus_rpc_module_validator_allows_magnus_custom_modules() {
         for module in ["consensus", "operator", "magnus", "token"] {
             let selection = crate::MagnusRpcModuleValidator::parse_selection(module).unwrap();
 

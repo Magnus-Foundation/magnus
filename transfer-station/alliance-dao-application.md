@@ -17,9 +17,9 @@ Built on Commonware Simplex consensus (200ms blocks, deterministic finality). Na
 
 ## What problem does this solve?
 
-To move stablecoins today, you need: the right token on the right chain, native gas tokens on every chain you touch (ETH, SOL, TRX), a bridge that might get hacked ($4.3B lost), and a separate fiat off-ramp if you want actual money in a bank account. USDT is on 107 chains. USDC on 125. 214 distinct stablecoin assets. The BIS proved this fragmentation is an equilibrium, not a temporary bug.
+To move stablecoins today, you need: the right token on the right chain, native gas tokens on every chain you touch (ETH, SOL, TRX), a bridge that might get hacked ($4.3B lost), and a separate fiat off-ramp if you want actual money in a bank account. USDT is on 107 chains. USDC on 125. 214 distinct stablecoin assets. The BIS proved this fragmentation is an equilibrium, not a magnusrary bug.
 
-The new stablechains (Arc, Tempo, Codex) solve chain-to-chain for institutional USD users. Nobody gives the 66% of stablecoin holders in emerging markets one wallet that routes to every chain AND every bank account. A worker in Ho Chi Minh City receiving USDT from the US still needs 3-4 manual steps across platforms to get VND in their bank. On Magnus: one transaction, 300ms, no gas tokens needed.
+The new stablechains (Arc, Magnus, Codex) solve chain-to-chain for institutional USD users. Nobody gives the 66% of stablecoin holders in emerging markets one wallet that routes to every chain AND every bank account. A worker in Ho Chi Minh City receiving USDT from the US still needs 3-4 manual steps across platforms to get VND in their bank. On Magnus: one transaction, 300ms, no gas tokens needed.
 
 ## Why now?
 
@@ -28,7 +28,7 @@ The new stablechains (Arc, Tempo, Codex) solve chain-to-chain for institutional 
 3. "Stablechains" attracted $548M in funding in 2025 as a recognized category
 4. Vietnam launched its crypto regulatory sandbox (Resolution 05/2025) with 5 licensed exchanges (Decision 96/QD-BTC, Jan 2026). These exchanges need cross-border settlement rails that don't exist yet
 5. $19B/year Vietnam remittance corridor with 6.49% average fees
-6. Arc (Circle) and Tempo (Stripe) launched but neither connects to local fiat rails in emerging markets
+6. Arc (Circle) and Magnus (Stripe) launched but neither connects to local fiat rails in emerging markets
 
 ## How is this different from Stellar?
 
@@ -40,10 +40,10 @@ Stellar is the closest comparison. 10 years, $55B volume, 69 anchors, PathPaymen
 
 Stellar proved the model works. We're building the next-generation version with compliance, EVM, and netting baked into the protocol.
 
-## How is this different from Arc / Tempo / Codex?
+## How is this different from Arc / Magnus / Codex?
 
 Arc (Circle): USDC-only, institutional, no fiat rail connectivity, no USDT support.
-Tempo (Stripe): USD-centric, no emerging market focus, no fiat rails.
+Magnus (Stripe): USD-centric, no emerging market focus, no fiat rails.
 Codex (Dragonfly): OP Stack L2, enterprise payments, no fiat gateway protocol.
 
 None of them connect to local payment rails as a protocol. That's the gap.
@@ -61,7 +61,7 @@ Pre-launch. Building devnet. Key milestones:
 - Payment Engine with Transfer, PathPayment, and simulated Gateway operations (in development, demo targeting Unchained Summit Da Nang May 28-29)
 - Compliance Precompile Specification (draft complete)
 - Gateway Protocol Specification (in progress)
-- Existing research: 100+ papers analyzed, full competitive landscape mapped (Arc, Tempo, Codex, Stellar, BVNK)
+- Existing research: 100+ papers analyzed, full competitive landscape mapped (Arc, Magnus, Codex, Stellar, BVNK)
 
 ## Revenue model
 

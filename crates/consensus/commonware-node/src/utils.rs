@@ -16,7 +16,7 @@ pub(crate) fn public_key_to_b256(key: &PublicKey) -> B256 {
         .expect("ed25519 pub keys always map to B256")
 }
 
-pub(crate) fn public_key_to_tempo_primitive(
+pub(crate) fn public_key_to_magnus_primitive(
     key: &PublicKey,
 ) -> magnus_primitives::ed25519::PublicKey {
     magnus_primitives::ed25519::PublicKey::try_from(B256::from_slice(key.as_ref()))
@@ -86,13 +86,13 @@ mod tests {
     use futures::{channel::oneshot, executor::block_on, pin_mut};
     use magnus_primitives::ed25519::PublicKey as MagnusPublicKey;
 
-    use crate::utils::{OptionFuture, public_key_to_tempo_primitive};
+    use crate::utils::{OptionFuture, public_key_to_magnus_primitive};
 
     #[test]
-    fn commonware_public_key_to_tempo_primitive_conversion() {
+    fn commonware_public_key_to_magnus_primitive_conversion() {
         let magnus_key = MagnusPublicKey::from_seed([42u8; 32]);
         let cw_key = CommonwarePublicKey::from(magnus_key.get());
-        assert_eq!(public_key_to_tempo_primitive(&cw_key), magnus_key);
+        assert_eq!(public_key_to_magnus_primitive(&cw_key), magnus_key);
         assert_eq!(magnus_key.get().to_bytes(), cw_key.as_ref());
     }
 

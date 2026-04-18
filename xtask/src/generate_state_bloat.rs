@@ -27,7 +27,7 @@ use magnus_precompiles::mip20::mip20_slots;
 use magnus_primitives::transaction::MIP20_PAYMENT_PREFIX;
 
 /// Magic bytes for the state bloat binary format (8 bytes)
-const MAGIC: &[u8; 8] = b"TEMPOSB\x00";
+const MAGIC: &[u8; 8] = b"MAGNUSB\x00";
 
 /// Format version
 const VERSION: u16 = 1;

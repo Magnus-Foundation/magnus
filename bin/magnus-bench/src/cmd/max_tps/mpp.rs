@@ -9,7 +9,7 @@ use magnus_alloy::{primitives::transaction::Call, rpc::MagnusTransactionRequest}
 sol! {
     #[sol(rpc)]
     #[allow(clippy::too_many_arguments)]
-    interface ITempoStreamChannel {
+    interface IMagnusStreamChannel {
         function open(
             address payee,
             address token,
@@ -64,7 +64,7 @@ pub(super) fn build_open_and_close(
 ) -> MagnusTransactionRequest {
     let open_call = Call {
         to: channel_address.into(),
-        input: ITempoStreamChannel::openCall {
+        input: IMagnusStreamChannel::openCall {
             payee: payer,
             token,
             deposit: 1,
@@ -78,7 +78,7 @@ pub(super) fn build_open_and_close(
 
     let close_call = Call {
         to: channel_address.into(),
-        input: ITempoStreamChannel::closeCall {
+        input: IMagnusStreamChannel::closeCall {
             channelId: channel_id,
             cumulativeAmount: 0,
             signature: Default::default(),

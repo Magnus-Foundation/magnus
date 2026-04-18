@@ -62,22 +62,22 @@ contract BaseTest is Test {
     IValidatorConfigV2 public validatorConfigV2 = IValidatorConfigV2(_VALIDATOR_CONFIG_V2);
     MIP20 public token1;
     MIP20 public token2;
-    bool isTempo;
+    bool isMagnus;
 
     error MissingPrecompile(string name, address addr);
     error CallShouldHaveReverted();
 
     function setUp() public virtual {
         // Is this magnus chain?
-        isTempo = _ACCOUNT_KEYCHAIN.code.length + _TIP403REGISTRY.code.length
+        isMagnus = _ACCOUNT_KEYCHAIN.code.length + _TIP403REGISTRY.code.length
                 + _ADDRESS_REGISTRY.code.length + _TIP20FACTORY.code.length + _PATH_USD.code.length
                 + _STABLECOIN_DEX.code.length + _FEE_AMM.code.length + _NONCE.code.length
                 + _VALIDATOR_CONFIG.code.length + _VALIDATOR_CONFIG_V2.code.length > 0;
 
-        console.log("Tests running with isTempo =", isTempo);
+        console.log("Tests running with isMagnus =", isMagnus);
 
         // Deploy contracts if not magnus
-        if (!isTempo) {
+        if (!isMagnus) {
             deployCodeTo("AccountKeychain", _ACCOUNT_KEYCHAIN);
             deployCodeTo("MIP403Registry", _TIP403REGISTRY);
             deployCodeTo("AddressRegistry", _ADDRESS_REGISTRY);
@@ -97,7 +97,7 @@ contract BaseTest is Test {
             deployCodeTo("ValidatorConfigV2.sol", _VALIDATOR_CONFIG_V2);
         }
 
-        if (isTempo) {
+        if (isMagnus) {
             if (_ACCOUNT_KEYCHAIN.code.length == 0) {
                 revert MissingPrecompile("AccountKeychain", _ACCOUNT_KEYCHAIN);
             }
@@ -142,13 +142,13 @@ contract BaseTest is Test {
             vm.store(_PATH_USD, adminRoleSlot, bytes32(uint256(1)));
 
             // Grant DEFAULT_ADMIN_ROLE to pathUSDAdmin
-            bytes32 tempoAdminRoleSlot = keccak256(
+            bytes32 magnusAdminRoleSlot = keccak256(
                 abi.encode(
                     bytes32(0), // DEFAULT_ADMIN_ROLE
                     keccak256(abi.encode(pathUSDAdmin, uint256(0)))
                 )
             );
-            vm.store(_PATH_USD, tempoAdminRoleSlot, bytes32(uint256(1)));
+            vm.store(_PATH_USD, magnusAdminRoleSlot, bytes32(uint256(1)));
         }
 
         token1 =

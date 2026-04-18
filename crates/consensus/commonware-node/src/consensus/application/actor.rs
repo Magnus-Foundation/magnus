@@ -593,7 +593,7 @@ impl Inner<Init> {
                 epoch: round.epoch().get(),
                 view: round.view().get(),
                 parent_view: parent_view.get(),
-                proposer: crate::utils::public_key_to_tempo_primitive(&leader),
+                proposer: crate::utils::public_key_to_magnus_primitive(&leader),
             })
         } else {
             None
@@ -932,7 +932,7 @@ async fn verify_header(
             epoch: round.epoch().get(),
             view: round.view().get(),
             parent_view: parent.0.get(),
-            proposer: crate::utils::public_key_to_tempo_primitive(proposer),
+            proposer: crate::utils::public_key_to_magnus_primitive(proposer),
         };
 
         if ctx != expected_ctx {

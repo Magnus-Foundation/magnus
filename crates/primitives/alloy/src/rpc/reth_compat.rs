@@ -13,7 +13,7 @@ use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_evm::MagnusBlockEnv;
 use magnus_primitives::{
     SignatureType, MagnusHeader, MagnusSignature, MagnusTxEnvelope, MagnusTxType,
-    transaction::{Call, RecoveredTempoAuthorization},
+    transaction::{Call, RecoveredMagnusAuthorization},
 };
 use magnus_revm::{MagnusBatchCallEnv, MagnusTxEnv};
 
@@ -146,7 +146,7 @@ impl TryIntoTxEnv<MagnusTxEnv, MagnusHardfork, MagnusBlockEnv> for MagnusTransac
                 // If key_type is not provided, default to secp256k1
                 // For Keychain signatures, use the caller's address as the root key address
                 let key_type = key_type.unwrap_or(SignatureType::Secp256k1);
-                let mock_signature = create_mock_tempo_sig(
+                let mock_signature = create_mock_magnus_sig(
                     &key_type,
                     key_data.as_ref(),
                     key_id,
@@ -171,7 +171,7 @@ impl TryIntoTxEnv<MagnusTxEnv, MagnusHardfork, MagnusBlockEnv> for MagnusTransac
                     signature: mock_signature,
                     magnus_authorization_list: magnus_authorization_list
                         .into_iter()
-                        .map(RecoveredTempoAuthorization::new)
+                        .map(RecoveredMagnusAuthorization::new)
                         .collect(),
                     nonce_key: nonce_key.unwrap_or_default(),
                     key_authorization,
@@ -205,7 +205,7 @@ impl TryIntoTxEnv<MagnusTxEnv, MagnusHardfork, MagnusBlockEnv> for MagnusTransac
 /// - `key_id`: If Some, wraps the signature in a Keychain wrapper (+3,000 gas for key validation)
 /// - `caller_addr`: The transaction caller address (used as root key address for Keychain)
 /// - `is_t1c`: Whether T1C is active — determines keychain signature version (V1 pre-T1C, V2 post-T1C)
-fn create_mock_tempo_sig(
+fn create_mock_magnus_sig(
     key_type: &SignatureType,
     key_data: Option<&Bytes>,
     key_id: Option<Address>,
@@ -574,7 +574,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_signable_tx_request_preserves_tempo_fields() {
+    async fn test_signable_tx_request_preserves_magnus_fields() {
         let signer = PrivateKeySigner::random();
 
         let call = Call {

@@ -1,6 +1,6 @@
-# Runs tempo benchmarks.
+# Runs magnus benchmarks.
 #
-# Benchmarks use `nu tempo.nu bench` which runs an interleaved B-F-F-B
+# Benchmarks use `nu magnus.nu bench` which runs an interleaved B-F-F-B
 # comparison against a schelk-managed snapshot on a self-hosted runner.
 #
 # Trigger via PR comment (`@decofe bench` or `derek bench`) or workflow_dispatch from the UI.
@@ -525,8 +525,8 @@ jobs:
       BENCH_BASELINE_ENV: ${{ needs.magnus-bench-ack.outputs.baseline-env }}
       BENCH_FEATURE_ENV: ${{ needs.magnus-bench-ack.outputs.feature-env }}
       BENCH_COMMENT_ID: ${{ needs.magnus-bench-ack.outputs.comment-id }}
-      TEMPO_TELEMETRY_URL: ${{ secrets.TEMPO_TELEMETRY_URL }}
-      GRAFANA_TEMPO: ${{ secrets.GRAFANA_TEMPO }}
+      MAGNUS_TELEMETRY_URL: ${{ secrets.MAGNUS_TELEMETRY_URL }}
+      GRAFANA_MAGNUS: ${{ secrets.GRAFANA_MAGNUS }}
       CLICKHOUSE_URL: ${{ secrets.CLICKHOUSE_URL }}
       CLICKHOUSE_USER: ${{ secrets.CLICKHOUSE_USER }}
       CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_PASSWORD }}
@@ -534,12 +534,12 @@ jobs:
       SLACK_BENCH_CHANNEL: ${{ secrets.SLACK_BENCH_CHANNEL }}
     steps:
       - name: Mask telemetry URL
-        if: env.TEMPO_TELEMETRY_URL
-        run: echo "::add-mask::$TEMPO_TELEMETRY_URL"
+        if: env.MAGNUS_TELEMETRY_URL
+        run: echo "::add-mask::$MAGNUS_TELEMETRY_URL"
 
-      - name: Mask Grafana Tempo URL
-        if: env.GRAFANA_TEMPO
-        run: echo "::add-mask::$GRAFANA_TEMPO"
+      - name: Mask Grafana Magnus URL
+        if: env.GRAFANA_MAGNUS
+        run: echo "::add-mask::$GRAFANA_MAGNUS"
 
       - name: Mask ClickHouse credentials
         if: env.CLICKHOUSE_URL
@@ -730,7 +730,7 @@ jobs:
           FEATURE_REF: ${{ steps.refs.outputs.feature-ref }}
         run: |
           cmd=(
-            nu tempo.nu bench
+            nu magnus.nu bench
             --preset "$BENCH_PRESET"
             --mode dev
             --bloat "$BENCH_BLOAT"
@@ -739,7 +739,7 @@ jobs:
             --no-infra
             --baseline "$BASELINE_REF"
             --feature "$FEATURE_REF"
-            --bench-datadir "/reth-bench/tempo_${BENCH_BLOAT}mb"
+            --bench-datadir "/reth-bench/magnus_${BENCH_BLOAT}mb"
             --tune
             --gas-limit 1000000000000
           )
@@ -808,7 +808,7 @@ jobs:
               if (refEpoch && benchId) {
                 const fromMs = refEpoch * 1000;
                 const toMs = Date.now();
-                const grafanaUrl = `https://tempoxyz.grafana.net/d/tikv2tn/magnus-bench?orgId=1&from=${fromMs}&to=${toMs}&var-benchmark_id=${benchId}&var-job=magnus-bench`;
+                const grafanaUrl = `https://magnusxyz.grafana.net/d/tikv2tn/magnus-bench?orgId=1&from=${fromMs}&to=${toMs}&var-benchmark_id=${benchId}&var-job=magnus-bench`;
                 const logsPane = JSON.stringify({
                   pw4: {
                     datasource: 'ffdsfozmb3eo0e',
@@ -824,13 +824,13 @@ jobs:
                     compact: false,
                   },
                 });
-                const logsUrl = `https://tempoxyz.grafana.net/explore?schemaVersion=1&panes=${encodeURIComponent(logsPane)}&orgId=1`;
+                const logsUrl = `https://magnusxyz.grafana.net/explore?schemaVersion=1&panes=${encodeURIComponent(logsPane)}&orgId=1`;
                 const tracesPane = JSON.stringify({
                   g39: {
                     datasource: 'cf59s9gws8z5se',
                     queries: [{
                       refId: 'A',
-                      datasource: { type: 'tempo', uid: 'cf59s9gws8z5se' },
+                      datasource: { type: 'magnus', uid: 'cf59s9gws8z5se' },
                       queryType: 'traceqlSearch',
                       limit: 20,
                       tableType: 'traces',
@@ -845,12 +845,12 @@ jobs:
                     compact: false,
                   },
                 });
-                const tracesUrl = `https://tempoxyz.grafana.net/explore?schemaVersion=1&panes=${encodeURIComponent(tracesPane)}&orgId=1`;
+                const tracesUrl = `https://magnusxyz.grafana.net/explore?schemaVersion=1&panes=${encodeURIComponent(tracesPane)}&orgId=1`;
                 grafanaSection = `\n\n### Observability\n\n- [Metrics dashboard](${grafanaUrl})\n- [Logs](${logsUrl})\n- [Traces](${tracesUrl})\n`;
               }
             } catch (e) {}
 
-            // Samply profile links (URLs produced by tempo.nu upload-samply-profile)
+            // Samply profile links (URLs produced by magnus.nu upload-samply-profile)
             let samplySection = '';
             if (process.env.BENCH_SAMPLY === 'true') {
               const runs = ['baseline-1', 'feature-1', 'feature-2', 'baseline-2'];
@@ -866,7 +866,7 @@ jobs:
               }
             }
 
-            // Tracy profile links (URLs produced by tempo.nu upload-tracy-profile)
+            // Tracy profile links (URLs produced by magnus.nu upload-tracy-profile)
             let tracySection = '';
             if (process.env.BENCH_TRACY && process.env.BENCH_TRACY !== 'off') {
               const runs = ['baseline-1', 'feature-1', 'feature-2', 'baseline-2'];

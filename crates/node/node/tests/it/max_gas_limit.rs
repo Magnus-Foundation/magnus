@@ -74,7 +74,7 @@ async fn test_post_t1a_tx_at_osaka_limit() -> eyre::Result<()> {
 /// Post-T1A: tx between the Osaka limit (16M) and Magnus's T1A cap (30M) should
 /// be accepted by the pool and included in a block.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_post_t1a_tx_above_osaka_below_tempo_cap() -> eyre::Result<()> {
+async fn test_post_t1a_tx_above_osaka_below_magnus_cap() -> eyre::Result<()> {
     reth_tracing::init_test_tracing();
 
     let mut setup = TestNodeBuilder::new().build_with_node_access().await?;
@@ -105,7 +105,7 @@ async fn test_post_t1a_tx_above_osaka_below_tempo_cap() -> eyre::Result<()> {
 /// Post-T1A: tx at exactly the Magnus T1A cap (30M) should be accepted by the
 /// pool and included in a block.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_post_t1a_tx_at_tempo_cap() -> eyre::Result<()> {
+async fn test_post_t1a_tx_at_magnus_cap() -> eyre::Result<()> {
     reth_tracing::init_test_tracing();
 
     let mut setup = TestNodeBuilder::new().build_with_node_access().await?;
@@ -135,7 +135,7 @@ async fn test_post_t1a_tx_at_tempo_cap() -> eyre::Result<()> {
 
 /// Post-T1A: tx exceeding Magnus's 30M cap should be rejected by the pool.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_post_t1a_tx_exceeding_tempo_cap() -> eyre::Result<()> {
+async fn test_post_t1a_tx_exceeding_magnus_cap() -> eyre::Result<()> {
     reth_tracing::init_test_tracing();
 
     let setup = TestNodeBuilder::new().build_with_node_access().await?;

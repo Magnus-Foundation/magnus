@@ -2,7 +2,7 @@
 pragma solidity >=0.8.13 <0.9.0;
 
 // Helper contract containing constants and utility functions for Magnus precompiles
-library TempoUtilities {
+library MagnusUtilities {
 
     // Registry precompiles
     address internal constant _TIP403REGISTRY = 0x403c000000000000000000000000000000000000;

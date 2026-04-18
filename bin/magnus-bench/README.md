@@ -115,7 +115,7 @@ Options:
       --faucet
           Fund accounts from the faucet before running the benchmark.
 
-          Calls tempo_fundAddress for each account.
+          Calls magnus_fundAddress for each account.
 
       --clear-txpool
           Clear the transaction pool before running the benchmark.

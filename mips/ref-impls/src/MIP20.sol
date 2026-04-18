@@ -3,7 +3,7 @@ pragma solidity >=0.8.13 <0.9.0;
 
 import { MIP20Factory } from "./MIP20Factory.sol";
 import { MIP403Registry } from "./MIP403Registry.sol";
-import { TempoUtilities } from "./TempoUtilities.sol";
+import { MagnusUtilities } from "./MagnusUtilities.sol";
 import { MIP20RolesAuth } from "./abstracts/MIP20RolesAuth.sol";
 import { IAddressRegistry } from "./interfaces/IAddressRegistry.sol";
 import { IMIP20 } from "./interfaces/IMIP20.sol";
@@ -126,7 +126,7 @@ contract MIP20 is IMIP20, MIP20RolesAuth {
     function setNextQuoteToken(IMIP20 newQuoteToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         // sets next quote token, to put the DEX for that pair into place-only mode
         // does not check for loops; that is checked in completeQuoteTokenUpdate
-        if (!TempoUtilities.isTIP20(address(newQuoteToken))) {
+        if (!MagnusUtilities.isTIP20(address(newQuoteToken))) {
             revert InvalidQuoteToken();
         }
 
@@ -535,7 +535,7 @@ contract MIP20 is IMIP20, MIP20RolesAuth {
     }
 
     function _validateRecipient(address to) internal pure {
-        if (to == address(0) || TempoUtilities.isTIP20Prefix(to)) {
+        if (to == address(0) || MagnusUtilities.isTIP20Prefix(to)) {
             revert InvalidRecipient();
         }
     }
@@ -577,7 +577,7 @@ contract MIP20 is IMIP20, MIP20RolesAuth {
     function setRewardRecipient(address newRewardRecipient) external virtual notPaused {
         // MIP-1015: Check sender/recipient authorization for reward claiming path
         if (newRewardRecipient != address(0)) {
-            if (TempoUtilities.isVirtualAddress(newRewardRecipient)) {
+            if (MagnusUtilities.isVirtualAddress(newRewardRecipient)) {
                 revert InvalidRecipient();
             }
 

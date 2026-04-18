@@ -106,7 +106,7 @@ def generate-bloat-file [bloat_size: int, profile: string] {
 }
 
 # Load the bloat file into a single node's database
-def load-bloat-into-node [tempo_bin: string, genesis_path: string, datadir: string] {
+def load-bloat-into-node [magnus_bin: string, genesis_path: string, datadir: string] {
     let bloat_file = $"($LOCALNET_DIR)/state_bloat.bin"
     let db_path = $"($datadir)/db"
 
@@ -129,10 +129,10 @@ def load-bloat-into-node [tempo_bin: string, genesis_path: string, datadir: stri
     }
 
     print $"Initializing ($datadir | path basename) database..."
-    run-external $tempo_bin "init" "--chain" $genesis_path "--datadir" $datadir
+    run-external $magnus_bin "init" "--chain" $genesis_path "--datadir" $datadir
 
     print $"Loading state bloat into ($datadir | path basename)..."
-    run-external $tempo_bin "init-from-binary-dump" "--chain" $genesis_path "--datadir" $datadir $bloat_file
+    run-external $magnus_bin "init-from-binary-dump" "--chain" $genesis_path "--datadir" $datadir $bloat_file
 }
 
 # ============================================================================
@@ -170,13 +170,13 @@ def bench-clean-datadir [datadir: string] {
 }
 
 # Initialize a database: run `magnus init`, optionally load state bloat
-def bench-init-db [tempo_bin: string, genesis: string, datadir: string, bloat: int, bloat_file: string] {
+def bench-init-db [magnus_bin: string, genesis: string, datadir: string, bloat: int, bloat_file: string] {
     print $"Initializing database at ($datadir)..."
-    run-external $tempo_bin "init" "--chain" $genesis "--datadir" $datadir
+    run-external $magnus_bin "init" "--chain" $genesis "--datadir" $datadir
 
     if $bloat > 0 {
         print $"Loading state bloat into ($datadir)..."
-        run-external $tempo_bin "init-from-binary-dump" "--chain" $genesis "--datadir" $datadir $bloat_file | complete
+        run-external $magnus_bin "init-from-binary-dump" "--chain" $genesis "--datadir" $datadir $bloat_file | complete
     }
 }
 
@@ -279,7 +279,7 @@ def read-bench-marker [datadir: string] {
 # Comparison mode helpers
 # ============================================================================
 
-# Ordered list of all Magnus hardforks (must match TempoHardfork enum in crates/chainspec)
+# Ordered list of all Magnus hardforks (must match MagnusHardfork enum in crates/chainspec)
 const MAGNUS_HARDFORKS = ["T0" "T1" "T1A" "T1B" "T1C" "T2" "T3" "T4"]
 
 # Map a hardfork name to generate-genesis CLI args.
@@ -393,10 +393,10 @@ def build-in-worktree [worktree_dir: string, ref: string, profile: string, featu
     let rustflags = $"($RUSTFLAGS)($extra_rustflags)"
     if $bench_features != "" and $bench_features != $features {
         # Build magnus (with tracy features) and magnus-bench (without) separately
-        let tempo_cmd = ["cargo" "build" "--profile" $profile "--features" $features "--bin" "magnus"]
+        let magnus_cmd = ["cargo" "build" "--profile" $profile "--features" $features "--bin" "magnus"]
         let bench_cmd = ["cargo" "build" "--profile" $profile "--features" $bench_features "--bin" "magnus-bench"]
         with-env { RUSTFLAGS: $rustflags } {
-            do { cd $worktree_dir; run-external ($tempo_cmd | first) ...($tempo_cmd | skip 1) }
+            do { cd $worktree_dir; run-external ($magnus_cmd | first) ...($magnus_cmd | skip 1) }
             do { cd $worktree_dir; run-external ($bench_cmd | first) ...($bench_cmd | skip 1) }
         }
     } else {
@@ -540,11 +540,11 @@ def run-bench-single [
     let full_samply_args = if $samply {
         $samply_args | append ["--save-only" "--presymbolicate" "--output" $"($results_dir)/profile-($run_label).json.gz"]
     } else { [] }
-    let node_cmd = wrap-samply [$tempo_bin ...$args] $samply $full_samply_args
+    let node_cmd = wrap-samply [$magnus_bin ...$args] $samply $full_samply_args
     let node_cmd_str = ($node_cmd | str join " ")
     let profiling_label = if $samply { " (samply)" } else if $tracy != "off" { $" \(tracy=($tracy)\)" } else { "" }
     let env_prefix = if $extra_env != "" { $"($extra_env) " } else { "" }
-    print $"  Starting node: ($tempo_bin | path basename)($profiling_label)"
+    print $"  Starting node: ($magnus_bin | path basename)($profiling_label)"
     job spawn { sh -c $"($env_prefix)($otel_attrs)($tracy_env_prefix)($node_cmd_str) 2>&1" | lines | each { |line| print $"[($run_label)] ($line)" } }
 
     # Wait for RPC
@@ -1153,7 +1153,7 @@ def "main localnet" [
 # ============================================================================
 
 def run-dev-node [accounts: int, genesis: string, samply: bool, samply_args: list<string>, reset: bool, profile: string, loud: bool, extra_args: list<string>, bloat: int] {
-    let tempo_bin = if $profile == "dev" {
+    let magnus_bin = if $profile == "dev" {
         "./target/debug/magnus"
     } else {
         $"./target/($profile)/magnus"
@@ -1165,7 +1165,7 @@ def run-dev-node [accounts: int, genesis: string, samply: bool, samply_args: lis
         # Custom genesis provided - check if bloat requires init
         if $bloat > 0 {
             generate-bloat-file $bloat $profile
-            load-bloat-into-node $tempo_bin $genesis $datadir
+            load-bloat-into-node $magnus_bin $genesis $datadir
         }
         $genesis
     } else {
@@ -1187,7 +1187,7 @@ def run-dev-node [accounts: int, genesis: string, samply: bool, samply_args: lis
         # Apply state bloat if requested (requires fresh init)
         if $bloat > 0 {
             generate-bloat-file $bloat $profile
-            load-bloat-into-node $tempo_bin $default_genesis $datadir
+            load-bloat-into-node $magnus_bin $default_genesis $datadir
         }
 
         $default_genesis
@@ -1198,7 +1198,7 @@ def run-dev-node [accounts: int, genesis: string, samply: bool, samply_args: lis
         | append (log-filter-args $loud)
         | append $extra_args
 
-    let cmd = wrap-samply [$tempo_bin ...$args] $samply $samply_args
+    let cmd = wrap-samply [$magnus_bin ...$args] $samply $samply_args
     print $"Running dev node: `($cmd | str join ' ')`..."
     run-external ($cmd | first) ...($cmd | skip 1)
 }
@@ -1276,7 +1276,7 @@ def run-consensus-nodes [nodes: int, accounts: int, genesis: string, samply: boo
 
     print $"Found ($validator_dirs | length) validator configs"
 
-    let tempo_bin = if $profile == "dev" {
+    let magnus_bin = if $profile == "dev" {
         "./target/debug/magnus"
     } else {
         $"./target/($profile)/magnus"
@@ -1304,7 +1304,7 @@ def run-consensus-nodes [nodes: int, accounts: int, genesis: string, samply: boo
     if $bloat > 0 {
         generate-bloat-file $bloat $profile
         for node_dir in $validator_dirs {
-            load-bloat-into-node $tempo_bin $genesis_path $node_dir
+            load-bloat-into-node $magnus_bin $genesis_path $node_dir
         }
     }
 
@@ -1317,11 +1317,11 @@ def run-consensus-nodes [nodes: int, accounts: int, genesis: string, samply: boo
     let background_nodes = $validator_dirs | skip 1
 
     for node in $background_nodes {
-        run-consensus-node $node $genesis_path $trusted_peers $tempo_bin $loud false [] $extra_args true
+        run-consensus-node $node $genesis_path $trusted_peers $magnus_bin $loud false [] $extra_args true
     }
 
     # Run node 0 in foreground (receives Ctrl+C directly)
-    run-consensus-node $foreground_node $genesis_path $trusted_peers $tempo_bin $loud $samply $samply_args $extra_args false
+    run-consensus-node $foreground_node $genesis_path $trusted_peers $magnus_bin $loud $samply $samply_args $extra_args false
 }
 
 # Run a single consensus node (foreground or background)
@@ -1329,7 +1329,7 @@ def run-consensus-node [
     node_dir: string
     genesis_path: string
     trusted_peers: string
-    tempo_bin: string
+    magnus_bin: string
     loud: bool
     samply: bool
     samply_args: list<string>
@@ -1348,7 +1348,7 @@ def run-consensus-node [
         | append (log-filter-args $loud)
         | append $extra_args
 
-    let cmd = wrap-samply [$tempo_bin ...$args] $samply $samply_args
+    let cmd = wrap-samply [$magnus_bin ...$args] $samply $samply_args
 
     print $"  Node ($addr) -> http://localhost:($http_port)(if $background { '' } else { ' (foreground)' })"
 
@@ -1498,7 +1498,7 @@ def "main bench-init" [
     let datadir = if $bench_datadir != "" {
         $bench_datadir
     } else if (has-schelk) {
-        $"/reth-bench/tempo_($bloat)mb"
+        $"/reth-bench/magnus_($bloat)mb"
     } else {
         $"($LOCALNET_DIR | path expand)/reth"
     }
@@ -1523,7 +1523,7 @@ def "main bench-init" [
 
     # Build magnus + xtask
     build-magnus ["magnus"] $profile $features
-    let tempo_bin = if $profile == "dev" { "./target/debug/magnus" } else { $"./target/($profile)/magnus" }
+    let magnus_bin = if $profile == "dev" { "./target/debug/magnus" } else { $"./target/($profile)/magnus" }
 
     # Generate genesis
     let abs_localnet = ($LOCALNET_DIR | path expand)
@@ -1541,7 +1541,7 @@ def "main bench-init" [
     }
 
     bench-clean-datadir $datadir
-    bench-init-db $tempo_bin $genesis_path $datadir $bloat $bloat_file
+    bench-init-db $magnus_bin $genesis_path $datadir $bloat $bloat_file
 
     bench-save-and-promote $datadir $meta_dir {
         bloat_mib: $bloat,
@@ -1619,9 +1619,9 @@ def "main bench" [
     let weights = if $preset != "" { $PRESETS | get $preset } else { [0.0, 0.0, 0.0, 0.0] }
     let gas_limit_args = if $gas_limit != "" { ["--gas-limit" $gas_limit] } else { [] }
 
-    # Auto-derive tracing OTLP URL: prefer GRAFANA_TEMPO, fall back to MAGNUS_TELEMETRY_URL
-    let tracing_otlp = if $tracing_otlp == "" and ($env.GRAFANA_TEMPO? | default "" | str length) > 0 {
-        let base = ($env.GRAFANA_TEMPO | str trim --right --char '/')
+    # Auto-derive tracing OTLP URL: prefer GRAFANA_MAGNUS, fall back to MAGNUS_TELEMETRY_URL
+    let tracing_otlp = if $tracing_otlp == "" and ($env.GRAFANA_MAGNUS? | default "" | str length) > 0 {
+        let base = ($env.GRAFANA_MAGNUS | str trim --right --char '/')
         $"($base)/v1/traces"
     } else if $tracing_otlp == "" and ($env.MAGNUS_TELEMETRY_URL? | default "" | str length) > 0 {
         let base = ($env.MAGNUS_TELEMETRY_URL | str trim --right --char '/')
@@ -1785,9 +1785,9 @@ def "main bench" [
 
         let local_bin = { |name: string| if $profile == "dev" { $"./target/debug/($name)" } else { $"./target/($profile)/($name)" } }
 
-        let baseline_tempo = if $baseline == "local" { do $local_bin "magnus" } else { worktree-bin $baseline_wt $profile "magnus" }
+        let baseline_magnus = if $baseline == "local" { do $local_bin "magnus" } else { worktree-bin $baseline_wt $profile "magnus" }
         let baseline_bench_bin = if $baseline == "local" { do $local_bin "magnus-bench" } else { worktree-bin $baseline_wt $profile "magnus-bench" }
-        let feature_tempo = if $feature == "local" { do $local_bin "magnus" } else { worktree-bin $feature_wt $profile "magnus" }
+        let feature_magnus = if $feature == "local" { do $local_bin "magnus" } else { worktree-bin $feature_wt $profile "magnus" }
 
         # Determine paths (absolute for use inside worktree cd blocks)
         let abs_localnet = ($LOCALNET_DIR | path expand)
@@ -1795,7 +1795,7 @@ def "main bench" [
         let datadir = if $bench_datadir != "" {
             $bench_datadir
         } else if (has-schelk) {
-            $"/reth-bench/tempo_($bloat)mb"
+            $"/reth-bench/magnus_($bloat)mb"
         } else {
             $"($abs_localnet)/reth"
         }
@@ -1893,8 +1893,8 @@ def "main bench" [
 
                 # Initialize both datadirs
                 for side in [
-                    { name: "baseline", genesis: $baseline_genesis_path, dd: $baseline_datadir, magnus: $baseline_tempo }
-                    { name: "feature", genesis: $feature_genesis_path, dd: $feature_datadir, magnus: $feature_tempo }
+                    { name: "baseline", genesis: $baseline_genesis_path, dd: $baseline_datadir, magnus: $baseline_magnus }
+                    { name: "feature", genesis: $feature_genesis_path, dd: $feature_datadir, magnus: $feature_magnus }
                 ] {
                     bench-clean-datadir $side.dd
                     mkdir $side.dd
@@ -1962,7 +1962,7 @@ def "main bench" [
                 }
 
                 bench-clean-datadir $datadir
-                bench-init-db $baseline_tempo $genesis_path_std $datadir $bloat $bloat_file
+                bench-init-db $baseline_magnus $genesis_path_std $datadir $bloat $bloat_file
 
                 bench-save-and-promote $datadir $meta_dir {
                     bloat_mib: $bloat,
@@ -2001,17 +2001,17 @@ def "main bench" [
 
         let runs = if $dual_hardfork {
             [
-                { label: "baseline-1", magnus: $baseline_tempo, git_ref: $baseline_sha, genesis: $"($abs_localnet)/genesis-baseline.json", datadir: $"($datadir)/baseline-db" }
-                { label: "feature-1", magnus: $feature_tempo, git_ref: $feature_sha, genesis: $"($abs_localnet)/genesis-feature.json", datadir: $"($datadir)/feature-db" }
-                { label: "feature-2", magnus: $feature_tempo, git_ref: $feature_sha, genesis: $"($abs_localnet)/genesis-feature.json", datadir: $"($datadir)/feature-db" }
-                { label: "baseline-2", magnus: $baseline_tempo, git_ref: $baseline_sha, genesis: $"($abs_localnet)/genesis-baseline.json", datadir: $"($datadir)/baseline-db" }
+                { label: "baseline-1", magnus: $baseline_magnus, git_ref: $baseline_sha, genesis: $"($abs_localnet)/genesis-baseline.json", datadir: $"($datadir)/baseline-db" }
+                { label: "feature-1", magnus: $feature_magnus, git_ref: $feature_sha, genesis: $"($abs_localnet)/genesis-feature.json", datadir: $"($datadir)/feature-db" }
+                { label: "feature-2", magnus: $feature_magnus, git_ref: $feature_sha, genesis: $"($abs_localnet)/genesis-feature.json", datadir: $"($datadir)/feature-db" }
+                { label: "baseline-2", magnus: $baseline_magnus, git_ref: $baseline_sha, genesis: $"($abs_localnet)/genesis-baseline.json", datadir: $"($datadir)/baseline-db" }
             ]
         } else {
             [
-                { label: "baseline-1", magnus: $baseline_tempo, git_ref: $baseline_sha, genesis: $genesis_path, datadir: $datadir }
-                { label: "feature-1", magnus: $feature_tempo, git_ref: $feature_sha, genesis: $genesis_path, datadir: $datadir }
-                { label: "feature-2", magnus: $feature_tempo, git_ref: $feature_sha, genesis: $genesis_path, datadir: $datadir }
-                { label: "baseline-2", magnus: $baseline_tempo, git_ref: $baseline_sha, genesis: $genesis_path, datadir: $datadir }
+                { label: "baseline-1", magnus: $baseline_magnus, git_ref: $baseline_sha, genesis: $genesis_path, datadir: $datadir }
+                { label: "feature-1", magnus: $feature_magnus, git_ref: $feature_sha, genesis: $genesis_path, datadir: $datadir }
+                { label: "feature-2", magnus: $feature_magnus, git_ref: $feature_sha, genesis: $genesis_path, datadir: $datadir }
+                { label: "baseline-2", magnus: $baseline_magnus, git_ref: $baseline_sha, genesis: $genesis_path, datadir: $datadir }
             ]
         }
 
@@ -2143,13 +2143,13 @@ def "main bench" [
     print "All nodes ready!"
 
     # Run magnus-bench
-    let tempo_bench_bin = if $profile == "dev" {
+    let magnus_bench_bin = if $profile == "dev" {
         "./target/debug/magnus-bench"
     } else {
         $"./target/($profile)/magnus-bench"
     }
     let bench_cmd = [
-        $tempo_bench_bin
+        $magnus_bench_bin
         "run-max-tps"
         "--tps" $"($tps)"
         "--duration" $"($duration)"
@@ -2286,7 +2286,7 @@ def "main coverage" [
     --tests                                # Include unit + integration test coverage
     --invariants                           # Run Solidity invariant fuzz tests (builds instrumented forge)
     --invariant-profile: string = "ci"     # Foundry profile for invariants (ci, fuzz500, default)
-    --invariant-contract: string = ""      # Run only a specific invariant contract (e.g. TempoTransactionInvariantTest)
+    --invariant-contract: string = ""      # Run only a specific invariant contract (e.g. MagnusTransactionInvariantTest)
     --live                                 # Include live node coverage (runs localnet + traffic)
     --preset: string = ""                  # Bench preset for live mode (tip20, erc20, swap, order, magnus-mix)
     --script: string = ""                  # External script to run against live node (instead of bench)
@@ -2367,7 +2367,7 @@ def "main coverage" [
         print ""
         print "--- Building magnus-foundry forge (instrumented) ---"
         print "This may take a while on first run..."
-        let tempo_root = ($env.PWD | path expand)
+        let magnus_root = ($env.PWD | path expand)
         let foundry_cargo_dir = ($foundry_dir | path join ".cargo")
         let foundry_cargo_config = ($foundry_cargo_dir | path join "config.toml")
         let had_existing_config = ($foundry_cargo_config | path exists)
@@ -2380,13 +2380,13 @@ def "main coverage" [
 
 # AUTO-GENERATED by magnus.nu coverage --invariants -- do not commit
 [patch.'https://github.com/Magnus-Foundation/magnus']
-magnus-alloy = { path = '($tempo_root)/crates/alloy' }
-magnus-contracts = { path = '($tempo_root)/crates/contracts' }
-magnus-revm = { path = '($tempo_root)/crates/revm' }
-magnus-evm = { path = '($tempo_root)/crates/evm' }
-magnus-chainspec = { path = '($tempo_root)/crates/chainspec' }
-magnus-primitives = { path = '($tempo_root)/crates/primitives' }
-magnus-precompiles = { path = '($tempo_root)/crates/precompiles' }
+magnus-alloy = { path = '($magnus_root)/crates/alloy' }
+magnus-contracts = { path = '($magnus_root)/crates/contracts' }
+magnus-revm = { path = '($magnus_root)/crates/revm' }
+magnus-evm = { path = '($magnus_root)/crates/evm' }
+magnus-chainspec = { path = '($magnus_root)/crates/chainspec' }
+magnus-primitives = { path = '($magnus_root)/crates/primitives' }
+magnus-precompiles = { path = '($magnus_root)/crates/precompiles' }
 "
         mkdir $foundry_cargo_dir
         $"($existing_config)($patch_block)" | save -f $foundry_cargo_config

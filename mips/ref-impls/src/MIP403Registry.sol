@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 pragma solidity >=0.8.13 <0.9.0;
 
-import { TempoUtilities } from "./TempoUtilities.sol";
+import { MagnusUtilities } from "./MagnusUtilities.sol";
 import { IMIP403Registry } from "./interfaces/IMIP403Registry.sol";
 
 contract MIP403Registry is IMIP403Registry {
@@ -68,7 +68,7 @@ contract MIP403Registry is IMIP403Registry {
         );
 
         for (uint256 i = 0; i < accounts.length; i++) {
-            if (TempoUtilities.isVirtualAddress(accounts[i])) {
+            if (MagnusUtilities.isVirtualAddress(accounts[i])) {
                 revert VirtualAddressNotAllowed();
             }
         }
@@ -106,7 +106,7 @@ contract MIP403Registry is IMIP403Registry {
     //////////////////////////////////////////////////////////////*/
 
     function modifyPolicyWhitelist(uint64 policyId, address account, bool allowed) external {
-        if (TempoUtilities.isVirtualAddress(account)) {
+        if (MagnusUtilities.isVirtualAddress(account)) {
             revert VirtualAddressNotAllowed();
         }
 
@@ -121,7 +121,7 @@ contract MIP403Registry is IMIP403Registry {
     }
 
     function modifyPolicyBlacklist(uint64 policyId, address account, bool restricted) external {
-        if (TempoUtilities.isVirtualAddress(account)) {
+        if (MagnusUtilities.isVirtualAddress(account)) {
             revert VirtualAddressNotAllowed();
         }
 

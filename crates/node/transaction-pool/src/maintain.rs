@@ -237,7 +237,7 @@ struct MagnusPoolState {
     expiry_map: BTreeMap<u64, Vec<TxHash>>,
     /// Reverse mapping: tx_hash -> valid_before timestamp (for cleanup during drain).
     tx_to_expiry: HashMap<TxHash, u64>,
-    /// Pool for transactions whose fee token is temporarily paused.
+    /// Pool for transactions whose fee token is magnusrarily paused.
     paused_pool: PausedFeeTokenPool,
     /// Tracks pending transaction staleness for DoS mitigation.
     pending_staleness: PendingStalenessTracker,
@@ -368,7 +368,7 @@ impl Default for PendingStalenessTracker {
 ///
 /// Consolidates these operations into a single event loop to avoid multiple tasks
 /// competing for canonical state updates and to minimize contention on pool locks.
-pub async fn maintain_tempo_pool<Client>(pool: MagnusTransactionPool<Client>)
+pub async fn maintain_magnus_pool<Client>(pool: MagnusTransactionPool<Client>)
 where
     Client: StateProviderFactory
         + HeaderProvider<Header = MagnusHeader>

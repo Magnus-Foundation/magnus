@@ -103,7 +103,7 @@ contract ValidatorConfigV2 is IValidatorConfigV2 {
             )
         );
         _verifyEd25519Signature(
-            bytes("TEMPO_VALIDATOR_CONFIG_V2_ADD_VALIDATOR"), publicKey, message, signature
+            bytes("MAGNUS_VALIDATOR_CONFIG_V2_ADD_VALIDATOR"), publicKey, message, signature
         );
 
         index = _addValidator(validatorAddress, publicKey, ingress, egress, feeRecipient, 0);
@@ -197,7 +197,7 @@ contract ValidatorConfigV2 is IValidatorConfigV2 {
             )
         );
         _verifyEd25519Signature(
-            bytes("TEMPO_VALIDATOR_CONFIG_V2_ROTATE_VALIDATOR"), publicKey, message, signature
+            bytes("MAGNUS_VALIDATOR_CONFIG_V2_ROTATE_VALIDATOR"), publicKey, message, signature
         );
 
         _updateIngress(oldValidator.ingress, ingress);

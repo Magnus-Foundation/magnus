@@ -136,7 +136,7 @@ jobs:
   deny:
     permissions:
       contents: read
-    uses: tempoxyz/ci/.github/workflows/deny.yml@main
+    uses: magnusxyz/ci/.github/workflows/deny.yml@main
 
   zepter:
     name: zepter

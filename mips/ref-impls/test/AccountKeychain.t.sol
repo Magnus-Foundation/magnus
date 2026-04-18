@@ -7,8 +7,8 @@ import { BaseTest } from "./BaseTest.t.sol";
 /**
  * @title Account Keychain Tests
  * @notice Tests for the Account Keychain precompile
- * @dev These tests run against both the Solidity implementation (when !isTempo)
- *      and the Rust precompile (when isTempo).
+ * @dev These tests run against both the Solidity implementation (when !isMagnus)
+ *      and the Rust precompile (when isMagnus).
  */
 /// forge-config: default.isolate = true
 contract AccountKeychainTest is BaseTest {
@@ -789,7 +789,7 @@ contract AccountKeychainTest is BaseTest {
     function test_Event_KeyAuthorized() public {
         vm.startPrank(alice, alice);
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectEmit(true, true, false, true);
             emit IAccountKeychain.KeyAuthorized(
                 alice,
@@ -830,7 +830,7 @@ contract AccountKeychainTest is BaseTest {
             })
         );
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectEmit(true, true, false, false);
             emit IAccountKeychain.KeyRevoked(alice, aliceAccessKey);
         }
@@ -858,7 +858,7 @@ contract AccountKeychainTest is BaseTest {
             })
         );
 
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectEmit(true, true, true, true);
             emit IAccountKeychain.SpendingLimitUpdated(alice, aliceAccessKey, USDC, 2000e6);
         }

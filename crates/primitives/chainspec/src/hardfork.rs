@@ -129,7 +129,7 @@ macro_rules! magnus_hardfork {
 
             #[test]
             #[cfg(feature = "serde")]
-            fn test_tempo_hardfork_serde() {
+            fn test_magnus_hardfork_serde() {
                 for fork in MagnusHardfork::VARIANTS {
                     let json = serde_json::to_string(fork).expect("serialize");
                     let deserialized: MagnusHardfork = serde_json::from_str(&json).expect("deserialize");

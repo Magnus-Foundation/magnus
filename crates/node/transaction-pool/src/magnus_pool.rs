@@ -1419,7 +1419,7 @@ mod tests {
         let validator = MagnusTransactionValidator::new(
             inner,
             crate::validator::DEFAULT_AA_VALID_AFTER_MAX_SECS,
-            crate::validator::DEFAULT_MAX_TEMPO_AUTHORIZATIONS,
+            crate::validator::DEFAULT_MAX_MAGNUS_AUTHORIZATIONS,
             amm_cache,
         );
 

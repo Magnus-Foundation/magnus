@@ -474,7 +474,7 @@ mod tests {
     }
 
     #[test]
-    fn output_tx_type_tempo_authorization_list_is_aa() {
+    fn output_tx_type_magnus_authorization_list_is_aa() {
         let req = MagnusTransactionRequest {
             magnus_authorization_list: vec![MagnusSignedAuthorization::new_unchecked(
                 Authorization {

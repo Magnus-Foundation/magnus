@@ -357,7 +357,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_chainspec_has_tempo_hardforks() {
+    fn test_magnus_chainspec_has_magnus_hardforks() {
         let chainspec = super::MagnusChainSpecParser::parse("mainnet")
             .expect("the mainnet chainspec must always be well formed");
 
@@ -371,7 +371,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_chainspec_implements_tempo_hardforks_trait() {
+    fn test_magnus_chainspec_implements_magnus_hardforks_trait() {
         let chainspec = super::MagnusChainSpecParser::parse("mainnet")
             .expect("the mainnet chainspec must always be well formed");
 
@@ -381,7 +381,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_hardforks_in_inner_hardforks() {
+    fn test_magnus_hardforks_in_inner_hardforks() {
         let chainspec = super::MagnusChainSpecParser::parse("mainnet")
             .expect("the mainnet chainspec must always be well formed");
 

@@ -5,7 +5,7 @@ pub mod tt_authorization;
 pub mod tt_signature;
 pub mod tt_signed;
 
-pub use tt_authorization::{MAGIC, RecoveredTempoAuthorization, MagnusSignedAuthorization};
+pub use tt_authorization::{MAGIC, RecoveredMagnusAuthorization, MagnusSignedAuthorization};
 // Re-export Authorization from alloy for convenience
 pub use tt_signature::{
     KeychainSignature, KeychainVersion, KeychainVersionError, PrimitiveSignature, MagnusSignature,

@@ -5,7 +5,7 @@
 # and the Argo invariant-tests workflow.
 #
 # Usage:
-#   scripts/patch-foundry-cargo.sh <tempo_root> <foundry_root>
+#   scripts/patch-foundry-cargo.sh <magnus_root> <foundry_root>
 #
 # Example (GHA – repos side-by-side):
 #   scripts/patch-foundry-cargo.sh "$GITHUB_WORKSPACE/magnus" "$GITHUB_WORKSPACE/foundry"
@@ -15,8 +15,8 @@
 
 set -euo pipefail
 
-MAGNUS_ROOT="${1:?Usage: $0 <tempo_root> <foundry_root>}"
-FOUNDRY_ROOT="${2:?Usage: $0 <tempo_root> <foundry_root>}"
+MAGNUS_ROOT="${1:?Usage: $0 <magnus_root> <foundry_root>}"
+FOUNDRY_ROOT="${2:?Usage: $0 <magnus_root> <foundry_root>}"
 
 MAGNUS_CARGO="$MAGNUS_ROOT/Cargo.toml"
 FOUNDRY_CARGO="$FOUNDRY_ROOT/Cargo.toml"

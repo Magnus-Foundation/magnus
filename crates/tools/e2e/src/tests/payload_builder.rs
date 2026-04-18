@@ -11,9 +11,9 @@ use reth_node_metrics::recorder::{PrometheusRecorder, install_prometheus_recorde
 use crate::{CONSENSUS_NODE_PREFIX, Setup, connect_execution_peers, setup_validators};
 
 const PAYLOAD_FINALIZATION_COUNT_METRIC: &str =
-    "reth_tempo_payload_builder_payload_finalization_duration_seconds_count";
+    "reth_magnus_payload_builder_payload_finalization_duration_seconds_count";
 const STATE_ROOT_WITH_UPDATES_COUNT_METRIC: &str =
-    "reth_tempo_payload_builder_state_root_with_updates_duration_seconds_count";
+    "reth_magnus_payload_builder_state_root_with_updates_duration_seconds_count";
 const NULLIFICATIONS_PER_LEADER_METRIC_SUFFIX: &str = "_nullifications_per_leader";
 
 #[test_traced]

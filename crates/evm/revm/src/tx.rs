@@ -14,7 +14,7 @@ use revm::context::{
 use magnus_primitives::{
     AASigned, MagnusSignature, MagnusTransaction, MagnusTxEnvelope,
     transaction::{
-        Call, RecoveredTempoAuthorization, SignedKeyAuthorization, calc_gas_balance_spending,
+        Call, RecoveredMagnusAuthorization, SignedKeyAuthorization, calc_gas_balance_spending,
     },
 };
 
@@ -37,7 +37,7 @@ pub struct MagnusBatchCallEnv {
     ///
     /// Each authorization lazily recovers the authority on first access and caches the result.
     /// The signature is preserved for gas calculation.
-    pub magnus_authorization_list: Vec<RecoveredTempoAuthorization>,
+    pub magnus_authorization_list: Vec<RecoveredMagnusAuthorization>,
 
     /// Nonce key for 2D nonce system
     pub nonce_key: U256,
@@ -349,7 +349,7 @@ impl FromRecoveredTx<AASigned> for MagnusTxEnv {
                 // Recover authorizations upfront to avoid recovery during execution
                 magnus_authorization_list: magnus_authorization_list
                     .iter()
-                    .map(|auth| RecoveredTempoAuthorization::recover(auth.clone()))
+                    .map(|auth| RecoveredMagnusAuthorization::recover(auth.clone()))
                     .collect(),
                 nonce_key: *nonce_key,
                 subblock_transaction: aa_signed.tx().subblock_proposer().is_some(),
@@ -542,9 +542,9 @@ mod tests {
         // Regular 2D nonce tx: expiring_nonce_hash should be None
         let regular_signed = make_aa_signed(U256::from(42));
         let regular_env = super::MagnusTxEnv::from_recovered_tx(&regular_signed, caller);
-        let regular_tempo_env = regular_env.magnus_tx_env.as_ref().unwrap();
+        let regular_magnus_env = regular_env.magnus_tx_env.as_ref().unwrap();
         assert_eq!(
-            regular_tempo_env.expiring_nonce_hash, None,
+            regular_magnus_env.expiring_nonce_hash, None,
             "regular 2D nonce tx must NOT have expiring_nonce_hash"
         );
     }

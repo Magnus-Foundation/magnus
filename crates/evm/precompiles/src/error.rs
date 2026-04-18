@@ -223,7 +223,7 @@ pub fn add_errors_to_registry<T: SolInterface>(
             Box::new(move |data: &[u8]| {
                 T::abi_decode(data)
                     .ok()
-                    .map(|error| DecodedTempoPrecompileError {
+                    .map(|error| DecodedMagnusPrecompileError {
                         error: converter(error),
                         revert_bytes: data,
                     })
@@ -233,7 +233,7 @@ pub fn add_errors_to_registry<T: SolInterface>(
 }
 
 /// A decoded precompile error together with the raw revert bytes.
-pub struct DecodedTempoPrecompileError<'a> {
+pub struct DecodedMagnusPrecompileError<'a> {
     pub error: MagnusPrecompileError,
     pub revert_bytes: &'a [u8],
 }
@@ -241,7 +241,7 @@ pub struct DecodedTempoPrecompileError<'a> {
 /// Maps ABI error selectors to their decoder functions.
 pub type MagnusPrecompileErrorRegistry = HashMap<
     Selector,
-    Box<dyn for<'a> Fn(&'a [u8]) -> Option<DecodedTempoPrecompileError<'a>> + Send + Sync>,
+    Box<dyn for<'a> Fn(&'a [u8]) -> Option<DecodedMagnusPrecompileError<'a>> + Send + Sync>,
 >;
 
 /// Builds a [`MagnusPrecompileErrorRegistry`] mapping every known error selector to its decoder.
@@ -269,10 +269,10 @@ pub fn error_decoder_registry() -> MagnusPrecompileErrorRegistry {
 pub static ERROR_REGISTRY: LazyLock<MagnusPrecompileErrorRegistry> =
     LazyLock::new(error_decoder_registry);
 
-/// Decodes raw revert bytes into a typed [`DecodedTempoPrecompileError`] using the global
+/// Decodes raw revert bytes into a typed [`DecodedMagnusPrecompileError`] using the global
 /// [`ERROR_REGISTRY`], returning `None` if the data is shorter than 4 bytes or the selector
 /// is unrecognized.
-pub fn decode_error<'a>(data: &'a [u8]) -> Option<DecodedTempoPrecompileError<'a>> {
+pub fn decode_error<'a>(data: &'a [u8]) -> Option<DecodedMagnusPrecompileError<'a>> {
     if data.len() < 4 {
         return None;
     }

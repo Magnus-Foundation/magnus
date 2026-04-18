@@ -1346,7 +1346,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_signature_from_bytes_secp256k1() {
+    fn test_magnus_signature_from_bytes_secp256k1() {
         use super::SECP256K1_SIGNATURE_LENGTH;
 
         // Secp256k1 signatures are detected by length (65 bytes), no type identifier
@@ -1362,7 +1362,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_signature_from_bytes_p256() {
+    fn test_magnus_signature_from_bytes_p256() {
         use super::{P256_SIGNATURE_LENGTH, SIGNATURE_TYPE_P256};
 
         let mut sig_bytes = vec![SIGNATURE_TYPE_P256];
@@ -1378,7 +1378,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_signature_from_bytes_webauthn() {
+    fn test_magnus_signature_from_bytes_webauthn() {
         use super::SIGNATURE_TYPE_WEBAUTHN;
 
         let mut sig_bytes = vec![SIGNATURE_TYPE_WEBAUTHN];
@@ -1394,7 +1394,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_signature_from_bytes_validation() {
+    fn test_magnus_signature_from_bytes_validation() {
         // Empty input
         assert_eq!(
             MagnusSignature::from_bytes(&[]).unwrap_err(),
@@ -1437,7 +1437,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_signature_roundtrip() {
+    fn test_magnus_signature_roundtrip() {
         use super::{
             P256_SIGNATURE_LENGTH, SECP256K1_SIGNATURE_LENGTH, SIGNATURE_TYPE_P256,
             SIGNATURE_TYPE_WEBAUTHN,
@@ -1475,7 +1475,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "serde")]
-    fn test_tempo_signature_serde_roundtrip() {
+    fn test_magnus_signature_serde_roundtrip() {
         // Test serde roundtrip for all signature types
 
         // Test Secp256k1
@@ -1959,7 +1959,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_signature_keychain_too_short_for_address() {
+    fn test_magnus_signature_keychain_too_short_for_address() {
         for type_byte in [SIGNATURE_TYPE_KEYCHAIN, SIGNATURE_TYPE_KEYCHAIN_V2] {
             let mut data = vec![type_byte];
             data.extend_from_slice(&[0u8; 19]);
@@ -1970,7 +1970,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tempo_signature_keychain_exactly_20_bytes_inner_empty() {
+    fn test_magnus_signature_keychain_exactly_20_bytes_inner_empty() {
         let mut data = vec![SIGNATURE_TYPE_KEYCHAIN];
         data.extend_from_slice(&[0u8; 20]);
         let result = MagnusSignature::from_bytes(&data);

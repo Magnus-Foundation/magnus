@@ -25,17 +25,17 @@ magnus-alloy = { git = "https://github.com/Magnus-Foundation/magnus", features =
 
 ## Usage
 
-To get started, instantiate a provider with [`TempoNetwork`]:
+To get started, instantiate a provider with [`MagnusNetwork`]:
 
 ```rust
 use alloy::{
     providers::{Provider, ProviderBuilder},
     transports::TransportError
 };
-use tempo_alloy::TempoNetwork;
+use magnus_alloy::MagnusNetwork;
 
-async fn build_provider() -> Result<impl Provider<TempoNetwork>, TransportError> {
-    ProviderBuilder::new_with_network::<TempoNetwork>()
+async fn build_provider() -> Result<impl Provider<MagnusNetwork>, TransportError> {
+    ProviderBuilder::new_with_network::<MagnusNetwork>()
         .connect("https://rpc.moderato.magnus.xyz")
         .await
 }
@@ -48,11 +48,11 @@ use alloy::{
     primitives::{U256, address},
     providers::ProviderBuilder,
 };
-use tempo_alloy::{TempoNetwork, contracts::precompiles::ITIP20};
+use magnus_alloy::{MagnusNetwork, contracts::precompiles::ITIP20};
  
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+    let provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
         .connect(&std::env::var("RPC_URL").expect("No RPC URL set"))
         .await?;
  
@@ -86,10 +86,10 @@ use alloy::{
     primitives::address,
     providers::ProviderBuilder,
 };
-use tempo_alloy::{TempoNetwork, provider::ext::TempoProviderExt};
+use magnus_alloy::{MagnusNetwork, provider::ext::MagnusProviderExt};
 
 async fn keychain_example() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+    let provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
         .connect("https://rpc.moderato.magnus.xyz")
         .await?;
 

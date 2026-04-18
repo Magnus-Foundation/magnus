@@ -156,7 +156,7 @@ impl Builder {
         // Just remove whatever is already written into chainspec.
         genesis.alloc.remove(&VALIDATOR_CONFIG_V2_ADDRESS);
 
-        let mut evm = setup_tempo_evm(genesis.config.chain_id);
+        let mut evm = setup_magnus_evm(genesis.config.chain_id);
         {
             let cx = evm.ctx_mut();
             StorageCtx::enter_evm(&mut cx.journaled_state, &cx.block, &cx.cfg, &cx.tx, || {
@@ -1046,7 +1046,7 @@ pub fn address(index: u32) -> Address {
     secret_key_to_address(MnemonicBuilder::from_phrase_nth(TEST_MNEMONIC, index).credential())
 }
 
-fn setup_tempo_evm(chain_id: u64) -> MagnusEvm<CacheDB<EmptyDB>> {
+fn setup_magnus_evm(chain_id: u64) -> MagnusEvm<CacheDB<EmptyDB>> {
     let db = CacheDB::default();
     // revm sets timestamp to 1 by default, override it to 0 for genesis initializations
     let mut env = EvmEnv::default().with_timestamp(U256::ZERO);

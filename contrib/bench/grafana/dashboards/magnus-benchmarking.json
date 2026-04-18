@@ -141,7 +141,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(avg(reth_tempo_payload_builder_total_transactions_last{namespace=\"$namespace\"}) by (job), \"job\", \"$1\", \"job\", \"^$namespace/(.*)\")",
+          "expr": "label_replace(avg(reth_magnus_payload_builder_total_transactions_last{namespace=\"$namespace\"}) by (job), \"job\", \"$1\", \"job\", \"^$namespace/(.*)\")",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -240,7 +240,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(reth_tempo_payload_builder_block_time_millis{namespace=\"$namespace\", quantile=~\"0.5|0.9|0.99\"}) by (quantile) < 5000",
+          "expr": "avg(reth_magnus_payload_builder_block_time_millis{namespace=\"$namespace\", quantile=~\"0.5|0.9|0.99\"}) by (quantile) < 5000",
           "legendFormat": "{{job}} p{{quantile}}",
           "range": true,
           "refId": "A"
@@ -561,7 +561,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(avg(reth_tempo_payload_builder_total_transaction_execution_duration_seconds{namespace=\"$namespace\", quantile=~\"0.5|0.9|0.99\"}) by (job, quantile), \"job\", \"$1\", \"job\", \"^$namespace/(.*)\")",
+          "expr": "label_replace(avg(reth_magnus_payload_builder_total_transaction_execution_duration_seconds{namespace=\"$namespace\", quantile=~\"0.5|0.9|0.99\"}) by (job, quantile), \"job\", \"$1\", \"job\", \"^$namespace/(.*)\")",
           "legendFormat": "{{job}} p{{quantile}}",
           "range": true,
           "refId": "A"
@@ -660,7 +660,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(avg(reth_tempo_payload_builder_payload_finalization_duration_seconds{namespace=\"$namespace\", quantile=~\"0.5|0.9|0.99\"}) by (job, quantile), \"job\", \"$1\", \"job\", \"^$namespace/(.*)\")",
+          "expr": "label_replace(avg(reth_magnus_payload_builder_payload_finalization_duration_seconds{namespace=\"$namespace\", quantile=~\"0.5|0.9|0.99\"}) by (job, quantile), \"job\", \"$1\", \"job\", \"^$namespace/(.*)\")",
           "legendFormat": "{{job}} p{{quantile}}",
           "range": true,
           "refId": "A"
@@ -759,7 +759,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(avg(reth_tempo_payload_builder_payload_build_duration_seconds{namespace=\"$namespace\", quantile=~\"0.5|0.9|0.99\"}) by (job, quantile), \"job\", \"$1\", \"job\", \"^$namespace/(.*)\")",
+          "expr": "label_replace(avg(reth_magnus_payload_builder_payload_build_duration_seconds{namespace=\"$namespace\", quantile=~\"0.5|0.9|0.99\"}) by (job, quantile), \"job\", \"$1\", \"job\", \"^$namespace/(.*)\")",
           "legendFormat": "{{job}} p{{quantile}}",
           "range": true,
           "refId": "A"
@@ -858,7 +858,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(avg(reth_tempo_payload_builder_gas_per_second_last{namespace=\"$namespace\"}) by (job), \"job\", \"$1\", \"job\", \"^$namespace/(.*)\")",
+          "expr": "label_replace(avg(reth_magnus_payload_builder_gas_per_second_last{namespace=\"$namespace\"}) by (job), \"job\", \"$1\", \"job\", \"^$namespace/(.*)\")",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"

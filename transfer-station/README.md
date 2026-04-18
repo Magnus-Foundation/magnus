@@ -51,7 +51,7 @@ The standards are open. The moat is the network.
 
 ## Competitive position
 
-| Feature | Stellar | Arc (Circle) | Tempo (Stripe) | Magnus |
+| Feature | Stellar | Arc (Circle) | Magnus (Stripe) | Magnus |
 |---|---|---|---|---|
 | Gas-free deposits | No | No | No | Yes (permit + relayer) |
 | Gas-free sends | No | No | No | Yes (netting + treasury) |
@@ -62,7 +62,7 @@ The standards are open. The moat is the network.
 
 ## Phased build
 
-- **Phase 0** (May 2026): DEX + simulated Gateway + demo wallet on magnus-chain (Tempo fork).
+- **Phase 0** (May 2026): DEX + simulated Gateway + demo wallet on magnus-chain (Magnus fork).
 - **Phase 1** (July 2026): Gas-free deposits (permit + relayer). Real Gateway partner. Gateway SDK.
 - **Phase 2** (Q3 2026): MagnusBridge.sol template. Bridges to Ethereum + Tron. Gas-free sends.
 - **Phase 3** (Q4 2026): Netting engine. Compliance pipeline. Open relayer market.

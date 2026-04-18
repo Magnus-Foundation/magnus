@@ -222,7 +222,7 @@ contract FeeAMMTest is BaseTest {
         // Pool struct: reserveUserToken (uint128) | reserveValidatorToken (uint128)
         // reserveValidatorToken is 5000e18, reserveUserToken we set to 1000e18
         // In TipFeeManager precompile, pools is at slot 3. In FeeAMM reference, it's at slot 0.
-        uint256 poolsSlot = isTempo ? 3 : 0;
+        uint256 poolsSlot = isMagnus ? 3 : 0;
         bytes32 slot = keccak256(abi.encode(poolId, poolsSlot));
         bytes32 packedValue = bytes32((reserveValidatorToken << 128) | reserveUserToken);
         vm.store(address(amm), slot, packedValue);
@@ -354,7 +354,7 @@ contract FeeAMMTest is BaseTest {
 
         // Seed userToken reserve so rebalance has tokens to give out
         bytes32 poolId = amm.getPoolId(address(userToken), address(validatorToken));
-        uint256 poolsSlot = isTempo ? 3 : 0;
+        uint256 poolsSlot = isMagnus ? 3 : 0;
         bytes32 slot = keccak256(abi.encode(poolId, poolsSlot));
         bytes32 packedValue = bytes32((uint256(5000e18) << 128) | uint256(5000e18));
         vm.store(address(amm), slot, packedValue);

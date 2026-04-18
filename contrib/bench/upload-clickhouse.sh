@@ -2,8 +2,8 @@
 # Upload bench results to ClickHouse.
 #
 # Reads report-*.json files from the results directory and inserts into:
-#   - tempo_bench_runs   (one row per run)
-#   - tempo_bench_blocks (one row per block per run)
+#   - magnus_bench_runs   (one row per run)
+#   - magnus_bench_blocks (one row per block per run)
 #
 # Environment:
 #   CLICKHOUSE_URL      – ClickHouse HTTP endpoint (https://host:8443)
@@ -90,7 +90,7 @@ github_run_id = esc(github_run_id_raw)
 github_run_url = esc(os.environ.get("BENCH_JOB_URL") or default_run_url)
 
 print(
-    f"INSERT INTO tempo_bench_runs (run_id, created_at, chain_id, start_block, end_block, "
+    f"INSERT INTO magnus_bench_runs (run_id, created_at, chain_id, start_block, end_block, "
     f"target_tps, run_duration_secs, accounts, total_connections, "
     f"total_blocks, total_transactions, total_successful, total_failed, "
     f"total_gas_used, avg_block_time_ms, avg_tps, "
@@ -121,7 +121,7 @@ if blocks:
         )
     values = ", ".join(rows)
     print(
-        f"INSERT INTO tempo_bench_blocks (run_id, block_number, timestamp_ms, "
+        f"INSERT INTO magnus_bench_blocks (run_id, block_number, timestamp_ms, "
         f"tx_count, ok_count, err_count, gas_used, gas_limit, latency_ms) VALUES {values}"
     )
 PYEOF

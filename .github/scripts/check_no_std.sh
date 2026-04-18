@@ -5,9 +5,9 @@ set -eo pipefail
 # List of crates to check for no_std compatibility.
 # These crates are expected to build without std on bare-metal targets.
 no_std_crates=(
-    tempo-chainspec
-    tempo-contracts
-    tempo-primitives
+    magnus-chainspec
+    magnus-contracts
+    magnus-primitives
 )
 
 for crate in "${no_std_crates[@]}"; do

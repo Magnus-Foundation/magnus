@@ -1018,16 +1018,16 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         internal
     {
         // Storage layout differs between Rust and Solidity implementations:
-        // Rust (isTempo=true):
+        // Rust (isMagnus=true):
         //   slot 0: validator_tokens
         //   slot 1: user_tokens
         //   slot 2: collected_fees
         //   slot 3: pools
         //   slot 4: total_supply
         //   slot 5: liquidity_balances
-        // Solidity (isTempo=false):
+        // Solidity (isMagnus=false):
         //   slot 0: pools
-        uint256 poolsSlot = isTempo ? 3 : 0;
+        uint256 poolsSlot = isMagnus ? 3 : 0;
         bytes32 poolSlot = keccak256(abi.encode(poolId, poolsSlot));
 
         // Pack: lower 128 bits = reserveUserToken, upper 128 bits = reserveValidatorToken
@@ -1038,14 +1038,14 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
     /// @dev Stores/increments collected fees using vm.store
     function _storeCollectedFees(address validator, address token, uint256 amount) internal {
         // Storage layout differs between Rust and Solidity implementations:
-        // Rust (isTempo=true):
+        // Rust (isMagnus=true):
         //   slot 0: validator_tokens
         //   slot 1: user_tokens
         //   slot 2: collected_fees
         //   slot 3: pools
         //   slot 4: total_supply
         //   slot 5: liquidity_balances
-        // Solidity (isTempo=false) - FeeManager inherits FeeAMM:
+        // Solidity (isMagnus=false) - FeeManager inherits FeeAMM:
         //   slot 0: pools (from FeeAMM)
         //   slot 1: totalSupply (from FeeAMM)
         //   slot 2: liquidityBalances (from FeeAMM)
@@ -1054,7 +1054,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         //   slot 5: collectedFees (from FeeManager)
         // collected_fees is mapping(address => mapping(address => uint256))
         // slot = keccak256(token, keccak256(validator, collectedFeesSlot))
-        uint256 collectedFeesSlot = isTempo ? 2 : 5;
+        uint256 collectedFeesSlot = isMagnus ? 2 : 5;
         bytes32 innerSlot = keccak256(abi.encode(validator, collectedFeesSlot));
         bytes32 feeSlot = keccak256(abi.encode(token, innerSlot));
 
@@ -1455,13 +1455,13 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
     }
 
     /// @dev Unblacklist ALL actors and verify they can cleanly exit
-    /// This proves that blacklisting is a temporary freeze, not permanent loss
-    /// Note: Both permanently blacklisted actors (0-4) AND any temporarily blacklisted
+    /// This proves that blacklisting is a magnusrary freeze, not permanent loss
+    /// Note: Both permanently blacklisted actors (0-4) AND any magnusrarily blacklisted
     /// actors (5-19 that haven't been recovered yet) need to be unblacklisted
     function _exitVerifyCleanExitAfterUnblacklist() internal {
         // Step 1: Unblacklist ALL actors for all tokens
         // - Actors 0-4: permanently blacklisted, need explicit unblacklist
-        // - Actors 5-19: may be temporarily blacklisted if toggleBlacklist hasn't recovered them yet
+        // - Actors 5-19: may be magnusrarily blacklisted if toggleBlacklist hasn't recovered them yet
         uint256 unblacklistedCount = 0;
         for (uint256 i = 0; i < _actors.length; i++) {
             address actor = _actors[i];

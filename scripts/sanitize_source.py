@@ -111,7 +111,7 @@ def sanitize_primitives(prim_dir):
     # for something else won't match and the pre-resolve grep will catch it.
     lib_rs = f"{src}/lib.rs"
     delete_lines(lib_rs, r'^#\[cfg\(feature = "reth"\)\]\nmod reth_compat;\n', expected=1)
-    delete_lines(lib_rs, r'^#\[cfg\(feature = "reth"\)\]\npub use reth_compat::TempoReceipt;\n', expected=1)
+    delete_lines(lib_rs, r'^#\[cfg\(feature = "reth"\)\]\npub use reth_compat::MagnusReceipt;\n', expected=1)
     delete_lines(lib_rs, r'^#\[cfg\(not\(feature = "reth"\)\)\]\n', expected=1)
 
     # ── Struct-level derive/test attributes (directory-wide scan) ──────────

@@ -57,7 +57,7 @@ jobs:
               path.write_text("---\n" + "".join(kept) + "---\n" + body, encoding="utf-8")
           PY
 
-      - uses: tempoxyz/changelogs@master
+      - uses: magnusxyz/changelogs@master
         with:
           conventional-commit: true
           post-version-command: cargo update -w

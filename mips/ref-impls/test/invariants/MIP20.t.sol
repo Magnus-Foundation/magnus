@@ -1268,7 +1268,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     )
         external
     {
-        vm.assume(!isTempo); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
+        vm.assume(!isMagnus); // TODO: skip for Magnus for now, reenable after magnus-foundry deps bumped
         address actor = _selectActor(actorSeed);
         address recipient = _selectActorExcluding(recipientSeed, actor);
         MIP20 token = _selectBaseToken(tokenSeed);

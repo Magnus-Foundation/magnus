@@ -72,7 +72,7 @@ jobs:
         run: |
           tag="${{ needs.get-version.outputs.version }}"
           tag=${tag#v}
-          cargo_ver=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "tempo").version')
+          cargo_ver=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "magnus").version')
           [[ "$tag" == "$cargo_ver"* ]] || { echo "Tag $tag doesn't match the Cargo version $cargo_ver"; exit 1; }
 
   build-release:
@@ -86,7 +86,7 @@ jobs:
       fail-fast: false
       matrix:
         binary:
-          - name: tempo
+          - name: magnus
             features: "asm-keccak,jemalloc,otlp"
           - name: magnus-bench
             features: ""

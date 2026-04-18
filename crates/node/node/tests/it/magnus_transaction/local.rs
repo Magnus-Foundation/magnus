@@ -1222,7 +1222,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
     bad_webauthn_data.extend_from_slice(&bad_auth_data);
     bad_webauthn_data.extend_from_slice(bad_client_data.as_bytes());
 
-    let bad_tempo_signature =
+    let bad_magnus_signature =
         MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
             webauthn_data: Bytes::from(bad_webauthn_data),
             r: alloy::primitives::B256::from_slice(&bad_sig_bytes[0..32]),
@@ -1231,7 +1231,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
             pub_key_y: correct_pub_key_y,
         }));
 
-    let signed_bad_tx = AASigned::new_unhashed(bad_tx, bad_tempo_signature);
+    let signed_bad_tx = AASigned::new_unhashed(bad_tx, bad_magnus_signature);
     let bad_envelope: MagnusTxEnvelope = signed_bad_tx.into();
     let mut encoded_bad = Vec::new();
     bad_envelope.encode_2718(&mut encoded_bad);

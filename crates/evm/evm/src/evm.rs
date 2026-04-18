@@ -423,7 +423,7 @@ mod tests {
     ///
     /// [MIP-1000]: <https://docs.magnus.xyz/protocol/mips/mip-1000>
     #[test]
-    fn test_tempo_evm_applies_gas_params() {
+    fn test_magnus_evm_applies_gas_params() {
         // Create EVM with T1 hardfork to get MIP-1000 gas params
         let evm = MagnusEvm::new(EmptyDB::default(), evm_env_with_spec(MagnusHardfork::T1));
 
@@ -443,7 +443,7 @@ mod tests {
     ///
     /// [MIP-1000]: <https://docs.magnus.xyz/protocol/mips/mip-1000>
     #[test]
-    fn test_tempo_evm_respects_gas_cap() {
+    fn test_magnus_evm_respects_gas_cap() {
         let mut env = evm_env_with_spec(MagnusHardfork::T1);
         env.cfg_env.tx_gas_limit_cap = MagnusHardfork::T1.tx_gas_limit_cap();
 
@@ -459,7 +459,7 @@ mod tests {
 
     /// Test that gas params differ between T0 and T1 hardforks.
     #[test]
-    fn test_tempo_evm_gas_params_differ_t0_vs_t1() {
+    fn test_magnus_evm_gas_params_differ_t0_vs_t1() {
         // Create T0 and T1 EVMs
         let t0_evm = MagnusEvm::new(EmptyDB::default(), evm_env_with_spec(MagnusHardfork::T0));
         let t1_evm = MagnusEvm::new(EmptyDB::default(), evm_env_with_spec(MagnusHardfork::T1));
@@ -487,7 +487,7 @@ mod tests {
 
     /// Test that T1 has significantly higher state creation costs.
     #[test]
-    fn test_tempo_evm_t1_state_creation_costs() {
+    fn test_magnus_evm_t1_state_creation_costs() {
         use revm::context_interface::cfg::GasId;
 
         let evm = MagnusEvm::new(EmptyDB::default(), evm_env_with_spec(MagnusHardfork::T1));

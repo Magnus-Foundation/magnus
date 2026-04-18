@@ -52,14 +52,14 @@ fn try_nonzero_timestamp(timestamp: Option<u64>, field: &str) -> eyre::Result<Op
         .transpose()
 }
 
-fn decoded_tempo_rpc_error_message(err: &RpcError<TransportErrorKind>) -> Option<String> {
+fn decoded_magnus_rpc_error_message(err: &RpcError<TransportErrorKind>) -> Option<String> {
     magnus_precompiles::error::decode_error(&err.as_error_resp()?.as_revert_data()?.0)
         .map(|decoded| format!("execution reverted: {}", decoded.error))
 }
 
 /// Returns a decoded Magnus revert message when possible, else the original RPC error string.
 pub(super) fn magnus_rpc_error_message(err: &RpcError<TransportErrorKind>) -> String {
-    decoded_tempo_rpc_error_message(err).unwrap_or_else(|| err.to_string())
+    decoded_magnus_rpc_error_message(err).unwrap_or_else(|| err.to_string())
 }
 
 pub(super) fn rpc_error_contains_reason(err: &RpcError<TransportErrorKind>, reason: &str) -> bool {
@@ -69,8 +69,8 @@ pub(super) fn rpc_error_contains_reason(err: &RpcError<TransportErrorKind>, reas
 }
 
 /// Normalizes Magnus revert errors so tests do not depend on server-side formatting.
-pub(super) fn normalize_tempo_rpc_error(err: RpcError<TransportErrorKind>) -> eyre::Report {
-    decoded_tempo_rpc_error_message(&err).map_or_else(|| err.into(), eyre::Report::msg)
+pub(super) fn normalize_magnus_rpc_error(err: RpcError<TransportErrorKind>) -> eyre::Report {
+    decoded_magnus_rpc_error_message(&err).map_or_else(|| err.into(), eyre::Report::msg)
 }
 
 // TODO: remove once all RPC providers accept hex-serialized scoped key auth selectors.
@@ -1264,7 +1264,7 @@ pub(crate) async fn fill_transaction_from_case(
     let filled: serde_json::Value =
         legacy_compat::raw_request(provider, "eth_fillTransaction", &request_context.request)
             .await
-            .map_err(normalize_tempo_rpc_error)?;
+            .map_err(normalize_magnus_rpc_error)?;
 
     let tx = parse_filled_tx(&filled)?;
 
@@ -1324,7 +1324,7 @@ mod tests {
     use magnus_contracts::precompiles::MIP20Error;
 
     #[test]
-    fn normalize_tempo_rpc_error_decodes_raw_revert_data() {
+    fn normalize_magnus_rpc_error_decodes_raw_revert_data() {
         let expected_revert_bytes = hex!(
             "832f98b5000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f424000000000000000000000000020c0000000000000000000000000000000000000"
         );
@@ -1355,7 +1355,7 @@ mod tests {
             "client-side revert decoding should recognize Magnus precompile errors"
         );
 
-        let normalized = normalize_tempo_rpc_error(err).to_string();
+        let normalized = normalize_magnus_rpc_error(err).to_string();
         assert!(
             normalized.contains("execution reverted:")
                 && normalized.contains("InsufficientBalance"),

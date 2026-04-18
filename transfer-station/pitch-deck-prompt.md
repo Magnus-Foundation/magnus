@@ -173,7 +173,7 @@ Small text: "These 5 exchanges need cross-border settlement rails. Nobody provid
                     Few          Many
               ┌──────────┬──────────────┐
    FIAT       │          │              │
-   RAILS  No  │  Codex   │  Arc, Tempo  │
+   RAILS  No  │  Codex   │  Arc, Magnus  │
               │  (L2)    │  (stablechains)│
               ├──────────┼──────────────┤
               │          │              │
@@ -331,7 +331,7 @@ Balanced. Product-led, not infrastructure-led.
 > 5. Hub-and-spoke: chains on left, banks on right, Magnus center
 > 6. Netting flow: 180 USDT in, 130 out, 0 bridged, $0.05 fee, no gas tokens
 > 7. Vietnam corridor: $19B, 6.49% fees, 5 exchanges, US→VN arrow
-> 8. 2x2 matrix: chains x fiat rails. Codex (few/no), Arc+Tempo (many/no), BVNK (few/yes), TS (many/yes)
+> 8. 2x2 matrix: chains x fiat rails. Codex (few/no), Arc+Magnus (many/no), BVNK (few/yes), TS (many/yes)
 > 9. Three-column: Stellar vs Magnus on gateways, EVM, compliance. "SMTP vs Gmail."
 > 10. Revenue stack: 4 streams with % and dollar projections
 > 11. Timeline: Alliance DAO → Unchained Summit → Devnet → Bridges → Full Stack. Red month-3 kill criterion.

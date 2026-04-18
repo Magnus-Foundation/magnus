@@ -141,7 +141,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
                 feeRecipient
             )
         );
-        bytes memory ns = bytes("TEMPO_VALIDATOR_CONFIG_V2_ADD_VALIDATOR");
+        bytes memory ns = bytes("MAGNUS_VALIDATOR_CONFIG_V2_ADD_VALIDATOR");
         return vm.signEd25519(
             abi.encodePacked(uint8(ns.length), ns), abi.encodePacked(message), privateKey
         );
@@ -168,7 +168,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
                 egress
             )
         );
-        bytes memory ns = bytes("TEMPO_VALIDATOR_CONFIG_V2_ROTATE_VALIDATOR");
+        bytes memory ns = bytes("MAGNUS_VALIDATOR_CONFIG_V2_ROTATE_VALIDATOR");
         return vm.signEd25519(
             abi.encodePacked(uint8(ns.length), ns), abi.encodePacked(message), privateKey
         );

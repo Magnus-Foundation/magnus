@@ -1827,7 +1827,7 @@ contract StablecoinDEXTest is BaseTest {
         internal
         returns (uint128 orderId)
     {
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectEmit(true, true, true, true);
             emit OrderPlaced(
                 exchange.nextOrderId(), user, address(token1), amount, true, tick, false, 0
@@ -1846,7 +1846,7 @@ contract StablecoinDEXTest is BaseTest {
         internal
         returns (uint128 orderId)
     {
-        if (!isTempo) {
+        if (!isMagnus) {
             vm.expectEmit(true, true, true, true);
             emit OrderPlaced(
                 exchange.nextOrderId(), user, address(token1), amount, false, tick, false, 0

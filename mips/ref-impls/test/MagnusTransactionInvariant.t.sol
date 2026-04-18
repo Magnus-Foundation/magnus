@@ -21,18 +21,18 @@ import {
 } from "magnus-std/tx/Eip7702TransactionLib.sol";
 import { LegacyTransaction, LegacyTransactionLib } from "magnus-std/tx/LegacyTransactionLib.sol";
 import {
-    TempoAuthorization,
-    TempoCall,
-    TempoTransaction,
-    TempoTransactionLib
-} from "magnus-std/tx/TempoTransactionLib.sol";
+    MagnusAuthorization,
+    MagnusCall,
+    MagnusTransaction,
+    MagnusTransactionLib
+} from "magnus-std/tx/MagnusTransactionLib.sol";
 
 /// @title Magnus Transaction Invariant Tests
 /// @notice Comprehensive Foundry invariant tests for Magnus transaction behavior
 /// @dev Tests nonce management, CREATE operations, fee collection, and access keys
-contract TempoTransactionInvariantTest is InvariantChecker {
+contract MagnusTransactionInvariantTest is InvariantChecker {
 
-    using TempoTransactionLib for TempoTransaction;
+    using MagnusTransactionLib for MagnusTransaction;
     using LegacyTransactionLib for LegacyTransaction;
     using Eip1559TransactionLib for Eip1559Transaction;
     using Eip7702TransactionLib for Eip7702Transaction;
@@ -68,15 +68,15 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         selectors[4] = this.handler_2dNonceIncrement.selector;
         selectors[5] = this.handler_multipleNonceKeys.selector;
         // Magnus transaction handlers (core)
-        selectors[6] = this.handler_tempoTransfer.selector;
-        selectors[7] = this.handler_tempoTransferProtocolNonce.selector;
+        selectors[6] = this.handler_magnusTransfer.selector;
+        selectors[7] = this.handler_magnusTransferProtocolNonce.selector;
         // Access key handlers (core)
         selectors[8] = this.handler_authorizeKey.selector;
         selectors[9] = this.handler_revokeKey.selector;
         selectors[10] = this.handler_useAccessKey.selector;
         selectors[11] = this.handler_insufficientBalanceTransfer.selector;
         // CREATE handlers
-        selectors[12] = this.handler_tempoCreate.selector;
+        selectors[12] = this.handler_magnusCreate.selector;
         selectors[13] = this.handler_createGasScaling.selector;
         // Replay protection handlers (N12-N15)
         selectors[14] = this.handler_replayProtocolNonce.selector;
@@ -90,12 +90,12 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         selectors[21] = this.handler_createWithAuthList.selector;
         selectors[22] = this.handler_createWithValue.selector;
         // Magnus access key handlers (TX11)
-        selectors[23] = this.handler_tempoUseAccessKey.selector;
-        selectors[24] = this.handler_tempoUseP256AccessKey.selector;
+        selectors[23] = this.handler_magnusUseAccessKey.selector;
+        selectors[24] = this.handler_magnusUseP256AccessKey.selector;
         // Multicall handlers (M1-M9)
-        selectors[25] = this.handler_tempoMulticall.selector;
-        selectors[26] = this.handler_tempoMulticallWithFailure.selector;
-        selectors[27] = this.handler_tempoMulticallStateVisibility.selector;
+        selectors[25] = this.handler_magnusMulticall.selector;
+        selectors[26] = this.handler_magnusMulticallWithFailure.selector;
+        selectors[27] = this.handler_magnusMulticallStateVisibility.selector;
         // Key authorization handlers (K1-K3, K6, K7-K8, K10-K12, K16)
         selectors[28] = this.handler_keyAuthWrongSigner.selector;
         selectors[29] = this.handler_keyAuthNotSelf.selector;
@@ -129,7 +129,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         selectors[51] = this.handler_eip1559BaseFeeRejection.selector;
         selectors[52] = this.handler_eip7702WithAuth.selector;
         selectors[53] = this.handler_eip7702CreateRejection.selector;
-        selectors[54] = this.handler_tempoFeeSponsor.selector;
+        selectors[54] = this.handler_magnusFeeSponsor.selector;
         // Gas tracking handlers (G1-G10)
         selectors[55] = this.handler_gasTrackingBasic.selector;
         selectors[56] = this.handler_gasTrackingMulticall.selector;
@@ -177,7 +177,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
     /// @notice Master invariant - all protocol rules checked after each handler sequence
     /// @dev This single function ensures every invariant is checked after every handler run
-    function invariant_tempoTransaction() public view {
+    function invariant_magnusTransaction() public view {
         _checkAllInvariants();
     }
 
@@ -355,20 +355,20 @@ contract TempoTransactionInvariantTest is InvariantChecker {
                 actorKeys[actorIndex]
             );
         } else {
-            TempoCall[] memory calls = new TempoCall[](1);
-            calls[0] = TempoCall({
+            MagnusCall[] memory calls = new MagnusCall[](1);
+            calls[0] = MagnusCall({
                 to: address(feeToken), value: 0, data: abi.encodeCall(IMIP20.transfer, (to, amount))
             });
 
             uint64 gasLimit =
                 TxBuilder.callGas(calls[0].data, nonceValue) + TxBuilder.GAS_LIMIT_BUFFER;
 
-            TempoTransaction memory tx_ = TempoTransactionLib.create()
+            MagnusTransaction memory tx_ = MagnusTransactionLib.create()
                 .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
                 .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey)
                 .withNonce(nonceValue);
 
-            signedTx = TxBuilder.signTempo(vmRlp, vm, tx_, params);
+            signedTx = TxBuilder.signMagnus(vmRlp, vm, tx_, params);
         }
     }
 
@@ -392,16 +392,16 @@ contract TempoTransactionInvariantTest is InvariantChecker {
                 vmRlp, vm, initcode, nonceValue, actorKeys[actorIndex]
             );
         } else {
-            TempoCall[] memory calls = new TempoCall[](1);
-            calls[0] = TempoCall({ to: address(0), value: 0, data: initcode });
+            MagnusCall[] memory calls = new MagnusCall[](1);
+            calls[0] = MagnusCall({ to: address(0), value: 0, data: initcode });
 
             uint64 gasLimit = TxBuilder.createGas(initcode, nonceValue) + TxBuilder.GAS_LIMIT_BUFFER;
 
-            TempoTransaction memory tx_ = TempoTransactionLib.create()
+            MagnusTransaction memory tx_ = MagnusTransactionLib.create()
                 .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
                 .withGasLimit(gasLimit).withCalls(calls).withNonceKey(0).withNonce(nonceValue);
 
-            signedTx = TxBuilder.signTempo(vmRlp, vm, tx_, params);
+            signedTx = TxBuilder.signMagnus(vmRlp, vm, tx_, params);
         }
     }
 
@@ -608,8 +608,8 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         ghost_previous2dNonce[actor][nonceKey] = ghost_2dNonce[actor][nonceKey];
 
         // Build and execute a real Magnus transaction
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (recipient, amount))
@@ -618,12 +618,12 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 gasLimit =
             TxBuilder.callGas(calls[0].data, currentNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(uint64(nonceKey))
             .withNonce(currentNonce);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -676,14 +676,14 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 nonce1 = uint64(ghost_2dNonce[actor][key1]);
         ghost_previous2dNonce[actor][key1] = ghost_2dNonce[actor][key1];
 
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (recipient, amount))
         });
 
-        bytes memory signedTx1 = TxBuilder.buildTempoMultiCall(
+        bytes memory signedTx1 = TxBuilder.buildMagnusMultiCall(
             vmRlp, vm, calls, uint64(key1), nonce1, actorKeys[actorIdx]
         );
 
@@ -698,7 +698,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 nonce2 = uint64(ghost_2dNonce[actor][key2]);
         ghost_previous2dNonce[actor][key2] = ghost_2dNonce[actor][key2];
 
-        bytes memory signedTx2 = TxBuilder.buildTempoMultiCall(
+        bytes memory signedTx2 = TxBuilder.buildMagnusMultiCall(
             vmRlp, vm, calls, uint64(key2), nonce2, actorKeys[actorIdx]
         );
 
@@ -716,7 +716,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
     /// @notice Handler: Execute a Magnus transfer with random signature type
     /// @dev Tests that Magnus transactions work with all signature types (secp256k1, P256, WebAuthn, Keychain)
     /// With magnus-foundry, Magnus txs with nonceKey > 0 use 2D nonces (not protocol nonce)
-    function handler_tempoTransfer(
+    function handler_magnusTransfer(
         uint256 actorSeed,
         uint256 recipientSeed,
         uint256 amount,
@@ -745,7 +745,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
     /// @notice Handler: Execute a Magnus transfer using protocol nonce (nonceKey = 0)
     /// @dev Tests that Magnus transactions with nonceKey=0 use the protocol nonce
-    function handler_tempoTransferProtocolNonce(
+    function handler_magnusTransferProtocolNonce(
         uint256 actorSeed,
         uint256 recipientSeed,
         uint256 amount,
@@ -773,7 +773,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
     /// @notice Handler: Use access key with Magnus transaction
     /// @dev Tests access keys with Magnus transactions (K5, K9 with Magnus tx type)
-    function handler_tempoUseAccessKey(
+    function handler_magnusUseAccessKey(
         uint256 actorSeed,
         uint256 keySeed,
         uint256 recipientSeed,
@@ -796,7 +796,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 currentNonce = uint64(ghost_2dNonce[ctx.owner][nonceKey]);
         ghost_previous2dNonce[ctx.owner][nonceKey] = ghost_2dNonce[ctx.owner][nonceKey];
 
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychain(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychain(
             vmRlp,
             vm,
             address(feeToken),
@@ -821,7 +821,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
     /// @notice Handler: Use P256 access key with Magnus transaction
     /// @dev Tests P256 access keys with Magnus transactions
-    function handler_tempoUseP256AccessKey(
+    function handler_magnusUseP256AccessKey(
         uint256 actorSeed,
         uint256 keySeed,
         uint256 recipientSeed,
@@ -844,7 +844,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 currentNonce = uint64(ghost_2dNonce[ctx.owner][nonceKey]);
         ghost_previous2dNonce[ctx.owner][nonceKey] = ghost_2dNonce[ctx.owner][nonceKey];
 
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychainP256(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychainP256(
             vmRlp,
             vm,
             address(feeToken),
@@ -965,7 +965,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint64 currentNonce = uint64(ghost_protocolNonce[ctx.owner]);
 
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychain(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychain(
             vmRlp,
             vm,
             address(feeToken),
@@ -1029,7 +1029,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint64 currentNonce = uint64(ghost_protocolNonce[ctx.owner]);
 
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychain(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychain(
             vmRlp,
             vm,
             address(feeToken),
@@ -1079,7 +1079,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         ghost_previousProtocolNonce[ctx.owner] = ghost_protocolNonce[ctx.owner];
         uint64 currentNonce = uint64(ghost_protocolNonce[ctx.owner]);
 
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychain(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychain(
             vmRlp,
             vm,
             address(feeToken),
@@ -1164,7 +1164,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
     /// @notice Handler: Execute a Magnus CREATE with 2D nonce (nonceKey > 0)
     /// @dev Tests N9 - CREATE address derivation still uses protocol nonce, not 2D nonce
-    function handler_tempoCreate(
+    function handler_magnusCreate(
         uint256 actorSeed,
         uint256 initValue,
         uint256 nonceKeySeed
@@ -1176,18 +1176,18 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         bytes memory initcode = InitcodeHelper.simpleStorageInitcode(initValue);
 
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({ to: address(0), value: 0, data: initcode });
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({ to: address(0), value: 0, data: initcode });
 
         uint64 gasLimit =
             TxBuilder.createGas(initcode, ctx.protocolNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(ctx.nonceKey)
             .withNonce(ctx.current2dNonce);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -1230,7 +1230,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         bytes memory initcode = InitcodeHelper.simpleStorageInitcode(initValue);
 
-        bytes memory signedTx = TxBuilder.buildTempoCreateNotFirst(
+        bytes memory signedTx = TxBuilder.buildMagnusCreateNotFirst(
             vmRlp,
             vm,
             address(feeToken),
@@ -1271,7 +1271,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         bytes memory initcode1 = InitcodeHelper.simpleStorageInitcode(initValue1);
         bytes memory initcode2 = InitcodeHelper.counterInitcode();
 
-        bytes memory signedTx = TxBuilder.buildTempoMultipleCreates(
+        bytes memory signedTx = TxBuilder.buildMagnusMultipleCreates(
             vmRlp,
             vm,
             initcode1,
@@ -1308,8 +1308,8 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         bytes memory initcode = InitcodeHelper.simpleStorageInitcode(initValue);
 
-        TempoAuthorization[] memory authList = new TempoAuthorization[](1);
-        authList[0] = TempoAuthorization({
+        MagnusAuthorization[] memory authList = new MagnusAuthorization[](1);
+        authList[0] = MagnusAuthorization({
             chainId: block.chainid,
             authority: ctx.sender,
             nonce: ctx.protocolNonce,
@@ -1318,7 +1318,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
             s: bytes32(uint256(2))
         });
 
-        bytes memory signedTx = TxBuilder.buildTempoCreateWithAuthList(
+        bytes memory signedTx = TxBuilder.buildMagnusCreateWithAuthList(
             vmRlp,
             vm,
             initcode,
@@ -1359,7 +1359,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         bytes memory initcode = InitcodeHelper.simpleStorageInitcode(initValue);
 
-        bytes memory signedTx = TxBuilder.buildTempoCreateWithValue(
+        bytes memory signedTx = TxBuilder.buildMagnusCreateWithValue(
             vmRlp, vm, initcode, value, ctx.nonceKey, ctx.current2dNonce, actorKeys[ctx.senderIdx]
         );
 
@@ -1383,7 +1383,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         bytes memory initcode = InitcodeHelper.largeInitcode(50_000);
 
-        bytes memory signedTx = TxBuilder.buildTempoCreateWithGas(
+        bytes memory signedTx = TxBuilder.buildMagnusCreateWithGas(
             vmRlp,
             vm,
             initcode,
@@ -1506,8 +1506,8 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 nonceKey = uint64(bound(nonceKeySeed, 1, 100));
         uint64 currentNonce = uint64(ghost_2dNonce[ctx.sender][nonceKey]);
 
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, amount))
@@ -1516,11 +1516,11 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 gasLimit =
             TxBuilder.callGas(calls[0].data, currentNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(currentNonce);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -1645,8 +1645,8 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         bool isFirstUse = !ghost_2dNonceUsed[ctx.sender][nonceKey];
         uint64 currentNonce = uint64(ghost_2dNonce[ctx.sender][nonceKey]);
 
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, amount))
@@ -1655,11 +1655,11 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 gasLimit =
             TxBuilder.callGas(calls[0].data, currentNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(currentNonce);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -1763,7 +1763,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 currentNonce = uint64(ghost_protocolNonce[owner]);
 
         // Build a transaction signed with the unauthorized key
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychain(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychain(
             vmRlp,
             vm,
             address(feeToken),
@@ -1838,7 +1838,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
             IAccountKeychain.TokenLimit({ token: address(feeToken), amount: 100e6, period: 0 });
 
         uint64 currentNonce = uint64(ghost_protocolNonce[owner]);
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychain(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychain(
             vmRlp,
             vm,
             address(keychain),
@@ -1902,8 +1902,8 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 nonceKey = 1;
         uint64 currentNonce = uint64(ghost_2dNonce[owner][nonceKey]);
 
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (actors[(actorIdx + 1) % actors.length], amount))
@@ -1912,11 +1912,11 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 gasLimit =
             TxBuilder.callGas(calls[0].data, currentNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create().withChainId(wrongChainId)
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create().withChainId(wrongChainId)
             .withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE).withGasLimit(gasLimit).withCalls(calls)
             .withNonceKey(nonceKey).withNonce(currentNonce);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -1971,8 +1971,8 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 nonceKey = 5;
         uint64 currentNonce = uint64(ghost_2dNonce[owner][nonceKey]);
 
-        TempoCall[] memory calls = new TempoCall[](2);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](2);
+        calls[0] = MagnusCall({
             to: address(keychain),
             value: 0,
             data: _encodeAuthorizeKey(
@@ -1987,13 +1987,13 @@ contract TempoTransactionInvariantTest is InvariantChecker {
                 })
             )
         });
-        calls[1] = TempoCall({
+        calls[1] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (recipient, amount))
         });
 
-        bytes memory signedTx = TxBuilder.buildTempoMultiCall(
+        bytes memory signedTx = TxBuilder.buildMagnusMultiCall(
             vmRlp, vm, calls, nonceKey, currentNonce, actorKeys[actorIdx]
         );
 
@@ -2087,7 +2087,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint64 currentNonce = uint64(ghost_protocolNonce[owner]);
 
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychain(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychain(
             vmRlp,
             vm,
             address(feeToken),
@@ -2163,7 +2163,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint64 currentNonce = uint64(ghost_protocolNonce[owner]);
 
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychain(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychain(
             vmRlp,
             vm,
             address(feeToken),
@@ -2242,7 +2242,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint64 currentNonce = uint64(ghost_protocolNonce[owner]);
 
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychain(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychain(
             vmRlp,
             vm,
             address(feeToken),
@@ -2324,7 +2324,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint64 currentNonce = uint64(ghost_protocolNonce[owner]);
 
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychainP256(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychainP256(
             vmRlp,
             vm,
             address(feeToken),
@@ -2362,7 +2362,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
     /// @notice Handler: Execute a successful multicall with multiple transfers
     /// @dev Tests M4 (logs preserved on success), M5-M7 (gas accumulation)
-    function handler_tempoMulticall(
+    function handler_magnusMulticall(
         uint256 actorSeed,
         uint256 recipientSeed,
         uint256 amount1,
@@ -2375,19 +2375,19 @@ contract TempoTransactionInvariantTest is InvariantChecker {
             _setupMulticallContext(actorSeed, recipientSeed, amount1, amount2, nonceKeySeed);
 
         uint256 amt2 = totalAmount - ctx.amount;
-        TempoCall[] memory calls = new TempoCall[](2);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](2);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, ctx.amount))
         });
-        calls[1] = TempoCall({
+        calls[1] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, amt2))
         });
 
-        bytes memory signedTx = TxBuilder.buildTempoMultiCall(
+        bytes memory signedTx = TxBuilder.buildMagnusMultiCall(
             vmRlp, vm, calls, ctx.nonceKey, ctx.currentNonce, actorKeys[ctx.senderIdx]
         );
         uint256 recipientBalanceBefore = feeToken.balanceOf(ctx.recipient);
@@ -2410,7 +2410,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
     /// @notice Handler: Execute a multicall where the last call fails
     /// @dev Tests M1 (all or nothing), M2 (partial state reverted), M3 (logs cleared)
-    function handler_tempoMulticallWithFailure(
+    function handler_magnusMulticallWithFailure(
         uint256 actorSeed,
         uint256 recipientSeed,
         uint256 amount,
@@ -2424,19 +2424,19 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint256 excessAmount = feeToken.balanceOf(ctx.sender) + 1e6;
 
-        TempoCall[] memory calls = new TempoCall[](2);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](2);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, ctx.amount))
         });
-        calls[1] = TempoCall({
+        calls[1] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, excessAmount))
         });
 
-        bytes memory signedTx = TxBuilder.buildTempoMultiCall(
+        bytes memory signedTx = TxBuilder.buildMagnusMultiCall(
             vmRlp, vm, calls, ctx.nonceKey, ctx.currentNonce, actorKeys[ctx.senderIdx]
         );
 
@@ -2475,7 +2475,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
     /// @notice Handler: Execute a multicall where call N+1 depends on call N's state
     /// @dev Tests M8 (state changes visible) and M9 (balance changes propagate)
-    function handler_tempoMulticallStateVisibility(
+    function handler_magnusMulticallStateVisibility(
         uint256 actorSeed,
         uint256 recipientSeed,
         uint256 amount,
@@ -2490,13 +2490,13 @@ contract TempoTransactionInvariantTest is InvariantChecker {
             return;
         }
 
-        TempoCall[] memory calls = new TempoCall[](2);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](2);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, ctx.amount))
         });
-        calls[1] = TempoCall({
+        calls[1] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transferFrom, (ctx.recipient, ctx.sender, ctx.amount))
@@ -2505,7 +2505,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         vm.prank(ctx.recipient);
         feeToken.approve(ctx.sender, ctx.amount);
 
-        bytes memory signedTx = TxBuilder.buildTempoMultiCall(
+        bytes memory signedTx = TxBuilder.buildMagnusMultiCall(
             vmRlp, vm, calls, ctx.nonceKey, ctx.currentNonce, actorKeys[ctx.senderIdx]
         );
 
@@ -2563,12 +2563,12 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 gasLimit =
             TxBuilder.callGas(ctx.calls[0].data, ctx.currentNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(ctx.calls).withNonceKey(ctx.nonceKey)
             .withNonce(ctx.currentNonce);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -2630,13 +2630,13 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         FeeTestContext memory ctx =
             _setupFeeTestContext(actorSeed, recipientSeed, amount, nonceKeySeed);
 
-        TempoCall[] memory calls = new TempoCall[](2);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](2);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, ctx.amount / 2))
         });
-        calls[1] = TempoCall({
+        calls[1] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, ctx.amount / 2))
@@ -2644,12 +2644,12 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint64 highGasLimit = TxBuilder.DEFAULT_GAS_LIMIT * 10;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(highGasLimit).withCalls(calls).withNonceKey(ctx.nonceKey)
             .withNonce(ctx.currentNonce);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -2707,19 +2707,19 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint256 balance = feeToken.balanceOf(ctx.sender);
         uint256 excessAmount = balance + 1e6;
 
-        TempoCall[] memory calls = new TempoCall[](2);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](2);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, ctx.amount))
         });
-        calls[1] = TempoCall({
+        calls[1] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (ctx.recipient, excessAmount))
         });
 
-        bytes memory signedTx = TxBuilder.buildTempoMultiCall(
+        bytes memory signedTx = TxBuilder.buildMagnusMultiCall(
             vmRlp, vm, calls, ctx.nonceKey, ctx.currentNonce, actorKeys[ctx.senderIdx]
         );
 
@@ -2764,14 +2764,14 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint256 excessAmount = balance + 1e6;
 
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (actors[0], excessAmount))
         });
 
-        bytes memory signedTx = TxBuilder.buildTempoMultiCall(
+        bytes memory signedTx = TxBuilder.buildMagnusMultiCall(
             vmRlp, vm, calls, nonceKey, currentNonce, actorKeys[senderIdx]
         );
 
@@ -2827,8 +2827,8 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 nonceKey = uint64(bound(nonceKeySeed, 1, 100));
         uint64 currentNonce = uint64(ghost_2dNonce[sender][nonceKey]);
 
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (recipient, amount))
@@ -2839,12 +2839,12 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 gasLimit =
             TxBuilder.callGas(calls[0].data, currentNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(currentNonce)
             .withFeeToken(invalidFeeToken);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -2891,12 +2891,12 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 gasLimit =
             TxBuilder.callGas(ctx.calls[0].data, ctx.currentNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(ctx.calls).withNonceKey(ctx.nonceKey)
             .withNonce(ctx.currentNonce).withFeeToken(address(feeToken));
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -2944,12 +2944,12 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 gasLimit =
             TxBuilder.callGas(ctx.calls[0].data, ctx.currentNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(ctx.calls).withNonceKey(ctx.nonceKey)
             .withNonce(ctx.currentNonce);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -3005,8 +3005,8 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 nonceKey = uint64(bound(nonceKeySeed, 1, 100));
         uint64 currentNonce = uint64(ghost_2dNonce[sender][nonceKey]);
 
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (recipient, amount))
@@ -3025,12 +3025,12 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 gasLimit =
             TxBuilder.callGas(calls[0].data, currentNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(currentNonce)
             .withFeeToken(noLiquidityToken);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -3066,7 +3066,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Build a Magnus transaction with time bounds
-    function _buildTempoWithTimeBounds(
+    function _buildMagnusWithTimeBounds(
         uint256 actorIndex,
         address to,
         uint256 amount,
@@ -3079,14 +3079,14 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         view
         returns (bytes memory signedTx, address sender)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken), value: 0, data: abi.encodeCall(IMIP20.transfer, (to, amount))
         });
 
         uint64 gasLimit = TxBuilder.callGas(calls[0].data, txNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(txNonce);
 
@@ -3098,7 +3098,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         }
 
         sender = actors[actorIndex];
-        signedTx = TxBuilder.signTempo(
+        signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -3130,7 +3130,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         futureOffset = bound(futureOffset, 1, 1 days);
         uint64 validAfter = uint64(block.timestamp + futureOffset);
 
-        (bytes memory signedTx,) = _buildTempoWithTimeBounds(
+        (bytes memory signedTx,) = _buildMagnusWithTimeBounds(
             ctx.senderIdx, ctx.recipient, ctx.amount, ctx.nonceKey, ctx.currentNonce, validAfter, 0
         );
         vm.coinbase(validator);
@@ -3163,7 +3163,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 validBefore = uint64(block.timestamp - pastOffset);
         if (validBefore == 0) validBefore = 1;
 
-        (bytes memory signedTx,) = _buildTempoWithTimeBounds(
+        (bytes memory signedTx,) = _buildMagnusWithTimeBounds(
             ctx.senderIdx, ctx.recipient, ctx.amount, ctx.nonceKey, ctx.currentNonce, 0, validBefore
         );
         vm.coinbase(validator);
@@ -3196,7 +3196,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 validAfter = uint64(block.timestamp > 1 hours ? block.timestamp - 1 hours : 0);
         uint64 validBefore = uint64(block.timestamp + windowSize);
 
-        (bytes memory signedTx,) = _buildTempoWithTimeBounds(
+        (bytes memory signedTx,) = _buildMagnusWithTimeBounds(
             ctx.senderIdx,
             ctx.recipient,
             ctx.amount,
@@ -3228,7 +3228,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         ctx.nonceKey = 4;
         ctx.currentNonce = uint64(ghost_2dNonce[ctx.sender][ctx.nonceKey]);
 
-        (bytes memory signedTx,) = _buildTempoWithTimeBounds(
+        (bytes memory signedTx,) = _buildMagnusWithTimeBounds(
             ctx.senderIdx, ctx.recipient, ctx.amount, ctx.nonceKey, ctx.currentNonce, 0, 0
         );
         vm.coinbase(validator);
@@ -3254,11 +3254,11 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         ctx.nonceKey = 5;
         ctx.currentNonce = uint64(ghost_2dNonce[ctx.sender][ctx.nonceKey]);
 
-        // Must be non-zero or _buildTempoWithTimeBounds will omit the field
+        // Must be non-zero or _buildMagnusWithTimeBounds will omit the field
         uint64 t = uint64(block.timestamp);
         if (t == 0) t = 1;
 
-        (bytes memory signedTx,) = _buildTempoWithTimeBounds(
+        (bytes memory signedTx,) = _buildMagnusWithTimeBounds(
             ctx.senderIdx, ctx.recipient, ctx.amount, ctx.nonceKey, ctx.currentNonce, t, t
         );
         vm.coinbase(validator);
@@ -3530,7 +3530,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
     /// @notice Handler TX10: Execute a Magnus transaction with fee payer signature
     /// @dev Tests that fee payer signature enables fee sponsorship
-    function handler_tempoFeeSponsor(
+    function handler_magnusFeeSponsor(
         uint256 actorSeed,
         uint256 feePayerSeed,
         uint256 recipientSeed,
@@ -3568,8 +3568,8 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 nonceKey = uint64(bound(nonceKeySeed, 1, 100));
         uint64 currentNonce = uint64(ghost_2dNonce[sender][nonceKey]);
 
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (recipient, amount))
@@ -3578,7 +3578,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 gasLimit =
             TxBuilder.callGas(calls[0].data, currentNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(nonceKey).withNonce(currentNonce);
 
@@ -3590,7 +3590,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         tx_ = tx_.withFeePayerSignature(feePayerSig);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -3743,16 +3743,16 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 nonceKey = uint64(bound(nonceKeySeed, 1, 100));
         uint64 currentNonce = uint64(ghost_2dNonce[sender][nonceKey]);
 
-        TempoCall[] memory calls = new TempoCall[](numCalls);
+        MagnusCall[] memory calls = new MagnusCall[](numCalls);
         for (uint256 i = 0; i < numCalls; i++) {
-            calls[i] = TempoCall({
+            calls[i] = MagnusCall({
                 to: address(feeToken),
                 value: 0,
                 data: abi.encodeCall(IMIP20.transfer, (recipient, amount))
             });
         }
 
-        bytes memory signedTx = TxBuilder.buildTempoMultiCall(
+        bytes memory signedTx = TxBuilder.buildMagnusMultiCall(
             vmRlp, vm, calls, nonceKey, currentNonce, actorKeys[senderIdx]
         );
 
@@ -3961,19 +3961,19 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         view
         returns (bytes memory signedTx, bytes32 txHash)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken), value: 0, data: abi.encodeCall(IMIP20.transfer, (to, amount))
         });
 
         uint64 gasLimit = TxBuilder.callGas(calls[0].data, 0) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(EXPIRING_NONCE_KEY).withNonce(0)
             .withValidBefore(validBefore);
 
-        signedTx = TxBuilder.signTempo(
+        signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -4001,19 +4001,19 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         view
         returns (bytes memory signedTx)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken), value: 0, data: abi.encodeCall(IMIP20.transfer, (to, amount))
         });
 
         uint64 gasLimit = TxBuilder.callGas(calls[0].data, txNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(EXPIRING_NONCE_KEY)
             .withNonce(txNonce).withValidBefore(validBefore);
 
-        signedTx = TxBuilder.signTempo(
+        signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -4037,19 +4037,19 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         view
         returns (bytes memory signedTx)
     {
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken), value: 0, data: abi.encodeCall(IMIP20.transfer, (to, amount))
         });
 
         uint64 gasLimit = TxBuilder.callGas(calls[0].data, 0) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(EXPIRING_NONCE_KEY).withNonce(0);
         // Note: NOT setting validBefore
 
-        signedTx = TxBuilder.signTempo(
+        signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -4486,18 +4486,18 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint64 currentNonce = uint64(ghost_protocolNonce[ctx.owner]);
 
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (recipient, amount))
         });
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(highGasLimit).withCalls(calls).withNonceKey(0).withNonce(currentNonce);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -4581,7 +4581,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint64 currentNonce = uint64(ghost_protocolNonce[ctx.owner]);
 
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychain(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychain(
             vmRlp,
             vm,
             address(feeToken),
@@ -4723,7 +4723,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         // Build a tx signed with key K's private key, setting userAddress = B.
         // The keychain should reject this because key K is only authorized for A.
-        bytes memory signedTx = TxBuilder.buildTempoCallKeychain(
+        bytes memory signedTx = TxBuilder.buildMagnusCallKeychain(
             vmRlp,
             vm,
             address(feeToken),
@@ -4750,7 +4750,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Handler: Sign a Magnus tx with wrong chain_id and verify rejection
-    /// @dev Tests that validate_tempo_tx() enforces chain_id == block.chainid.
+    /// @dev Tests that validate_magnus_tx() enforces chain_id == block.chainid.
     ///      A tx signed for a different chain must never execute on this chain.
     function handler_crossChainReplay(
         uint256 actorSeed,
@@ -4779,8 +4779,8 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         uint64 wrongChainId = uint64(bound(wrongChainSeed, 1, type(uint64).max - 1));
         if (wrongChainId >= currentChainId) wrongChainId++;
 
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (recipient, amount))
@@ -4790,11 +4790,11 @@ contract TempoTransactionInvariantTest is InvariantChecker {
             TxBuilder.callGas(calls[0].data, currentNonce) + TxBuilder.GAS_LIMIT_BUFFER;
 
         // Build tx with wrong chain_id
-        TempoTransaction memory tx_ = TempoTransactionLib.create().withChainId(wrongChainId)
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create().withChainId(wrongChainId)
             .withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE).withGasLimit(gasLimit).withCalls(calls)
             .withNonceKey(nonceKey).withNonce(currentNonce);
 
-        bytes memory signedTx = TxBuilder.signTempo(
+        bytes memory signedTx = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -4871,9 +4871,9 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint64 validBefore = uint64(block.timestamp + MAX_EXPIRY_SECS);
 
-        // Build expiring nonce TempoTransaction
-        TempoCall[] memory calls = new TempoCall[](1);
-        calls[0] = TempoCall({
+        // Build expiring nonce MagnusTransaction
+        MagnusCall[] memory calls = new MagnusCall[](1);
+        calls[0] = MagnusCall({
             to: address(feeToken),
             value: 0,
             data: abi.encodeCall(IMIP20.transfer, (recipient, amount))
@@ -4881,7 +4881,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
 
         uint64 gasLimit = TxBuilder.callGas(calls[0].data, 0) + TxBuilder.GAS_LIMIT_BUFFER;
 
-        TempoTransaction memory tx_ = TempoTransactionLib.create()
+        MagnusTransaction memory tx_ = MagnusTransactionLib.create()
             .withChainId(uint64(block.chainid)).withMaxFeePerGas(TxBuilder.DEFAULT_GAS_PRICE)
             .withGasLimit(gasLimit).withCalls(calls).withNonceKey(EXPIRING_NONCE_KEY).withNonce(0)
             .withValidBefore(validBefore);
@@ -4897,7 +4897,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         // Attach fee payer 1's signature and sign with sender
         tx_ = tx_.withFeePayerSignature(feePayer1Sig);
 
-        bytes memory signedTx1 = TxBuilder.signTempo(
+        bytes memory signedTx1 = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
@@ -4929,7 +4929,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
         // Replace fee payer signature and re-sign with sender
         tx_ = tx_.withFeePayerSignature(feePayer2Sig);
 
-        bytes memory signedTx2 = TxBuilder.signTempo(
+        bytes memory signedTx2 = TxBuilder.signMagnus(
             vmRlp,
             vm,
             tx_,
