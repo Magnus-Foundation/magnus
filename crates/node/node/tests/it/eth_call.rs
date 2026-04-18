@@ -541,7 +541,7 @@ async fn test_eth_estimate_gas_preseeded_zero_address_validator_token() -> eyre:
     let mut test_genesis: serde_json::Value =
         serde_json::from_str(include_str!("../assets/test-genesis.json"))?;
     let presto_genesis: serde_json::Value =
-        serde_json::from_str(include_str!("../../../chainspec/src/genesis/presto.json"))?;
+        serde_json::from_str(include_str!("../../../../primitives/chainspec/src/genesis/presto.json"))?;
 
     let fee_manager_addr = "0xfeec000000000000000000000000000000000000";
     let presto_storage = presto_genesis["alloc"][fee_manager_addr]["storage"]
