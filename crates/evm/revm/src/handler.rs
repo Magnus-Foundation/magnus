@@ -50,7 +50,7 @@ use magnus_precompiles::{
     storage::{
         Handler as _, PrecompileStorageProvider, StorageCtx, evm::EvmPrecompileStorageProvider,
     },
-    tip_fee_manager::TipFeeManager,
+    mip_fee_manager::MipFeeManager,
     mip20::{IMIP20::InsufficientBalance, MIP20Error, MIP20Token},
 };
 use magnus_primitives::{
@@ -1428,7 +1428,7 @@ where
 
         let skip_liquidity_check = evm.skip_liquidity_check;
         let result = StorageCtx::enter_evm(journal, &block, cfg, tx, || {
-            TipFeeManager::new().collect_fee_pre_tx(
+            MipFeeManager::new().collect_fee_pre_tx(
                 fee_payer,
                 fee_token,
                 gas_balance_spending,
@@ -1477,7 +1477,7 @@ where
         evm: &mut Self::Evm,
         exec_result: &mut <<Self::Evm as EvmTr>::Frame as FrameTr>::FrameResult,
     ) -> Result<(), Self::Error> {
-        // Call collectFeePostTx on TipFeeManager precompile
+        // Call collectFeePostTx on MipFeeManager precompile
         let context = &mut evm.inner.ctx;
         let tx = context.tx();
         let basefee = context.block().basefee() as u128;
@@ -1508,7 +1508,7 @@ where
         let beneficiary = context.block.beneficiary();
 
         StorageCtx::enter_evm(&mut *journal, block, &context.cfg, tx, || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             if !actual_spending.is_zero() || !refund_amount.is_zero() {
                 let fee_payer = tx.fee_payer().expect("pre-validated in `validate_env`");
@@ -2294,7 +2294,7 @@ mod tests {
         let tx_fee_token = Address::random();
 
         // Set validator token
-        let validator_slot = TipFeeManager::new().validator_tokens[validator].slot();
+        let validator_slot = MipFeeManager::new().validator_tokens[validator].slot();
         ctx.journaled_state.load_account(TIP_FEE_MANAGER_ADDRESS)?;
         ctx.journaled_state
             .sstore(
@@ -2312,7 +2312,7 @@ mod tests {
         }
 
         // Set user token
-        let user_slot = TipFeeManager::new().user_tokens[user].slot();
+        let user_slot = MipFeeManager::new().user_tokens[user].slot();
         ctx.journaled_state
             .sstore(
                 TIP_FEE_MANAGER_ADDRESS,

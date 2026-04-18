@@ -27,7 +27,7 @@ use reth_transaction_pool::{
 use std::{num::NonZeroU64, sync::Arc};
 use magnus_chainspec::spec::{MAGNUS_T1_BASE_FEE, MagnusChainSpec};
 use magnus_node::node::MagnusNode;
-use magnus_precompiles::{DEFAULT_FEE_TOKEN, tip_fee_manager::TipFeeManager};
+use magnus_precompiles::{DEFAULT_FEE_TOKEN, mip_fee_manager::MipFeeManager};
 use magnus_primitives::{
     MagnusTransaction, MagnusTxEnvelope,
     transaction::{calc_gas_balance_spending, magnus_transaction::Call},
@@ -62,7 +62,7 @@ async fn submit_pending_tx() -> eyre::Result<()> {
 
     let tx = MagnusTxEnvelope::decode_2718_exact(&raw[..])?.try_into_recovered()?;
     let signer = tx.signer();
-    let slot = TipFeeManager::new().user_tokens[signer].slot();
+    let slot = MipFeeManager::new().user_tokens[signer].slot();
     println!("Submitting tx from {signer} with fee manager token slot 0x{slot:x}");
 
     let res = node

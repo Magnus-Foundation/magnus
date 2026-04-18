@@ -21,8 +21,8 @@ use magnus_precompiles::{
     DEFAULT_FEE_TOKEN, TIP_FEE_MANAGER_ADDRESS,
     error::Result as MagnusResult,
     storage::Handler,
-    tip_fee_manager::{
-        TipFeeManager,
+    mip_fee_manager::{
+        MipFeeManager,
         amm::{Pool, PoolKey, compute_amount_out},
     },
 };
@@ -99,7 +99,7 @@ impl AmmLiquidityCache {
                 for validator_token in missing_in_cache {
                     // This might race other fetches but we're OK with it.
                     let pool_key = PoolKey::new(user_token, validator_token).get_id();
-                    let manager = TipFeeManager::new();
+                    let manager = MipFeeManager::new();
                     let (slot, pool) = (
                         manager.pools[pool_key].base_slot(),
                         manager.pools[pool_key].read()?,
@@ -194,7 +194,7 @@ impl AmmLiquidityCache {
 
         for header in headers {
             let beneficiary = header.beneficiary();
-            let validator_token_slot = TipFeeManager::new().validator_tokens[beneficiary].slot();
+            let validator_token_slot = MipFeeManager::new().validator_tokens[beneficiary].slot();
 
             let cached_preference = self
                 .inner

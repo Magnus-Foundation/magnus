@@ -14,7 +14,7 @@ use magnus_contracts::precompiles::{
 };
 use magnus_precompiles::{
     DEFAULT_FEE_TOKEN, PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS,
-    tip_fee_manager::amm::{MIN_LIQUIDITY, PoolKey},
+    mip_fee_manager::amm::{MIN_LIQUIDITY, PoolKey},
 };
 
 #[tokio::test(flavor = "multi_thread")]

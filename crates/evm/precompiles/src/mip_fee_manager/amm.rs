@@ -1,7 +1,7 @@
 use crate::{
     error::{Result, MagnusPrecompileError},
     storage::Handler,
-    tip_fee_manager::{ITIPFeeAMM, TIPFeeAMMError, TIPFeeAMMEvent, TipFeeManager},
+    mip_fee_manager::{ITIPFeeAMM, TIPFeeAMMError, TIPFeeAMMEvent, MipFeeManager},
     mip20::{IMIP20, MIP20Token, validate_usd_currency},
 };
 use alloy::{
@@ -86,7 +86,7 @@ impl PoolKey {
     }
 }
 
-impl TipFeeManager {
+impl MipFeeManager {
     /// Returns the deterministic pool ID for a directional token pair. Note that the pool id is
     /// order-dependent: `(A, B)` produces a different ID than `(B, A)`.
     pub fn pool_id(&self, user_token: Address, validator_token: Address) -> B256 {
@@ -345,7 +345,7 @@ impl TipFeeManager {
     /// Burns LP tokens and returns the pro-rata share of both pool tokens to `to`.
     ///
     /// On T1C+ the burn is rejected if the remaining validator-token reserve would fall below
-    /// the pending fee-swap reservation set by [`TipFeeManager::reserve_pool_liquidity`].
+    /// the pending fee-swap reservation set by [`MipFeeManager::reserve_pool_liquidity`].
     ///
     /// # Errors
     /// - `IdenticalAddresses` — `user_token` equals `validator_token`
@@ -489,7 +489,7 @@ impl TipFeeManager {
     }
 
     /// Executes a fee swap, converting `user_token` to `validator_token` at a fixed rate m = 0.997
-    /// Called internally by [`TipFeeManager::collect_fee_post_tx`] during post-tx fee collection.
+    /// Called internally by [`MipFeeManager::collect_fee_post_tx`] during post-tx fee collection.
     ///
     /// # Errors
     /// - `InsufficientLiquidity` — pool validator-token reserve is below the required output
@@ -570,7 +570,7 @@ mod tests {
         error::MagnusPrecompileError,
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
         test_util::MIP20Setup,
-        tip_fee_manager::TIPFeeAMMError,
+        mip_fee_manager::TIPFeeAMMError,
     };
 
     /// Integer square root using the Babylonian method
@@ -589,7 +589,7 @@ mod tests {
 
     /// Sets up a pool with initial liquidity for testing
     fn setup_pool_with_liquidity(
-        amm: &mut TipFeeManager,
+        amm: &mut MipFeeManager,
         user_token: Address,
         validator_token: Address,
         user_amount: U256,
@@ -612,7 +612,7 @@ mod tests {
         let admin = Address::random();
         StorageCtx::enter(&mut storage, || {
             let token = MIP20Setup::create("Test", "TST", admin).apply()?;
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
             let result = amm.mint(
                 admin,
                 token.address(),
@@ -636,7 +636,7 @@ mod tests {
         let admin = Address::random();
         StorageCtx::enter(&mut storage, || {
             let token = MIP20Setup::create("Test", "TST", admin).apply()?;
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
             let result = amm.burn(
                 admin,
                 token.address(),
@@ -663,7 +663,7 @@ mod tests {
             let user_token = MIP20Setup::create("UserToken", "UTK", admin).apply()?;
             let validator_token = MIP20Setup::create("ValidatorToken", "VTK", admin).apply()?;
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
             let amount = uint!(100000_U256) * uint!(10_U256).pow(U256::from(6));
             setup_pool_with_liquidity(
                 &mut amm,
@@ -699,7 +699,7 @@ mod tests {
                 .currency("EUR")
                 .apply()?;
             let usd_token = MIP20Setup::create("USDToken", "USD", admin).apply()?;
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let result = amm.mint(
                 admin,
@@ -737,7 +737,7 @@ mod tests {
                 .currency("EUR")
                 .apply()?;
             let usd_token = MIP20Setup::create("USDToken", "USD", admin).apply()?;
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let result = amm.burn(
                 admin,
@@ -773,7 +773,7 @@ mod tests {
         StorageCtx::enter(&mut storage, || {
             let user_token = MIP20Setup::create("UserToken", "UTK", admin).apply()?;
             let validator_token = MIP20Setup::create("ValidatorToken", "VTK", admin).apply()?;
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             // MIN_LIQUIDITY = 1000, amount/2 must be > 1000, so 2000 should fail
             let insufficient = uint!(2000_U256);
@@ -812,7 +812,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
             let amount = uint!(10000_U256);
             let result = amm.mint(admin, token1, token2, amount, admin)?;
             let expected_mean = amount / uint!(2_U256);
@@ -829,7 +829,7 @@ mod tests {
         let mut storage = HashMapStorageProvider::new(1);
 
         StorageCtx::enter(&mut storage, || {
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let pool = Pool {
                 reserve_user_token: 1000,
@@ -864,7 +864,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             // Setup pool with 1000 tokens each
             let liquidity_amount = uint!(1000_U256);
@@ -913,7 +913,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             // Setup pool with only 100 tokens each
             let small_liquidity = uint!(100_U256);
@@ -955,7 +955,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
             let liquidity = uint!(100000_U256) * uint!(10_U256).pow(U256::from(6));
             let pool_id = setup_pool_with_liquidity(
                 &mut amm,
@@ -1001,7 +1001,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
             let initial = uint!(100000_U256) * uint!(10_U256).pow(U256::from(6));
             let pool_id =
                 setup_pool_with_liquidity(&mut amm, user_token, validator_token, initial, initial)?;
@@ -1047,7 +1047,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
             let liquidity = uint!(100_U256) * uint!(10_U256).pow(U256::from(6));
             let pool_id = setup_pool_with_liquidity(
                 &mut amm,
@@ -1083,7 +1083,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let result = amm.burn(admin, user_token, validator_token, U256::ZERO, admin);
 
@@ -1112,7 +1112,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let result = amm.mint(admin, user_token, validator_token, U256::ZERO, admin);
 
@@ -1135,7 +1135,7 @@ mod tests {
 
         StorageCtx::enter(&mut storage, || {
             let mint_amount = uint!(10000000_U256);
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
             let amm_address = amm.address;
 
             let user_token = MIP20Setup::create("UserToken", "UTK", admin)
@@ -1199,7 +1199,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let initial_amount = uint!(100000_U256);
             let first_liquidity =
@@ -1261,7 +1261,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let deposit_amount = uint!(100000_U256);
             let liquidity = amm.mint(admin, user_token, validator_token, deposit_amount, admin)?;
@@ -1324,7 +1324,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let deposit_amount = uint!(100000_U256);
             let liquidity = amm.mint(admin, user_token, validator_token, deposit_amount, admin)?;
@@ -1363,7 +1363,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let result = amm.rebalance_swap(admin, user_token, validator_token, U256::ZERO, to);
 
@@ -1396,7 +1396,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
             let liquidity = uint!(100000_U256);
             let pool_id = setup_pool_with_liquidity(
                 &mut amm,
@@ -1437,7 +1437,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let deposit_amount = uint!(100000_U256);
             let liquidity = amm.mint(admin, user_token, validator_token, deposit_amount, admin)?;
@@ -1481,7 +1481,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let deposit_amount = uint!(100000_U256);
             let liquidity = amm.mint(admin, user_token, validator_token, deposit_amount, admin)?;
@@ -1508,7 +1508,7 @@ mod tests {
 
         StorageCtx::enter(&mut storage, || {
             let mint_amount = uint!(100000000_U256);
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
             let amm_address = amm.address;
             let user_token = MIP20Setup::create("UserToken", "UTK", admin)
                 .with_issuer(admin)
@@ -1546,7 +1546,7 @@ mod tests {
 
         StorageCtx::enter(&mut storage, || {
             let mint_amount = uint!(100000000_U256);
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
             let amm_address = amm.address;
             let user_token = MIP20Setup::create("UserToken", "UTK", admin)
                 .with_issuer(admin)
@@ -1592,7 +1592,7 @@ mod tests {
                 .apply()?
                 .address();
 
-            let mut amm = TipFeeManager::new();
+            let mut amm = MipFeeManager::new();
 
             let deposit_amount = uint!(100000_U256);
             let liquidity = amm.mint(admin, user_token, validator_token, deposit_amount, admin)?;

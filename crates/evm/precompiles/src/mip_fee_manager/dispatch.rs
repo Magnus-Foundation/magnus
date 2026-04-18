@@ -1,10 +1,10 @@
-//! ABI dispatch for the [`TipFeeManager`] precompile.
+//! ABI dispatch for the [`MipFeeManager`] precompile.
 
 use crate::{
     Precompile, charge_input_cost, dispatch_call, metadata, mutate, mutate_void,
     storage::Handler,
-    tip_fee_manager::{
-        ITIPFeeAMM, TipFeeManager,
+    mip_fee_manager::{
+        ITIPFeeAMM, MipFeeManager,
         amm::{M, MIN_LIQUIDITY, N, SCALE},
     },
     view,
@@ -32,7 +32,7 @@ impl TipFeeManagerCall {
     }
 }
 
-impl Precompile for TipFeeManager {
+impl Precompile for MipFeeManager {
     fn call(&mut self, calldata: &[u8], msg_sender: Address) -> PrecompileResult {
         if let Some(err) = charge_input_cost(&mut self.storage, calldata) {
             return err;
@@ -140,7 +140,7 @@ mod tests {
         Precompile, expect_precompile_revert,
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
         test_util::{MIP20Setup, assert_full_coverage, check_selector_coverage},
-        tip_fee_manager::{
+        mip_fee_manager::{
             FeeManagerError,
             amm::{M, MIN_LIQUIDITY, N, PoolKey, SCALE},
         },
@@ -160,7 +160,7 @@ mod tests {
         let validator = Address::random();
         StorageCtx::enter(&mut storage, || {
             let token = MIP20Setup::create("TestToken", "TST", admin).apply()?;
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let calldata = IFeeManager::setValidatorTokenCall {
                 token: token.address(),
@@ -185,7 +185,7 @@ mod tests {
         let mut storage = HashMapStorageProvider::new(1);
         let validator = Address::random();
         StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let calldata = IFeeManager::setValidatorTokenCall {
                 token: Address::ZERO,
@@ -205,7 +205,7 @@ mod tests {
         let user = Address::random();
         StorageCtx::enter(&mut storage, || {
             let token = MIP20Setup::create("TestToken", "TST", admin).apply()?;
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let calldata = IFeeManager::setUserTokenCall {
                 token: token.address(),
@@ -230,7 +230,7 @@ mod tests {
         let mut storage = HashMapStorageProvider::new(1);
         let user = Address::random();
         StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let calldata = IFeeManager::setUserTokenCall {
                 token: Address::ZERO,
@@ -250,7 +250,7 @@ mod tests {
         let token_b = Address::random();
         let sender = Address::random();
         StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let calldata = ITIPFeeAMM::getPoolIdCall {
                 userToken: token_a,
@@ -275,7 +275,7 @@ mod tests {
         let token_b = Address::random();
         let sender = Address::random();
         StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             // Get pool using ITIPFeeAMM interface
             let get_pool_call = ITIPFeeAMM::getPoolCall {
@@ -302,7 +302,7 @@ mod tests {
         let token_b = Address::random();
         let sender = Address::random();
         StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             // Get pool ID with tokens in order (a, b)
             let calldata1 = ITIPFeeAMM::getPoolIdCall {
@@ -335,7 +335,7 @@ mod tests {
         let user = Address::random();
         let validator = Address::random();
         StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             // Test setValidatorToken with zero address
             let set_validator_call = IFeeManager::setValidatorTokenCall {
@@ -360,7 +360,7 @@ mod tests {
         let mut storage = HashMapStorageProvider::new(1);
         let sender = Address::random();
         StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let result =
                 fee_manager.call(&ITIPFeeAMM::MIN_LIQUIDITYCall {}.abi_encode(), sender)?;
@@ -384,7 +384,7 @@ mod tests {
     fn test_tip_fee_manager_selector_coverage() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let fee_manager_unsupported = check_selector_coverage(
                 &mut fee_manager,

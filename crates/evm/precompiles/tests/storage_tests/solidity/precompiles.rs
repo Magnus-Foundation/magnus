@@ -60,7 +60,7 @@ fn test_tip403_registry_layout() {
 
 #[test]
 fn test_fee_manager_layout() {
-    use magnus_precompiles::tip_fee_manager::{amm::__packing_pool::*, slots};
+    use magnus_precompiles::mip_fee_manager::{amm::__packing_pool::*, slots};
 
     let sol_path = testdata("fee_manager.sol");
     let solc_layout = load_solc_layout(&sol_path);
@@ -257,7 +257,7 @@ fn export_all_storage_constants() {
 
     // Fee Manager
     {
-        use magnus_precompiles::tip_fee_manager::{amm::__packing_pool::*, slots};
+        use magnus_precompiles::mip_fee_manager::{amm::__packing_pool::*, slots};
 
         let fields = layout_fields!(
             validator_tokens,
@@ -271,7 +271,7 @@ fn export_all_storage_constants() {
         let pool_struct = struct_fields!(base_slot, reserve_user_token, reserve_validator_token);
 
         all_constants.insert(
-            "tip_fee_manager".to_string(),
+            "mip_fee_manager".to_string(),
             json!({
                 "fields": fields.iter().map(field_to_json).collect::<Vec<_>>(),
                 "structs": {

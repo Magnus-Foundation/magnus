@@ -18,7 +18,7 @@ use reqwest::Url;
 use std::sync::Arc;
 use magnus_precompiles::{
     TIP_FEE_MANAGER_ADDRESS,
-    tip_fee_manager::ITIPFeeAMM::{self, ITIPFeeAMMInstance, Mint, Pool},
+    mip_fee_manager::ITIPFeeAMM::{self, ITIPFeeAMMInstance, Mint, Pool},
     mip20::IMIP20,
 };
 use tracing::{debug, error, info, instrument};

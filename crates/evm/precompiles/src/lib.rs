@@ -27,7 +27,7 @@ pub mod test_util;
 use crate::{
     account_keychain::AccountKeychain, address_registry::AddressRegistry, nonce::NonceManager,
     signature_verifier::SignatureVerifier, stablecoin_dex::StablecoinDEX, storage::StorageCtx,
-    tip_fee_manager::TipFeeManager, mip20::MIP20Token, mip20_factory::MIP20Factory,
+    mip_fee_manager::MipFeeManager, mip20::MIP20Token, mip20_factory::MIP20Factory,
     mip403_registry::MIP403Registry, validator_config::ValidatorConfig,
     validator_config_v2::ValidatorConfigV2,
 };
@@ -108,7 +108,7 @@ pub fn magnus_precompiles(cfg: &CfgEnv<MagnusHardfork>) -> PrecompilesMap {
 
 /// Registers Magnus-specific precompiles into an existing [`PrecompilesMap`] by installing a
 /// lookup function that matches addresses to their precompile: MIP-20 tokens (by prefix),
-/// MIP20Factory, MIP403Registry, TipFeeManager, StablecoinDEX, NonceManager, ValidatorConfig,
+/// MIP20Factory, MIP403Registry, MipFeeManager, StablecoinDEX, NonceManager, ValidatorConfig,
 /// AccountKeychain, and ValidatorConfigV2. Each precompile is wrapped via the `magnus_precompile!`
 /// macro which enforces direct-call-only (no delegatecall) and sets up the storage context.
 pub fn extend_tempo_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<MagnusHardfork>) {
@@ -124,7 +124,7 @@ pub fn extend_tempo_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<M
         } else if *address == MIP403_REGISTRY_ADDRESS {
             Some(MIP403Registry::create_precompile(&cfg))
         } else if *address == TIP_FEE_MANAGER_ADDRESS {
-            Some(TipFeeManager::create_precompile(&cfg))
+            Some(MipFeeManager::create_precompile(&cfg))
         } else if *address == STABLECOIN_DEX_ADDRESS {
             Some(StablecoinDEX::create_precompile(&cfg))
         } else if *address == NONCE_PRECOMPILE_ADDRESS {
@@ -175,10 +175,10 @@ macro_rules! magnus_precompile {
     }};
 }
 
-impl TipFeeManager {
+impl MipFeeManager {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<MagnusHardfork>) -> DynPrecompile {
-        magnus_precompile!("TipFeeManager", cfg, |input| { Self::new() })
+        magnus_precompile!("MipFeeManager", cfg, |input| { Self::new() })
     }
 }
 
@@ -754,11 +754,11 @@ mod tests {
             "MIP403Registry should be registered"
         );
 
-        // TipFeeManager should be registered
+        // MipFeeManager should be registered
         let fee_manager_precompile = precompiles.get(&TIP_FEE_MANAGER_ADDRESS);
         assert!(
             fee_manager_precompile.is_some(),
-            "TipFeeManager should be registered"
+            "MipFeeManager should be registered"
         );
 
         // StablecoinDEX should be registered

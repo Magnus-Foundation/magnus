@@ -70,7 +70,7 @@ use magnus_precompiles::{
     TIP_FEE_MANAGER_ADDRESS,
     address_registry::MasterId,
     stablecoin_dex::{MAX_TICK, MIN_ORDER_AMOUNT, MIN_TICK, TICK_SPACING},
-    tip_fee_manager::DEFAULT_FEE_TOKEN,
+    mip_fee_manager::DEFAULT_FEE_TOKEN,
     mip20::ISSUER_ROLE,
 };
 use tokio::{

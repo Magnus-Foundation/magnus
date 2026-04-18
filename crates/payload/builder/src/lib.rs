@@ -49,7 +49,7 @@ use magnus_consensus::MAGNUS_SHARED_GAS_DIVISOR;
 use magnus_evm::{MagnusEvmConfig, MagnusNextBlockEnvAttributes, evm::MagnusEvm};
 use magnus_payload_types::{MagnusBuiltPayload, MagnusPayloadAttributes};
 use magnus_precompiles::{
-    storage::StorageCtx, tip_fee_manager::TipFeeManager, validator_config_v2::ValidatorConfigV2,
+    storage::StorageCtx, mip_fee_manager::MipFeeManager, validator_config_v2::ValidatorConfigV2,
 };
 use magnus_primitives::{
     RecoveredSubBlock, SubBlockMetadata, MagnusHeader, MagnusTxEnvelope,
@@ -559,7 +559,7 @@ where
                 if fee_token == validator_fee_token {
                     total_fees += nominal_spending;
                 } else {
-                    total_fees += magnus_precompiles::tip_fee_manager::amm::compute_amount_out(
+                    total_fees += magnus_precompiles::mip_fee_manager::amm::compute_amount_out(
                         nominal_spending,
                     )
                     .map_err(PayloadBuilderError::other)?;
@@ -902,7 +902,7 @@ fn resolve_validator_fee_token(
     let ctx = builder.evm_mut().ctx_mut();
     let beneficiary = ctx.block.beneficiary;
     StorageCtx::enter_ctx(ctx, || {
-        TipFeeManager::new()
+        MipFeeManager::new()
             .get_validator_token(beneficiary)
             .map_err(PayloadBuilderError::other)
     })

@@ -55,7 +55,7 @@ use magnus_precompiles::{
     signature_verifier::SignatureVerifier,
     stablecoin_dex::StablecoinDEX,
     storage::{ContractStorage, StorageCtx},
-    tip_fee_manager::{IFeeManager, TipFeeManager},
+    mip_fee_manager::{IFeeManager, MipFeeManager},
     mip20::{ISSUER_ROLE, IMIP20, MIP20Token},
     mip20_factory::MIP20Factory,
     mip403_registry::MIP403Registry,
@@ -799,7 +799,7 @@ fn initialize_fee_manager(
         &ctx.cfg,
         &ctx.tx,
         || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
             fee_manager
                 .initialize()
                 .expect("Could not init fee manager");
@@ -1072,7 +1072,7 @@ fn mint_pairwise_liquidity(
         &ctx.cfg,
         &ctx.tx,
         || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             for b_token_address in b_tokens {
                 fee_manager

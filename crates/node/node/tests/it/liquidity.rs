@@ -78,7 +78,7 @@ async fn test_block_building_insufficient_fee_amm_liquidity() -> eyre::Result<()
     println!("FeeAMM pool created. Now draining liquidity...");
 
     // Get user's LP token balance
-    use magnus_precompiles::tip_fee_manager::amm::PoolKey;
+    use magnus_precompiles::mip_fee_manager::amm::PoolKey;
     let pool_key = PoolKey::new(payment_token_addr, validator_token_addr);
     let pool_id = pool_key.get_id();
 

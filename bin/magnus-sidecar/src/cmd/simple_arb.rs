@@ -14,7 +14,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use poem::{EndpointExt as _, Route, Server, get, listener::TcpListener};
 use std::{collections::HashSet, time::Duration};
 use magnus_precompiles::{
-    TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS, tip_fee_manager::ITIPFeeAMM,
+    TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS, mip_fee_manager::ITIPFeeAMM,
     mip20_factory::IMIP20Factory,
 };
 use magnus_telemetry_util::error_field;

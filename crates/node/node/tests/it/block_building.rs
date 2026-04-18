@@ -16,7 +16,7 @@ use magnus_contracts::precompiles::{IFeeManager, IRolesAuth, IMIP20, IMIP20Facto
 use magnus_node::node::MagnusNode;
 use magnus_precompiles::{
     PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS,
-    tip_fee_manager::amm::compute_amount_out, mip20::ISSUER_ROLE,
+    mip_fee_manager::amm::compute_amount_out, mip20::ISSUER_ROLE,
 };
 use magnus_primitives::{MagnusTxEnvelope, transaction::calc_gas_balance_spending};
 

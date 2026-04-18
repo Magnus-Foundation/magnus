@@ -16,7 +16,7 @@ use magnus_precompiles::{
     TIP_FEE_MANAGER_ADDRESS,
     error::{Result as MagnusResult, MagnusPrecompileError},
     storage::{Handler, PrecompileStorageProvider, StorageCtx},
-    tip_fee_manager::TipFeeManager,
+    mip_fee_manager::MipFeeManager,
     mip20::{IMIP20, MIP20Token},
     mip403_registry::{AuthRole, MIP403Registry},
 };
@@ -144,7 +144,7 @@ pub trait MagnusStateAccess<M = ()> {
         // Check stored user token preference
         let user_token = self.with_read_only_storage_ctx(spec, || {
             // ensure TIP_FEE_MANAGER_ADDRESS is loaded
-            TipFeeManager::new().user_tokens[fee_payer].read()
+            MipFeeManager::new().user_tokens[fee_payer].read()
         })?;
 
         if !user_token.is_zero() {
@@ -517,7 +517,7 @@ mod tests {
 
         // Set user stored token preference in the FeeManager
         let mut db = revm::database::CacheDB::new(EmptyDB::default());
-        let user_slot = TipFeeManager::new().user_tokens[caller].slot();
+        let user_slot = MipFeeManager::new().user_tokens[caller].slot();
         db.insert_account_storage(TIP_FEE_MANAGER_ADDRESS, user_slot, user_token.into_u256())
             .unwrap();
 

@@ -8,7 +8,7 @@ pub mod dispatch;
 use crate::{
     error::{Result, MagnusPrecompileError},
     storage::{Handler, Mapping},
-    tip_fee_manager::amm::{Pool, PoolKey, compute_amount_out},
+    mip_fee_manager::amm::{Pool, PoolKey, compute_amount_out},
     mip20::{IMIP20, MIP20Token, validate_usd_currency},
     mip20_factory::MIP20Factory,
 };
@@ -27,7 +27,7 @@ use magnus_precompiles_macros::contract;
 /// The struct fields define the on-chain storage layout; the `#[contract]` macro generates the
 /// storage handlers which provide an ergonomic way to interact with the EVM state.
 #[contract(addr = TIP_FEE_MANAGER_ADDRESS)]
-pub struct TipFeeManager {
+pub struct MipFeeManager {
     validator_tokens: Mapping<Address, Address>,
     user_tokens: Mapping<Address, Address>,
     collected_fees: Mapping<Address, Mapping<Address, U256>>,
@@ -43,7 +43,7 @@ pub struct TipFeeManager {
     pending_fee_swap_reservation: Mapping<B256, u128>,
 }
 
-impl TipFeeManager {
+impl MipFeeManager {
     /// Swap fee in basis points (0.25%).
     pub const FEE_BPS: u64 = 25;
     /// Basis-point denominator (10 000 = 100%).
@@ -308,7 +308,7 @@ mod tests {
 
             // TODO: loop through and deploy and set user token for some range
 
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let call = IFeeManager::setUserTokenCall {
                 token: token.address(),
@@ -329,7 +329,7 @@ mod tests {
         let user = Address::random();
         StorageCtx::enter(&mut storage, || {
             let token = MIP20Setup::create("Test", "TST", user).apply()?;
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let call = IFeeManager::setUserTokenCall {
                 token: token.address(),
@@ -353,7 +353,7 @@ mod tests {
         let user = Address::random();
         StorageCtx::enter(&mut storage, || {
             let token = MIP20Setup::create("Test", "TST", user).apply()?;
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let call = IFeeManager::setUserTokenCall {
                 token: token.address(),
@@ -382,7 +382,7 @@ mod tests {
         let beneficiary = Address::random();
         StorageCtx::enter(&mut storage, || {
             let token = MIP20Setup::create("Test", "TST", admin).apply()?;
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let call = IFeeManager::setValidatorTokenCall {
                 token: token.address(),
@@ -416,7 +416,7 @@ mod tests {
         let admin = Address::random();
         StorageCtx::enter(&mut storage, || {
             let token = MIP20Setup::create("Test", "TST", admin).apply()?;
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let call = IFeeManager::setValidatorTokenCall {
                 token: token.address(),
@@ -454,7 +454,7 @@ mod tests {
                 .with_approval(user, TIP_FEE_MANAGER_ADDRESS, U256::MAX)
                 .apply()?;
 
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             // Set validator token (use beneficiary to avoid CannotChangeWithinBlock)
             fee_manager.set_validator_token(
@@ -500,7 +500,7 @@ mod tests {
                 .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(100000000000000_u64))
                 .apply()?;
 
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             // Set validator token (use beneficiary to avoid CannotChangeWithinBlock)
             fee_manager.set_validator_token(
@@ -554,7 +554,7 @@ mod tests {
                 .currency("EUR")
                 .apply()?;
 
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             // Try to set non-USD as user token - should fail
             let call = IFeeManager::setUserTokenCall {
@@ -602,7 +602,7 @@ mod tests {
                 .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(10000))
                 .apply()?;
 
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             // Setup pool with liquidity
             let pool_id = fee_manager.pool_id(user_token.address(), validator_token.address());
@@ -678,7 +678,7 @@ mod tests {
                 .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(10000))
                 .apply()?;
 
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let pool_id = fee_manager.pool_id(user_token.address(), validator_token.address());
             fee_manager.pools[pool_id].write(crate::mip_fee_manager::amm::Pool {
@@ -756,7 +756,7 @@ mod tests {
                 .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(100))
                 .apply()?;
 
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             let pool_id = fee_manager.pool_id(user_token.address(), validator_token.address());
             // Pool with very little validator token liquidity
@@ -811,7 +811,7 @@ mod tests {
                 .with_issuer(admin)
                 .apply()?;
 
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
             fee_manager.set_validator_token(
                 validator,
                 IFeeManager::setValidatorTokenCall {
@@ -860,7 +860,7 @@ mod tests {
                 .with_issuer(admin)
                 .apply()?;
 
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             fee_manager.set_validator_token(
                 validator,
@@ -901,7 +901,7 @@ mod tests {
                 .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(1000))
                 .apply()?;
 
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             // Set validator's preferred token
             fee_manager.set_validator_token(
@@ -923,7 +923,7 @@ mod tests {
             assert_eq!(balance_before, U256::ZERO);
 
             // Distribute fees
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
             fee_manager.distribute_fees(validator, token.address())?;
 
             // Verify validator received the fees
@@ -933,7 +933,7 @@ mod tests {
             assert_eq!(balance_after, fee_amount);
 
             // Verify collected fees cleared
-            let fee_manager = TipFeeManager::new();
+            let fee_manager = MipFeeManager::new();
             let remaining = fee_manager.collected_fees[validator][token.address()].read()?;
             assert_eq!(remaining, U256::ZERO);
 
@@ -945,7 +945,7 @@ mod tests {
     fn test_initialize_sets_storage_state() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = TipFeeManager::new();
+            let mut fee_manager = MipFeeManager::new();
 
             // Before init, should not be initialized
             assert!(!fee_manager.is_initialized()?);
@@ -957,7 +957,7 @@ mod tests {
             assert!(fee_manager.is_initialized()?);
 
             // New handle should still see initialized state
-            let fee_manager2 = TipFeeManager::new();
+            let fee_manager2 = MipFeeManager::new();
             assert!(fee_manager2.is_initialized()?);
 
             Ok(())
