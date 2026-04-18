@@ -1,5 +1,5 @@
 [package]
-name = "tempo-validator-config"
+name = "magnus-validator-config"
 description = "Ed25519 signature construction and verification for ValidatorConfigV2 add/rotate operations"
 
 version.workspace = true
@@ -15,6 +15,6 @@ workspace = true
 alloy-primitives.workspace = true
 commonware-codec.workspace = true
 commonware-cryptography.workspace = true
-tempo-contracts.workspace = true
-tempo-precompiles.workspace = true
+magnus-contracts.workspace = true
+magnus-precompiles.workspace = true
 thiserror.workspace = true

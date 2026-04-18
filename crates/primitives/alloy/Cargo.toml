@@ -1,5 +1,5 @@
 [package]
-name = "tempo-alloy"
+name = "magnus-alloy"
 description = "Tempo extensions of Alloy"
 
 version = "1.6.0"
@@ -12,11 +12,11 @@ publish = true
 workspace = true
 
 [dependencies]
-tempo-contracts = { workspace = true, features = ["rpc"] }
-tempo-primitives = { workspace = true, features = ["serde", "rpc"] }
-tempo-chainspec = { workspace = true, default-features = false }
-tempo-evm = { workspace = true, optional = true }
-tempo-revm = { workspace = true, optional = true }
+magnus-contracts = { workspace = true, features = ["rpc"] }
+magnus-primitives = { workspace = true, features = ["serde", "rpc"] }
+magnus-chainspec = { workspace = true, default-features = false }
+magnus-evm = { workspace = true, optional = true }
+magnus-revm = { workspace = true, optional = true }
 
 alloy-consensus.workspace = true
 alloy-contract.workspace = true
@@ -53,14 +53,14 @@ tokio.workspace = true
 [features]
 default = []
 reth = [
-    "dep:tempo-evm",
-    "dep:tempo-revm",
+    "dep:magnus-evm",
+    "dep:magnus-revm",
     "dep:reth-evm",
     "dep:reth-primitives-traits",
     "dep:reth-rpc-convert",
     "dep:reth-rpc-eth-types",
-    "tempo-primitives/reth",
-    "tempo-chainspec/reth",
+    "magnus-primitives/reth",
+    "magnus-chainspec/reth",
 ]
 asm-keccak = [
     "alloy-primitives/asm-keccak",

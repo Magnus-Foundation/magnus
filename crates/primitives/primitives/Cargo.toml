@@ -1,5 +1,5 @@
 [package]
-name = "tempo-primitives"
+name = "magnus-primitives"
 description = "Tempo primitive types"
 
 version = "1.6.0"
@@ -12,7 +12,7 @@ publish = true
 workspace = true
 
 [dependencies]
-tempo-contracts.workspace = true
+magnus-contracts.workspace = true
 
 # Reth
 reth-db-api = { workspace = true, optional = true }
@@ -87,7 +87,7 @@ std = [
 	"serde_json/std",
 	"sha2/std",
 	"alloy-sol-types/std",
-	"tempo-contracts/std",
+	"magnus-contracts/std",
 	"reth-codecs?/std"
 ]
 reth = ["dep:reth-ethereum-primitives", "dep:reth-primitives-traits", "serde"]
@@ -103,7 +103,7 @@ serde = [
 	"rand/serde",
 	"tracing-subscriber/serde",
 	"revm/serde",
-	"tempo-contracts/serde",
+	"magnus-contracts/serde",
 ]
 reth-codec = [
 	"reth",

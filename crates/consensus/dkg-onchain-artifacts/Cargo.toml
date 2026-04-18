@@ -1,5 +1,5 @@
 [package]
-name = "tempo-dkg-onchain-artifacts"
+name = "magnus-dkg-onchain-artifacts"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

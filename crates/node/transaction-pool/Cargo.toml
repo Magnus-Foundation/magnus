@@ -1,6 +1,6 @@
 
 [package]
-name = "tempo-transaction-pool"
+name = "magnus-transaction-pool"
 
 version.workspace = true
 edition.workspace = true
@@ -12,12 +12,12 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-tempo-chainspec = { workspace = true, features = ["reth"] }
-tempo-contracts.workspace = true
-tempo-evm.workspace = true
-tempo-primitives = { workspace = true, features = ["serde", "reth-codec"] }
-tempo-revm = { workspace = true, features = ["reth"] }
-tempo-precompiles.workspace = true
+magnus-chainspec = { workspace = true, features = ["reth"] }
+magnus-contracts.workspace = true
+magnus-evm.workspace = true
+magnus-primitives = { workspace = true, features = ["serde", "reth-codec"] }
+magnus-revm = { workspace = true, features = ["reth"] }
+magnus-precompiles.workspace = true
 
 reth-transaction-pool.workspace = true
 reth-evm.workspace = true
@@ -55,7 +55,7 @@ test-utils = [
 	"reth-primitives-traits/test-utils",
 	"reth-provider/test-utils",
 	"reth-transaction-pool/test-utils",
-	"tempo-precompiles/test-utils",
+	"magnus-precompiles/test-utils",
 	"reth-revm/test-utils"
 ]
 
@@ -63,7 +63,7 @@ test-utils = [
 reth-ethereum-primitives = { workspace = true, features = ["test-utils"] }
 reth-transaction-pool = { workspace = true, features = ["test-utils"] }
 reth-provider = { workspace = true, features = ["test-utils"] }
-tempo-precompiles = { workspace = true, features = ["test-utils"] }
+magnus-precompiles = { workspace = true, features = ["test-utils"] }
 alloy-eips.workspace = true
 alloy-consensus.workspace = true
 alloy-signer.workspace = true

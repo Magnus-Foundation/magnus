@@ -1,5 +1,5 @@
 [package]
-name = "tempo-sidecar"
+name = "magnus-sidecar"
 
 version.workspace = true
 edition.workspace = true
@@ -9,9 +9,9 @@ publish.workspace = true
 
 [dependencies]
 
-tempo-alloy.workspace = true
-tempo-primitives.workspace = true
-tempo-precompiles = { workspace = true, features = ["rpc"] }
+magnus-alloy.workspace = true
+magnus-primitives.workspace = true
+magnus-precompiles = { workspace = true, features = ["rpc"] }
 
 clap.workspace = true
 alloy = { workspace = true, default-features = false, features = [
@@ -40,7 +40,7 @@ metrics-exporter-prometheus = { version = "0.18.1", default-features = false }
 metrics = "0.24.3"
 poem = "3.1.12"
 rand_distr = "0.5.1"
-tempo-telemetry-util.workspace = true
+magnus-telemetry-util.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tokio.workspace = true
 tracing.workspace = true

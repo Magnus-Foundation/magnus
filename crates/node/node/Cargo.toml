@@ -1,5 +1,5 @@
 [package]
-name = "tempo-node"
+name = "magnus-node"
 
 version.workspace = true
 edition.workspace = true
@@ -11,15 +11,15 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-tempo-alloy = { workspace = true, features = ["reth"] }
-tempo-evm = { workspace = true, features = ["rpc", "engine"] }
-tempo-transaction-pool.workspace = true
-tempo-chainspec = { workspace = true, features = ["reth"] }
-tempo-consensus.workspace = true
-tempo-payload-builder.workspace = true
-tempo-payload-types.workspace = true
-tempo-precompiles.workspace = true
-tempo-primitives = { workspace = true, features = ["default"] }
+magnus-alloy = { workspace = true, features = ["reth"] }
+magnus-evm = { workspace = true, features = ["rpc", "engine"] }
+magnus-transaction-pool.workspace = true
+magnus-chainspec = { workspace = true, features = ["reth"] }
+magnus-consensus.workspace = true
+magnus-payload-builder.workspace = true
+magnus-payload-types.workspace = true
+magnus-precompiles.workspace = true
+magnus-primitives = { workspace = true, features = ["default"] }
 
 thiserror.workspace = true
 
@@ -63,17 +63,17 @@ serde.workspace = true
 jsonrpsee.workspace = true
 
 [dev-dependencies]
-tempo-e2e.workspace = true
-tempo-transaction-pool = { workspace = true, features = ["test-utils"] }
+magnus-e2e.workspace = true
+magnus-transaction-pool = { workspace = true, features = ["test-utils"] }
 alloy-network.workspace = true
-tempo-precompiles.workspace = true
+magnus-precompiles.workspace = true
 alloy-rpc-types-engine.workspace = true
 reth-ethereum = { workspace = true, features = ["node", "test-utils", "pool"] }
 reth-e2e-test-utils.workspace = true
 reth-node-core.workspace = true
 reth-node-metrics.workspace = true
 serde_json.workspace = true
-tempo-contracts.workspace = true
+magnus-contracts.workspace = true
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
 alloy = { workspace = true, features = [
 	"full",
@@ -102,7 +102,7 @@ asm-keccak = [
 	"alloy-primitives/asm-keccak",
 	"reth-node-core/asm-keccak",
 	"reth-node-ethereum/asm-keccak",
-	"tempo-alloy/asm-keccak",
+	"magnus-alloy/asm-keccak",
 ]
 otlp = ["reth-ethereum/otlp", "reth-node-core/otlp"]
 js-tracer = [
@@ -139,5 +139,5 @@ min-trace-logs = ["reth-node-core/min-trace-logs"]
 trie-debug = [
 	"reth-node-builder/trie-debug",
 	"reth-node-core/trie-debug",
-	"tempo-payload-builder/trie-debug",
+	"magnus-payload-builder/trie-debug",
 ]

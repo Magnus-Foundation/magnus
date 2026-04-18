@@ -1,5 +1,5 @@
 [package]
-name = "tempo-commonware-node"
+name = "magnus-commonware-node"
 
 version.workspace = true
 edition.workspace = true
@@ -11,15 +11,15 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-tempo-alloy = { workspace = true, features = ["reth"] }
-tempo-chainspec = { workspace = true, features = ["reth"] }
-tempo-commonware-node-config.workspace = true
-tempo-dkg-onchain-artifacts.workspace = true
-tempo-node.workspace = true
-tempo-primitives = { workspace = true, features = ["reth"] }
-tempo-payload-types.workspace = true
-tempo-precompiles.workspace = true
-tempo-telemetry-util.workspace = true
+magnus-alloy = { workspace = true, features = ["reth"] }
+magnus-chainspec = { workspace = true, features = ["reth"] }
+magnus-commonware-node-config.workspace = true
+magnus-dkg-onchain-artifacts.workspace = true
+magnus-node.workspace = true
+magnus-primitives = { workspace = true, features = ["reth"] }
+magnus-payload-types.workspace = true
+magnus-precompiles.workspace = true
+magnus-telemetry-util.workspace = true
 
 alloy-consensus.workspace = true
 alloy-primitives.workspace = true
@@ -66,4 +66,4 @@ tokio = { workspace = true, features = ["macros", "sync"] }
 tracing.workspace = true
 
 [dev-dependencies]
-tempo-primitives = { workspace = true, features = ["arbitrary"] }
+magnus-primitives = { workspace = true, features = ["arbitrary"] }

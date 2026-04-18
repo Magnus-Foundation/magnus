@@ -1,5 +1,5 @@
 [package]
-name = "tempo-xtask"
+name = "magnus-xtask"
 
 version.workspace = true
 edition.workspace = true
@@ -11,15 +11,15 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-tempo-chainspec.workspace = true
-tempo-contracts.workspace = true
-tempo-primitives.workspace = true
-tempo-commonware-node-config.workspace = true
-tempo-validator-config.workspace = true
-tempo-dkg-onchain-artifacts.workspace = true
-tempo-evm.workspace = true
-tempo-precompiles.workspace = true
-tempo-revm.workspace = true
+magnus-chainspec.workspace = true
+magnus-contracts.workspace = true
+magnus-primitives.workspace = true
+magnus-commonware-node-config.workspace = true
+magnus-validator-config.workspace = true
+magnus-dkg-onchain-artifacts.workspace = true
+magnus-evm.workspace = true
+magnus-precompiles.workspace = true
+magnus-revm.workspace = true
 
 alloy = { workspace = true, features = [
   "genesis",

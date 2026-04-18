@@ -1,5 +1,5 @@
 [package]
-name = "tempo-faucet"
+name = "magnus-faucet"
 description = "Faucet RPC module for dispensing TIP20 tokens"
 
 version.workspace = true
@@ -12,9 +12,9 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-tempo-precompiles = { workspace = true, features = ["rpc"] }
+magnus-precompiles = { workspace = true, features = ["rpc"] }
 reth-rpc-server-types.workspace = true
-tempo-alloy = { workspace = true, features = ["reth"] }
+magnus-alloy = { workspace = true, features = ["reth"] }
 alloy = { workspace = true, features = [
   "rpc-types",
   "signers",

@@ -1,5 +1,5 @@
 [package]
-name = "tempo-evm"
+name = "magnus-evm"
 description = "TODO:"
 
 version.workspace = true
@@ -12,12 +12,12 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-tempo-chainspec = { workspace = true, features = ["reth"] }
-tempo-consensus.workspace = true
-tempo-contracts.workspace = true
-tempo-payload-types = { workspace = true, optional = true }
-tempo-primitives = { workspace = true, features = ["reth"] }
-tempo-revm.workspace = true
+magnus-chainspec = { workspace = true, features = ["reth"] }
+magnus-consensus.workspace = true
+magnus-contracts.workspace = true
+magnus-payload-types = { workspace = true, optional = true }
+magnus-primitives = { workspace = true, features = ["reth"] }
+magnus-revm.workspace = true
 
 commonware-cryptography.workspace = true
 commonware-codec.workspace = true
@@ -43,9 +43,9 @@ tracing.workspace = true
 [dev-dependencies]
 revm.workspace = true
 reth-storage-api.workspace = true
-tempo-primitives = { workspace = true, features = ["arbitrary"] }
+magnus-primitives = { workspace = true, features = ["arbitrary"] }
 
 [features]
 default = ["rpc", "engine"]
-rpc = ["dep:reth-rpc-eth-api", "tempo-revm/rpc", "tempo-primitives/serde", "tempo-primitives/reth-codec"]
-engine = ["dep:tempo-payload-types", "dep:rayon"]
+rpc = ["dep:reth-rpc-eth-api", "magnus-revm/rpc", "magnus-primitives/serde", "magnus-primitives/reth-codec"]
+engine = ["dep:magnus-payload-types", "dep:rayon"]

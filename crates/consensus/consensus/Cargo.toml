@@ -1,5 +1,5 @@
 [package]
-name = "tempo-consensus"
+name = "magnus-consensus"
 
 version.workspace = true
 edition.workspace = true
@@ -11,8 +11,8 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-tempo-chainspec = { workspace = true, features = ["reth"] }
-tempo-primitives = { workspace = true, features = ["reth"] }
+magnus-chainspec = { workspace = true, features = ["reth"] }
+magnus-primitives = { workspace = true, features = ["reth"] }
 
 reth-chainspec.workspace = true
 reth-consensus.workspace = true

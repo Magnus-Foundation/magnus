@@ -1,5 +1,5 @@
 [package]
-name = "tempo-chainspec"
+name = "magnus-chainspec"
 description = "Tempo hardfork configuration and chain specification helpers"
 
 version = "1.5.3"
@@ -12,7 +12,7 @@ publish = true
 workspace = true
 
 [dependencies]
-tempo-primitives.workspace = true
+magnus-primitives.workspace = true
 
 reth-cli = { workspace = true, optional = true }
 reth-chainspec = { workspace = true, optional = true }
@@ -44,18 +44,18 @@ std = [
     "reth-network-peers?/std",
     "serde/std",
     "serde_json/std",
-    "tempo-primitives/std",
+    "magnus-primitives/std",
 ]
 serde = [
     "alloy-eips/serde",
     "alloy-hardforks/serde",
     "alloy-primitives/serde",
-    "tempo-primitives/serde"
+    "magnus-primitives/serde"
 ]
 reth = [
     "std",
     "dep:reth-chainspec",
     "dep:reth-network-peers",
-    "tempo-primitives/reth",
+    "magnus-primitives/reth",
 ]
-cli = ["reth", "dep:reth-cli", "dep:eyre", "tempo-primitives/reth-codec"]
+cli = ["reth", "dep:reth-cli", "dep:eyre", "magnus-primitives/reth-codec"]

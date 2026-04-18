@@ -1,5 +1,5 @@
 [package]
-name = "tempo-revm"
+name = "magnus-revm"
 
 version.workspace = true
 edition.workspace = true
@@ -11,10 +11,10 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-tempo-precompiles.workspace = true
-tempo-primitives = { workspace = true, features = ["reth"] }
-tempo-contracts.workspace = true
-tempo-chainspec.workspace = true
+magnus-precompiles.workspace = true
+magnus-primitives = { workspace = true, features = ["reth"] }
+magnus-contracts.workspace = true
+magnus-chainspec.workspace = true
 
 reth-evm.workspace = true
 reth-storage-api = { workspace = true, optional = true }
@@ -44,8 +44,8 @@ base64.workspace = true
 p256.workspace = true
 proptest.workspace = true
 sha2.workspace = true
-tempo-evm.workspace = true
-tempo-precompiles = { workspace = true, features = ["test-utils"] }
+magnus-evm.workspace = true
+magnus-precompiles = { workspace = true, features = ["test-utils"] }
 test-case.workspace = true
 
 [features]
@@ -59,7 +59,7 @@ serde = [
 	"alloy-primitives/serde",
 	"p256/serde",
 	"reth-storage-api?/serde",
-	"tempo-chainspec/serde",
-	"tempo-contracts/serde",
-	"tempo-primitives/serde"
+	"magnus-chainspec/serde",
+	"magnus-contracts/serde",
+	"magnus-primitives/serde"
 ]

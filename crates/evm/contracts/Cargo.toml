@@ -1,5 +1,5 @@
 [package]
-name = "tempo-contracts"
+name = "magnus-contracts"
 description = "Tempo blockchain contract bindings and ABI definitions"
 
 version = "1.6.0"

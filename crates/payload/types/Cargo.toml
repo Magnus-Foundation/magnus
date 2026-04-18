@@ -1,5 +1,5 @@
 [package]
-name = "tempo-payload-types"
+name = "magnus-payload-types"
 
 version.workspace = true
 edition.workspace = true
@@ -11,7 +11,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-tempo-primitives = { workspace = true, features = ["reth-codec", "serde"] }
+magnus-primitives = { workspace = true, features = ["reth-codec", "serde"] }
 
 reth-ethereum-engine-primitives.workspace = true
 reth-node-api.workspace = true

@@ -1,5 +1,5 @@
 [package]
-name = "tempo-bench"
+name = "magnus-bench"
 
 version.workspace = true
 edition.workspace = true
@@ -9,9 +9,9 @@ publish.workspace = true
 
 [dependencies]
 # Tempo
-tempo-alloy.workspace = true
-tempo-precompiles = { workspace = true, features = ["rpc"] }
-tempo-contracts.workspace = true
+magnus-alloy.workspace = true
+magnus-precompiles = { workspace = true, features = ["rpc"] }
+magnus-contracts.workspace = true
 
 # Workspace dependencies
 alloy = { workspace = true, features = [

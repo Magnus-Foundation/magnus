@@ -1,5 +1,5 @@
 [package]
-name = "tempo-telemetry-util"
+name = "magnus-telemetry-util"
 
 version.workspace = true
 edition.workspace = true
