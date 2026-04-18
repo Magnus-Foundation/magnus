@@ -10,14 +10,14 @@ use once_cell::race::OnceBox as OnceLock;
 #[cfg(feature = "std")]
 use std::sync::OnceLock;
 
-use crate::TempoSignature;
+use crate::MagnusSignature;
 
 /// EIP-7702 authorization magic byte
 pub const MAGIC: u8 = 0x05;
 
 /// A signed EIP-7702 authorization with AA signature support.
 ///
-/// This is a 1:1 parallel to alloy's `SignedAuthorization`, but using `TempoSignature`
+/// This is a 1:1 parallel to alloy's `SignedAuthorization`, but using `MagnusSignature`
 /// instead of hardcoded (y_parity, r, s) components. This allows supporting multiple
 /// signature types: Secp256k1, P256, and WebAuthn.
 ///
@@ -27,26 +27,26 @@ pub const MAGIC: u8 = 0x05;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(any(test, feature = "arbitrary"), derive(arbitrary::Arbitrary))]
 #[cfg_attr(test, reth_codecs::add_arbitrary_tests(compact, rlp))]
-pub struct TempoSignedAuthorization {
+pub struct MagnusSignedAuthorization {
     /// Inner authorization (reuses alloy's Authorization)
     #[cfg_attr(feature = "serde", serde(flatten))]
     inner: Authorization,
     /// The AA signature (Secp256k1, P256, or WebAuthn)
-    signature: TempoSignature,
+    signature: MagnusSignature,
 }
 
-impl TempoSignedAuthorization {
+impl MagnusSignedAuthorization {
     /// Creates a new signed authorization from an authorization and signature.
     ///
     /// This is the unchecked version - signature is not validated.
-    pub const fn new_unchecked(inner: Authorization, signature: TempoSignature) -> Self {
+    pub const fn new_unchecked(inner: Authorization, signature: MagnusSignature) -> Self {
         Self { inner, signature }
     }
 
     /// Gets the `signature` for the authorization.
     ///
     /// Returns a reference to the AA signature, which can be Secp256k1, P256, or WebAuthn.
-    pub const fn signature(&self) -> &TempoSignature {
+    pub const fn signature(&self) -> &MagnusSignature {
         &self.signature
     }
 
@@ -118,7 +118,7 @@ impl TempoSignedAuthorization {
     }
 }
 
-impl Decodable for TempoSignedAuthorization {
+impl Decodable for MagnusSignedAuthorization {
     fn decode(buf: &mut &[u8]) -> RlpResult<Self> {
         let header = Header::decode(buf)?;
         if !header.list {
@@ -140,7 +140,7 @@ impl Decodable for TempoSignedAuthorization {
     }
 }
 
-impl Encodable for TempoSignedAuthorization {
+impl Encodable for MagnusSignedAuthorization {
     fn encode(&self, buf: &mut dyn BufMut) {
         Header {
             list: true,
@@ -159,7 +159,7 @@ impl Encodable for TempoSignedAuthorization {
     }
 }
 
-impl Deref for TempoSignedAuthorization {
+impl Deref for MagnusSignedAuthorization {
     type Target = Authorization;
 
     fn deref(&self) -> &Self::Target {
@@ -169,14 +169,14 @@ impl Deref for TempoSignedAuthorization {
 
 /// A recovered EIP-7702 authorization with AA signature support.
 ///
-/// This wraps an `TempoSignedAuthorization` with lazy authority recovery.
+/// This wraps an `MagnusSignedAuthorization` with lazy authority recovery.
 /// The signature is preserved for gas calculation, and the authority
 /// is recovered on first access and cached.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RecoveredTempoAuthorization {
     /// Signed authorization (contains inner auth and signature)
-    signed: TempoSignedAuthorization,
+    signed: MagnusSignedAuthorization,
     /// Lazily recovered authority (cached after first access)
     #[cfg_attr(feature = "serde", serde(skip))]
     authority: OnceLock<RecoveredAuthority>,
@@ -186,7 +186,7 @@ impl RecoveredTempoAuthorization {
     /// Creates a new authorization from a signed authorization.
     ///
     /// Authority recovery is deferred until first access.
-    pub const fn new(signed: TempoSignedAuthorization) -> Self {
+    pub const fn new(signed: MagnusSignedAuthorization) -> Self {
         Self {
             signed,
             authority: OnceLock::new(),
@@ -197,7 +197,7 @@ impl RecoveredTempoAuthorization {
     ///
     /// This is useful when you've already recovered the authority and want
     /// to avoid re-recovery.
-    pub fn new_unchecked(signed: TempoSignedAuthorization, authority: RecoveredAuthority) -> Self {
+    pub fn new_unchecked(signed: MagnusSignedAuthorization, authority: RecoveredAuthority) -> Self {
         Self {
             signed,
             authority: {
@@ -212,7 +212,7 @@ impl RecoveredTempoAuthorization {
     /// Creates a new authorization and immediately recovers the authority.
     ///
     /// Unlike `new()`, this eagerly recovers the authority upfront and caches it.
-    pub fn recover(signed: TempoSignedAuthorization) -> Self {
+    pub fn recover(signed: MagnusSignedAuthorization) -> Self {
         let authority = signed
             .recover_authority()
             .map_or(RecoveredAuthority::Invalid, RecoveredAuthority::Valid);
@@ -220,7 +220,7 @@ impl RecoveredTempoAuthorization {
     }
 
     /// Returns a reference to the signed authorization.
-    pub const fn signed(&self) -> &TempoSignedAuthorization {
+    pub const fn signed(&self) -> &MagnusSignedAuthorization {
         &self.signed
     }
 
@@ -230,7 +230,7 @@ impl RecoveredTempoAuthorization {
     }
 
     /// Gets the `signature` for the authorization.
-    pub const fn signature(&self) -> &TempoSignature {
+    pub const fn signature(&self) -> &MagnusSignature {
         self.signed.signature()
     }
 
@@ -305,7 +305,7 @@ impl AuthorizationTr for RecoveredTempoAuthorization {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::TempoSignature;
+    use crate::MagnusSignature;
     use alloy_primitives::{U256, address};
     use alloy_signer::SignerSync;
     use alloy_signer_local::PrivateKeySigner;
@@ -318,13 +318,13 @@ pub mod tests {
             nonce: 1,
         };
 
-        let signature = TempoSignature::default(); // Use secp256k1 test signature
-        let signed = TempoSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
+        let signature = MagnusSignature::default(); // Use secp256k1 test signature
+        let signed = MagnusSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
 
         let mut buf = Vec::new();
         signed.encode(&mut buf);
 
-        let decoded = TempoSignedAuthorization::decode(&mut buf.as_slice()).unwrap();
+        let decoded = MagnusSignedAuthorization::decode(&mut buf.as_slice()).unwrap();
         assert_eq!(buf.len(), signed.length());
         assert_eq!(decoded, signed);
 
@@ -351,8 +351,8 @@ pub mod tests {
             nonce: 1,
         };
 
-        let signature = TempoSignature::default();
-        let signed = TempoSignedAuthorization::new_unchecked(auth.clone(), signature);
+        let signature = MagnusSignature::default();
+        let signed = MagnusSignedAuthorization::new_unchecked(auth.clone(), signature);
 
         // Signature hash should match alloy's calculation
         let expected_hash = {
@@ -371,9 +371,9 @@ pub mod tests {
         (signer, address)
     }
 
-    pub fn sign_hash(signer: &PrivateKeySigner, hash: &B256) -> TempoSignature {
+    pub fn sign_hash(signer: &PrivateKeySigner, hash: &B256) -> MagnusSignature {
         let signature = signer.sign_hash_sync(hash).expect("signing failed");
-        TempoSignature::from(signature)
+        MagnusSignature::from(signature)
     }
 
     #[test]
@@ -387,10 +387,10 @@ pub mod tests {
         };
 
         // Create and sign auth
-        let placeholder_sig = TempoSignature::default();
-        let temp_signed = TempoSignedAuthorization::new_unchecked(auth.clone(), placeholder_sig);
+        let placeholder_sig = MagnusSignature::default();
+        let temp_signed = MagnusSignedAuthorization::new_unchecked(auth.clone(), placeholder_sig);
         let signature = sign_hash(&signing_key, &temp_signed.signature_hash());
-        let signed = TempoSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
+        let signed = MagnusSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
 
         // Recovery should succeed
         let recovered = signed.recover_authority();
@@ -399,13 +399,13 @@ pub mod tests {
 
         // into_recovered() returns RecoveredAuthorization
         let signed_for_into =
-            TempoSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
+            MagnusSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
         let std_recovered = signed_for_into.into_recovered();
         assert_eq!(std_recovered.authority(), Some(expected_address));
 
         // RecoveredTempoAuthorization - lazy recovery
         let signed_for_lazy =
-            TempoSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
+            MagnusSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
         let lazy_recovered = RecoveredTempoAuthorization::new(signed_for_lazy);
         assert_eq!(lazy_recovered.authority(), Some(expected_address));
         assert!(matches!(
@@ -415,7 +415,7 @@ pub mod tests {
 
         // RecoveredTempoAuthorization::recover() - eager recovery
         let signed_for_eager =
-            TempoSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
+            MagnusSignedAuthorization::new_unchecked(auth.clone(), signature.clone());
         let eager_recovered = RecoveredTempoAuthorization::recover(signed_for_eager);
         assert_eq!(eager_recovered.authority(), Some(expected_address));
 
@@ -425,7 +425,7 @@ pub mod tests {
         assert_eq!(eager_recovered.signature(), &signature);
 
         // into_recovered_authorization()
-        let signed_for_convert = TempoSignedAuthorization::new_unchecked(auth.clone(), signature);
+        let signed_for_convert = MagnusSignedAuthorization::new_unchecked(auth.clone(), signature);
         let converted = RecoveredTempoAuthorization::new(signed_for_convert);
         let std_auth = converted.into_recovered_authorization();
         assert_eq!(std_auth.authority(), Some(expected_address));
@@ -433,7 +433,7 @@ pub mod tests {
         // Sign a different hash - invalid recovery
         let wrong_hash = B256::random();
         let wrong_signature = sign_hash(&signing_key, &wrong_hash);
-        let bad_signed = TempoSignedAuthorization::new_unchecked(auth, wrong_signature);
+        let bad_signed = MagnusSignedAuthorization::new_unchecked(auth, wrong_signature);
 
         // Recovery succeeds but yields wrong address
         let recovered = bad_signed.recover_authority();

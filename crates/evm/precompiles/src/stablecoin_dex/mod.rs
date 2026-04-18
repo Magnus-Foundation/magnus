@@ -20,7 +20,7 @@ pub use magnus_contracts::precompiles::{IStablecoinDEX, StablecoinDEXError, Stab
 
 use crate::{
     STABLECOIN_DEX_ADDRESS,
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     stablecoin_dex::orderbook::{MAX_PRICE, MIN_PRICE, compute_book_key},
     storage::{Handler, Mapping},
     tip20::{ITIP20, TIP20Token, validate_usd_currency},
@@ -29,7 +29,7 @@ use crate::{
 };
 use alloy::primitives::{Address, B256, U256};
 use magnus_precompiles_macros::contract;
-use magnus_primitives::TempoAddressExt;
+use magnus_primitives::MagnusAddressExt;
 
 /// Minimum order size of $100 USD
 pub const MIN_ORDER_AMOUNT: u128 = 100_000_000;
@@ -128,7 +128,7 @@ impl StablecoinDEX {
             token,
             current
                 .checked_add(amount)
-                .ok_or(TempoPrecompileError::under_overflow())?,
+                .ok_or(MagnusPrecompileError::under_overflow())?,
         )
     }
 
@@ -140,7 +140,7 @@ impl StablecoinDEX {
             token,
             current
                 .checked_sub(amount)
-                .ok_or(TempoPrecompileError::under_overflow())?,
+                .ok_or(MagnusPrecompileError::under_overflow())?,
         )
     }
 
@@ -207,7 +207,7 @@ impl StablecoinDEX {
         } else {
             let remaining = amount
                 .checked_sub(user_balance)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
 
             self.transfer_from(token, user, remaining)?;
             self.set_balance(user, token, 0)
@@ -567,7 +567,7 @@ impl StablecoinDEX {
         let new_liquidity = level
             .total_liquidity
             .checked_add(order.remaining())
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
         level.total_liquidity = new_liquidity;
 
         self.books[order.book_key()]
@@ -733,7 +733,7 @@ impl StablecoinDEX {
                 RoundingDirection::Up // Ask: maker receives quote, round UP to favor maker
             },
         )
-        .ok_or(TempoPrecompileError::under_overflow())?;
+        .ok_or(MagnusPrecompileError::under_overflow())?;
 
         if order.is_bid() {
             // Bid order maker receives base tokens (exact amount)
@@ -754,7 +754,7 @@ impl StablecoinDEX {
         let new_liquidity = level
             .total_liquidity
             .checked_sub(fill_amount)
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
         level.total_liquidity = new_liquidity;
 
         self.books[order.book_key()]
@@ -790,11 +790,11 @@ impl StablecoinDEX {
             self.increment_balance(order.maker(), orderbook.base, fill_amount)?;
             // Taker receives quote tokens - round DOWN
             base_to_quote(fill_amount, order.tick(), RoundingDirection::Down)
-                .ok_or(TempoPrecompileError::under_overflow())?
+                .ok_or(MagnusPrecompileError::under_overflow())?
         } else {
             // Ask maker receives quote tokens - round UP to favor maker
             let quote_amount = base_to_quote(fill_amount, order.tick(), RoundingDirection::Up)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
 
             self.increment_balance(order.maker(), orderbook.quote, quote_amount)?;
 
@@ -869,7 +869,7 @@ impl StablecoinDEX {
             let new_liquidity = level
                 .total_liquidity
                 .checked_sub(fill_amount)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
             level.total_liquidity = new_liquidity;
 
             self.books[book_key]
@@ -903,7 +903,7 @@ impl StablecoinDEX {
                 // For bids: amount_out is quote, amount_in is base
                 // Round UP baseNeeded to ensure we collect enough base to cover exact output
                 let base_needed = quote_to_base(amount_out, tick, RoundingDirection::Up)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 let fill_amount = base_needed.min(order.remaining());
                 (fill_amount, fill_amount)
             } else {
@@ -911,7 +911,7 @@ impl StablecoinDEX {
                 // Taker pays quote, maker receives quote - round UP (zero-sum with maker)
                 let fill_amount = amount_out.min(order.remaining());
                 let amount_in = base_to_quote(fill_amount, tick, RoundingDirection::Up)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 (fill_amount, amount_in)
             };
 
@@ -919,31 +919,31 @@ impl StablecoinDEX {
                 self.partial_fill_order(&mut order, &mut level, fill_amount, taker)?;
                 total_amount_in = total_amount_in
                     .checked_add(amount_in)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 break;
             } else {
                 let (amount_out_received, next_order_info) =
                     self.fill_order(book_key, &mut order, level, taker)?;
                 total_amount_in = total_amount_in
                     .checked_add(amount_in)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
 
                 // Update remaining amount_out
                 if bid {
                     // Round UP baseNeeded to match the initial calculation
                     let base_needed = quote_to_base(amount_out, tick, RoundingDirection::Up)
-                        .ok_or(TempoPrecompileError::under_overflow())?;
+                        .ok_or(MagnusPrecompileError::under_overflow())?;
                     if base_needed > order.remaining() {
                         amount_out = amount_out
                             .checked_sub(amount_out_received)
-                            .ok_or(TempoPrecompileError::under_overflow())?;
+                            .ok_or(MagnusPrecompileError::under_overflow())?;
                     } else {
                         amount_out = 0;
                     }
                 } else if amount_out > order.remaining() {
                     amount_out = amount_out
                         .checked_sub(amount_out_received)
-                        .ok_or(TempoPrecompileError::under_overflow())?;
+                        .ok_or(MagnusPrecompileError::under_overflow())?;
                 } else {
                     amount_out = 0;
                 }
@@ -986,7 +986,7 @@ impl StablecoinDEX {
                 // For asks: amount_in is quote, convert to base
                 // Round down base_out (user receives less base, favors protocol)
                 let base_out = quote_to_base(amount_in, tick, RoundingDirection::Down)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 base_out.min(order.remaining())
             };
 
@@ -995,36 +995,36 @@ impl StablecoinDEX {
                     self.partial_fill_order(&mut order, &mut level, fill_amount, taker)?;
                 total_amount_out = total_amount_out
                     .checked_add(amount_out)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 break;
             } else {
                 let (amount_out, next_order_info) =
                     self.fill_order(book_key, &mut order, level, taker)?;
                 total_amount_out = total_amount_out
                     .checked_add(amount_out)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
 
                 // Set to 0 to avoid rounding errors
                 if bid {
                     if amount_in > order.remaining() {
                         amount_in = amount_in
                             .checked_sub(order.remaining())
-                            .ok_or(TempoPrecompileError::under_overflow())?;
+                            .ok_or(MagnusPrecompileError::under_overflow())?;
                     } else {
                         amount_in = 0;
                     }
                 } else {
                     // For asks: taker pays quote, maker receives quote
                     let base_out = quote_to_base(amount_in, tick, RoundingDirection::Down)
-                        .ok_or(TempoPrecompileError::under_overflow())?;
+                        .ok_or(MagnusPrecompileError::under_overflow())?;
                     if base_out > order.remaining() {
                         // Quote consumed = what maker receives - round UP (zero-sum with maker)
                         let quote_needed =
                             base_to_quote(order.remaining(), tick, RoundingDirection::Up)
-                                .ok_or(TempoPrecompileError::under_overflow())?;
+                                .ok_or(MagnusPrecompileError::under_overflow())?;
                         amount_in = amount_in
                             .checked_sub(quote_needed)
-                            .ok_or(TempoPrecompileError::under_overflow())?;
+                            .ok_or(MagnusPrecompileError::under_overflow())?;
                     } else {
                         amount_in = 0;
                     }
@@ -1113,7 +1113,7 @@ impl StablecoinDEX {
         let new_liquidity = level
             .total_liquidity
             .checked_sub(order.remaining())
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
         level.total_liquidity = new_liquidity;
 
         // If this was the last order at this tick, clear the bitmap bit
@@ -1153,7 +1153,7 @@ impl StablecoinDEX {
             // so refund must also use Up to return the exact escrowed amount
             let quote_amount =
                 base_to_quote(order.remaining(), order.tick(), RoundingDirection::Up)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
 
             self.increment_balance(order.maker(), orderbook.quote, quote_amount)?;
         } else {
@@ -1277,7 +1277,7 @@ impl StablecoinDEX {
                 // If multiple orders exist at a tick, execution may charge slightly more
                 // due to ceiling accumulation across order boundaries.
                 let base_needed = quote_to_base(remaining_out, current_tick, RoundingDirection::Up)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 let fill_amount = if base_needed > level.total_liquidity {
                     level.total_liquidity
                 } else {
@@ -1293,7 +1293,7 @@ impl StablecoinDEX {
                     remaining_out
                 };
                 let quote_needed = base_to_quote(fill_amount, current_tick, RoundingDirection::Up)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 (fill_amount, quote_needed)
             };
 
@@ -1302,7 +1302,7 @@ impl StablecoinDEX {
                 // Cap at remaining_out to avoid underflow from round-trip rounding:
                 // when tick > 0, base_to_quote(quote_to_base(x, Up), Down) can exceed x by 1.
                 base_to_quote(fill_amount, current_tick, RoundingDirection::Down)
-                    .ok_or(TempoPrecompileError::under_overflow())?
+                    .ok_or(MagnusPrecompileError::under_overflow())?
                     .min(remaining_out)
             } else {
                 fill_amount
@@ -1311,7 +1311,7 @@ impl StablecoinDEX {
             remaining_out = remaining_out.saturating_sub(amount_out_tick);
             amount_in = amount_in
                 .checked_add(amount_in_tick)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
 
             // If we exhausted this level or filled our requirement, move to next tick
             if fill_amount == level.total_liquidity {
@@ -1494,26 +1494,26 @@ impl StablecoinDEX {
                 let fill = remaining_in.min(level.total_liquidity);
                 // Round down quote_out (user receives less quote)
                 let quote_out = base_to_quote(fill, current_tick, RoundingDirection::Down)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 (fill, quote_out, fill)
             } else {
                 // For asks: remaining_in is quote, amount_out is base
                 // Taker pays quote, maker receives quote - round UP (zero-sum with maker)
                 let base_to_get =
                     quote_to_base(remaining_in, current_tick, RoundingDirection::Down)
-                        .ok_or(TempoPrecompileError::under_overflow())?;
+                        .ok_or(MagnusPrecompileError::under_overflow())?;
                 let fill = base_to_get.min(level.total_liquidity);
                 let quote_consumed = base_to_quote(fill, current_tick, RoundingDirection::Up)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 (fill, fill, quote_consumed)
             };
 
             remaining_in = remaining_in
                 .checked_sub(amount_consumed)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
             amount_out = amount_out
                 .checked_add(amount_out_tick)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
 
             // If we exhausted this level, move to next tick
             if fill_amount == level.total_liquidity {
@@ -1548,11 +1548,11 @@ fn is_authorized_for_token(token: Address, address: Address, role: AuthRole) -> 
 #[cfg(test)]
 mod tests {
     use alloy::{primitives::IntoLogData, sol_types::SolEvent};
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::TIP20Error;
 
     use crate::{
-        error::TempoPrecompileError,
+        error::MagnusPrecompileError,
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
         test_util::TIP20Setup,
         tip20::PAUSE_ROLE,
@@ -1611,14 +1611,14 @@ mod tests {
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::StablecoinDEX(StablecoinDEXError::TickOutOfBounds(_))
+                MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::TickOutOfBounds(_))
             ));
 
             let result = exchange.price_to_tick(orderbook::MAX_PRICE + 1);
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::StablecoinDEX(StablecoinDEXError::TickOutOfBounds(_))
+                MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::TickOutOfBounds(_))
             ));
 
             Ok(())
@@ -3078,7 +3078,7 @@ mod tests {
             let result = exchange.create_pair(token_0.address());
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
             ));
 
             Ok(())
@@ -3100,7 +3100,7 @@ mod tests {
             let result = exchange.create_pair(non_tip20_address);
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::StablecoinDEX(
+                Err(MagnusPrecompileError::StablecoinDEX(
                     StablecoinDEXError::InvalidBaseToken(_)
                 ))
             ));
@@ -3493,7 +3493,7 @@ mod tests {
             let error = result.unwrap_err();
             assert!(matches!(
                 error,
-                TempoPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
+                MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
             ));
 
             // Test valid tick spacing
@@ -3543,7 +3543,7 @@ mod tests {
             let error = result.unwrap_err();
             assert!(matches!(
                 error,
-                TempoPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
+                MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
             ));
 
             // Test valid tick spacing
@@ -3562,7 +3562,7 @@ mod tests {
             let error = result.unwrap_err();
             assert!(matches!(
                 error,
-                TempoPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidFlipTick(_))
+                MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidFlipTick(_))
             ));
 
             let valid_flip_tick = 30i16;
@@ -3599,7 +3599,7 @@ mod tests {
             assert!(
                 matches!(
                     result,
-                    Err(TempoPrecompileError::StablecoinDEX(
+                    Err(MagnusPrecompileError::StablecoinDEX(
                         StablecoinDEXError::InvalidToken(_)
                     ))
                 ),
@@ -4001,7 +4001,7 @@ mod tests {
             assert!(
                 matches!(
                     err,
-                    TempoPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                    MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
                 ),
                 "Expected PolicyForbids error, got: {err:?}"
             );
@@ -4103,7 +4103,7 @@ mod tests {
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::StablecoinDEX(StablecoinDEXError::OrderNotStale(_))
+                MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::OrderNotStale(_))
             ));
 
             Ok(())
@@ -4117,8 +4117,8 @@ mod tests {
         //   - Pre-T2:  Panic(UnderOverflow)
         //   - T2+:     TIP403RegistryError::InvalidPolicyType
         // Both must be treated as "policy gone → stale".
-        for spec in [TempoHardfork::T0, TempoHardfork::T1C, TempoHardfork::T2] {
-            let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        for spec in [MagnusHardfork::T0, MagnusHardfork::T1C, MagnusHardfork::T2] {
+            let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
 
             let alice = Address::random();
             let admin = Address::random();
@@ -4155,7 +4155,7 @@ mod tests {
                         },
                     )?;
 
-                    Ok::<_, TempoPrecompileError>((order_id, base.address(), invalid_policy_id))
+                    Ok::<_, MagnusPrecompileError>((order_id, base.address(), invalid_policy_id))
                 })?;
 
             // Upgrade to the target spec and attempt cancel
@@ -4189,7 +4189,7 @@ mod tests {
 
     #[test]
     fn test_cancel_stale_order_recipient_blacklisted_on_payout_token_pre_t4() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let mut exchange = StablecoinDEX::new();
             exchange.initialize()?;
@@ -4234,7 +4234,7 @@ mod tests {
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::StablecoinDEX(StablecoinDEXError::OrderNotStale(_))
+                MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::OrderNotStale(_))
             ));
 
             Ok(())
@@ -4243,7 +4243,7 @@ mod tests {
 
     #[test]
     fn test_cancel_stale_order_recipient_blacklisted_on_payout_token_t4() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T4);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T4);
         StorageCtx::enter(&mut storage, || {
             let mut exchange = StablecoinDEX::new();
             exchange.initialize()?;
@@ -4342,7 +4342,7 @@ mod tests {
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
             ));
 
             // Test placeFlip bid order - should also fail
@@ -4351,7 +4351,7 @@ mod tests {
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
             ));
 
             Ok(())
@@ -4408,7 +4408,7 @@ mod tests {
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
             ));
 
             // Test placeFlip ask order - should also fail
@@ -4417,7 +4417,7 @@ mod tests {
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
             ));
 
             Ok(())
@@ -4426,7 +4426,7 @@ mod tests {
 
     #[test]
     fn test_compound_policy_non_escrow_token_direction() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let mut exchange = StablecoinDEX::new();
             exchange.initialize()?;
@@ -4482,7 +4482,7 @@ mod tests {
                 assert!(
                     matches!(
                         res.unwrap_err(),
-                        TempoPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                        MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
                     ),
                     "Order should fail: alice cannot receive quote token (non-escrow) per compound policy"
                 );
@@ -4670,7 +4670,7 @@ mod tests {
     #[test]
     fn test_flip_order_fill_ignores_business_logic_error() -> eyre::Result<()> {
         // Business logic errors during flip are silently ignored (always).
-        for spec in [TempoHardfork::T1, TempoHardfork::T1A, TempoHardfork::T2] {
+        for spec in [MagnusHardfork::T1, MagnusHardfork::T1A, MagnusHardfork::T2] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, spec);
             StorageCtx::enter(&mut storage, || {
                 let FlipOrderTestCtx {
@@ -4745,7 +4745,7 @@ mod tests {
     #[test]
     fn test_flip_order_fill_reverts_on_system_error_post_t1a() -> eyre::Result<()> {
         // System errors during flip propagate only on T1A+. Pre-T1A all errors are ignored.
-        for spec in [TempoHardfork::T1, TempoHardfork::T1A, TempoHardfork::T2] {
+        for spec in [MagnusHardfork::T1, MagnusHardfork::T1A, MagnusHardfork::T2] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, spec);
             StorageCtx::enter(&mut storage, || {
                 let FlipOrderTestCtx {
@@ -5023,7 +5023,7 @@ mod tests {
             let result = exchange.sub_balance(user, token, 101);
             assert_eq!(
                 result,
-                Err(TempoPrecompileError::under_overflow()),
+                Err(MagnusPrecompileError::under_overflow()),
                 "sub_balance should error on underflow instead of saturating"
             );
 
@@ -5041,7 +5041,7 @@ mod tests {
         // - Pre-T1C: partial state leaks (balance debited, id bumped)
         //
         // All specs are T1A+ so system errors propagate and the swap itself fails.
-        for spec in [TempoHardfork::T1A, TempoHardfork::T1C] {
+        for spec in [MagnusHardfork::T1A, MagnusHardfork::T1C] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, spec);
             StorageCtx::enter(&mut storage, || {
                 let FlipOrderTestCtx {
@@ -5102,7 +5102,7 @@ mod tests {
 
     #[test]
     fn test_swap_paused_token_allowed_pre_t3_blocked_on_t3() -> eyre::Result<()> {
-        for spec in [TempoHardfork::T2, TempoHardfork::T3] {
+        for spec in [MagnusHardfork::T2, MagnusHardfork::T3] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, spec);
             StorageCtx::enter(&mut storage, || {
                 let mut exchange = StablecoinDEX::new();
@@ -5153,7 +5153,7 @@ mod tests {
 
     #[test]
     fn test_swap_paused_intermediate_token_allowed_pre_t3_blocked_on_t3() -> eyre::Result<()> {
-        for spec in [TempoHardfork::T2, TempoHardfork::T3] {
+        for spec in [MagnusHardfork::T2, MagnusHardfork::T3] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, spec);
             StorageCtx::enter(&mut storage, || {
                 let mut exchange = StablecoinDEX::new();

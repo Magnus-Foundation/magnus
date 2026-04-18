@@ -84,13 +84,13 @@ mod tests {
 
     use commonware_cryptography::ed25519::PublicKey as CommonwarePublicKey;
     use futures::{channel::oneshot, executor::block_on, pin_mut};
-    use magnus_primitives::ed25519::PublicKey as TempoPublicKey;
+    use magnus_primitives::ed25519::PublicKey as MagnusPublicKey;
 
     use crate::utils::{OptionFuture, public_key_to_tempo_primitive};
 
     #[test]
     fn commonware_public_key_to_tempo_primitive_conversion() {
-        let magnus_key = TempoPublicKey::from_seed([42u8; 32]);
+        let magnus_key = MagnusPublicKey::from_seed([42u8; 32]);
         let cw_key = CommonwarePublicKey::from(magnus_key.get());
         assert_eq!(public_key_to_tempo_primitive(&cw_key), magnus_key);
         assert_eq!(magnus_key.get().to_bytes(), cw_key.as_ref());

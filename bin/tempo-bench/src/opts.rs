@@ -3,12 +3,12 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-pub struct TempoBench {
+pub struct MagnusBench {
     #[command(subcommand)]
-    pub cmd: TempoBenchSubcommand,
+    pub cmd: MagnusBenchSubcommand,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum TempoBenchSubcommand {
+pub enum MagnusBenchSubcommand {
     RunMaxTps(MaxTpsArgs),
 }

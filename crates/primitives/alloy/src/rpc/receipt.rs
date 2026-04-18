@@ -3,17 +3,17 @@ use alloy_network::ReceiptResponse;
 use alloy_primitives::{Address, B256, BlockHash, TxHash};
 use alloy_rpc_types_eth::{Log, TransactionReceipt};
 use serde::{Deserialize, Serialize};
-use magnus_primitives::TempoReceipt;
+use magnus_primitives::MagnusReceipt;
 
 /// Tempo RPC receipt type.
 #[derive(Debug, Clone, Serialize, Deserialize, derive_more::Deref, derive_more::DerefMut)]
 #[serde(rename_all = "camelCase")]
-pub struct TempoTransactionReceipt {
+pub struct MagnusTransactionReceipt {
     /// Inner [`TransactionReceipt`].
     #[serde(flatten)]
     #[deref]
     #[deref_mut]
-    pub inner: TransactionReceipt<ReceiptWithBloom<TempoReceipt<Log>>>,
+    pub inner: TransactionReceipt<ReceiptWithBloom<MagnusReceipt<Log>>>,
 
     /// Token that was used to pay fees for the transaction.
     ///
@@ -25,7 +25,7 @@ pub struct TempoTransactionReceipt {
     pub fee_payer: Address,
 }
 
-impl ReceiptResponse for TempoTransactionReceipt {
+impl ReceiptResponse for MagnusTransactionReceipt {
     fn contract_address(&self) -> Option<Address> {
         self.inner.contract_address()
     }

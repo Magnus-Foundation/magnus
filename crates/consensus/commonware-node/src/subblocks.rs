@@ -38,9 +38,9 @@ use std::{
     sync::{Arc, mpsc::RecvError},
     time::{Duration, Instant},
 };
-use magnus_node::{TempoFullNode, consensus::TEMPO_SHARED_GAS_DIVISOR, evm::evm::TempoEvm};
+use magnus_node::{MagnusFullNode, consensus::MAGNUS_SHARED_GAS_DIVISOR, evm::evm::MagnusEvm};
 use magnus_primitives::{
-    RecoveredSubBlock, SignedSubBlock, SubBlock, SubBlockVersion, TempoTxEnvelope,
+    RecoveredSubBlock, SignedSubBlock, SubBlock, SubBlockVersion, MagnusTxEnvelope,
 };
 use tokio::sync::broadcast;
 use tracing::{Instrument, Level, Span, debug, error, instrument, warn};
@@ -55,7 +55,7 @@ pub(crate) struct Config<TContext> {
     pub(crate) context: TContext,
     pub(crate) signer: PrivateKey,
     pub(crate) scheme_provider: SchemeProvider,
-    pub(crate) node: TempoFullNode,
+    pub(crate) node: MagnusFullNode,
     pub(crate) fee_recipient: Address,
     pub(crate) time_to_build_subblock: Duration,
     pub(crate) subblock_broadcast_interval: Duration,
@@ -78,7 +78,7 @@ pub(crate) struct Actor<TContext> {
     /// Receiver of events to the service.
     actions_rx: mpsc::UnboundedReceiver<Message>,
     /// Stream of subblock transactions from RPC.
-    subblock_transactions_rx: broadcast::Receiver<Recovered<TempoTxEnvelope>>,
+    subblock_transactions_rx: broadcast::Receiver<Recovered<MagnusTxEnvelope>>,
     /// Handle to a task building a new subblock.
     our_subblock: PendingSubblock,
 
@@ -89,7 +89,7 @@ pub(crate) struct Actor<TContext> {
     /// ed25519 private key used for consensus.
     signer: PrivateKey,
     /// Execution layer node.
-    node: TempoFullNode,
+    node: MagnusFullNode,
     /// Fee recipient address to set for subblocks.
     fee_recipient: Address,
     /// Timeout for building a subblock.
@@ -105,7 +105,7 @@ pub(crate) struct Actor<TContext> {
     /// Collected subblocks keyed by validator public key.
     subblocks: IndexMap<B256, RecoveredSubBlock>,
     /// Subblock candidate transactions.
-    subblock_transactions: Arc<Mutex<IndexMap<TxHash, Arc<Recovered<TempoTxEnvelope>>>>>,
+    subblock_transactions: Arc<Mutex<IndexMap<TxHash, Arc<Recovered<MagnusTxEnvelope>>>>>,
 }
 
 impl<TContext: Spawner + Metrics + Pacer> Actor<TContext> {
@@ -236,7 +236,7 @@ impl<TContext: Spawner + Metrics + Pacer> Actor<TContext> {
     }
 
     #[instrument(skip_all, fields(transaction.tx_hash = %transaction.tx_hash()))]
-    fn on_new_subblock_transaction(&self, transaction: Recovered<TempoTxEnvelope>) {
+    fn on_new_subblock_transaction(&self, transaction: Recovered<MagnusTxEnvelope>) {
         if !transaction
             .subblock_proposer()
             .is_some_and(|k| k.matches(self.signer.public_key()))
@@ -670,9 +670,9 @@ impl Reporter for Mailbox {
 }
 
 fn evm_at_block(
-    node: &TempoFullNode,
+    node: &MagnusFullNode,
     hash: BlockHash,
-) -> eyre::Result<TempoEvm<State<StateProviderDatabase<StateProviderBox>>>> {
+) -> eyre::Result<MagnusEvm<State<StateProviderDatabase<StateProviderBox>>>> {
     let db = State::builder()
         .with_database(StateProviderDatabase::new(
             node.provider.state_by_block_hash(hash)?,
@@ -691,8 +691,8 @@ fn evm_at_block(
 /// This will include as many valid transactions as possible within the given timeout.
 #[instrument(skip_all, fields(parent_hash = %parent_hash))]
 async fn build_subblock(
-    transactions: Arc<Mutex<IndexMap<TxHash, Arc<Recovered<TempoTxEnvelope>>>>>,
-    node: TempoFullNode,
+    transactions: Arc<Mutex<IndexMap<TxHash, Arc<Recovered<MagnusTxEnvelope>>>>>,
+    node: MagnusFullNode,
     parent_hash: BlockHash,
     num_validators: usize,
     signer: PrivateKey,
@@ -704,7 +704,7 @@ async fn build_subblock(
     let (transactions, senders) = match evm_at_block(&node, parent_hash) {
         Ok(mut evm) => {
             let (mut selected, mut senders, mut to_remove) = (Vec::new(), Vec::new(), Vec::new());
-            let gas_budget = (evm.block().gas_limit / TEMPO_SHARED_GAS_DIVISOR)
+            let gas_budget = (evm.block().gas_limit / MAGNUS_SHARED_GAS_DIVISOR)
                 .checked_div(num_validators as u64)
                 .expect("validator set must not be empty");
 
@@ -792,7 +792,7 @@ async fn build_subblock(
 #[instrument(skip_all, err(level = Level::WARN), fields(sender = %sender))]
 async fn validate_subblock(
     sender: PublicKey,
-    node: TempoFullNode,
+    node: MagnusFullNode,
     subblock: SignedSubBlock,
     actions_tx: mpsc::UnboundedSender<Message>,
     scheme_provider: SchemeProvider,
@@ -837,10 +837,10 @@ async fn validate_subblock(
         "sender is not a validator"
     );
 
-    // Bound subblock size at a value proportional to `TEMPO_SHARED_GAS_DIVISOR`.
+    // Bound subblock size at a value proportional to `MAGNUS_SHARED_GAS_DIVISOR`.
     //
     // This ensures we never collect too many subblocks to fit into a new proposal.
-    let max_size = MAX_RLP_BLOCK_SIZE / TEMPO_SHARED_GAS_DIVISOR as usize / participants;
+    let max_size = MAX_RLP_BLOCK_SIZE / MAGNUS_SHARED_GAS_DIVISOR as usize / participants;
     if subblock.total_tx_size() > max_size {
         warn!(
             size = subblock.total_tx_size(),
@@ -850,7 +850,7 @@ async fn validate_subblock(
     }
 
     // Bound subblock gas at the per-validator allocation.
-    let gas_budget = evm.block().gas_limit / TEMPO_SHARED_GAS_DIVISOR / participants as u64;
+    let gas_budget = evm.block().gas_limit / MAGNUS_SHARED_GAS_DIVISOR / participants as u64;
     let mut total_gas = 0u64;
     for tx in subblock.transactions_recovered() {
         total_gas = total_gas.saturating_add(tx.gas_limit());

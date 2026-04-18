@@ -4,7 +4,7 @@ use commonware_runtime::{BufferPooler, Clock, Metrics, Spawner, Storage};
 use eyre::WrapErr as _;
 use futures::channel::mpsc;
 use rand_core::CryptoRngCore;
-use magnus_node::TempoFullNode;
+use magnus_node::MagnusFullNode;
 
 mod actor;
 mod ingress;
@@ -58,7 +58,7 @@ pub(crate) struct Config {
     ///
     /// During normal operation, used to read the validator config at the end
     /// of each epoch.
-    pub(crate) execution_node: TempoFullNode,
+    pub(crate) execution_node: MagnusFullNode,
 
     /// This node's initial share of the bls12381 private key.
     pub(crate) initial_share: Option<Share>,

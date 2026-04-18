@@ -1,4 +1,4 @@
-use crate::transaction::tt_signature::{PrimitiveSignature, TempoSignature};
+use crate::transaction::tt_signature::{PrimitiveSignature, MagnusSignature};
 use alloy_primitives::Bytes;
 
 impl reth_codecs::Compact for PrimitiveSignature {
@@ -18,7 +18,7 @@ impl reth_codecs::Compact for PrimitiveSignature {
     }
 }
 
-impl reth_codecs::Compact for TempoSignature {
+impl reth_codecs::Compact for MagnusSignature {
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
         B: alloy_rlp::BufMut + AsMut<[u8]>,
@@ -30,7 +30,7 @@ impl reth_codecs::Compact for TempoSignature {
     fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
         let (bytes, rest) = Bytes::from_compact(buf, len);
         let signature = Self::from_bytes(&bytes)
-            .expect("Failed to decode TempoSignature from compact encoding");
+            .expect("Failed to decode MagnusSignature from compact encoding");
         (signature, rest)
     }
 }

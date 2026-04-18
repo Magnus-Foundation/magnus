@@ -4,8 +4,8 @@ use alloy::{
     signers::local::MnemonicBuilder,
 };
 use serde_json::json;
-use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
-use magnus_node::rpc::simulate::TempoSimulateV1Response;
+use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
+use magnus_node::rpc::simulate::MagnusSimulateV1Response;
 
 use crate::utils::{TestNodeBuilder, setup_test_token};
 
@@ -26,7 +26,7 @@ async fn test_tempo_simulate_v1() -> eyre::Result<()> {
     let mint_amount = U256::from(1_000_000u64);
     token
         .mint(caller, mint_amount)
-        .gas_price(TEMPO_T1_BASE_FEE as u128)
+        .gas_price(MAGNUS_T1_BASE_FEE as u128)
         .gas(1_000_000)
         .send()
         .await?
@@ -48,7 +48,7 @@ async fn test_tempo_simulate_v1() -> eyre::Result<()> {
         "traceTransfers": true,
     });
 
-    let response: TempoSimulateV1Response<serde_json::Value> = provider
+    let response: MagnusSimulateV1Response<serde_json::Value> = provider
         .raw_request("magnus_simulateV1".into(), (payload,))
         .await?;
     assert!(!response.blocks.is_empty());
@@ -73,7 +73,7 @@ async fn test_tempo_simulate_v1() -> eyre::Result<()> {
         }],
     });
 
-    let response: TempoSimulateV1Response<serde_json::Value> = provider
+    let response: MagnusSimulateV1Response<serde_json::Value> = provider
         .raw_request("magnus_simulateV1".into(), (payload,))
         .await?;
 

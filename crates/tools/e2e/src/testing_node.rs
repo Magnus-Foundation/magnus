@@ -28,7 +28,7 @@ use magnus_commonware_node::{
     RESOLVER_LIMIT, SUBBLOCKS_CHANNEL_IDENT, SUBBLOCKS_LIMIT, VOTES_CHANNEL_IDENT, VOTES_LIMIT,
     consensus,
 };
-use magnus_node::node::TempoNode;
+use magnus_node::node::MagnusNode;
 use tracing::{debug, instrument};
 
 /// A testing node that can start and stop both consensus and execution layers.
@@ -429,7 +429,7 @@ where
     ///
     /// # Panics
     /// Panics if the execution node is not running.
-    pub fn execution(&self) -> &magnus_node::TempoFullNode {
+    pub fn execution(&self) -> &magnus_node::MagnusFullNode {
         &self
             .execution_node
             .as_ref()
@@ -453,7 +453,7 @@ where
     /// Panics if the execution node is not running.
     pub fn execution_provider(
         &self,
-    ) -> BlockchainProvider<NodeTypesWithDBAdapter<TempoNode, DatabaseEnv>> {
+    ) -> BlockchainProvider<NodeTypesWithDBAdapter<MagnusNode, DatabaseEnv>> {
         self.execution().provider.clone()
     }
 
@@ -462,7 +462,7 @@ where
     /// This provider MUST BE DROPPED before starting the node again.
     pub fn execution_provider_offline(
         &self,
-    ) -> BlockchainProvider<NodeTypesWithDBAdapter<TempoNode, DatabaseEnv>> {
+    ) -> BlockchainProvider<NodeTypesWithDBAdapter<MagnusNode, DatabaseEnv>> {
         // Open a read-only provider to the database
         // Note: MDBX allows multiple readers, so this is safe even if another process
         // has the database open for reading
@@ -481,7 +481,7 @@ where
             .build()
             .unwrap();
 
-        let provider_factory = ProviderFactory::<NodeTypesWithDBAdapter<TempoNode, _>>::new(
+        let provider_factory = ProviderFactory::<NodeTypesWithDBAdapter<MagnusNode, _>>::new(
             database,
             Arc::new(execution_runtime::chainspec()),
             static_file_provider,

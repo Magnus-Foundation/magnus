@@ -1,13 +1,13 @@
-use crate::{TempoConsensusContext, TempoHeader};
+use crate::{MagnusConsensusContext, MagnusHeader};
 use alloy_primitives::{B256, BlockNumber, U256};
 
-impl reth_primitives_traits::InMemorySize for TempoConsensusContext {
+impl reth_primitives_traits::InMemorySize for MagnusConsensusContext {
     fn size(&self) -> usize {
         self.epoch.size() + self.view.size() + self.proposer.size() + self.parent_view.size()
     }
 }
 
-impl reth_primitives_traits::InMemorySize for TempoHeader {
+impl reth_primitives_traits::InMemorySize for MagnusHeader {
     fn size(&self) -> usize {
         let Self {
             inner,
@@ -24,9 +24,9 @@ impl reth_primitives_traits::InMemorySize for TempoHeader {
     }
 }
 
-impl reth_primitives_traits::BlockHeader for TempoHeader {}
+impl reth_primitives_traits::BlockHeader for MagnusHeader {}
 
-impl reth_primitives_traits::header::HeaderMut for TempoHeader {
+impl reth_primitives_traits::header::HeaderMut for MagnusHeader {
     fn set_parent_hash(&mut self, hash: B256) {
         self.inner.set_parent_hash(hash);
     }
@@ -50,17 +50,17 @@ impl reth_primitives_traits::header::HeaderMut for TempoHeader {
 
 #[cfg(feature = "reth-codec")]
 mod codec {
-    use crate::{TempoConsensusContext, TempoHeader};
+    use crate::{MagnusConsensusContext, MagnusHeader};
     use alloy_consensus::Header;
 
     /// Trailing fields grouped into a dedicated struct to maximize the use of bits
     /// in a type's bitfields. We add to this prior to occupying another slot in
-    /// `TempoHeaderCompact`
+    /// `MagnusHeaderCompact`
     #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, reth_codecs::Compact)]
     #[cfg_attr(any(test, feature = "arbitrary"), derive(arbitrary::Arbitrary))]
     #[cfg_attr(test, reth_codecs::add_arbitrary_tests(compact))]
-    struct TempoHeaderTrailingCompact {
-        consensus_context: Option<TempoConsensusContext>,
+    struct MagnusHeaderTrailingCompact {
+        consensus_context: Option<MagnusConsensusContext>,
     }
 
     /// Private helper for Reth's Compat encoding where the last type
@@ -68,7 +68,7 @@ mod codec {
     #[derive(Clone, Debug, Default, Eq, Hash, PartialEq, reth_codecs::Compact)]
     #[cfg_attr(any(test, feature = "arbitrary"), derive(arbitrary::Arbitrary))]
     #[cfg_attr(test, reth_codecs::add_arbitrary_tests(compact))]
-    struct TempoHeaderCompact {
+    struct MagnusHeaderCompact {
         /// Non-payment gas limit for the block.
         pub general_gas_limit: u64,
         /// Shared gas limit allocated for the subblocks section of the block.
@@ -76,23 +76,23 @@ mod codec {
         /// Sub-second (milliseconds) portion of the timestamp.
         pub timestamp_millis_part: u64,
         /// Added trailing options
-        pub trailing: Option<TempoHeaderTrailingCompact>,
+        pub trailing: Option<MagnusHeaderTrailingCompact>,
         /// Inner Ethereum [`Header`].
         pub inner: Header,
     }
 
-    impl reth_codecs::Compact for TempoHeader {
+    impl reth_codecs::Compact for MagnusHeader {
         fn to_compact<B>(&self, buf: &mut B) -> usize
         where
             B: alloy_rlp::bytes::BufMut + AsMut<[u8]>,
         {
             let trailing = self
                 .consensus_context
-                .map(|ctx| TempoHeaderTrailingCompact {
+                .map(|ctx| MagnusHeaderTrailingCompact {
                     consensus_context: Some(ctx),
                 });
 
-            let header = TempoHeaderCompact {
+            let header = MagnusHeaderCompact {
                 general_gas_limit: self.general_gas_limit,
                 shared_gas_limit: self.shared_gas_limit,
                 timestamp_millis_part: self.timestamp_millis_part,
@@ -104,7 +104,7 @@ mod codec {
         }
 
         fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
-            let (header_compat, buf) = TempoHeaderCompact::from_compact(buf, len);
+            let (header_compat, buf) = MagnusHeaderCompact::from_compact(buf, len);
             let header = Self {
                 general_gas_limit: header_compat.general_gas_limit,
                 shared_gas_limit: header_compat.shared_gas_limit,
@@ -117,7 +117,7 @@ mod codec {
         }
     }
 
-    impl reth_db_api::table::Compress for TempoHeader {
+    impl reth_db_api::table::Compress for MagnusHeader {
         type Compressed = alloc::vec::Vec<u8>;
 
         fn compress_to_buf<B: alloy_primitives::bytes::BufMut + AsMut<[u8]>>(&self, buf: &mut B) {
@@ -125,7 +125,7 @@ mod codec {
         }
     }
 
-    impl reth_db_api::table::Decompress for TempoHeader {
+    impl reth_db_api::table::Decompress for MagnusHeader {
         fn decompress(value: &[u8]) -> Result<Self, reth_codecs::DecompressError> {
             let (obj, _) = reth_codecs::Compact::from_compact(value, value.len());
             Ok(obj)
@@ -142,31 +142,31 @@ mod codec {
         /// Ensures backwards compatibility of the compact bitflag.
         ///
         /// If this fails because unused bits dropped to zero, new fields should be added via an
-        /// extension type (e.g. `Option<TempoHeaderExt>`) rather than directly to [`TempoHeader`].
+        /// extension type (e.g. `Option<MagnusHeaderExt>`) rather than directly to [`MagnusHeader`].
         ///
         /// See reth's `HeaderExt` pattern:
         /// <https://github.com/paradigmxyz/reth-core/blob/0476d1bc4b71f3c3b080622be297edd91ee4e70c/crates/codecs/src/alloy/header.rs>
         #[test]
         fn magnus_header_has_unused_compact_bits() {
             assert_ne!(
-                TempoHeaderCompact::bitflag_unused_bits(),
+                MagnusHeaderCompact::bitflag_unused_bits(),
                 0,
-                "TempoHeaderCompact bitflag has no unused bits left — use an extension type"
+                "MagnusHeaderCompact bitflag has no unused bits left — use an extension type"
             );
         }
 
         #[test]
         fn magnus_header_trailing_has_unused_compact_bits() {
             assert_ne!(
-                TempoHeaderTrailingCompact::bitflag_unused_bits(),
+                MagnusHeaderTrailingCompact::bitflag_unused_bits(),
                 0,
-                "TempoHeaderTrailingCompact bitflag has no unused bits left — use another extension type"
+                "MagnusHeaderTrailingCompact bitflag has no unused bits left — use another extension type"
             );
         }
 
         #[test]
         fn magnus_header_compact_roundtrip() {
-            let header = TempoHeader {
+            let header = MagnusHeader {
                 general_gas_limit: 30_000_000,
                 shared_gas_limit: 10_000_000,
                 timestamp_millis_part: 500,
@@ -228,13 +228,13 @@ mod codec {
             );
             assert_eq!(len, expected.len());
 
-            let (decoded, _) = TempoHeader::from_compact(&expected, expected.len());
+            let (decoded, _) = MagnusHeader::from_compact(&expected, expected.len());
             assert_eq!(decoded, header);
         }
 
         /// Presto block 1 — a real mainnet header without consensus context (T4 not active).
-        fn presto_block_1() -> TempoHeader {
-            TempoHeader {
+        fn presto_block_1() -> MagnusHeader {
+            MagnusHeader {
                 general_gas_limit: 0xd693a40,
                 shared_gas_limit: 0x2faf080,
                 timestamp_millis_part: 0x2c5,
@@ -291,7 +291,7 @@ mod codec {
         fn presto_block_1_rlp_roundtrip() {
             let header = presto_block_1();
             let encoded = alloy_rlp::encode(&header);
-            let decoded = TempoHeader::decode(&mut encoded.as_slice()).unwrap();
+            let decoded = MagnusHeader::decode(&mut encoded.as_slice()).unwrap();
             assert_eq!(header, decoded);
         }
 
@@ -322,7 +322,7 @@ mod codec {
             assert_eq!(header_len, pre_t4_len);
             assert_eq!(header_buf, pre_t4_header_buf);
 
-            let (legacy_header, _) = TempoHeader::from_compact(&pre_t4_header_buf, pre_t4_len);
+            let (legacy_header, _) = MagnusHeader::from_compact(&pre_t4_header_buf, pre_t4_len);
             assert_eq!(legacy_header, header);
         }
     }

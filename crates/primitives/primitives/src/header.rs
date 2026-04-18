@@ -14,7 +14,7 @@ use crate::ed25519::PublicKey;
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(any(test, feature = "arbitrary"), derive(arbitrary::Arbitrary))]
 #[cfg_attr(test, reth_codecs::add_arbitrary_tests(compact))]
-pub struct TempoConsensusContext {
+pub struct MagnusConsensusContext {
     pub epoch: u64,
     pub view: u64,
     pub parent_view: u64,
@@ -30,7 +30,7 @@ pub struct TempoConsensusContext {
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(any(test, feature = "arbitrary"), derive(arbitrary::Arbitrary))]
 #[rlp(trailing)]
-pub struct TempoHeader {
+pub struct MagnusHeader {
     /// Non-payment gas limit for the block.
     #[cfg_attr(
         feature = "serde",
@@ -55,10 +55,10 @@ pub struct TempoHeader {
         feature = "serde",
         serde(default, skip_serializing_if = "Option::is_none")
     )]
-    pub consensus_context: Option<TempoConsensusContext>,
+    pub consensus_context: Option<MagnusConsensusContext>,
 }
 
-impl TempoHeader {
+impl MagnusHeader {
     /// Returns the timestamp in milliseconds.
     pub fn timestamp_millis(&self) -> u64 {
         self.inner
@@ -68,13 +68,13 @@ impl TempoHeader {
     }
 }
 
-impl AsRef<Self> for TempoHeader {
+impl AsRef<Self> for MagnusHeader {
     fn as_ref(&self) -> &Self {
         self
     }
 }
 
-impl BlockHeader for TempoHeader {
+impl BlockHeader for MagnusHeader {
     fn parent_hash(&self) -> B256 {
         self.inner.parent_hash()
     }
@@ -168,7 +168,7 @@ impl BlockHeader for TempoHeader {
     }
 }
 
-impl Sealable for TempoHeader {
+impl Sealable for MagnusHeader {
     fn hash_slow(&self) -> B256 {
         keccak256(alloy_rlp::encode(self))
     }
@@ -181,7 +181,7 @@ mod tests {
 
     #[test]
     fn consensus_context_rlp_roundtrip() {
-        let ctx = TempoConsensusContext {
+        let ctx = MagnusConsensusContext {
             epoch: 1,
             view: 5,
             proposer: PublicKey::from_seed([0xab; 32]),
@@ -189,7 +189,7 @@ mod tests {
         };
 
         let encoded = alloy_rlp::encode(ctx);
-        let decoded = TempoConsensusContext::decode(&mut encoded.as_slice()).unwrap();
+        let decoded = MagnusConsensusContext::decode(&mut encoded.as_slice()).unwrap();
         assert_eq!(ctx, decoded);
     }
 }

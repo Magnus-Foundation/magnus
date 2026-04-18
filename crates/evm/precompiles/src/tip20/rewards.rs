@@ -7,14 +7,14 @@
 //! [Reward system]: <https://docs.tempo.xyz/protocol/tip20-rewards/overview>
 
 use crate::{
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     storage::Handler,
     tip20::{Recipient, TIP20Token},
 };
 use alloy::primitives::{Address, U256, uint};
 use magnus_contracts::precompiles::{ITIP20, TIP20Error, TIP20Event};
 use magnus_precompiles_macros::Storable;
-use magnus_primitives::TempoAddressExt;
+use magnus_primitives::MagnusAddressExt;
 
 /// Precision multiplier for reward-per-token accumulator (1e18).
 pub const ACC_PRECISION: U256 = uint!(1000000000000000000_U256);
@@ -57,11 +57,11 @@ impl TIP20Token {
             .amount
             .checked_mul(ACC_PRECISION)
             .and_then(|v| v.checked_div(opted_in_supply))
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
         let current_rpt = self.get_global_reward_per_token()?;
         let new_rpt = current_rpt
             .checked_add(delta_rpt)
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
         self.set_global_reward_per_token(new_rpt)?;
 
         // Emit distributed reward event (recipients claim accrued rewards separately)
@@ -87,7 +87,7 @@ impl TIP20Token {
         let global_reward_per_token = self.get_global_reward_per_token()?;
         let reward_per_token_delta = global_reward_per_token
             .checked_sub(info.reward_per_token)
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
 
         if reward_per_token_delta != U256::ZERO {
             if cached_delegate != Address::ZERO {
@@ -95,20 +95,20 @@ impl TIP20Token {
                 let reward = holder_balance
                     .checked_mul(reward_per_token_delta)
                     .and_then(|v| v.checked_div(ACC_PRECISION))
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
 
                 // Add reward to delegate's balance (or holder's own balance if self-delegated)
                 if cached_delegate == holder {
                     info.reward_balance = info
                         .reward_balance
                         .checked_add(reward)
-                        .ok_or(TempoPrecompileError::under_overflow())?;
+                        .ok_or(MagnusPrecompileError::under_overflow())?;
                 } else {
                     let mut delegate_info = self.user_reward_info[cached_delegate].read()?;
                     delegate_info.reward_balance = delegate_info
                         .reward_balance
                         .checked_add(reward)
-                        .ok_or(TempoPrecompileError::under_overflow())?;
+                        .ok_or(MagnusPrecompileError::under_overflow())?;
                     self.user_reward_info[cached_delegate].write(delegate_info)?;
                 }
             }
@@ -152,21 +152,21 @@ impl TIP20Token {
             if call.recipient == Address::ZERO {
                 let opted_in_supply = U256::from(self.get_opted_in_supply()?)
                     .checked_sub(holder_balance)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 self.set_opted_in_supply(
                     opted_in_supply
                         .try_into()
-                        .map_err(|_| TempoPrecompileError::under_overflow())?,
+                        .map_err(|_| MagnusPrecompileError::under_overflow())?,
                 )?;
             }
         } else if call.recipient != Address::ZERO {
             let opted_in_supply = U256::from(self.get_opted_in_supply()?)
                 .checked_add(holder_balance)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
             self.set_opted_in_supply(
                 opted_in_supply
                     .try_into()
-                    .map_err(|_| TempoPrecompileError::under_overflow())?,
+                    .map_err(|_| MagnusPrecompileError::under_overflow())?,
             )?;
         }
 
@@ -206,29 +206,29 @@ impl TIP20Token {
         let reward_recipient = info.reward_recipient;
         info.reward_balance = amount
             .checked_sub(max_amount)
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
         self.user_reward_info[msg_sender].write(info)?;
 
         if max_amount > U256::ZERO {
             let new_contract_balance = contract_balance
                 .checked_sub(max_amount)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
             self.set_balance(contract_address, new_contract_balance)?;
 
             let recipient_balance = self
                 .get_balance(msg_sender)?
                 .checked_add(max_amount)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
             self.set_balance(msg_sender, recipient_balance)?;
 
             if reward_recipient != Address::ZERO {
                 let opted_in_supply = U256::from(self.get_opted_in_supply()?)
                     .checked_add(max_amount)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 self.set_opted_in_supply(
                     opted_in_supply
                         .try_into()
-                        .map_err(|_| TempoPrecompileError::under_overflow())?,
+                        .map_err(|_| MagnusPrecompileError::under_overflow())?,
                 )?;
             }
 
@@ -276,21 +276,21 @@ impl TIP20Token {
             if to_delegate.is_zero() {
                 let opted_in_supply = U256::from(self.get_opted_in_supply()?)
                     .checked_sub(amount)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
                 self.set_opted_in_supply(
                     opted_in_supply
                         .try_into()
-                        .map_err(|_| TempoPrecompileError::under_overflow())?,
+                        .map_err(|_| MagnusPrecompileError::under_overflow())?,
                 )?;
             }
         } else if !to_delegate.is_zero() {
             let opted_in_supply = U256::from(self.get_opted_in_supply()?)
                 .checked_add(amount)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
             self.set_opted_in_supply(
                 opted_in_supply
                     .try_into()
-                    .map_err(|_| TempoPrecompileError::under_overflow())?,
+                    .map_err(|_| MagnusPrecompileError::under_overflow())?,
             )?;
         }
 
@@ -304,11 +304,11 @@ impl TIP20Token {
         if !to_delegate.is_zero() {
             let opted_in_supply = U256::from(self.get_opted_in_supply()?)
                 .checked_add(amount)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
             self.set_opted_in_supply(
                 opted_in_supply
                     .try_into()
-                    .map_err(|_| TempoPrecompileError::under_overflow())?,
+                    .map_err(|_| MagnusPrecompileError::under_overflow())?,
             )?;
         }
 
@@ -341,23 +341,23 @@ impl TIP20Token {
                 let global_reward_per_token = self.get_global_reward_per_token()?;
                 let reward_per_token_delta = global_reward_per_token
                     .checked_sub(info.reward_per_token)
-                    .ok_or(TempoPrecompileError::under_overflow())?;
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
 
                 if reward_per_token_delta > U256::ZERO {
                     let accrued = holder_balance
                         .checked_mul(reward_per_token_delta)
                         .and_then(|v| v.checked_div(ACC_PRECISION))
-                        .ok_or(TempoPrecompileError::under_overflow())?;
+                        .ok_or(MagnusPrecompileError::under_overflow())?;
                     pending = pending
                         .checked_add(accrued)
-                        .ok_or(TempoPrecompileError::under_overflow())?;
+                        .ok_or(MagnusPrecompileError::under_overflow())?;
                 }
             }
         }
 
         pending
             .try_into()
-            .map_err(|_| TempoPrecompileError::under_overflow())
+            .map_err(|_| MagnusPrecompileError::under_overflow())
     }
 }
 
@@ -387,13 +387,13 @@ mod tests {
     use super::*;
     use crate::{
         address_registry::{MasterId, UserTag},
-        error::TempoPrecompileError,
+        error::MagnusPrecompileError,
         storage::{StorageCtx, hashmap::HashMapStorageProvider},
         test_util::TIP20Setup,
         tip403_registry::TIP403Registry,
     };
     use alloy::primitives::{Address, U256};
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::{ITIP403Registry, TIP20Error};
 
     #[test]
@@ -718,7 +718,7 @@ mod tests {
             assert!(
                 matches!(
                     err,
-                    TempoPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                    MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
                 ),
                 "Expected PolicyForbids error, got: {err:?}"
             );
@@ -731,7 +731,7 @@ mod tests {
     fn test_set_reward_recipient_rejects_virtual_on_t3() -> eyre::Result<()> {
         let virtual_addr = Address::new_virtual(MasterId::ZERO, UserTag::ZERO);
 
-        for hardfork in [TempoHardfork::T2, TempoHardfork::T3] {
+        for hardfork in [MagnusHardfork::T2, MagnusHardfork::T3] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
             let admin = Address::random();
             let alice = Address::random();
@@ -752,14 +752,14 @@ mod tests {
                 if hardfork.is_t3() {
                     assert!(matches!(
                         result.unwrap_err(),
-                        TempoPrecompileError::TIP20(TIP20Error::InvalidRecipient(_))
+                        MagnusPrecompileError::TIP20(TIP20Error::InvalidRecipient(_))
                     ));
                 } else {
                     // Pre-T3: virtual addresses are accepted
                     assert!(result.is_ok());
                 }
 
-                Ok::<_, TempoPrecompileError>(())
+                Ok::<_, MagnusPrecompileError>(())
             })?;
         }
         Ok(())

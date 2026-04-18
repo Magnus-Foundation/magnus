@@ -8,13 +8,13 @@ use alloy::{
     sol_types::SolCall,
 };
 use magnus_alloy::{
-    TempoNetwork, contracts::precompiles::ITIP20, primitives::transaction::Call,
-    rpc::TempoTransactionRequest,
+    MagnusNetwork, contracts::precompiles::ITIP20, primitives::transaction::Call,
+    rpc::MagnusTransactionRequest,
 };
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+    let provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
         .connect(&std::env::var("RPC_URL").expect("No RPC URL set"))
         .await?;
 
@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     let pending = provider
-        .send_transaction(TempoTransactionRequest {
+        .send_transaction(MagnusTransactionRequest {
             calls,
             ..Default::default()
         })

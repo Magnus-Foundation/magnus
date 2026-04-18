@@ -16,7 +16,7 @@ use tracing::debug_span;
 
 #[derive(Metrics, Clone)]
 #[metrics(scope = "magnus_payload_builder")]
-pub(crate) struct TempoPayloadBuilderMetrics {
+pub(crate) struct MagnusPayloadBuilderMetrics {
     /// Block time in milliseconds.
     pub(crate) block_time_millis: Histogram,
     /// Block time in milliseconds.
@@ -89,7 +89,7 @@ pub(crate) struct TempoPayloadBuilderMetrics {
     pub(crate) state_root_with_updates_duration_seconds: Histogram,
 }
 
-impl TempoPayloadBuilderMetrics {
+impl MagnusPayloadBuilderMetrics {
     /// Increments the unified pool transaction skip counter with the given reason label.
     ///
     /// Note: `mark_invalid` may also prune descendant transactions from the iterator,
@@ -118,7 +118,7 @@ impl TempoPayloadBuilderMetrics {
 /// `state_root_with_updates` with tracing spans and histogram metrics during `builder.finish()`.
 pub(crate) struct InstrumentedFinishProvider<'a> {
     pub(crate) inner: &'a dyn StateProvider,
-    pub(crate) metrics: TempoPayloadBuilderMetrics,
+    pub(crate) metrics: MagnusPayloadBuilderMetrics,
 }
 
 impl<'a> AsRef<dyn StateProvider + 'a> for InstrumentedFinishProvider<'a> {

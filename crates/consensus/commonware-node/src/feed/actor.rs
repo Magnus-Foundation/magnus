@@ -33,7 +33,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use magnus_node::{
-    TempoFullNode,
+    MagnusFullNode,
     rpc::consensus::{CertifiedBlock, Event},
 };
 use tracing::{error, info_span, instrument, warn, warn_span};
@@ -107,7 +107,7 @@ impl<TContext: Spawner> Actor<TContext> {
         context: TContext,
         marshal: marshal::Mailbox,
         epocher: FixedEpocher,
-        execution_node: TempoFullNode,
+        execution_node: MagnusFullNode,
         receiver: Receiver,
         state: FeedStateHandle,
     ) -> Self {

@@ -7,17 +7,17 @@ mod assemble;
 use alloy_consensus::{BlockHeader as _, Transaction};
 use alloy_primitives::Address;
 use alloy_rlp::Decodable;
-pub use assemble::TempoBlockAssembler;
+pub use assemble::MagnusBlockAssembler;
 mod block;
-pub use block::TempoReceiptBuilder;
+pub use block::MagnusReceiptBuilder;
 mod context;
-pub use context::{TempoBlockExecutionCtx, TempoNextBlockEnvAttributes};
+pub use context::{MagnusBlockExecutionCtx, MagnusNextBlockEnvAttributes};
 #[cfg(feature = "engine")]
 mod engine;
 #[cfg(feature = "engine")]
 use rayon as _;
 mod error;
-pub use error::TempoEvmError;
+pub use error::MagnusEvmError;
 pub mod evm;
 use std::{borrow::Cow, sync::Arc};
 
@@ -27,72 +27,72 @@ use alloy_evm::{
     eth::{EthBlockExecutionCtx, NextEvmEnvAttributes},
     revm::Inspector,
 };
-pub use evm::TempoEvmFactory;
+pub use evm::MagnusEvmFactory;
 use reth_chainspec::EthChainSpec;
 use reth_evm::{self, ConfigureEvm, EvmEnvFor, block::StateDB};
 use reth_primitives_traits::{SealedBlock, SealedHeader};
 use magnus_primitives::{
-    Block, SubBlockMetadata, TempoHeader, TempoPrimitives, TempoReceipt, TempoTxEnvelope,
+    Block, SubBlockMetadata, MagnusHeader, MagnusPrimitives, MagnusReceipt, MagnusTxEnvelope,
     subblock::PartialValidatorKey,
 };
 
-use crate::{block::TempoBlockExecutor, evm::TempoEvm};
+use crate::{block::MagnusBlockExecutor, evm::MagnusEvm};
 use reth_evm_ethereum::EthEvmConfig;
-use magnus_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
-use magnus_revm::{evm::TempoContext, gas_params::magnus_gas_params};
+use magnus_chainspec::{MagnusChainSpec, hardfork::MagnusHardforks};
+use magnus_revm::{evm::MagnusContext, gas_params::magnus_gas_params};
 
-pub use magnus_revm::{TempoBlockEnv, TempoHaltReason, TempoStateAccess};
+pub use magnus_revm::{MagnusBlockEnv, MagnusHaltReason, MagnusStateAccess};
 
 #[cfg(test)]
 mod test_utils;
 
 /// Tempo-related EVM configuration.
 #[derive(Debug, Clone)]
-pub struct TempoEvmConfig {
+pub struct MagnusEvmConfig {
     /// Inner evm config
-    pub inner: EthEvmConfig<TempoChainSpec, TempoEvmFactory>,
+    pub inner: EthEvmConfig<MagnusChainSpec, MagnusEvmFactory>,
 
     /// Block assembler
-    pub block_assembler: TempoBlockAssembler,
+    pub block_assembler: MagnusBlockAssembler,
 }
 
-impl TempoEvmConfig {
-    /// Create a new [`TempoEvmConfig`] with the given chain spec and EVM factory.
-    pub fn new(chain_spec: Arc<TempoChainSpec>) -> Self {
+impl MagnusEvmConfig {
+    /// Create a new [`MagnusEvmConfig`] with the given chain spec and EVM factory.
+    pub fn new(chain_spec: Arc<MagnusChainSpec>) -> Self {
         let inner =
-            EthEvmConfig::new_with_evm_factory(chain_spec.clone(), TempoEvmFactory::default());
+            EthEvmConfig::new_with_evm_factory(chain_spec.clone(), MagnusEvmFactory::default());
         Self {
             inner,
-            block_assembler: TempoBlockAssembler::new(chain_spec),
+            block_assembler: MagnusBlockAssembler::new(chain_spec),
         }
     }
 
     /// Returns the chain spec
-    pub const fn chain_spec(&self) -> &Arc<TempoChainSpec> {
+    pub const fn chain_spec(&self) -> &Arc<MagnusChainSpec> {
         self.inner.chain_spec()
     }
 
     /// Returns the inner EVM config
-    pub const fn inner(&self) -> &EthEvmConfig<TempoChainSpec, TempoEvmFactory> {
+    pub const fn inner(&self) -> &EthEvmConfig<MagnusChainSpec, MagnusEvmFactory> {
         &self.inner
     }
 
     /// Returns the moderato EVM config.
     pub fn moderato() -> Self {
-        Self::new(Arc::new(TempoChainSpec::moderato()))
+        Self::new(Arc::new(MagnusChainSpec::moderato()))
     }
 
     /// Returns the mainnet EVM config.
     pub fn mainnet() -> Self {
-        Self::new(Arc::new(TempoChainSpec::mainnet()))
+        Self::new(Arc::new(MagnusChainSpec::mainnet()))
     }
 }
 
-impl BlockExecutorFactory for TempoEvmConfig {
-    type EvmFactory = TempoEvmFactory;
-    type ExecutionCtx<'a> = TempoBlockExecutionCtx<'a>;
-    type Transaction = TempoTxEnvelope;
-    type Receipt = TempoReceipt;
+impl BlockExecutorFactory for MagnusEvmConfig {
+    type EvmFactory = MagnusEvmFactory;
+    type ExecutionCtx<'a> = MagnusBlockExecutionCtx<'a>;
+    type Transaction = MagnusTxEnvelope;
+    type Receipt = MagnusReceipt;
 
     fn evm_factory(&self) -> &Self::EvmFactory {
         self.inner.executor_factory.evm_factory()
@@ -100,23 +100,23 @@ impl BlockExecutorFactory for TempoEvmConfig {
 
     fn create_executor<'a, DB, I>(
         &'a self,
-        evm: TempoEvm<DB, I>,
+        evm: MagnusEvm<DB, I>,
         ctx: Self::ExecutionCtx<'a>,
     ) -> impl BlockExecutorFor<'a, Self, DB, I>
     where
         DB: StateDB + 'a,
-        I: Inspector<TempoContext<DB>> + 'a,
+        I: Inspector<MagnusContext<DB>> + 'a,
     {
-        TempoBlockExecutor::new(evm, ctx, self.chain_spec())
+        MagnusBlockExecutor::new(evm, ctx, self.chain_spec())
     }
 }
 
-impl ConfigureEvm for TempoEvmConfig {
-    type Primitives = TempoPrimitives;
-    type Error = TempoEvmError;
-    type NextBlockEnvCtx = TempoNextBlockEnvAttributes;
+impl ConfigureEvm for MagnusEvmConfig {
+    type Primitives = MagnusPrimitives;
+    type Error = MagnusEvmError;
+    type NextBlockEnvCtx = MagnusNextBlockEnvAttributes;
     type BlockExecutorFactory = Self;
-    type BlockAssembler = TempoBlockAssembler;
+    type BlockAssembler = MagnusBlockAssembler;
 
     fn block_executor_factory(&self) -> &Self::BlockExecutorFactory {
         self
@@ -126,7 +126,7 @@ impl ConfigureEvm for TempoEvmConfig {
         &self.block_assembler
     }
 
-    fn evm_env(&self, header: &TempoHeader) -> Result<EvmEnvFor<Self>, Self::Error> {
+    fn evm_env(&self, header: &MagnusHeader) -> Result<EvmEnvFor<Self>, Self::Error> {
         let EvmEnv { cfg_env, block_env } = EvmEnv::for_eth_block(
             header,
             self.chain_spec(),
@@ -143,7 +143,7 @@ impl ConfigureEvm for TempoEvmConfig {
 
         Ok(EvmEnv {
             cfg_env,
-            block_env: TempoBlockEnv {
+            block_env: MagnusBlockEnv {
                 inner: block_env,
                 timestamp_millis_part: header.timestamp_millis_part,
             },
@@ -152,7 +152,7 @@ impl ConfigureEvm for TempoEvmConfig {
 
     fn next_evm_env(
         &self,
-        parent: &TempoHeader,
+        parent: &MagnusHeader,
         attributes: &Self::NextBlockEnvCtx,
     ) -> Result<EvmEnvFor<Self>, Self::Error> {
         let EvmEnv { cfg_env, block_env } = EvmEnv::for_eth_next_block(
@@ -181,7 +181,7 @@ impl ConfigureEvm for TempoEvmConfig {
 
         Ok(EvmEnv {
             cfg_env,
-            block_env: TempoBlockEnv {
+            block_env: MagnusBlockEnv {
                 inner: block_env,
                 timestamp_millis_part: attributes.timestamp_millis_part,
             },
@@ -191,7 +191,7 @@ impl ConfigureEvm for TempoEvmConfig {
     fn context_for_block<'a>(
         &self,
         block: &'a SealedBlock<Block>,
-    ) -> Result<TempoBlockExecutionCtx<'a>, Self::Error> {
+    ) -> Result<MagnusBlockExecutionCtx<'a>, Self::Error> {
         // Decode validator -> fee_recipient mapping from the subblock metadata system transaction.
         let subblock_fee_recipients = block
             .body()
@@ -200,7 +200,7 @@ impl ConfigureEvm for TempoEvmConfig {
             .rev()
             .filter(|tx| (*tx).to() == Some(Address::ZERO))
             .find_map(|tx| Vec::<SubBlockMetadata>::decode(&mut tx.input().as_ref()).ok())
-            .ok_or(TempoEvmError::NoSubblockMetadataFound)?
+            .ok_or(MagnusEvmError::NoSubblockMetadataFound)?
             .into_iter()
             .map(|metadata| {
                 (
@@ -210,7 +210,7 @@ impl ConfigureEvm for TempoEvmConfig {
             })
             .collect();
 
-        Ok(TempoBlockExecutionCtx {
+        Ok(MagnusBlockExecutionCtx {
             inner: EthBlockExecutionCtx {
                 parent_hash: block.header().parent_hash(),
                 parent_beacon_block_root: block.header().parent_beacon_block_root(),
@@ -226,7 +226,7 @@ impl ConfigureEvm for TempoEvmConfig {
             },
             general_gas_limit: block.header().general_gas_limit,
             shared_gas_limit: block.header().gas_limit()
-                / magnus_consensus::TEMPO_SHARED_GAS_DIVISOR,
+                / magnus_consensus::MAGNUS_SHARED_GAS_DIVISOR,
             // Not available when we only have a block body.
             validator_set: None,
             consensus_context: block.header().consensus_context,
@@ -236,10 +236,10 @@ impl ConfigureEvm for TempoEvmConfig {
 
     fn context_for_next_block(
         &self,
-        parent: &SealedHeader<TempoHeader>,
+        parent: &SealedHeader<MagnusHeader>,
         attributes: Self::NextBlockEnvCtx,
-    ) -> Result<TempoBlockExecutionCtx<'_>, Self::Error> {
-        Ok(TempoBlockExecutionCtx {
+    ) -> Result<MagnusBlockExecutionCtx<'_>, Self::Error> {
+        Ok(MagnusBlockExecutionCtx {
             inner: EthBlockExecutionCtx {
                 parent_hash: parent.hash(),
                 parent_beacon_block_root: attributes.parent_beacon_block_root,
@@ -253,7 +253,7 @@ impl ConfigureEvm for TempoEvmConfig {
             },
             general_gas_limit: attributes.general_gas_limit,
             shared_gas_limit: attributes.inner.gas_limit
-                / magnus_consensus::TEMPO_SHARED_GAS_DIVISOR,
+                / magnus_consensus::MAGNUS_SHARED_GAS_DIVISOR,
             // Fine to not validate during block building.
             validator_set: None,
             consensus_context: attributes.consensus_context,
@@ -271,26 +271,26 @@ mod tests {
     use alloy_rlp::{Encodable, bytes::BytesMut};
     use reth_evm::{ConfigureEvm, NextBlockEnvAttributes};
     use std::collections::HashMap;
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_primitives::{
         BlockBody, SubBlockMetadata, subblock::SubBlockVersion,
-        transaction::envelope::TEMPO_SYSTEM_TX_SIGNATURE,
+        transaction::envelope::MAGNUS_SYSTEM_TX_SIGNATURE,
     };
 
     #[test]
     fn test_evm_config_can_query_tempo_hardforks() {
-        let evm_config = TempoEvmConfig::new(test_chainspec());
+        let evm_config = MagnusEvmConfig::new(test_chainspec());
         let activation = evm_config
             .chain_spec()
-            .magnus_fork_activation(TempoHardfork::Genesis);
+            .magnus_fork_activation(MagnusHardfork::Genesis);
         assert_eq!(activation, reth_chainspec::ForkCondition::Timestamp(0));
     }
 
     #[test]
     fn test_evm_env() {
-        let evm_config = TempoEvmConfig::new(test_chainspec());
+        let evm_config = MagnusEvmConfig::new(test_chainspec());
 
-        let header = TempoHeader {
+        let header = MagnusHeader {
             inner: alloy_consensus::Header {
                 number: 100,
                 timestamp: 1000,
@@ -332,9 +332,9 @@ mod tests {
 
         // DEV chainspec has T1 activated at timestamp 0
         let chainspec = DEV.clone();
-        let evm_config = TempoEvmConfig::new(chainspec.clone());
+        let evm_config = MagnusEvmConfig::new(chainspec.clone());
 
-        let header = TempoHeader {
+        let header = MagnusHeader {
             inner: alloy_consensus::Header {
                 number: 100,
                 timestamp: 1000, // After T1 activation
@@ -356,16 +356,16 @@ mod tests {
         // Verify TIP-1000 gas limit cap is set
         assert_eq!(
             evm_env.cfg_env.tx_gas_limit_cap,
-            Some(magnus_chainspec::spec::TEMPO_T1_TX_GAS_LIMIT_CAP),
+            Some(magnus_chainspec::spec::MAGNUS_T1_TX_GAS_LIMIT_CAP),
             "TIP-1000 requires 30M gas limit cap for T1 hardfork"
         );
     }
 
     #[test]
     fn test_next_evm_env() {
-        let evm_config = TempoEvmConfig::new(test_chainspec());
+        let evm_config = MagnusEvmConfig::new(test_chainspec());
 
-        let parent = TempoHeader {
+        let parent = MagnusHeader {
             inner: alloy_consensus::Header {
                 number: 99,
                 timestamp: 900,
@@ -379,7 +379,7 @@ mod tests {
             ..Default::default()
         };
 
-        let attributes = TempoNextBlockEnvAttributes {
+        let attributes = MagnusNextBlockEnvAttributes {
             inner: NextBlockEnvAttributes {
                 timestamp: 1000,
                 suggested_fee_recipient: alloy_primitives::Address::repeat_byte(0x02),
@@ -419,7 +419,7 @@ mod tests {
     #[test]
     fn test_context_for_block() {
         let chainspec = test_chainspec();
-        let evm_config = TempoEvmConfig::new(chainspec.clone());
+        let evm_config = MagnusEvmConfig::new(chainspec.clone());
 
         // Create subblock metadata
         let validator_key = B256::repeat_byte(0x01);
@@ -437,7 +437,7 @@ mod tests {
         metadata.encode(&mut input);
         input.extend_from_slice(&U256::from(block_number).to_be_bytes::<32>());
 
-        let system_tx = TempoTxEnvelope::Legacy(Signed::new_unhashed(
+        let system_tx = MagnusTxEnvelope::Legacy(Signed::new_unhashed(
             TxLegacy {
                 chain_id: Some(reth_chainspec::EthChainSpec::chain(&*chainspec).id()),
                 nonce: 0,
@@ -447,10 +447,10 @@ mod tests {
                 value: U256::ZERO,
                 input: input.freeze().into(),
             },
-            TEMPO_SYSTEM_TX_SIGNATURE,
+            MAGNUS_SYSTEM_TX_SIGNATURE,
         ));
 
-        let header = TempoHeader {
+        let header = MagnusHeader {
             inner: alloy_consensus::Header {
                 number: block_number,
                 timestamp: 1000,
@@ -493,10 +493,10 @@ mod tests {
 
     #[test]
     fn test_context_for_block_no_subblock_metadata() {
-        let evm_config = TempoEvmConfig::new(test_chainspec());
+        let evm_config = MagnusEvmConfig::new(test_chainspec());
 
         // Create a block without subblock metadata system tx
-        let regular_tx = TempoTxEnvelope::Legacy(Signed::new_unhashed(
+        let regular_tx = MagnusTxEnvelope::Legacy(Signed::new_unhashed(
             TxLegacy {
                 chain_id: Some(1),
                 nonce: 0,
@@ -509,7 +509,7 @@ mod tests {
             Signature::test_signature(),
         ));
 
-        let header = TempoHeader {
+        let header = MagnusHeader {
             inner: alloy_consensus::Header {
                 number: 1,
                 timestamp: 1000,
@@ -537,15 +537,15 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            TempoEvmError::NoSubblockMetadataFound
+            MagnusEvmError::NoSubblockMetadataFound
         ));
     }
 
     #[test]
     fn test_context_for_next_block() {
-        let evm_config = TempoEvmConfig::new(test_chainspec());
+        let evm_config = MagnusEvmConfig::new(test_chainspec());
 
-        let parent_header = TempoHeader {
+        let parent_header = MagnusHeader {
             inner: alloy_consensus::Header {
                 number: 99,
                 timestamp: 900,
@@ -564,7 +564,7 @@ mod tests {
         let partial_key = PartialValidatorKey::from_slice(&[0x01; 15]);
         subblock_fee_recipients.insert(partial_key, fee_recipient);
 
-        let attributes = TempoNextBlockEnvAttributes {
+        let attributes = MagnusNextBlockEnvAttributes {
             inner: NextBlockEnvAttributes {
                 timestamp: 1000,
                 suggested_fee_recipient: alloy_primitives::Address::repeat_byte(0x03),

@@ -14,7 +14,7 @@ mod state;
 use commonware_consensus::types::FixedEpocher;
 use commonware_runtime::Spawner;
 use futures::channel::mpsc;
-use magnus_node::TempoFullNode;
+use magnus_node::MagnusFullNode;
 
 use crate::alias::marshal;
 pub(crate) use actor::Actor;
@@ -26,7 +26,7 @@ pub(crate) fn init<TContext: Spawner>(
     context: TContext,
     marshal: marshal::Mailbox,
     epocher: FixedEpocher,
-    execution_node: TempoFullNode,
+    execution_node: MagnusFullNode,
     state: FeedStateHandle,
 ) -> (Actor<TContext>, Mailbox) {
     let (tx, rx) = mpsc::unbounded();

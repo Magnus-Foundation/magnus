@@ -11,18 +11,18 @@ use alloy_network::{Ethereum, ReceiptResponse, TxSignerSync};
 use alloy_primitives::Bytes;
 use alloy_rpc_types_eth::TransactionRequest;
 use reth_node_api::BuiltPayload;
-use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 use magnus_contracts::precompiles::{IFeeManager, IRolesAuth, ITIP20, ITIP20Factory, ITIPFeeAMM};
-use magnus_node::node::TempoNode;
+use magnus_node::node::MagnusNode;
 use magnus_precompiles::{
     PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, TIP20_FACTORY_ADDRESS,
     tip_fee_manager::amm::compute_amount_out, tip20::ISSUER_ROLE,
 };
-use magnus_primitives::{TempoTxEnvelope, transaction::calc_gas_balance_spending};
+use magnus_primitives::{MagnusTxEnvelope, transaction::calc_gas_balance_spending};
 
 /// Helper to setup a test token by manually injecting transactions and advancing blocks
 async fn setup_token_manual<P>(
-    node: &mut reth_e2e_test_utils::NodeHelperType<TempoNode>,
+    node: &mut reth_e2e_test_utils::NodeHelperType<MagnusNode>,
     provider: &P,
     sender: &alloy::signers::local::PrivateKeySigner,
     chain_id: u64,
@@ -41,10 +41,10 @@ where
             tx_req.nonce = Some(nonce);
             tx_req.chain_id = Some(chain_id);
             tx_req.gas = tx_req.gas.or(Some(5_000_000));
-            tx_req.max_fee_per_gas = tx_req.max_fee_per_gas.or(Some(TEMPO_T1_BASE_FEE as u128));
+            tx_req.max_fee_per_gas = tx_req.max_fee_per_gas.or(Some(MAGNUS_T1_BASE_FEE as u128));
             tx_req.max_priority_fee_per_gas = tx_req
                 .max_priority_fee_per_gas
-                .or(Some(TEMPO_T1_BASE_FEE as u128));
+                .or(Some(MAGNUS_T1_BASE_FEE as u128));
 
             let signed = <TransactionRequest as NetworkTransactionBuilder<Ethereum>>::build(
                 tx_req,
@@ -101,7 +101,7 @@ where
 }
 
 /// Helper to extract user transactions (non-system transactions)
-fn extract_user_txs(all_transactions: Vec<TempoTxEnvelope>) -> Vec<TempoTxEnvelope> {
+fn extract_user_txs(all_transactions: Vec<MagnusTxEnvelope>) -> Vec<MagnusTxEnvelope> {
     all_transactions
         .into_iter()
         .filter(|tx| tx.gas_limit() > 0)
@@ -110,7 +110,7 @@ fn extract_user_txs(all_transactions: Vec<TempoTxEnvelope>) -> Vec<TempoTxEnvelo
 
 /// Helper to inject non-payment transactions from multiple wallets
 async fn inject_non_payment_txs(
-    node: &mut reth_e2e_test_utils::NodeHelperType<TempoNode>,
+    node: &mut reth_e2e_test_utils::NodeHelperType<MagnusNode>,
     chain_id: u64,
     count: usize,
     start_index: u32,
@@ -123,8 +123,8 @@ async fn inject_non_payment_txs(
             chain_id,
             gas_limit: 2_000_000,
             to: Address::ZERO.into(),
-            max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
-            max_priority_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+            max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
+            max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
             ..Default::default()
         };
         let signature = wallet_signer.sign_transaction_sync(&mut tx).unwrap();
@@ -142,7 +142,7 @@ async fn inject_non_payment_txs(
 
 /// Helper to inject payment transactions from a single sender
 async fn inject_payment_txs_from_sender<P>(
-    node: &mut reth_e2e_test_utils::NodeHelperType<TempoNode>,
+    node: &mut reth_e2e_test_utils::NodeHelperType<MagnusNode>,
     provider: &P,
     sender: &alloy::signers::local::PrivateKeySigner,
     token: &ITIP20::ITIP20Instance<P>,
@@ -161,8 +161,8 @@ where
         tx_request.nonce = Some(current_nonce + i as u64);
         tx_request.chain_id = Some(chain_id);
         tx_request.gas = Some(1_000_000);
-        tx_request.max_fee_per_gas = Some(TEMPO_T1_BASE_FEE as u128);
-        tx_request.max_priority_fee_per_gas = Some(TEMPO_T1_BASE_FEE as u128);
+        tx_request.max_fee_per_gas = Some(MAGNUS_T1_BASE_FEE as u128);
+        tx_request.max_priority_fee_per_gas = Some(MAGNUS_T1_BASE_FEE as u128);
 
         let signed_tx =
             <TransactionRequest as NetworkTransactionBuilder<Ethereum>>::build(tx_request, &signer)
@@ -174,7 +174,7 @@ where
 }
 
 async fn sign_and_inject(
-    node: &mut reth_e2e_test_utils::NodeHelperType<TempoNode>,
+    node: &mut reth_e2e_test_utils::NodeHelperType<MagnusNode>,
     signer: &alloy::signers::local::PrivateKeySigner,
     chain_id: u64,
     mut tx_request: TransactionRequest,
@@ -186,10 +186,10 @@ async fn sign_and_inject(
     tx_request.gas = tx_request.gas.or(Some(5_000_000));
     tx_request.max_fee_per_gas = tx_request
         .max_fee_per_gas
-        .or(Some(TEMPO_T1_BASE_FEE as u128));
+        .or(Some(MAGNUS_T1_BASE_FEE as u128));
     tx_request.max_priority_fee_per_gas = tx_request
         .max_priority_fee_per_gas
-        .or(Some(TEMPO_T1_BASE_FEE as u128));
+        .or(Some(MAGNUS_T1_BASE_FEE as u128));
 
     let signed_tx = <TransactionRequest as NetworkTransactionBuilder<Ethereum>>::build(
         tx_request,
@@ -203,7 +203,7 @@ async fn sign_and_inject(
 }
 
 /// Helper to count payment and non-payment transactions
-fn count_transaction_types(transactions: &[TempoTxEnvelope]) -> (usize, usize) {
+fn count_transaction_types(transactions: &[MagnusTxEnvelope]) -> (usize, usize) {
     let payment_count = transactions.iter().filter(|tx| tx.is_payment_v2()).count();
     (payment_count, transactions.len() - payment_count)
 }
@@ -390,8 +390,8 @@ async fn test_block_building_only_non_payment_txs() -> eyre::Result<()> {
                 chain_id,
                 gas_limit: 2_000_000,
                 to: Address::ZERO.into(),
-                max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
-                max_priority_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+                max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
+                max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
                 ..Default::default()
             };
             let signature = wallet_signer.sign_transaction_sync(&mut tx).unwrap();

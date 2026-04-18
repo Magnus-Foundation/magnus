@@ -38,7 +38,7 @@ use rand_core::CryptoRngCore;
 use reth_ethereum::{chainspec::EthChainSpec, rpc::eth::primitives::BlockNumHash};
 use reth_provider::{BlockIdReader as _, HeaderProvider as _};
 use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
-use magnus_node::TempoFullNode;
+use magnus_node::MagnusFullNode;
 use magnus_precompiles::validator_config_v2::ValidatorConfigV2;
 use tracing::{Level, Span, debug, info, info_span, instrument, warn, warn_span};
 
@@ -1249,7 +1249,7 @@ where
 #[instrument(skip_all, err)]
 async fn read_initial_state_and_set_floor<TContext>(
     context: &mut TContext,
-    node: &TempoFullNode,
+    node: &MagnusFullNode,
     share: Option<Share>,
     epoch_strategy: &FixedEpocher,
     marshal: &mut crate::alias::marshal::Mailbox,
@@ -1587,7 +1587,7 @@ fn read_dealer_log(
 /// available then it cannot propose or verify a block.
 #[instrument(skip_all, fields(%hash), err(level = Level::WARN))]
 fn determine_next_players_at_hash(
-    node: &TempoFullNode,
+    node: &MagnusFullNode,
     hash: B256,
 ) -> eyre::Result<ordered::Set<PublicKey>> {
     let next_players =
@@ -1617,7 +1617,7 @@ fn determine_next_players_at_hash(
     err(level = Level::WARN)
     ret,
 )]
-pub(crate) fn read_re_dkg_epoch(node: &TempoFullNode, digest: Digest) -> eyre::Result<u64> {
+pub(crate) fn read_re_dkg_epoch(node: &MagnusFullNode, digest: Digest) -> eyre::Result<u64> {
     read_validator_config_at_block_hash(node, digest.0, |config: &ValidatorConfigV2| {
         config
             .get_next_network_identity_rotation_epoch()

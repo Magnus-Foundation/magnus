@@ -4,10 +4,10 @@ use alloy::{
     signers::local::MnemonicBuilder,
     sol_types::SolEvent,
 };
-use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 use magnus_contracts::precompiles::{ITIP20, ITIP20Factory};
 use magnus_precompiles::{PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS};
-use magnus_primitives::TempoAddressExt;
+use magnus_primitives::MagnusAddressExt;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_create_token() -> eyre::Result<()> {
@@ -39,7 +39,7 @@ async fn test_create_token() -> eyre::Result<()> {
             caller,
             salt,
         )
-        .gas_price(TEMPO_T1_BASE_FEE as u128)
+        .gas_price(MAGNUS_T1_BASE_FEE as u128)
         .gas(5_000_000)
         .send()
         .await?

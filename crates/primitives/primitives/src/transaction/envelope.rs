@@ -1,5 +1,5 @@
 use super::tt_signed::AASigned;
-use crate::{TempoTransaction, subblock::PartialValidatorKey};
+use crate::{MagnusTransaction, subblock::PartialValidatorKey};
 use alloy_consensus::{
     EthereumTxEnvelope, SignableTransaction, Signed, Transaction, TxEip1559, TxEip2930, TxEip7702,
     TxLegacy, TxType, TypedTransaction,
@@ -16,10 +16,10 @@ use magnus_contracts::precompiles::ITIP20;
 pub const TIP20_PAYMENT_PREFIX: [u8; 12] = hex!("20C000000000000000000000");
 
 /// Fake signature for Tempo system transactions.
-pub const TEMPO_SYSTEM_TX_SIGNATURE: Signature = Signature::new(U256::ZERO, U256::ZERO, false);
+pub const MAGNUS_SYSTEM_TX_SIGNATURE: Signature = Signature::new(U256::ZERO, U256::ZERO, false);
 
 /// Fake sender for Tempo system transactions.
-pub const TEMPO_SYSTEM_TX_SENDER: Address = Address::ZERO;
+pub const MAGNUS_SYSTEM_TX_SENDER: Address = Address::ZERO;
 
 /// Tempo transaction envelope containing all supported transaction types
 ///
@@ -31,14 +31,14 @@ pub const TEMPO_SYSTEM_TX_SENDER: Address = Address::ZERO;
 /// - Tempo transactions
 #[derive(Clone, Debug, alloy_consensus::TransactionEnvelope)]
 #[envelope(
-    tx_type_name = TempoTxType,
-    typed = TempoTypedTransaction,
+    tx_type_name = MagnusTxType,
+    typed = MagnusTypedTransaction,
     arbitrary_cfg(any(test, feature = "arbitrary")),
     serde_cfg(feature = "serde")
 )]
 #[cfg_attr(test, reth_codecs::add_arbitrary_tests(compact, rlp))]
 #[allow(clippy::large_enum_variant)]
-pub enum TempoTxEnvelope {
+pub enum MagnusTxEnvelope {
     /// Legacy transaction (type 0x00)
     #[envelope(ty = 0)]
     Legacy(Signed<TxLegacy>),
@@ -56,11 +56,11 @@ pub enum TempoTxEnvelope {
     Eip7702(Signed<TxEip7702>),
 
     /// Tempo transaction (type 0x76)
-    #[envelope(ty = 0x76, typed = TempoTransaction)]
+    #[envelope(ty = 0x76, typed = MagnusTransaction)]
     AA(AASigned),
 }
 
-impl TryFrom<TxType> for TempoTxType {
+impl TryFrom<TxType> for MagnusTxType {
     type Error = UnsupportedTransactionType<TxType>;
 
     fn try_from(value: TxType) -> Result<Self, Self::Error> {
@@ -74,29 +74,29 @@ impl TryFrom<TxType> for TempoTxType {
     }
 }
 
-impl TryFrom<TempoTxType> for TxType {
-    type Error = UnsupportedTransactionType<TempoTxType>;
+impl TryFrom<MagnusTxType> for TxType {
+    type Error = UnsupportedTransactionType<MagnusTxType>;
 
-    fn try_from(value: TempoTxType) -> Result<Self, Self::Error> {
+    fn try_from(value: MagnusTxType) -> Result<Self, Self::Error> {
         Ok(match value {
-            TempoTxType::Legacy => Self::Legacy,
-            TempoTxType::Eip2930 => Self::Eip2930,
-            TempoTxType::Eip1559 => Self::Eip1559,
-            TempoTxType::Eip7702 => Self::Eip7702,
-            TempoTxType::AA => {
-                return Err(UnsupportedTransactionType::new(TempoTxType::AA));
+            MagnusTxType::Legacy => Self::Legacy,
+            MagnusTxType::Eip2930 => Self::Eip2930,
+            MagnusTxType::Eip1559 => Self::Eip1559,
+            MagnusTxType::Eip7702 => Self::Eip7702,
+            MagnusTxType::AA => {
+                return Err(UnsupportedTransactionType::new(MagnusTxType::AA));
             }
         })
     }
 }
 
-impl alloy_consensus::InMemorySize for TempoTxType {
+impl alloy_consensus::InMemorySize for MagnusTxType {
     fn size(&self) -> usize {
         size_of::<Self>()
     }
 }
 
-impl TempoTxEnvelope {
+impl MagnusTxEnvelope {
     /// Returns the fee token preference if this is a fee token transaction
     pub fn fee_token(&self) -> Option<Address> {
         match self {
@@ -113,14 +113,14 @@ impl TempoTxEnvelope {
         }
     }
 
-    /// Return the [`TempoTxType`] of the inner txn.
-    pub const fn tx_type(&self) -> TempoTxType {
+    /// Return the [`MagnusTxType`] of the inner txn.
+    pub const fn tx_type(&self) -> MagnusTxType {
         match self {
-            Self::Legacy(_) => TempoTxType::Legacy,
-            Self::Eip2930(_) => TempoTxType::Eip2930,
-            Self::Eip1559(_) => TempoTxType::Eip1559,
-            Self::Eip7702(_) => TempoTxType::Eip7702,
-            Self::AA(_) => TempoTxType::AA,
+            Self::Legacy(_) => MagnusTxType::Legacy,
+            Self::Eip2930(_) => MagnusTxType::Eip2930,
+            Self::Eip1559(_) => MagnusTxType::Eip1559,
+            Self::Eip7702(_) => MagnusTxType::Eip7702,
+            Self::AA(_) => MagnusTxType::AA,
         }
     }
 
@@ -140,7 +140,7 @@ impl TempoTxEnvelope {
     /// Returns the Tempo authorization list if present (for Tempo transactions)
     pub fn magnus_authorization_list(
         &self,
-    ) -> Option<&[crate::transaction::TempoSignedAuthorization]> {
+    ) -> Option<&[crate::transaction::MagnusSignedAuthorization]> {
         match self {
             Self::AA(tx) => Some(&tx.tx().magnus_authorization_list),
             _ => None,
@@ -149,7 +149,7 @@ impl TempoTxEnvelope {
 
     /// Returns true if this is a Tempo system transaction
     pub fn is_system_tx(&self) -> bool {
-        matches!(self, Self::Legacy(tx) if tx.signature() == &TEMPO_SYSTEM_TX_SIGNATURE)
+        matches!(self, Self::Legacy(tx) if tx.signature() == &MAGNUS_SYSTEM_TX_SIGNATURE)
     }
 
     /// Returns true if this is a valid Tempo system transaction, i.e all gas fields and nonce are zero.
@@ -265,12 +265,12 @@ impl TempoTxEnvelope {
     }
 }
 
-impl alloy_consensus::transaction::SignerRecoverable for TempoTxEnvelope {
+impl alloy_consensus::transaction::SignerRecoverable for MagnusTxEnvelope {
     fn recover_signer(
         &self,
     ) -> Result<alloy_primitives::Address, alloy_consensus::crypto::RecoveryError> {
         match self {
-            Self::Legacy(tx) if tx.signature() == &TEMPO_SYSTEM_TX_SIGNATURE => Ok(Address::ZERO),
+            Self::Legacy(tx) if tx.signature() == &MAGNUS_SYSTEM_TX_SIGNATURE => Ok(Address::ZERO),
             Self::Legacy(tx) => alloy_consensus::transaction::SignerRecoverable::recover_signer(tx),
             Self::Eip2930(tx) => {
                 alloy_consensus::transaction::SignerRecoverable::recover_signer(tx)
@@ -289,7 +289,7 @@ impl alloy_consensus::transaction::SignerRecoverable for TempoTxEnvelope {
         &self,
     ) -> Result<alloy_primitives::Address, alloy_consensus::crypto::RecoveryError> {
         match self {
-            Self::Legacy(tx) if tx.signature() == &TEMPO_SYSTEM_TX_SIGNATURE => Ok(Address::ZERO),
+            Self::Legacy(tx) if tx.signature() == &MAGNUS_SYSTEM_TX_SIGNATURE => Ok(Address::ZERO),
             Self::Legacy(tx) => {
                 alloy_consensus::transaction::SignerRecoverable::recover_signer_unchecked(tx)
             }
@@ -309,7 +309,7 @@ impl alloy_consensus::transaction::SignerRecoverable for TempoTxEnvelope {
     }
 }
 
-impl alloy_consensus::transaction::TxHashRef for TempoTxEnvelope {
+impl alloy_consensus::transaction::TxHashRef for MagnusTxEnvelope {
     fn tx_hash(&self) -> &B256 {
         match self {
             Self::Legacy(tx) => tx.hash(),
@@ -321,7 +321,7 @@ impl alloy_consensus::transaction::TxHashRef for TempoTxEnvelope {
     }
 }
 
-impl fmt::Display for TempoTxType {
+impl fmt::Display for MagnusTxType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Legacy => write!(f, "Legacy"),
@@ -333,7 +333,7 @@ impl fmt::Display for TempoTxType {
     }
 }
 
-impl<Eip4844> TryFrom<EthereumTxEnvelope<Eip4844>> for TempoTxEnvelope {
+impl<Eip4844> TryFrom<EthereumTxEnvelope<Eip4844>> for MagnusTxEnvelope {
     type Error = ValueError<EthereumTxEnvelope<Eip4844>>;
 
     fn try_from(value: EthereumTxEnvelope<Eip4844>) -> Result<Self, Self::Error> {
@@ -350,45 +350,45 @@ impl<Eip4844> TryFrom<EthereumTxEnvelope<Eip4844>> for TempoTxEnvelope {
     }
 }
 
-impl From<Signed<TxLegacy>> for TempoTxEnvelope {
+impl From<Signed<TxLegacy>> for MagnusTxEnvelope {
     fn from(value: Signed<TxLegacy>) -> Self {
         Self::Legacy(value)
     }
 }
 
-impl From<Signed<TxEip2930>> for TempoTxEnvelope {
+impl From<Signed<TxEip2930>> for MagnusTxEnvelope {
     fn from(value: Signed<TxEip2930>) -> Self {
         Self::Eip2930(value)
     }
 }
 
-impl From<Signed<TxEip1559>> for TempoTxEnvelope {
+impl From<Signed<TxEip1559>> for MagnusTxEnvelope {
     fn from(value: Signed<TxEip1559>) -> Self {
         Self::Eip1559(value)
     }
 }
 
-impl From<Signed<TxEip7702>> for TempoTxEnvelope {
+impl From<Signed<TxEip7702>> for MagnusTxEnvelope {
     fn from(value: Signed<TxEip7702>) -> Self {
         Self::Eip7702(value)
     }
 }
 
-impl From<AASigned> for TempoTxEnvelope {
+impl From<AASigned> for MagnusTxEnvelope {
     fn from(value: AASigned) -> Self {
         Self::AA(value)
     }
 }
 
-impl From<Signed<TempoTypedTransaction>> for TempoTxEnvelope {
-    fn from(value: Signed<TempoTypedTransaction>) -> Self {
+impl From<Signed<MagnusTypedTransaction>> for MagnusTxEnvelope {
+    fn from(value: Signed<MagnusTypedTransaction>) -> Self {
         let sig = *value.signature();
         let tx = value.strip_signature();
         tx.into_envelope(sig)
     }
 }
 
-impl SignableTransaction<Signature> for TempoTypedTransaction {
+impl SignableTransaction<Signature> for MagnusTypedTransaction {
     fn set_chain_id(&mut self, chain_id: alloy_primitives::ChainId) {
         self.as_dyn_signable_mut().set_chain_id(chain_id);
     }
@@ -414,9 +414,9 @@ impl SignableTransaction<Signature> for TempoTypedTransaction {
     }
 }
 
-impl TempoTypedTransaction {
-    /// Converts this typed transaction into a signed [`TempoTxEnvelope`]
-    pub fn into_envelope(self, sig: Signature) -> TempoTxEnvelope {
+impl MagnusTypedTransaction {
+    /// Converts this typed transaction into a signed [`MagnusTxEnvelope`]
+    pub fn into_envelope(self, sig: Signature) -> MagnusTxEnvelope {
         match self {
             Self::Legacy(tx) => tx.into_signed(sig).into(),
             Self::Eip2930(tx) => tx.into_signed(sig).into(),
@@ -438,7 +438,7 @@ impl TempoTypedTransaction {
     }
 }
 
-impl TryFrom<TypedTransaction> for TempoTypedTransaction {
+impl TryFrom<TypedTransaction> for MagnusTypedTransaction {
     type Error = UnsupportedTransactionType<TxType>;
 
     fn try_from(value: TypedTransaction) -> Result<Self, Self::Error> {
@@ -454,20 +454,20 @@ impl TryFrom<TypedTransaction> for TempoTypedTransaction {
     }
 }
 
-impl From<TempoTxEnvelope> for TempoTypedTransaction {
-    fn from(value: TempoTxEnvelope) -> Self {
+impl From<MagnusTxEnvelope> for MagnusTypedTransaction {
+    fn from(value: MagnusTxEnvelope) -> Self {
         match value {
-            TempoTxEnvelope::Legacy(tx) => Self::Legacy(tx.into_parts().0),
-            TempoTxEnvelope::Eip2930(tx) => Self::Eip2930(tx.into_parts().0),
-            TempoTxEnvelope::Eip1559(tx) => Self::Eip1559(tx.into_parts().0),
-            TempoTxEnvelope::Eip7702(tx) => Self::Eip7702(tx.into_parts().0),
-            TempoTxEnvelope::AA(tx) => Self::AA(tx.into_parts().0),
+            MagnusTxEnvelope::Legacy(tx) => Self::Legacy(tx.into_parts().0),
+            MagnusTxEnvelope::Eip2930(tx) => Self::Eip2930(tx.into_parts().0),
+            MagnusTxEnvelope::Eip1559(tx) => Self::Eip1559(tx.into_parts().0),
+            MagnusTxEnvelope::Eip7702(tx) => Self::Eip7702(tx.into_parts().0),
+            MagnusTxEnvelope::AA(tx) => Self::AA(tx.into_parts().0),
         }
     }
 }
 
-impl From<TempoTransaction> for TempoTypedTransaction {
-    fn from(value: TempoTransaction) -> Self {
+impl From<MagnusTransaction> for MagnusTypedTransaction {
+    fn from(value: MagnusTransaction) -> Self {
         Self::AA(value)
     }
 }
@@ -486,13 +486,13 @@ fn is_tip20_payment(to: Option<&Address>, input: &[u8]) -> bool {
 }
 
 #[cfg(feature = "rpc")]
-impl reth_rpc_convert::SignableTxRequest<TempoTxEnvelope>
+impl reth_rpc_convert::SignableTxRequest<MagnusTxEnvelope>
     for alloy_rpc_types_eth::TransactionRequest
 {
     async fn try_build_and_sign(
         self,
         signer: impl alloy_network::TxSigner<alloy_primitives::Signature> + Send,
-    ) -> Result<TempoTxEnvelope, reth_rpc_convert::SignTxRequestError> {
+    ) -> Result<MagnusTxEnvelope, reth_rpc_convert::SignTxRequestError> {
         reth_rpc_convert::SignableTxRequest::<
             EthereumTxEnvelope<alloy_consensus::TxEip4844>,
         >::try_build_and_sign(self, signer)
@@ -505,8 +505,8 @@ impl reth_rpc_convert::SignableTxRequest<TempoTxEnvelope>
 }
 
 #[cfg(feature = "rpc")]
-impl reth_rpc_convert::TryIntoSimTx<TempoTxEnvelope> for alloy_rpc_types_eth::TransactionRequest {
-    fn try_into_sim_tx(self) -> Result<TempoTxEnvelope, ValueError<Self>> {
+impl reth_rpc_convert::TryIntoSimTx<MagnusTxEnvelope> for alloy_rpc_types_eth::TransactionRequest {
+    fn try_into_sim_tx(self) -> Result<MagnusTxEnvelope, ValueError<Self>> {
         let tx = self.clone().build_typed_simulate_transaction()?;
         tx.try_into()
             .map_err(|_| ValueError::new_static(self, "Invalid transaction request"))
@@ -517,7 +517,7 @@ impl reth_rpc_convert::TryIntoSimTx<TempoTxEnvelope> for alloy_rpc_types_eth::Tr
 mod tests {
     use super::*;
     use crate::transaction::{
-        Call, TempoSignedAuthorization, TempoTransaction,
+        Call, MagnusSignedAuthorization, MagnusTransaction,
         key_authorization::{KeyAuthorization, SignedKeyAuthorization},
         tt_signature::PrimitiveSignature,
     };
@@ -549,8 +549,8 @@ mod tests {
     }
 
     /// Returns one envelope per tx type, all targeting `PAYMENT_TKN` with the given calldata.
-    fn payment_envelopes(calldata: Bytes) -> [TempoTxEnvelope; 5] {
-        let legacy = TempoTxEnvelope::Legacy(Signed::new_unhashed(
+    fn payment_envelopes(calldata: Bytes) -> [MagnusTxEnvelope; 5] {
+        let legacy = MagnusTxEnvelope::Legacy(Signed::new_unhashed(
             TxLegacy {
                 to: TxKind::Call(PAYMENT_TKN),
                 input: calldata.clone(),
@@ -565,21 +565,21 @@ mod tests {
 
     /// Like [`payment_envelopes`], but with `access_list` set. Supported by: Eip2930, Eip1559, Eip7702, AA.
     #[rustfmt::skip]
-    fn payment_envelopes_with_access_list(calldata: Bytes, access_list: AccessList) -> [TempoTxEnvelope; 4] {
+    fn payment_envelopes_with_access_list(calldata: Bytes, access_list: AccessList) -> [MagnusTxEnvelope; 4] {
         [
-            TempoTxEnvelope::Eip2930(Signed::new_unhashed(
+            MagnusTxEnvelope::Eip2930(Signed::new_unhashed(
                 TxEip2930 { to: TxKind::Call(PAYMENT_TKN), input: calldata.clone(), access_list: access_list.clone(), ..Default::default() },
                 Signature::test_signature(),
             )),
-            TempoTxEnvelope::Eip1559(Signed::new_unhashed(
+            MagnusTxEnvelope::Eip1559(Signed::new_unhashed(
                 TxEip1559 { to: TxKind::Call(PAYMENT_TKN), input: calldata.clone(), access_list: access_list.clone(), ..Default::default() },
                 Signature::test_signature(),
             )),
-            TempoTxEnvelope::Eip7702(Signed::new_unhashed(
+            MagnusTxEnvelope::Eip7702(Signed::new_unhashed(
                 TxEip7702 { to: PAYMENT_TKN, input: calldata.clone(), access_list: access_list.clone(), ..Default::default() },
                 Signature::test_signature(),
             )),
-            TempoTxEnvelope::AA(TempoTransaction {
+            MagnusTxEnvelope::AA(MagnusTransaction {
                 fee_token: Some(PAYMENT_TKN),
                 calls: vec![Call { to: TxKind::Call(PAYMENT_TKN), value: U256::ZERO, input: calldata }],
                 access_list,
@@ -597,7 +597,7 @@ mod tests {
             false,
         );
         let signed = Signed::new_unhashed(legacy_tx, signature);
-        let envelope = TempoTxEnvelope::Legacy(signed);
+        let envelope = MagnusTxEnvelope::Legacy(signed);
 
         assert!(!envelope.is_fee_token());
         assert_eq!(envelope.fee_token(), None);
@@ -614,7 +614,7 @@ mod tests {
             ..Default::default()
         };
         let signed = Signed::new_unhashed(tx, Signature::test_signature());
-        let envelope = TempoTxEnvelope::Legacy(signed);
+        let envelope = MagnusTxEnvelope::Legacy(signed);
 
         assert!(envelope.is_payment_v1());
     }
@@ -628,18 +628,18 @@ mod tests {
             ..Default::default()
         };
         let signed = Signed::new_unhashed(tx, Signature::test_signature());
-        let envelope = TempoTxEnvelope::Legacy(signed);
+        let envelope = MagnusTxEnvelope::Legacy(signed);
 
         assert!(!envelope.is_payment_v1());
     }
 
-    fn create_aa_envelope(call: Call) -> TempoTxEnvelope {
-        let tx = TempoTransaction {
+    fn create_aa_envelope(call: Call) -> MagnusTxEnvelope {
+        let tx = MagnusTransaction {
             fee_token: Some(PAYMENT_TKN),
             calls: vec![call],
             ..Default::default()
         };
-        TempoTxEnvelope::AA(tx.into_signed(Signature::test_signature().into()))
+        MagnusTxEnvelope::AA(tx.into_signed(Signature::test_signature().into()))
     }
 
     #[test]
@@ -711,7 +711,7 @@ mod tests {
             ..Default::default()
         };
         let envelope =
-            TempoTxEnvelope::Eip2930(Signed::new_unhashed(tx, Signature::test_signature()));
+            MagnusTxEnvelope::Eip2930(Signed::new_unhashed(tx, Signature::test_signature()));
         assert!(envelope.is_payment_v1());
 
         // Eip2930 non-payment
@@ -720,7 +720,7 @@ mod tests {
             ..Default::default()
         };
         let envelope =
-            TempoTxEnvelope::Eip2930(Signed::new_unhashed(tx, Signature::test_signature()));
+            MagnusTxEnvelope::Eip2930(Signed::new_unhashed(tx, Signature::test_signature()));
         assert!(!envelope.is_payment_v1());
 
         // Eip1559 payment
@@ -729,7 +729,7 @@ mod tests {
             ..Default::default()
         };
         let envelope =
-            TempoTxEnvelope::Eip1559(Signed::new_unhashed(tx, Signature::test_signature()));
+            MagnusTxEnvelope::Eip1559(Signed::new_unhashed(tx, Signature::test_signature()));
         assert!(envelope.is_payment_v1());
 
         // Eip1559 non-payment
@@ -738,7 +738,7 @@ mod tests {
             ..Default::default()
         };
         let envelope =
-            TempoTxEnvelope::Eip1559(Signed::new_unhashed(tx, Signature::test_signature()));
+            MagnusTxEnvelope::Eip1559(Signed::new_unhashed(tx, Signature::test_signature()));
         assert!(!envelope.is_payment_v1());
 
         // Eip7702 payment (note: Eip7702 has direct `to` address, not TxKind)
@@ -747,7 +747,7 @@ mod tests {
             ..Default::default()
         };
         let envelope =
-            TempoTxEnvelope::Eip7702(Signed::new_unhashed(tx, Signature::test_signature()));
+            MagnusTxEnvelope::Eip7702(Signed::new_unhashed(tx, Signature::test_signature()));
         assert!(envelope.is_payment_v1());
 
         // Eip7702 non-payment
@@ -756,7 +756,7 @@ mod tests {
             ..Default::default()
         };
         let envelope =
-            TempoTxEnvelope::Eip7702(Signed::new_unhashed(tx, Signature::test_signature()));
+            MagnusTxEnvelope::Eip7702(Signed::new_unhashed(tx, Signature::test_signature()));
         assert!(!envelope.is_payment_v1());
     }
 
@@ -804,12 +804,12 @@ mod tests {
 
     #[test]
     fn test_payment_v2_aa_empty_calls() {
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             fee_token: Some(PAYMENT_TKN),
             calls: vec![],
             ..Default::default()
         };
-        let envelope = TempoTxEnvelope::AA(tx.into_signed(Signature::test_signature().into()));
+        let envelope = MagnusTxEnvelope::AA(tx.into_signed(Signature::test_signature().into()));
         assert!(
             !envelope.is_payment_v2(),
             "AA with empty calls should not be V2 payment"
@@ -839,7 +839,7 @@ mod tests {
             ..Default::default()
         };
         let envelope =
-            TempoTxEnvelope::Eip7702(Signed::new_unhashed(tx, Signature::test_signature()));
+            MagnusTxEnvelope::Eip7702(Signed::new_unhashed(tx, Signature::test_signature()));
         assert!(
             envelope.is_payment_v1(),
             "V1 ignores authorization_list (backwards compat)"
@@ -857,7 +857,7 @@ mod tests {
             amount: U256::from(1),
         }
         .abi_encode();
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             fee_token: Some(PAYMENT_TKN),
             calls: vec![Call {
                 to: TxKind::Call(PAYMENT_TKN),
@@ -877,7 +877,7 @@ mod tests {
             }),
             ..Default::default()
         };
-        let envelope = TempoTxEnvelope::AA(tx.into_signed(Signature::test_signature().into()));
+        let envelope = MagnusTxEnvelope::AA(tx.into_signed(Signature::test_signature().into()));
         assert!(
             envelope.is_payment_v1(),
             "V1 ignores side-effect fields (backwards compat)"
@@ -895,14 +895,14 @@ mod tests {
             amount: U256::from(1),
         }
         .abi_encode();
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             fee_token: Some(PAYMENT_TKN),
             calls: vec![Call {
                 to: TxKind::Call(PAYMENT_TKN),
                 value: U256::ZERO,
                 input: Bytes::from(calldata),
             }],
-            magnus_authorization_list: vec![TempoSignedAuthorization::new_unchecked(
+            magnus_authorization_list: vec![MagnusSignedAuthorization::new_unchecked(
                 alloy_eips::eip7702::Authorization {
                     chain_id: U256::from(1),
                     address: Address::random(),
@@ -912,7 +912,7 @@ mod tests {
             )],
             ..Default::default()
         };
-        let envelope = TempoTxEnvelope::AA(tx.into_signed(Signature::test_signature().into()));
+        let envelope = MagnusTxEnvelope::AA(tx.into_signed(Signature::test_signature().into()));
         assert!(
             envelope.is_payment_v1(),
             "V1 ignores side-effect fields (backwards compat)"
@@ -959,7 +959,7 @@ mod tests {
             input: Bytes::new(),
         };
         let system_tx =
-            TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, TEMPO_SYSTEM_TX_SIGNATURE));
+            MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, MAGNUS_SYSTEM_TX_SIGNATURE));
 
         assert!(system_tx.is_system_tx(), "Should detect system signature");
         assert!(
@@ -987,7 +987,7 @@ mod tests {
             gas_limit: 1, // non-zero
             ..Default::default()
         };
-        let envelope = TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, TEMPO_SYSTEM_TX_SIGNATURE));
+        let envelope = MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, MAGNUS_SYSTEM_TX_SIGNATURE));
         assert!(
             !envelope.is_valid_system_tx(chain_id),
             "Non-zero gas_limit should fail"
@@ -999,7 +999,7 @@ mod tests {
             value: U256::from(1),
             ..Default::default()
         };
-        let envelope = TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, TEMPO_SYSTEM_TX_SIGNATURE));
+        let envelope = MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, MAGNUS_SYSTEM_TX_SIGNATURE));
         assert!(
             !envelope.is_valid_system_tx(chain_id),
             "Non-zero value should fail"
@@ -1011,7 +1011,7 @@ mod tests {
             nonce: 1,
             ..Default::default()
         };
-        let envelope = TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, TEMPO_SYSTEM_TX_SIGNATURE));
+        let envelope = MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, MAGNUS_SYSTEM_TX_SIGNATURE));
         assert!(
             !envelope.is_valid_system_tx(chain_id),
             "Non-zero nonce should fail"
@@ -1020,7 +1020,7 @@ mod tests {
         // Non-system tx with regular signature should recover normally
         let tx = TxLegacy::default();
         let regular_tx =
-            TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, Signature::test_signature()));
+            MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, Signature::test_signature()));
         assert!(
             !regular_tx.is_system_tx(),
             "Regular tx should not be system tx"
@@ -1063,7 +1063,7 @@ mod tests {
             Signed::new_unhashed(eip4844_tx, Signature::test_signature()),
         );
 
-        let result = TempoTxEnvelope::try_from(eth_envelope);
+        let result = MagnusTxEnvelope::try_from(eth_envelope);
         assert!(result.is_err(), "EIP-4844 should be rejected");
 
         // Other types should be accepted
@@ -1071,34 +1071,34 @@ mod tests {
         let eth_envelope: EthereumTxEnvelope<TxEip4844> = EthereumTxEnvelope::Legacy(
             Signed::new_unhashed(legacy_tx, Signature::test_signature()),
         );
-        assert!(TempoTxEnvelope::try_from(eth_envelope).is_ok());
+        assert!(MagnusTxEnvelope::try_from(eth_envelope).is_ok());
     }
 
     #[test]
     fn test_tx_type_conversions() {
-        // TxType -> TempoTxType: EIP-4844 rejected
-        assert!(TempoTxType::try_from(TxType::Legacy).is_ok());
-        assert!(TempoTxType::try_from(TxType::Eip2930).is_ok());
-        assert!(TempoTxType::try_from(TxType::Eip1559).is_ok());
-        assert!(TempoTxType::try_from(TxType::Eip7702).is_ok());
-        assert!(TempoTxType::try_from(TxType::Eip4844).is_err());
+        // TxType -> MagnusTxType: EIP-4844 rejected
+        assert!(MagnusTxType::try_from(TxType::Legacy).is_ok());
+        assert!(MagnusTxType::try_from(TxType::Eip2930).is_ok());
+        assert!(MagnusTxType::try_from(TxType::Eip1559).is_ok());
+        assert!(MagnusTxType::try_from(TxType::Eip7702).is_ok());
+        assert!(MagnusTxType::try_from(TxType::Eip4844).is_err());
 
-        // TempoTxType -> TxType: AA rejected
-        assert!(TxType::try_from(TempoTxType::Legacy).is_ok());
-        assert!(TxType::try_from(TempoTxType::Eip2930).is_ok());
-        assert!(TxType::try_from(TempoTxType::Eip1559).is_ok());
-        assert!(TxType::try_from(TempoTxType::Eip7702).is_ok());
-        assert!(TxType::try_from(TempoTxType::AA).is_err());
+        // MagnusTxType -> TxType: AA rejected
+        assert!(TxType::try_from(MagnusTxType::Legacy).is_ok());
+        assert!(TxType::try_from(MagnusTxType::Eip2930).is_ok());
+        assert!(TxType::try_from(MagnusTxType::Eip1559).is_ok());
+        assert!(TxType::try_from(MagnusTxType::Eip7702).is_ok());
+        assert!(TxType::try_from(MagnusTxType::AA).is_err());
     }
 
     #[test]
     fn test_payment_v2_rejects_aa_with_empty_calls() {
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             fee_token: Some(PAYMENT_TKN),
             calls: vec![],
             ..Default::default()
         };
-        let envelope = TempoTxEnvelope::AA(tx.into_signed(Signature::test_signature().into()));
+        let envelope = MagnusTxEnvelope::AA(tx.into_signed(Signature::test_signature().into()));
         assert!(envelope.is_payment_v1(), "V1 must accept AA without calls");
         assert!(!envelope.is_payment_v2(), "V2 must reject AA without calls");
     }

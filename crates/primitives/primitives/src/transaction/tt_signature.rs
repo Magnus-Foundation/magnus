@@ -358,7 +358,7 @@ pub enum KeychainVersion {
 
 /// Keychain version validation error.
 ///
-/// Returned by [`TempoSignature::validate_version`] when a keychain
+/// Returned by [`MagnusSignature::validate_version`] when a keychain
 /// signature's version is incompatible with the current hardfork.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeychainVersionError {
@@ -371,7 +371,7 @@ pub enum KeychainVersionError {
 /// Keychain signature wrapping another signature with a user address.
 /// This allows an access key to sign on behalf of a root account.
 ///
-/// No `Compact` impl — always wrapped in [`TempoSignature`] whose `Compact` delegates
+/// No `Compact` impl — always wrapped in [`MagnusSignature`] whose `Compact` delegates
 /// to `to_bytes()`/`from_bytes()` which encodes the version via the wire type byte
 /// (`0x03` = V1, `0x04` = V2).
 ///
@@ -529,7 +529,7 @@ impl<'a> arbitrary::Arbitrary<'a> for KeychainSignature {
 #[cfg_attr(feature = "serde", serde(untagged, rename_all = "camelCase"))]
 #[cfg_attr(any(test, feature = "arbitrary"), derive(arbitrary::Arbitrary))]
 #[cfg_attr(test, reth_codecs::add_arbitrary_tests(compact, rlp))]
-pub enum TempoSignature {
+pub enum MagnusSignature {
     /// Primitive signature types: Secp256k1, P256, or WebAuthn
     Primitive(PrimitiveSignature),
 
@@ -540,7 +540,7 @@ pub enum TempoSignature {
     Keychain(KeychainSignature),
 }
 
-impl TempoSignature {
+impl MagnusSignature {
     /// Parse signature from bytes with backward compatibility
     ///
     /// For backward compatibility with existing secp256k1 signatures:
@@ -715,13 +715,13 @@ impl TempoSignature {
     }
 }
 
-impl Default for TempoSignature {
+impl Default for MagnusSignature {
     fn default() -> Self {
         Self::Primitive(PrimitiveSignature::default())
     }
 }
 
-impl alloy_rlp::Encodable for TempoSignature {
+impl alloy_rlp::Encodable for MagnusSignature {
     fn encode(&self, out: &mut dyn alloy_rlp::BufMut) {
         let bytes = self.to_bytes();
         alloy_rlp::Encodable::encode(&bytes, out);
@@ -732,14 +732,14 @@ impl alloy_rlp::Encodable for TempoSignature {
     }
 }
 
-impl alloy_rlp::Decodable for TempoSignature {
+impl alloy_rlp::Decodable for MagnusSignature {
     fn decode(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
         let bytes: Bytes = alloy_rlp::Decodable::decode(buf)?;
         Self::from_bytes(&bytes).map_err(alloy_rlp::Error::Custom)
     }
 }
 
-impl From<Signature> for TempoSignature {
+impl From<Signature> for MagnusSignature {
     fn from(signature: Signature) -> Self {
         Self::Primitive(PrimitiveSignature::Secp256k1(signature))
     }
@@ -1351,10 +1351,10 @@ mod tests {
 
         // Secp256k1 signatures are detected by length (65 bytes), no type identifier
         let sig_bytes = vec![0u8; SECP256K1_SIGNATURE_LENGTH];
-        let result = TempoSignature::from_bytes(&sig_bytes);
+        let result = MagnusSignature::from_bytes(&sig_bytes);
 
         assert!(result.is_ok());
-        if let TempoSignature::Primitive(PrimitiveSignature::Secp256k1(_)) = result.unwrap() {
+        if let MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(_)) = result.unwrap() {
             // Expected
         } else {
             panic!("Expected Primitive(Secp256k1) variant");
@@ -1367,10 +1367,10 @@ mod tests {
 
         let mut sig_bytes = vec![SIGNATURE_TYPE_P256];
         sig_bytes.extend_from_slice(&[0u8; P256_SIGNATURE_LENGTH]);
-        let result = TempoSignature::from_bytes(&sig_bytes);
+        let result = MagnusSignature::from_bytes(&sig_bytes);
 
         assert!(result.is_ok());
-        if let TempoSignature::Primitive(PrimitiveSignature::P256(_)) = result.unwrap() {
+        if let MagnusSignature::Primitive(PrimitiveSignature::P256(_)) = result.unwrap() {
             // Expected
         } else {
             panic!("Expected Primitive(P256) variant");
@@ -1383,10 +1383,10 @@ mod tests {
 
         let mut sig_bytes = vec![SIGNATURE_TYPE_WEBAUTHN];
         sig_bytes.extend_from_slice(&[0u8; 200]); // 200 bytes of WebAuthn data
-        let result = TempoSignature::from_bytes(&sig_bytes);
+        let result = MagnusSignature::from_bytes(&sig_bytes);
 
         assert!(result.is_ok());
-        if let TempoSignature::Primitive(PrimitiveSignature::WebAuthn(_)) = result.unwrap() {
+        if let MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(_)) = result.unwrap() {
             // Expected
         } else {
             panic!("Expected Primitive(WebAuthn) variant");
@@ -1397,7 +1397,7 @@ mod tests {
     fn test_tempo_signature_from_bytes_validation() {
         // Empty input
         assert_eq!(
-            TempoSignature::from_bytes(&[]).unwrap_err(),
+            MagnusSignature::from_bytes(&[]).unwrap_err(),
             "Signature data is empty"
         );
         assert_eq!(
@@ -1407,7 +1407,7 @@ mod tests {
 
         // Too short (1 byte, not secp256k1 length)
         assert_eq!(
-            TempoSignature::from_bytes(&[0x01]).unwrap_err(),
+            MagnusSignature::from_bytes(&[0x01]).unwrap_err(),
             "Signature data too short: expected type identifier + signature data"
         );
 
@@ -1415,7 +1415,7 @@ mod tests {
         let mut bad_p256 = vec![SIGNATURE_TYPE_P256];
         bad_p256.extend_from_slice(&[0u8; 100]); // wrong length
         assert_eq!(
-            TempoSignature::from_bytes(&bad_p256).unwrap_err(),
+            MagnusSignature::from_bytes(&bad_p256).unwrap_err(),
             "Invalid P256 signature length"
         );
 
@@ -1423,7 +1423,7 @@ mod tests {
         let mut bad_webauthn = vec![SIGNATURE_TYPE_WEBAUTHN];
         bad_webauthn.extend_from_slice(&[0u8; 50]); // too short
         assert_eq!(
-            TempoSignature::from_bytes(&bad_webauthn).unwrap_err(),
+            MagnusSignature::from_bytes(&bad_webauthn).unwrap_err(),
             "Invalid WebAuthn signature length"
         );
 
@@ -1431,7 +1431,7 @@ mod tests {
         let mut unknown_type = vec![0xFF];
         unknown_type.extend_from_slice(&[0u8; 100]);
         assert_eq!(
-            TempoSignature::from_bytes(&unknown_type).unwrap_err(),
+            MagnusSignature::from_bytes(&unknown_type).unwrap_err(),
             "Unknown signature type identifier"
         );
     }
@@ -1445,31 +1445,31 @@ mod tests {
 
         // Test secp256k1 (no type identifier, detected by 65-byte length)
         let sig1_bytes = vec![1u8; SECP256K1_SIGNATURE_LENGTH];
-        let sig1 = TempoSignature::from_bytes(&sig1_bytes).unwrap();
+        let sig1 = MagnusSignature::from_bytes(&sig1_bytes).unwrap();
         let encoded1 = sig1.to_bytes();
         assert_eq!(encoded1.len(), SECP256K1_SIGNATURE_LENGTH); // No type identifier
         // Verify roundtrip
-        let decoded1 = TempoSignature::from_bytes(&encoded1).unwrap();
+        let decoded1 = MagnusSignature::from_bytes(&encoded1).unwrap();
         assert_eq!(sig1, decoded1);
 
         // Test P256
         let mut sig2_bytes = vec![SIGNATURE_TYPE_P256];
         sig2_bytes.extend_from_slice(&[2u8; P256_SIGNATURE_LENGTH]);
-        let sig2 = TempoSignature::from_bytes(&sig2_bytes).unwrap();
+        let sig2 = MagnusSignature::from_bytes(&sig2_bytes).unwrap();
         let encoded2 = sig2.to_bytes();
         assert_eq!(encoded2.len(), 1 + P256_SIGNATURE_LENGTH);
         // Verify roundtrip
-        let decoded2 = TempoSignature::from_bytes(&encoded2).unwrap();
+        let decoded2 = MagnusSignature::from_bytes(&encoded2).unwrap();
         assert_eq!(sig2, decoded2);
 
         // Test WebAuthn
         let mut sig3_bytes = vec![SIGNATURE_TYPE_WEBAUTHN];
         sig3_bytes.extend_from_slice(&[3u8; 200]);
-        let sig3 = TempoSignature::from_bytes(&sig3_bytes).unwrap();
+        let sig3 = MagnusSignature::from_bytes(&sig3_bytes).unwrap();
         let encoded3 = sig3.to_bytes();
         assert_eq!(encoded3.len(), 1 + 200);
         // Verify roundtrip
-        let decoded3 = TempoSignature::from_bytes(&encoded3).unwrap();
+        let decoded3 = MagnusSignature::from_bytes(&encoded3).unwrap();
         assert_eq!(sig3, decoded3);
     }
 
@@ -1486,15 +1486,15 @@ mod tests {
             alloy_primitives::U256::from_be_slice(&s_bytes),
             false,
         );
-        let secp256k1_sig = TempoSignature::Primitive(PrimitiveSignature::Secp256k1(sig));
+        let secp256k1_sig = MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(sig));
 
         let json = serde_json::to_string(&secp256k1_sig).unwrap();
-        let decoded: TempoSignature = serde_json::from_str(&json).unwrap();
+        let decoded: MagnusSignature = serde_json::from_str(&json).unwrap();
         assert_eq!(secp256k1_sig, decoded, "Secp256k1 serde roundtrip failed");
 
         // Test P256
         let p256_sig =
-            TempoSignature::Primitive(PrimitiveSignature::P256(P256SignatureWithPreHash {
+            MagnusSignature::Primitive(PrimitiveSignature::P256(P256SignatureWithPreHash {
                 r: B256::from([1u8; 32]),
                 s: B256::from([2u8; 32]),
                 pub_key_x: B256::from([3u8; 32]),
@@ -1503,7 +1503,7 @@ mod tests {
             }));
 
         let json = serde_json::to_string(&p256_sig).unwrap();
-        let decoded: TempoSignature = serde_json::from_str(&json).unwrap();
+        let decoded: MagnusSignature = serde_json::from_str(&json).unwrap();
         assert_eq!(p256_sig, decoded, "P256 serde roundtrip failed");
 
         // Verify camelCase naming
@@ -1522,7 +1522,7 @@ mod tests {
 
         // Test WebAuthn
         let webauthn_sig =
-            TempoSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
+            MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
                 r: B256::from([5u8; 32]),
                 s: B256::from([6u8; 32]),
                 pub_key_x: B256::from([7u8; 32]),
@@ -1531,7 +1531,7 @@ mod tests {
             }));
 
         let json = serde_json::to_string(&webauthn_sig).unwrap();
-        let decoded: TempoSignature = serde_json::from_str(&json).unwrap();
+        let decoded: MagnusSignature = serde_json::from_str(&json).unwrap();
         assert_eq!(webauthn_sig, decoded, "WebAuthn serde roundtrip failed");
 
         // Verify camelCase naming
@@ -1580,7 +1580,7 @@ mod tests {
         let (r, s) = sign_p256_normalized(&signing_key, &sig_hash);
 
         let p256_sig =
-            TempoSignature::Primitive(PrimitiveSignature::P256(P256SignatureWithPreHash {
+            MagnusSignature::Primitive(PrimitiveSignature::P256(P256SignatureWithPreHash {
                 r,
                 s,
                 pub_key_x,
@@ -1606,7 +1606,7 @@ mod tests {
         let (r, s) = sign_p256_normalized(&signing_key, &prehashed);
 
         let p256_sig =
-            TempoSignature::Primitive(PrimitiveSignature::P256(P256SignatureWithPreHash {
+            MagnusSignature::Primitive(PrimitiveSignature::P256(P256SignatureWithPreHash {
                 r,
                 s,
                 pub_key_x,
@@ -1637,7 +1637,7 @@ mod tests {
         };
 
         let p256_sig =
-            TempoSignature::Primitive(PrimitiveSignature::P256(P256SignatureWithPreHash {
+            MagnusSignature::Primitive(PrimitiveSignature::P256(P256SignatureWithPreHash {
                 r,
                 s: B256::from(high_s.to_be_bytes::<32>()),
                 pub_key_x,
@@ -1664,7 +1664,7 @@ mod tests {
         let (r, s) = sign_p256_normalized(&signing_key, &message_hash);
 
         let webauthn_sig =
-            TempoSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
+            MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
                 r,
                 s,
                 pub_key_x,
@@ -1686,7 +1686,7 @@ mod tests {
         let (r, s) = sign_p256_normalized(&signing_key, &B256::ZERO);
 
         let invalid_webauthn_sig =
-            TempoSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
+            MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
                 r,
                 s,
                 pub_key_x,
@@ -1711,10 +1711,10 @@ mod tests {
         let sig_hash = B256::from([0x22; 32]);
         let inner_sig = sign_hash(&signing_key, &sig_hash);
 
-        let keychain_sig = TempoSignature::Keychain(KeychainSignature::new_v1(
+        let keychain_sig = MagnusSignature::Keychain(KeychainSignature::new_v1(
             user_address,
             match inner_sig {
-                TempoSignature::Primitive(p) => p,
+                MagnusSignature::Primitive(p) => p,
                 _ => panic!("Expected primitive signature"),
             },
         ));
@@ -1754,10 +1754,10 @@ mod tests {
         let effective_hash = keccak256(buf);
         let inner_sig = sign_hash(&signing_key, &effective_hash);
 
-        let keychain_sig = TempoSignature::Keychain(KeychainSignature::new(
+        let keychain_sig = MagnusSignature::Keychain(KeychainSignature::new(
             user_address,
             match inner_sig {
-                TempoSignature::Primitive(p) => p,
+                MagnusSignature::Primitive(p) => p,
                 _ => panic!("Expected primitive signature"),
             },
         ));
@@ -1795,19 +1795,19 @@ mod tests {
         let inner_sig = sign_hash(&signing_key, &effective_hash);
 
         let inner_primitive = match inner_sig {
-            TempoSignature::Primitive(p) => p,
+            MagnusSignature::Primitive(p) => p,
             _ => panic!("Expected primitive signature"),
         };
 
         // Valid for user_a
         let sig_a =
-            TempoSignature::Keychain(KeychainSignature::new(user_a, inner_primitive.clone()));
+            MagnusSignature::Keychain(KeychainSignature::new(user_a, inner_primitive.clone()));
         let recovered_a = sig_a.recover_signer(&sig_hash).unwrap();
         assert_eq!(recovered_a, user_a);
 
         // Same inner signature but for user_b — key_id will differ
         // because user_address is part of the signed hash
-        let sig_b = TempoSignature::Keychain(KeychainSignature::new(user_b, inner_primitive));
+        let sig_b = MagnusSignature::Keychain(KeychainSignature::new(user_b, inner_primitive));
         let recovered_b = sig_b.recover_signer(&sig_hash).unwrap();
         assert_eq!(
             recovered_b, user_b,
@@ -1963,7 +1963,7 @@ mod tests {
         for type_byte in [SIGNATURE_TYPE_KEYCHAIN, SIGNATURE_TYPE_KEYCHAIN_V2] {
             let mut data = vec![type_byte];
             data.extend_from_slice(&[0u8; 19]);
-            let result = TempoSignature::from_bytes(&data);
+            let result = MagnusSignature::from_bytes(&data);
             assert!(result.is_err());
             assert!(result.unwrap_err().contains("too short"));
         }
@@ -1973,21 +1973,21 @@ mod tests {
     fn test_tempo_signature_keychain_exactly_20_bytes_inner_empty() {
         let mut data = vec![SIGNATURE_TYPE_KEYCHAIN];
         data.extend_from_slice(&[0u8; 20]);
-        let result = TempoSignature::from_bytes(&data);
+        let result = MagnusSignature::from_bytes(&data);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_is_keychain_returns_false_for_primitive() {
         let sig =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
         assert!(!sig.is_keychain());
     }
 
     #[test]
     fn test_is_keychain_returns_true_for_keychain() {
         let inner = PrimitiveSignature::Secp256k1(Signature::test_signature());
-        let sig = TempoSignature::Keychain(KeychainSignature::new(Address::ZERO, inner));
+        let sig = MagnusSignature::Keychain(KeychainSignature::new(Address::ZERO, inner));
         assert!(sig.is_keychain());
     }
 
@@ -1997,18 +1997,18 @@ mod tests {
         let user = Address::repeat_byte(0xAA);
 
         // V1 round-trips and uses 0x03 wire byte
-        let v1 = TempoSignature::Keychain(KeychainSignature::new_v1(user, inner.clone()));
+        let v1 = MagnusSignature::Keychain(KeychainSignature::new_v1(user, inner.clone()));
         let v1_bytes = v1.to_bytes();
         assert_eq!(v1_bytes[0], SIGNATURE_TYPE_KEYCHAIN);
-        let v1_decoded = TempoSignature::from_bytes(&v1_bytes).unwrap();
+        let v1_decoded = MagnusSignature::from_bytes(&v1_bytes).unwrap();
         assert_eq!(v1, v1_decoded);
         assert!(v1_decoded.is_legacy_keychain());
 
         // V2 round-trips and uses 0x04 wire byte
-        let v2 = TempoSignature::Keychain(KeychainSignature::new(user, inner));
+        let v2 = MagnusSignature::Keychain(KeychainSignature::new(user, inner));
         let v2_bytes = v2.to_bytes();
         assert_eq!(v2_bytes[0], SIGNATURE_TYPE_KEYCHAIN_V2);
-        let v2_decoded = TempoSignature::from_bytes(&v2_bytes).unwrap();
+        let v2_decoded = MagnusSignature::from_bytes(&v2_bytes).unwrap();
         assert_eq!(v2, v2_decoded);
         assert!(!v2_decoded.is_legacy_keychain());
 
@@ -2023,16 +2023,16 @@ mod tests {
         let user = Address::repeat_byte(0xBB);
 
         // V2 serde roundtrip preserves version
-        let v2 = TempoSignature::Keychain(KeychainSignature::new(user, inner.clone()));
+        let v2 = MagnusSignature::Keychain(KeychainSignature::new(user, inner.clone()));
         let json = serde_json::to_string(&v2).unwrap();
-        let decoded: TempoSignature = serde_json::from_str(&json).unwrap();
+        let decoded: MagnusSignature = serde_json::from_str(&json).unwrap();
         assert_eq!(v2, decoded);
         assert!(!decoded.is_legacy_keychain());
 
         // V1 serde roundtrip preserves version
-        let v1 = TempoSignature::Keychain(KeychainSignature::new_v1(user, inner));
+        let v1 = MagnusSignature::Keychain(KeychainSignature::new_v1(user, inner));
         let json_v1 = serde_json::to_string(&v1).unwrap();
-        let decoded_v1: TempoSignature = serde_json::from_str(&json_v1).unwrap();
+        let decoded_v1: MagnusSignature = serde_json::from_str(&json_v1).unwrap();
         assert_eq!(v1, decoded_v1);
         assert!(decoded_v1.is_legacy_keychain());
 
@@ -2042,7 +2042,7 @@ mod tests {
             !json_no_version.contains("version"),
             "version field should be stripped"
         );
-        let decoded_no_version: TempoSignature = serde_json::from_str(&json_no_version).unwrap();
+        let decoded_no_version: MagnusSignature = serde_json::from_str(&json_no_version).unwrap();
         assert!(decoded_no_version.is_legacy_keychain());
     }
 
@@ -2055,17 +2055,17 @@ mod tests {
 
         for (sig, expect_legacy) in [
             (
-                TempoSignature::Keychain(KeychainSignature::new_v1(user, inner.clone())),
+                MagnusSignature::Keychain(KeychainSignature::new_v1(user, inner.clone())),
                 true,
             ),
             (
-                TempoSignature::Keychain(KeychainSignature::new(user, inner)),
+                MagnusSignature::Keychain(KeychainSignature::new(user, inner)),
                 false,
             ),
         ] {
             let mut buf = Vec::new();
             alloy_rlp::Encodable::encode(&sig, &mut buf);
-            let decoded = TempoSignature::decode(&mut buf.as_slice()).unwrap();
+            let decoded = MagnusSignature::decode(&mut buf.as_slice()).unwrap();
             assert_eq!(sig, decoded);
             assert_eq!(decoded.is_legacy_keychain(), expect_legacy);
         }

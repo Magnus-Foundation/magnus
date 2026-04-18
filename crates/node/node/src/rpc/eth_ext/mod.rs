@@ -8,7 +8,7 @@ pub mod transactions;
 pub use transactions::TransactionsFilter;
 
 #[rpc(server, namespace = "eth")]
-pub trait TempoEthExtApi {
+pub trait MagnusEthExtApi {
     /// Gets paginated transactions on Tempo with flexible filtering and sorting.
     ///
     /// Uses cursor-based pagination for stable iteration through transactions.
@@ -21,18 +21,18 @@ pub trait TempoEthExtApi {
 
 /// The JSON-RPC handlers for the `dex_` namespace.
 #[derive(Debug, Clone, Default)]
-pub struct TempoEthExt<EthApi> {
+pub struct MagnusEthExt<EthApi> {
     eth_api: EthApi,
 }
 
-impl<EthApi> TempoEthExt<EthApi> {
+impl<EthApi> MagnusEthExt<EthApi> {
     pub fn new(eth_api: EthApi) -> Self {
         Self { eth_api }
     }
 }
 
 #[async_trait::async_trait]
-impl<EthApi: RpcNodeCore> TempoEthExtApiServer for TempoEthExt<EthApi> {
+impl<EthApi: RpcNodeCore> MagnusEthExtApiServer for MagnusEthExt<EthApi> {
     async fn transactions(
         &self,
         _params: PaginationParams<TransactionsFilter>,
@@ -41,7 +41,7 @@ impl<EthApi: RpcNodeCore> TempoEthExtApiServer for TempoEthExt<EthApi> {
     }
 }
 
-impl<EthApi: RpcNodeCore> TempoEthExt<EthApi> {
+impl<EthApi: RpcNodeCore> MagnusEthExt<EthApi> {
     /// Access the underlying provider.
     pub fn provider(&self) -> &EthApi::Provider {
         self.eth_api.provider()

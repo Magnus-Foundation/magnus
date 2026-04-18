@@ -7,7 +7,7 @@ use alloy::{
 use alloy_eips::Encodable2718;
 use magnus_contracts::precompiles::{IFeeManager::setUserTokenCall, ITIP20};
 use magnus_precompiles::DEFAULT_FEE_TOKEN;
-use magnus_primitives::{TempoTransaction, TempoTxEnvelope, transaction::magnus_transaction::Call};
+use magnus_primitives::{MagnusTransaction, MagnusTxEnvelope, transaction::magnus_transaction::Call};
 
 use crate::utils::setup_test_token;
 
@@ -121,7 +121,7 @@ async fn test_block_building_insufficient_fee_amm_liquidity() -> eyre::Result<()
     // Now set the user's fee token to our custom payment token (not USDC)
     // This ensures subsequent transactions will require a swap through the drained FeeAMM
     println!("Setting user's fee token preference...");
-    let tx = TempoTransaction {
+    let tx = MagnusTransaction {
         fee_token: Some(DEFAULT_FEE_TOKEN),
         calls: vec![Call {
             to: TIP_FEE_MANAGER_ADDRESS.into(),
@@ -140,7 +140,7 @@ async fn test_block_building_insufficient_fee_amm_liquidity() -> eyre::Result<()
         ..Default::default()
     };
     let signature = wallet.sign_hash_sync(&tx.signature_hash()).unwrap();
-    let envelope: TempoTxEnvelope = tx.into_signed(signature.into()).into();
+    let envelope: MagnusTxEnvelope = tx.into_signed(signature.into()).into();
     provider
         .send_raw_transaction(&envelope.encoded_2718())
         .await?

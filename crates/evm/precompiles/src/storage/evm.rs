@@ -5,9 +5,9 @@ use revm::{
     context_interface::cfg::{GasParams, gas},
     state::{AccountInfo, Bytecode},
 };
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 
-use crate::{error::TempoPrecompileError, storage::PrecompileStorageProvider};
+use crate::{error::MagnusPrecompileError, storage::PrecompileStorageProvider};
 
 /// Production [`PrecompileStorageProvider`] backed by the live EVM journal.
 ///
@@ -18,7 +18,7 @@ pub struct EvmPrecompileStorageProvider<'a> {
     gas_refunded: i64,
     gas_limit: u64,
     reservoir: u64,
-    spec: TempoHardfork,
+    spec: MagnusHardfork,
     is_static: bool,
     gas_params: GasParams,
     /// Debug-only LIFO checkpoint validator. See [`Self::assert_lifo`].
@@ -32,7 +32,7 @@ impl<'a> EvmPrecompileStorageProvider<'a> {
         internals: EvmInternals<'a>,
         gas_limit: u64,
         reservoir: u64,
-        spec: TempoHardfork,
+        spec: MagnusHardfork,
         is_static: bool,
         gas_params: GasParams,
     ) -> Self {
@@ -51,7 +51,7 @@ impl<'a> EvmPrecompileStorageProvider<'a> {
     }
 
     /// Creates a new storage provider with maximum gas limit and non-static context.
-    pub fn new_max_gas(internals: EvmInternals<'a>, cfg: &CfgEnv<TempoHardfork>) -> Self {
+    pub fn new_max_gas(internals: EvmInternals<'a>, cfg: &CfgEnv<MagnusHardfork>) -> Self {
         Self::new(
             internals,
             u64::MAX,
@@ -65,7 +65,7 @@ impl<'a> EvmPrecompileStorageProvider<'a> {
     /// Creates a new storage provider with the given gas limit, deriving spec from `cfg`.
     pub fn new_with_gas_limit(
         internals: EvmInternals<'a>,
-        cfg: &CfgEnv<TempoHardfork>,
+        cfg: &CfgEnv<MagnusHardfork>,
         gas_limit: u64,
         reservoir: u64,
     ) -> Self {
@@ -98,7 +98,7 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
     }
 
     #[inline]
-    fn set_code(&mut self, address: Address, code: Bytecode) -> Result<(), TempoPrecompileError> {
+    fn set_code(&mut self, address: Address, code: Bytecode) -> Result<(), MagnusPrecompileError> {
         self.deduct_gas(self.gas_params.code_deposit_cost(code.len()))?;
 
         self.internals
@@ -113,7 +113,7 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
         &mut self,
         address: Address,
         f: &mut dyn FnMut(&AccountInfo),
-    ) -> Result<(), TempoPrecompileError> {
+    ) -> Result<(), MagnusPrecompileError> {
         let additional_cost = self.gas_params.cold_account_additional_cost();
 
         let mut account = self
@@ -143,7 +143,7 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
         address: Address,
         key: U256,
         value: U256,
-    ) -> Result<(), TempoPrecompileError> {
+    ) -> Result<(), MagnusPrecompileError> {
         let result = self
             .internals
             .load_account_mut(address)?
@@ -170,14 +170,14 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
         address: Address,
         key: U256,
         value: U256,
-    ) -> Result<(), TempoPrecompileError> {
+    ) -> Result<(), MagnusPrecompileError> {
         self.deduct_gas(self.gas_params.warm_storage_read_cost())?;
         self.internals.tstore(address, key, value);
         Ok(())
     }
 
     #[inline]
-    fn emit_event(&mut self, address: Address, event: LogData) -> Result<(), TempoPrecompileError> {
+    fn emit_event(&mut self, address: Address, event: LogData) -> Result<(), MagnusPrecompileError> {
         self.deduct_gas(
             gas::LOG
                 + self
@@ -194,7 +194,7 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
     }
 
     #[inline]
-    fn sload(&mut self, address: Address, key: U256) -> Result<U256, TempoPrecompileError> {
+    fn sload(&mut self, address: Address, key: U256) -> Result<U256, MagnusPrecompileError> {
         let additional_cost = self.gas_params.cold_storage_additional_cost();
 
         let value;
@@ -218,18 +218,18 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
     }
 
     #[inline]
-    fn tload(&mut self, address: Address, key: U256) -> Result<U256, TempoPrecompileError> {
+    fn tload(&mut self, address: Address, key: U256) -> Result<U256, MagnusPrecompileError> {
         self.deduct_gas(self.gas_params.warm_storage_read_cost())?;
 
         Ok(self.internals.tload(address, key))
     }
 
     #[inline]
-    fn deduct_gas(&mut self, gas: u64) -> Result<(), TempoPrecompileError> {
+    fn deduct_gas(&mut self, gas: u64) -> Result<(), MagnusPrecompileError> {
         self.gas_remaining = self
             .gas_remaining
             .checked_sub(gas)
-            .ok_or(TempoPrecompileError::OutOfGas)?;
+            .ok_or(MagnusPrecompileError::OutOfGas)?;
         Ok(())
     }
 
@@ -254,7 +254,7 @@ impl<'a> PrecompileStorageProvider for EvmPrecompileStorageProvider<'a> {
     }
 
     #[inline]
-    fn spec(&self) -> TempoHardfork {
+    fn spec(&self) -> MagnusHardfork {
         self.spec
     }
 
@@ -315,10 +315,10 @@ impl EvmPrecompileStorageProvider<'_> {
 
 /// Deducts gas from the remaining gas and returns an error if insufficient.
 #[inline]
-pub fn deduct_gas(gas: &mut u64, additional_cost: u64) -> Result<(), TempoPrecompileError> {
+pub fn deduct_gas(gas: &mut u64, additional_cost: u64) -> Result<(), MagnusPrecompileError> {
     *gas = gas
         .checked_sub(additional_cost)
-        .ok_or(TempoPrecompileError::OutOfGas)?;
+        .ok_or(MagnusPrecompileError::OutOfGas)?;
     Ok(())
 }
 
@@ -333,12 +333,12 @@ mod tests {
         database::{CacheDB, EmptyDB},
         interpreter::StateLoad,
     };
-    use magnus_evm::TempoEvmFactory;
+    use magnus_evm::MagnusEvmFactory;
 
     #[test]
     fn test_sstore_sload() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn test_set_code() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -381,7 +381,7 @@ mod tests {
     #[test]
     fn test_get_account_info() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn test_emit_event() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -429,7 +429,7 @@ mod tests {
     #[test]
     fn test_multiple_storage_operations() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -458,7 +458,7 @@ mod tests {
     #[test]
     fn test_overwrite_storage() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -483,7 +483,7 @@ mod tests {
     #[test]
     fn test_different_addresses() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -510,7 +510,7 @@ mod tests {
     #[test]
     fn test_multiple_transient_storage_operations() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -539,7 +539,7 @@ mod tests {
     #[test]
     fn test_overwrite_transient_storage() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -564,7 +564,7 @@ mod tests {
     #[test]
     fn test_transient_storage_different_addresses() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -591,7 +591,7 @@ mod tests {
     #[test]
     fn test_transient_storage_isolation_from_persistent() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -618,7 +618,7 @@ mod tests {
     #[test]
     fn test_keccak256_gas() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -641,7 +641,7 @@ mod tests {
             EvmPrecompileStorageProvider::new_with_gas_limit(evm_internals, &ctx.cfg, 30, 0);
         assert!(matches!(
             provider.keccak256(b"hello"),
-            Err(TempoPrecompileError::OutOfGas)
+            Err(MagnusPrecompileError::OutOfGas)
         ));
 
         Ok(())
@@ -650,7 +650,7 @@ mod tests {
     #[test]
     fn test_recover_signer_gas() -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvmFactory::default().create_evm(db, EvmEnv::default());
+        let mut evm = MagnusEvmFactory::default().create_evm(db, EvmEnv::default());
         let ctx = evm.ctx_mut();
         let evm_internals =
             EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -685,7 +685,7 @@ mod tests {
             EvmPrecompileStorageProvider::new_with_gas_limit(evm_internals, &ctx.cfg, 100, 0);
         assert!(matches!(
             provider.recover_signer(digest, v, r, s),
-            Err(TempoPrecompileError::OutOfGas)
+            Err(MagnusPrecompileError::OutOfGas)
         ));
 
         Ok(())

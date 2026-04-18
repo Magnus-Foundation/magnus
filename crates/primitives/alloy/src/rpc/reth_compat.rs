@@ -1,4 +1,4 @@
-use crate::rpc::{TempoHeaderResponse, TempoTransactionRequest};
+use crate::rpc::{MagnusHeaderResponse, MagnusTransactionRequest};
 use alloy_consensus::{EthereumTxEnvelope, TxEip4844, error::ValueError};
 use alloy_network::{NetworkTransactionBuilder, TxSigner};
 use alloy_primitives::{Address, B256, Bytes, Signature};
@@ -9,29 +9,29 @@ use reth_rpc_convert::{
     FromConsensusHeader, SignTxRequestError, SignableTxRequest, TryIntoSimTx, TryIntoTxEnv,
 };
 use reth_rpc_eth_types::EthApiError;
-use magnus_chainspec::hardfork::TempoHardfork;
-use magnus_evm::TempoBlockEnv;
+use magnus_chainspec::hardfork::MagnusHardfork;
+use magnus_evm::MagnusBlockEnv;
 use magnus_primitives::{
-    SignatureType, TempoHeader, TempoSignature, TempoTxEnvelope, TempoTxType,
+    SignatureType, MagnusHeader, MagnusSignature, MagnusTxEnvelope, MagnusTxType,
     transaction::{Call, RecoveredTempoAuthorization},
 };
-use magnus_revm::{TempoBatchCallEnv, TempoTxEnv};
+use magnus_revm::{MagnusBatchCallEnv, MagnusTxEnv};
 
-impl TryIntoSimTx<TempoTxEnvelope> for TempoTransactionRequest {
-    fn try_into_sim_tx(self) -> Result<TempoTxEnvelope, ValueError<Self>> {
+impl TryIntoSimTx<MagnusTxEnvelope> for MagnusTransactionRequest {
+    fn try_into_sim_tx(self) -> Result<MagnusTxEnvelope, ValueError<Self>> {
         match self.output_tx_type() {
-            TempoTxType::AA => {
+            MagnusTxType::AA => {
                 let tx = self.build_aa()?;
 
                 // Create an empty signature for the transaction.
-                let signature = TempoSignature::default();
+                let signature = MagnusSignature::default();
 
                 Ok(tx.into_signed(signature).into())
             }
-            TempoTxType::Legacy
-            | TempoTxType::Eip2930
-            | TempoTxType::Eip1559
-            | TempoTxType::Eip7702 => {
+            MagnusTxType::Legacy
+            | MagnusTxType::Eip2930
+            | MagnusTxType::Eip1559
+            | MagnusTxType::Eip7702 => {
                 let Self {
                     inner,
                     fee_token,
@@ -91,13 +91,13 @@ impl TryIntoSimTx<TempoTxEnvelope> for TempoTransactionRequest {
     }
 }
 
-impl TryIntoTxEnv<TempoTxEnv, TempoHardfork, TempoBlockEnv> for TempoTransactionRequest {
+impl TryIntoTxEnv<MagnusTxEnv, MagnusHardfork, MagnusBlockEnv> for MagnusTransactionRequest {
     type Err = EthApiError;
 
     fn try_into_tx_env(
         self,
-        evm_env: &EvmEnv<TempoHardfork, TempoBlockEnv>,
-    ) -> Result<TempoTxEnv, Self::Err> {
+        evm_env: &EvmEnv<MagnusHardfork, MagnusBlockEnv>,
+    ) -> Result<MagnusTxEnv, Self::Err> {
         let caller_addr = self.inner.from.unwrap_or_default();
 
         let fee_payer = if self.fee_payer_signature.is_some() {
@@ -129,7 +129,7 @@ impl TryIntoTxEnv<TempoTxEnv, TempoHardfork, TempoBlockEnv> for TempoTransaction
             fee_payer_signature: _,
         } = self;
 
-        Ok(TempoTxEnv {
+        Ok(MagnusTxEnv {
             fee_token,
             is_system_tx: false,
             fee_payer,
@@ -166,7 +166,7 @@ impl TryIntoTxEnv<TempoTxEnv, TempoHardfork, TempoBlockEnv> for TempoTransaction
                     return Err(EthApiError::InvalidParams("empty calls list".to_string()));
                 }
 
-                Some(Box::new(TempoBatchCallEnv {
+                Some(Box::new(MagnusBatchCallEnv {
                     aa_calls: calls,
                     signature: mock_signature,
                     magnus_authorization_list: magnus_authorization_list
@@ -211,8 +211,8 @@ fn create_mock_tempo_sig(
     key_id: Option<Address>,
     caller_addr: alloy_primitives::Address,
     is_t1c: bool,
-) -> TempoSignature {
-    use magnus_primitives::transaction::tt_signature::{KeychainSignature, TempoSignature};
+) -> MagnusSignature {
+    use magnus_primitives::transaction::tt_signature::{KeychainSignature, MagnusSignature};
 
     let inner_sig = create_mock_primitive_signature(key_type, key_data.cloned());
 
@@ -223,9 +223,9 @@ fn create_mock_tempo_sig(
         } else {
             KeychainSignature::new_v1(caller_addr, inner_sig)
         };
-        TempoSignature::Keychain(keychain_sig)
+        MagnusSignature::Keychain(keychain_sig)
     } else {
-        TempoSignature::Primitive(inner_sig)
+        MagnusSignature::Primitive(inner_sig)
     }
 }
 
@@ -315,25 +315,25 @@ fn create_mock_primitive_signature(
     }
 }
 
-impl SignableTxRequest<TempoTxEnvelope> for TempoTransactionRequest {
+impl SignableTxRequest<MagnusTxEnvelope> for MagnusTransactionRequest {
     async fn try_build_and_sign(
         self,
         signer: impl TxSigner<Signature> + Send,
-    ) -> Result<TempoTxEnvelope, SignTxRequestError> {
-        if self.output_tx_type() == TempoTxType::AA {
+    ) -> Result<MagnusTxEnvelope, SignTxRequestError> {
+        if self.output_tx_type() == MagnusTxType::AA {
             let mut tx = self
                 .build_aa()
                 .map_err(|_| SignTxRequestError::InvalidTransactionRequest)?;
             let signature = signer.sign_transaction(&mut tx).await?;
             Ok(tx.into_signed(signature.into()).into())
         } else {
-            SignableTxRequest::<TempoTxEnvelope>::try_build_and_sign(self.inner, signer).await
+            SignableTxRequest::<MagnusTxEnvelope>::try_build_and_sign(self.inner, signer).await
         }
     }
 }
 
-impl FromConsensusHeader<TempoHeader> for TempoHeaderResponse {
-    fn from_consensus_header(header: SealedHeader<TempoHeader>, block_size: usize) -> Self {
+impl FromConsensusHeader<MagnusHeader> for MagnusHeaderResponse {
+    fn from_consensus_header(header: SealedHeader<MagnusHeader>, block_size: usize) -> Self {
         Self {
             timestamp_millis: header.timestamp_millis(),
             inner: FromConsensusHeader::from_consensus_header(header, block_size),
@@ -350,7 +350,7 @@ mod tests {
     use alloy_signer_local::PrivateKeySigner;
     use reth_rpc_convert::TryIntoTxEnv;
     use magnus_primitives::{
-        TempoTransaction,
+        MagnusTransaction,
         transaction::{Call, tt_signature::PrimitiveSignature},
     };
 
@@ -362,7 +362,7 @@ mod tests {
             input: Bytes::from(vec![0xaa]),
         };
 
-        let req = TempoTransactionRequest {
+        let req = MagnusTransactionRequest {
             inner: TransactionRequest {
                 to: Some(TxKind::Call(address!(
                     "0x2222222222222222222222222222222222222222"
@@ -446,8 +446,8 @@ mod tests {
         let sender = address!("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
         let target = address!("0x2222222222222222222222222222222222222222");
 
-        // Build a TempoTransaction so we can compute fee_payer_signature_hash
-        let tx = TempoTransaction {
+        // Build a MagnusTransaction so we can compute fee_payer_signature_hash
+        let tx = MagnusTransaction {
             chain_id: 4217,
             nonce: 0,
             fee_payer_signature: None,
@@ -471,7 +471,7 @@ mod tests {
         let fee_payer_sig = sponsor.sign_hash_sync(&hash).expect("sign");
 
         // Request with ONLY fee_payer_signature as the Tempo-specific field
-        let req = TempoTransactionRequest {
+        let req = MagnusTransactionRequest {
             inner: TransactionRequest {
                 from: Some(sender),
                 to: Some(TxKind::Call(target)),
@@ -517,7 +517,7 @@ mod tests {
             },
         ];
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 4217,
             nonce: 1,
             gas_limit: 100_000,
@@ -527,7 +527,7 @@ mod tests {
             ..Default::default()
         };
 
-        let req: TempoTransactionRequest = tx.into();
+        let req: MagnusTransactionRequest = tx.into();
 
         let evm_env = EvmEnv::default();
         let tx_env = req.try_into_tx_env(&evm_env).expect("try_into_tx_env");
@@ -544,7 +544,7 @@ mod tests {
         let sender = address!("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
         let target = address!("0x2222222222222222222222222222222222222222");
 
-        let req = TempoTransactionRequest {
+        let req = MagnusTransactionRequest {
             inner: TransactionRequest {
                 from: Some(sender),
                 to: Some(TxKind::Call(target)),
@@ -588,7 +588,7 @@ mod tests {
         let fee_token = address!("0x20c0000000000000000000000000000000000000");
         let nonce_key = alloy_primitives::U256::from(42);
 
-        let req = TempoTransactionRequest {
+        let req = MagnusTransactionRequest {
             inner: TransactionRequest {
                 nonce: Some(0),
                 gas: Some(100_000),
@@ -603,12 +603,12 @@ mod tests {
             ..Default::default()
         };
 
-        let envelope = SignableTxRequest::<TempoTxEnvelope>::try_build_and_sign(req, &signer)
+        let envelope = SignableTxRequest::<MagnusTxEnvelope>::try_build_and_sign(req, &signer)
             .await
             .expect("should build and sign");
 
         match &envelope {
-            TempoTxEnvelope::AA(signed) => {
+            MagnusTxEnvelope::AA(signed) => {
                 let tx = signed.tx();
                 assert_eq!(tx.fee_token, Some(fee_token), "fee_token must be preserved");
                 assert_eq!(tx.nonce_key, nonce_key, "nonce_key must be preserved");

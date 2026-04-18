@@ -1,4 +1,4 @@
-//! [TIP-1022] virtual address registry precompile. Enabled on `TempoHardfork::T3`.
+//! [TIP-1022] virtual address registry precompile. Enabled on `MagnusHardfork::T3`.
 //!
 //! Provides on-chain registration of virtual-address masters and resolution of
 //! [TIP-1022] virtual addresses back to their registered master EOA/contract.
@@ -18,7 +18,7 @@ use alloy::{
 };
 pub use magnus_contracts::precompiles::{AddrRegistryError, AddrRegistryEvent, IAddressRegistry};
 use magnus_precompiles_macros::{Storable, contract};
-pub use magnus_primitives::{MasterId, TempoAddressExt, UserTag};
+pub use magnus_primitives::{MasterId, MagnusAddressExt, UserTag};
 
 /// [TIP-1022] virtual address registry contract.
 ///
@@ -161,16 +161,16 @@ impl AddressRegistry {
 mod tests {
     use super::*;
     use crate::{
-        error::TempoPrecompileError,
+        error::MagnusPrecompileError,
         storage::{StorageCtx, hashmap::HashMapStorageProvider},
         test_util::{VIRTUAL_MASTER, VIRTUAL_SALT},
     };
     use alloy_primitives::hex_literal::hex;
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
 
     #[test]
     fn test_register_virtual_master() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let (master, salt) = (VIRTUAL_MASTER, VIRTUAL_SALT.into());
 
         StorageCtx::enter(&mut storage, || {
@@ -189,7 +189,7 @@ mod tests {
 
     #[test]
     fn test_register_rejects_bad_pow() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let master = Address::random();
         let bad_salt = FixedBytes::<32>::ZERO;
 
@@ -202,7 +202,7 @@ mod tests {
             );
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::AddrRegistryError(AddrRegistryError::ProofOfWorkFailed(_))
+                MagnusPrecompileError::AddrRegistryError(AddrRegistryError::ProofOfWorkFailed(_))
             ));
 
             Ok(())
@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn test_register_rejects_zero_address() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
 
         StorageCtx::enter(&mut storage, || {
             let mut registry = AddressRegistry::new();
@@ -224,7 +224,7 @@ mod tests {
             );
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::AddrRegistryError(AddrRegistryError::InvalidMasterAddress(_))
+                MagnusPrecompileError::AddrRegistryError(AddrRegistryError::InvalidMasterAddress(_))
             ));
 
             Ok(())
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn test_register_rejects_virtual_address_as_master() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
 
         StorageCtx::enter(&mut storage, || {
             let mut registry = AddressRegistry::new();
@@ -246,7 +246,7 @@ mod tests {
             );
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::AddrRegistryError(AddrRegistryError::InvalidMasterAddress(_))
+                MagnusPrecompileError::AddrRegistryError(AddrRegistryError::InvalidMasterAddress(_))
             ));
 
             Ok(())
@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_register_rejects_tip20_address_as_master() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let tip20_addr = crate::PATH_USD_ADDRESS;
 
         StorageCtx::enter(&mut storage, || {
@@ -269,7 +269,7 @@ mod tests {
             );
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::AddrRegistryError(AddrRegistryError::InvalidMasterAddress(_))
+                MagnusPrecompileError::AddrRegistryError(AddrRegistryError::InvalidMasterAddress(_))
             ));
 
             Ok(())
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_register_duplicate_reverts_with_collision() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let (master, salt) = (VIRTUAL_MASTER, VIRTUAL_SALT.into());
 
         StorageCtx::enter(&mut storage, || {
@@ -297,7 +297,7 @@ mod tests {
             );
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::AddrRegistryError(AddrRegistryError::MasterIdCollision(_))
+                MagnusPrecompileError::AddrRegistryError(AddrRegistryError::MasterIdCollision(_))
             ));
 
             Ok(())
@@ -325,7 +325,7 @@ mod tests {
 
     #[test]
     fn test_resolve_recipient_non_virtual() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let normal_addr = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_resolve_recipient_virtual_unregistered_reverts() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let virtual_addr = Address::new_virtual(MasterId::ZERO, UserTag::ZERO);
 
         StorageCtx::enter(&mut storage, || {
@@ -349,7 +349,7 @@ mod tests {
             let result = registry.resolve_recipient(virtual_addr);
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::AddrRegistryError(
+                MagnusPrecompileError::AddrRegistryError(
                     AddrRegistryError::VirtualAddressUnregistered(_)
                 )
             ));
@@ -360,7 +360,7 @@ mod tests {
 
     #[test]
     fn test_resolve_recipient_virtual_registered() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let (master, salt) = (VIRTUAL_MASTER, VIRTUAL_SALT.into());
 
         StorageCtx::enter(&mut storage, || {
@@ -382,7 +382,7 @@ mod tests {
 
     #[test]
     fn test_resolve_virtual_address_view() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let (master, salt) = (VIRTUAL_MASTER, VIRTUAL_SALT.into());
 
         StorageCtx::enter(&mut storage, || {
@@ -415,7 +415,7 @@ mod tests {
 
     #[test]
     fn test_resolve_recipient_pre_t3_returns_literal() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let virtual_addr = Address::new_virtual(MasterId::ZERO, UserTag::ZERO);
 
         StorageCtx::enter(&mut storage, || {

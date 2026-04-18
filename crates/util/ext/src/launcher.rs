@@ -160,12 +160,12 @@ struct RemoveArgs {
 
 /// Runs `tempoup` to update the tempo binary itself.
 ///
-/// Passes `TEMPO_BIN_DIR` so tempoup installs into the same directory as the
+/// Passes `MAGNUS_BIN_DIR` so tempoup installs into the same directory as the
 /// running binary. If tempoup is not found on `PATH`, it is installed first
 /// via `https://tempo.xyz/install`.
 fn run_tempoup(bin_dir: &Path) -> Result<bool, LauncherError> {
     let status = match Command::new("tempoup")
-        .env("TEMPO_BIN_DIR", bin_dir)
+        .env("MAGNUS_BIN_DIR", bin_dir)
         .status()
     {
         Ok(s) => s,
@@ -174,7 +174,7 @@ fn run_tempoup(bin_dir: &Path) -> Result<bool, LauncherError> {
             let install_status = Command::new("sh")
                 .arg("-c")
                 .arg("curl -fsSL https://tempo.xyz/install | bash")
-                .env("TEMPO_BIN_DIR", bin_dir)
+                .env("MAGNUS_BIN_DIR", bin_dir)
                 .status()?;
             if !install_status.success() {
                 tracing::error!("failed to install tempoup");
@@ -543,9 +543,9 @@ impl Launcher {
     /// install failures are silent — the existing binary is always used —
     /// but a corrupt registry is surfaced to the caller.
     fn maybe_auto_update(&self, extension: &str) -> Result<(), LauncherError> {
-        // TEMPO_HOME indicates a managed or test environment where updates
+        // MAGNUS_HOME indicates a managed or test environment where updates
         // should be explicit (via `tempo update`), not automatic.
-        if env::var_os("TEMPO_HOME").is_some() {
+        if env::var_os("MAGNUS_HOME").is_some() {
             return Ok(());
         }
 
@@ -648,7 +648,7 @@ impl Launcher {
         }
 
         // 2. Check the fallback install directory (~/.local/bin or
-        //    TEMPO_HOME/bin) in case exe_dir wasn't writable when the
+        //    MAGNUS_HOME/bin) in case exe_dir wasn't writable when the
         //    extension was installed.
         if let Some(dir) = &fallback_bin_dir()
             && self.exe_dir.as_deref() != Some(dir.as_path())
@@ -666,9 +666,9 @@ impl Launcher {
     }
 }
 
-/// Returns the base URL for extension manifests (`TEMPO_EXT_BASE_URL` or the default).
+/// Returns the base URL for extension manifests (`MAGNUS_EXT_BASE_URL` or the default).
 fn base_url() -> String {
-    env::var("TEMPO_EXT_BASE_URL").unwrap_or_else(|_| BASE_URL.to_string())
+    env::var("MAGNUS_EXT_BASE_URL").unwrap_or_else(|_| BASE_URL.to_string())
 }
 
 fn release_public_key() -> String {
@@ -676,7 +676,7 @@ fn release_public_key() -> String {
     // In release builds the key is always the compiled-in constant to
     // prevent environment-based signature bypass attacks.
     #[cfg(debug_assertions)]
-    if let Ok(key) = env::var("TEMPO_EXT_PUBLIC_KEY") {
+    if let Ok(key) = env::var("MAGNUS_EXT_PUBLIC_KEY") {
         return key;
     }
     PUBLIC_KEY.to_string()
@@ -765,7 +765,7 @@ mod tests {
     #[test]
     fn manifest_url_uses_expected_format() {
         let _lock = ENV_MUTEX.lock().unwrap();
-        let _guard = EnvGuard::new("TEMPO_EXT_BASE_URL");
+        let _guard = EnvGuard::new("MAGNUS_EXT_BASE_URL");
         assert_eq!(
             manifest_url("wallet", None),
             "https://cli.tempo.xyz/extensions/tempo-wallet/manifest.json"
@@ -1003,35 +1003,35 @@ mod tests {
     fn base_url_defaults_to_constant() {
         let _lock = ENV_MUTEX.lock().unwrap();
         // Clear any env override to test the default.
-        let _guard = EnvGuard::new("TEMPO_EXT_BASE_URL");
+        let _guard = EnvGuard::new("MAGNUS_EXT_BASE_URL");
         assert_eq!(base_url(), BASE_URL);
     }
 
     #[test]
     fn base_url_respects_env_override() {
         let _lock = ENV_MUTEX.lock().unwrap();
-        let _guard = EnvGuard::set("TEMPO_EXT_BASE_URL", "https://custom.example.com");
+        let _guard = EnvGuard::set("MAGNUS_EXT_BASE_URL", "https://custom.example.com");
         assert_eq!(base_url(), "https://custom.example.com");
     }
 
     #[test]
     fn release_public_key_defaults_to_constant() {
         let _lock = ENV_MUTEX.lock().unwrap();
-        let _guard = EnvGuard::new("TEMPO_EXT_PUBLIC_KEY");
+        let _guard = EnvGuard::new("MAGNUS_EXT_PUBLIC_KEY");
         assert_eq!(release_public_key(), PUBLIC_KEY);
     }
 
     #[test]
     fn release_public_key_respects_env_override() {
         let _lock = ENV_MUTEX.lock().unwrap();
-        let _guard = EnvGuard::set("TEMPO_EXT_PUBLIC_KEY", "custom-key");
+        let _guard = EnvGuard::set("MAGNUS_EXT_PUBLIC_KEY", "custom-key");
         assert_eq!(release_public_key(), "custom-key");
     }
 
     #[test]
     fn manifest_url_with_custom_base_url() {
         let _lock = ENV_MUTEX.lock().unwrap();
-        let _guard = EnvGuard::set("TEMPO_EXT_BASE_URL", "https://custom.example.com/");
+        let _guard = EnvGuard::set("MAGNUS_EXT_BASE_URL", "https://custom.example.com/");
         assert_eq!(
             manifest_url("wallet", None),
             "https://custom.example.com/extensions/tempo-wallet/manifest.json"
@@ -1041,7 +1041,7 @@ mod tests {
     #[test]
     fn manifest_url_trims_trailing_slashes() {
         let _lock = ENV_MUTEX.lock().unwrap();
-        let _guard = EnvGuard::set("TEMPO_EXT_BASE_URL", "https://example.com///");
+        let _guard = EnvGuard::set("MAGNUS_EXT_BASE_URL", "https://example.com///");
         assert_eq!(
             manifest_url("wallet", None),
             "https://example.com/extensions/tempo-wallet/manifest.json"

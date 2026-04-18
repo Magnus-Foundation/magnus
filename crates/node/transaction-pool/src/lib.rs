@@ -12,7 +12,7 @@ pub use transaction::{KeychainSubject, RevokedKeys, SpendingLimitUpdates};
 pub mod magnus_pool;
 
 // The main Tempo transaction pool type that handles both protocol and 2D nonces
-pub use magnus_pool::TempoTransactionPool;
+pub use magnus_pool::MagnusTransactionPool;
 
 pub mod amm;
 pub mod best;
@@ -21,9 +21,9 @@ pub mod metrics;
 pub mod paused;
 pub mod tt_2d_pool;
 
-pub use maintain::TempoPoolUpdates;
+pub use maintain::MagnusPoolUpdates;
 
-pub use metrics::{AA2dPoolMetrics, TempoPoolMaintenanceMetrics};
+pub use metrics::{AA2dPoolMetrics, MagnusPoolMaintenanceMetrics};
 pub use tt_2d_pool::{AA2dPool, AA2dPoolConfig, AASequenceId, DEFAULT_MAX_TXS_PER_SENDER};
 
 #[cfg(test)]

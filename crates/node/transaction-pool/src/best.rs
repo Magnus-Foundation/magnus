@@ -1,6 +1,6 @@
 //! An iterator over the best transactions in the tempo pool.
 
-use crate::transaction::TempoPooledTransaction;
+use crate::transaction::MagnusPooledTransaction;
 use reth_transaction_pool::{
     BestTransactions, CoinbaseTipOrdering, Priority, TransactionOrdering,
     error::InvalidPoolTransactionError,
@@ -19,7 +19,7 @@ impl<T: TransactionOrdering> BestPriorityTransactions<T>
         Self::next_tx_and_priority(self)
     }
 }
-impl BestPriorityTransactions<CoinbaseTipOrdering<TempoPooledTransaction>>
+impl BestPriorityTransactions<CoinbaseTipOrdering<MagnusPooledTransaction>>
     for crate::tt_2d_pool::BestAA2dTransactions
 {
     fn next_tx_and_priority(&mut self) -> Option<(Self::Item, Priority<u128>)> {
@@ -202,7 +202,7 @@ mod tests {
     }
 
     impl<T: Clone + Send>
-        BestPriorityTransactions<CoinbaseTipOrdering<crate::transaction::TempoPooledTransaction>>
+        BestPriorityTransactions<CoinbaseTipOrdering<crate::transaction::MagnusPooledTransaction>>
         for MockBestTransactions<T>
     {
         fn next_tx_and_priority(&mut self) -> Option<(Self::Item, Priority<u128>)> {

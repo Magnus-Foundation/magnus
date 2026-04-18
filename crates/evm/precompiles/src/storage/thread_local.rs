@@ -12,11 +12,11 @@ use revm::{
 };
 use scoped_tls::scoped_thread_local;
 use std::{cell::RefCell, fmt::Debug};
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 
 use crate::{
     Precompile,
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     storage::{PrecompileStorageProvider, evm::EvmPrecompileStorageProvider},
 };
 
@@ -86,7 +86,7 @@ impl StorageCtx {
         F: FnOnce(&mut dyn PrecompileStorageProvider) -> Result<R>,
     {
         if !STORAGE.is_set() {
-            return Err(TempoPrecompileError::Fatal(
+            return Err(MagnusPrecompileError::Fatal(
                 "No storage context. 'StorageCtx::enter' must be called first".to_string(),
             ));
         }
@@ -188,7 +188,7 @@ impl StorageCtx {
     }
 
     /// Returns the currently active hardfork.
-    pub fn spec(&self) -> TempoHardfork {
+    pub fn spec(&self) -> MagnusHardfork {
         Self::with_storage(|s| s.spec())
     }
 
@@ -266,8 +266,8 @@ impl StorageCtx {
         PrecompileOutput::halt(halt, self.reservoir())
     }
 
-    /// Returns a [`PrecompileResult`] constructed from the given [`TempoPrecompileError`].
-    pub fn error_result(&self, error: impl Into<TempoPrecompileError>) -> PrecompileResult {
+    /// Returns a [`PrecompileResult`] constructed from the given [`MagnusPrecompileError`].
+    pub fn error_result(&self, error: impl Into<MagnusPrecompileError>) -> PrecompileResult {
         error
             .into()
             .into_precompile_result(self.gas_used(), self.reservoir())
@@ -317,7 +317,7 @@ impl<'evm> StorageCtx {
     pub fn enter_evm<J, R>(
         journal: &'evm mut J,
         block_env: &'evm dyn Block,
-        cfg: &CfgEnv<TempoHardfork>,
+        cfg: &CfgEnv<MagnusHardfork>,
         tx_env: &'evm impl Transaction,
         f: impl FnOnce() -> R,
     ) -> R
@@ -335,7 +335,7 @@ impl<'evm> StorageCtx {
     /// directly instead of requiring the caller to destructure the context.
     pub fn enter_ctx<C, R>(ctx: &mut C, f: impl FnOnce() -> R) -> R
     where
-        C: ContextTr<Cfg = CfgEnv<TempoHardfork>, Journal: Debug, Db: Database>,
+        C: ContextTr<Cfg = CfgEnv<MagnusHardfork>, Journal: Debug, Db: Database>,
     {
         let (tx, block, cfg, journal) = ctx.tx_block_cfg_journal_mut();
         Self::enter_evm(journal, block, cfg, tx, f)
@@ -350,7 +350,7 @@ impl<'evm> StorageCtx {
         f: impl FnOnce() -> R,
     ) -> (R, u64)
     where
-        C: ContextTr<Cfg = CfgEnv<TempoHardfork>, Journal: Debug, Db: Database>,
+        C: ContextTr<Cfg = CfgEnv<MagnusHardfork>, Journal: Debug, Db: Database>,
     {
         let (tx, block, cfg, journal) = ctx.tx_block_cfg_journal_mut();
         let internals = EvmInternals::new(journal, block, cfg, tx);
@@ -365,7 +365,7 @@ impl<'evm> StorageCtx {
     pub fn enter_precompile<J, P, R>(
         journal: &'evm mut J,
         block_env: &'evm dyn Block,
-        cfg: &CfgEnv<TempoHardfork>,
+        cfg: &CfgEnv<MagnusHardfork>,
         tx_env: &'evm impl Transaction,
         f: impl FnOnce(P) -> R,
     ) -> R
@@ -432,7 +432,7 @@ impl StorageCtx {
     }
 
     /// NOTE: assumes storage tests always use the `HashMapStorageProvider`
-    pub fn set_spec(&mut self, spec: TempoHardfork) {
+    pub fn set_spec(&mut self, spec: MagnusHardfork) {
         self.as_hashmap().set_spec(spec)
     }
 
@@ -472,10 +472,10 @@ unsafe fn extend_lifetime_mut<'b, T: ?Sized>(r: &mut T) -> &'b mut T {
 mod tests {
     use super::*;
     use alloy::primitives::U256;
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
 
     fn t1c_storage() -> HashMapStorageProvider {
-        HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C)
+        HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1C)
     }
 
     #[test]

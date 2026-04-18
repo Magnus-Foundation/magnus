@@ -84,7 +84,7 @@ fn gen_to_word_impl(type_path: &TokenStream, strategy: &StorableConversionStrate
 
                     #[inline]
                     fn from_word(word: U256) -> crate::error::Result<Self> {
-                        word.try_into().map_err(|_| crate::error::TempoPrecompileError::under_overflow())
+                        word.try_into().map_err(|_| crate::error::MagnusPrecompileError::under_overflow())
                     }
                 }
             }
@@ -101,7 +101,7 @@ fn gen_to_word_impl(type_path: &TokenStream, strategy: &StorableConversionStrate
                     fn from_word(word: ::alloy::primitives::U256) -> crate::error::Result<Self> {
                         // Check if value fits in target type
                         if word > ::alloy::primitives::U256::from(::alloy::primitives::#ty::MAX) {
-                            return Err(crate::error::TempoPrecompileError::under_overflow());
+                            return Err(crate::error::MagnusPrecompileError::under_overflow());
                         }
                         Ok(word.to::<Self>())
                     }
@@ -121,7 +121,7 @@ fn gen_to_word_impl(type_path: &TokenStream, strategy: &StorableConversionStrate
                     fn from_word(word: U256) -> crate::error::Result<Self> {
                         // Extract low bytes as unsigned, then interpret as signed
                         let unsigned: #unsigned_type = word.try_into()
-                            .map_err(|_| crate::error::TempoPrecompileError::under_overflow())?;
+                            .map_err(|_| crate::error::MagnusPrecompileError::under_overflow())?;
                         Ok(unsigned as Self)
                     }
                 }
@@ -140,7 +140,7 @@ fn gen_to_word_impl(type_path: &TokenStream, strategy: &StorableConversionStrate
                     fn from_word(word: ::alloy::primitives::U256) -> crate::error::Result<Self> {
                         // Check if value fits in the unsigned backing type
                         if word > ::alloy::primitives::U256::from(::alloy::primitives::#unsigned_type::MAX) {
-                            return Err(crate::error::TempoPrecompileError::under_overflow());
+                            return Err(crate::error::MagnusPrecompileError::under_overflow());
                         }
                         // Extract low bytes as unsigned, then interpret as signed
                         let unsigned_val = word.to::<::alloy::primitives::#unsigned_type>();
@@ -707,8 +707,8 @@ fn gen_struct_array_load(struct_type: &TokenStream, array_size: usize) -> TokenS
             let elem_slot = base_slot.checked_add(
                 ::alloy::primitives::U256::from(i).checked_mul(
                     ::alloy::primitives::U256::from(<#struct_type as crate::storage::StorableType>::SLOTS)
-                ).ok_or(crate::error::TempoError::SlotOverflow)?
-            ).ok_or(crate::error::TempoError::SlotOverflow)?;
+                ).ok_or(crate::error::MagnusError::SlotOverflow)?
+            ).ok_or(crate::error::MagnusError::SlotOverflow)?;
 
             result[i] = <#struct_type as crate::storage::Storable>::load(storage, elem_slot, crate::storage::LayoutCtx::FULL)?;
         }
@@ -724,8 +724,8 @@ fn gen_struct_array_store(struct_type: &TokenStream) -> TokenStream {
             let elem_slot = base_slot.checked_add(
                 ::alloy::primitives::U256::from(i).checked_mul(
                     ::alloy::primitives::U256::from(<#struct_type as crate::storage::StorableType>::SLOTS)
-                ).ok_or(crate::error::TempoError::SlotOverflow)?
-            ).ok_or(crate::error::TempoError::SlotOverflow)?;
+                ).ok_or(crate::error::MagnusError::SlotOverflow)?
+            ).ok_or(crate::error::MagnusError::SlotOverflow)?;
 
             <#struct_type as crate::storage::Storable>::store(elem, storage, elem_slot, crate::storage::LayoutCtx::FULL)?;
         }

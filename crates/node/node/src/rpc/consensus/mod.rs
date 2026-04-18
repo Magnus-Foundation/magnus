@@ -20,7 +20,7 @@ pub use types::{
 
 /// Consensus namespace RPC trait.
 #[rpc(server, client, namespace = "consensus")]
-pub trait TempoConsensusApi {
+pub trait MagnusConsensusApi {
     /// Get finalization by height query.
     ///
     /// Use `"latest"` to get the most recent finalization, or `{"height": N}` for a specific height.
@@ -55,11 +55,11 @@ pub trait TempoConsensusApi {
 
 /// Tempo consensus RPC implementation.
 #[derive(Debug, Clone)]
-pub struct TempoConsensusRpc<I> {
+pub struct MagnusConsensusRpc<I> {
     consensus_feed: I,
 }
 
-impl<I: ConsensusFeed> TempoConsensusRpc<I> {
+impl<I: ConsensusFeed> MagnusConsensusRpc<I> {
     /// Create a new consensus RPC handler.
     pub fn new(consensus_feed: I) -> Self {
         Self { consensus_feed }
@@ -67,7 +67,7 @@ impl<I: ConsensusFeed> TempoConsensusRpc<I> {
 }
 
 #[async_trait::async_trait]
-impl<I: ConsensusFeed> TempoConsensusApiServer for TempoConsensusRpc<I> {
+impl<I: ConsensusFeed> MagnusConsensusApiServer for MagnusConsensusRpc<I> {
     async fn get_finalization(&self, query: Query) -> RpcResult<Option<CertifiedBlock>> {
         Ok(self.consensus_feed.get_finalization(query).await)
     }

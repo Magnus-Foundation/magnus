@@ -16,11 +16,11 @@ use magnus_precompiles_macros::{Storable, contract};
 
 use crate::{
     TIP403_REGISTRY_ADDRESS,
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     storage::{Handler, Mapping},
 };
 use alloy::primitives::Address;
-use magnus_primitives::TempoAddressExt;
+use magnus_primitives::MagnusAddressExt;
 
 /// Built-in policy ID that always rejects authorization.
 pub const REJECT_ALL_POLICY_ID: u64 = 0;
@@ -110,7 +110,7 @@ impl PolicyData {
             _ => Err(if is_t2 {
                 TIP403RegistryError::invalid_policy_type().into()
             } else {
-                TempoPrecompileError::under_overflow()
+                MagnusPrecompileError::under_overflow()
             }),
         }
     }
@@ -248,7 +248,7 @@ impl TIP403Registry {
         self.policy_id_counter.write(
             new_policy_id
                 .checked_add(1)
-                .ok_or(TempoPrecompileError::under_overflow())?,
+                .ok_or(MagnusPrecompileError::under_overflow())?,
         )?;
 
         // Store policy data
@@ -306,7 +306,7 @@ impl TIP403Registry {
         self.policy_id_counter.write(
             new_policy_id
                 .checked_add(1)
-                .ok_or(TempoPrecompileError::under_overflow())?,
+                .ok_or(MagnusPrecompileError::under_overflow())?,
         )?;
 
         // Store policy data
@@ -506,7 +506,7 @@ impl TIP403Registry {
         self.policy_id_counter.write(
             new_policy_id
                 .checked_add(1)
-                .ok_or(TempoPrecompileError::under_overflow())?,
+                .ok_or(MagnusPrecompileError::under_overflow())?,
         )?;
 
         // Store policy record with COMPOUND type and compound data
@@ -698,14 +698,14 @@ impl AuthRole {
 
 /// Returns `true` if the error indicates a failed policy lookup — the policy type is invalid
 /// or the policy doesn't exist.
-pub fn is_policy_lookup_error(e: &TempoPrecompileError) -> bool {
+pub fn is_policy_lookup_error(e: &MagnusPrecompileError) -> bool {
     if StorageCtx.spec().is_t2() {
         // T2+: typed TIP403 errors
         *e == TIP403RegistryError::invalid_policy_type().into()
             || *e == TIP403RegistryError::policy_not_found().into()
     } else {
         // Pre-T2: legacy Panic(UnderOverflow) sentinel
-        *e == TempoPrecompileError::under_overflow()
+        *e == MagnusPrecompileError::under_overflow()
     }
 }
 
@@ -738,7 +738,7 @@ impl PolicyTypeExt for PolicyType {
 mod tests {
     use super::*;
     use crate::{
-        error::TempoPrecompileError,
+        error::MagnusPrecompileError,
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
     };
     use alloy::{
@@ -746,9 +746,9 @@ mod tests {
         sol_types::SolEvent,
     };
     use rand_08::Rng;
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::TIP403_REGISTRY_ADDRESS;
-    use magnus_primitives::{MasterId, TempoAddressExt, UserTag};
+    use magnus_primitives::{MasterId, MagnusAddressExt, UserTag};
 
     #[test]
     fn test_create_policy() -> eyre::Result<()> {
@@ -885,7 +885,7 @@ mod tests {
             // Verify the error is PolicyNotFound
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP403RegistryError(TIP403RegistryError::PolicyNotFound(_))
+                MagnusPrecompileError::TIP403RegistryError(TIP403RegistryError::PolicyNotFound(_))
             ));
 
             Ok(())
@@ -896,9 +896,9 @@ mod tests {
     fn test_policy_data_builtin_policies_boundary() -> eyre::Result<()> {
         for (hardfork, expect_allow_all_type) in [
             // Pre-T2: reads uninitialized storage → both builtins decode as WHITELIST
-            (TempoHardfork::T1C, ITIP403Registry::PolicyType::WHITELIST),
+            (MagnusHardfork::T1C, ITIP403Registry::PolicyType::WHITELIST),
             // T2: virtual builtins return correct types
-            (TempoHardfork::T2, ITIP403Registry::PolicyType::BLACKLIST),
+            (MagnusHardfork::T2, ITIP403Registry::PolicyType::BLACKLIST),
         ] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
             StorageCtx::enter(&mut storage, || {
@@ -918,7 +918,7 @@ mod tests {
                 assert_eq!(allow.policyType, expect_allow_all_type);
                 assert_eq!(allow.admin, Address::ZERO);
 
-                Ok::<_, TempoPrecompileError>(())
+                Ok::<_, MagnusPrecompileError>(())
             })?;
         }
         Ok(())
@@ -978,7 +978,7 @@ mod tests {
 
     #[test]
     fn test_create_compound_policy() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let admin = Address::random();
         let creator = Address::random();
         StorageCtx::enter(&mut storage, || {
@@ -1044,7 +1044,7 @@ mod tests {
 
     #[test]
     fn test_compound_policy_rejects_non_existent_refs() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         let creator = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
@@ -1066,7 +1066,7 @@ mod tests {
 
     #[test]
     fn test_compound_policy_rejects_compound_refs() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         let admin = Address::random();
         let creator = Address::random();
         StorageCtx::enter(&mut storage, || {
@@ -1108,7 +1108,7 @@ mod tests {
 
     #[test]
     fn test_compound_policy_sender_recipient_differentiation() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         let admin = Address::random();
         let creator = Address::random();
         let alice = Address::random();
@@ -1182,7 +1182,7 @@ mod tests {
 
     #[test]
     fn test_compound_policy_is_authorized_behavior() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         let admin = Address::random();
         let creator = Address::random();
         let user = Address::random();
@@ -1256,7 +1256,7 @@ mod tests {
         let creator = Address::random();
         let user = Address::random();
 
-        for hardfork in [TempoHardfork::T0, TempoHardfork::T1] {
+        for hardfork in [MagnusHardfork::T0, MagnusHardfork::T1] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
 
             StorageCtx::enter(&mut storage, || {
@@ -1329,7 +1329,7 @@ mod tests {
                 )?;
                 assert!(registry.is_authorized_as(compound_id, user, AuthRole::Transfer)?);
 
-                Ok::<_, TempoPrecompileError>(())
+                Ok::<_, MagnusPrecompileError>(())
             })?;
         }
 
@@ -1338,7 +1338,7 @@ mod tests {
 
     #[test]
     fn test_simple_policy_equivalence() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         let admin = Address::random();
         let user = Address::random();
         StorageCtx::enter(&mut storage, || {
@@ -1379,7 +1379,7 @@ mod tests {
 
     #[test]
     fn test_compound_policy_with_builtin_policies() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         let creator = Address::random();
         let user = Address::random();
         StorageCtx::enter(&mut storage, || {
@@ -1416,7 +1416,7 @@ mod tests {
 
     #[test]
     fn test_vendor_credits_use_case() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         let admin = Address::random();
         let creator = Address::random();
         let vendor = Address::random();
@@ -1474,7 +1474,7 @@ mod tests {
         let creator = Address::random();
 
         // First, create a compound policy on T1
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         let compound_id = StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
             registry.create_compound_policy(
@@ -1488,7 +1488,7 @@ mod tests {
         })?;
 
         // Now downgrade to T0 and try to read the compound policy data
-        let mut storage = storage.with_spec(TempoHardfork::T0);
+        let mut storage = storage.with_spec(MagnusHardfork::T0);
         StorageCtx::enter(&mut storage, || {
             let registry = TIP403Registry::new();
 
@@ -1496,7 +1496,7 @@ mod tests {
                 policyId: compound_id,
             });
             assert!(result.is_err());
-            assert_eq!(result.unwrap_err(), TempoPrecompileError::under_overflow());
+            assert_eq!(result.unwrap_err(), MagnusPrecompileError::under_overflow());
 
             Ok(())
         })
@@ -1506,7 +1506,7 @@ mod tests {
     fn test_create_policy_rejects_non_simple_policy_types() -> eyre::Result<()> {
         let admin = Address::random();
 
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
 
@@ -1523,7 +1523,7 @@ mod tests {
                 );
                 assert!(matches!(
                     result.unwrap_err(),
-                    TempoPrecompileError::TIP403RegistryError(
+                    MagnusPrecompileError::TIP403RegistryError(
                         TIP403RegistryError::IncompatiblePolicyType(_)
                     )
                 ));
@@ -1535,7 +1535,7 @@ mod tests {
 
     #[test]
     fn test_create_policy_with_accounts_rejects_non_simple_policy_types() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         let admin = Address::random();
         let account = Address::random();
         StorageCtx::enter(&mut storage, || {
@@ -1555,7 +1555,7 @@ mod tests {
                 );
                 assert!(matches!(
                     result.unwrap_err(),
-                    TempoPrecompileError::TIP403RegistryError(
+                    MagnusPrecompileError::TIP403RegistryError(
                         TIP403RegistryError::IncompatiblePolicyType(_)
                     )
                 ));
@@ -1571,7 +1571,7 @@ mod tests {
 
     #[test]
     fn test_pre_t1_create_policy_with_invalid_type_stores_255() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let admin = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
@@ -1605,7 +1605,7 @@ mod tests {
 
     #[test]
     fn test_pre_t1_create_policy_with_valid_types_stores_correct_value() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let admin = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
@@ -1638,7 +1638,7 @@ mod tests {
 
     #[test]
     fn test_pre_t1_create_policy_with_accounts_invalid_type_behavior() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let (admin, account) = (Address::random(), Address::random());
 
         StorageCtx::enter(&mut storage, || {
@@ -1659,7 +1659,7 @@ mod tests {
                 );
                 assert!(matches!(
                     result.unwrap_err(),
-                    TempoPrecompileError::TIP403RegistryError(
+                    MagnusPrecompileError::TIP403RegistryError(
                         TIP403RegistryError::IncompatiblePolicyType(_)
                     )
                 ));
@@ -1683,7 +1683,7 @@ mod tests {
 
     #[test]
     fn test_pre_t1_policy_data_reverts_for_any_policy_type_gte_2() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let admin = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
@@ -1702,7 +1702,7 @@ mod tests {
                 policyId: policy_id,
             });
             assert!(result.is_err());
-            assert_eq!(result.unwrap_err(), TempoPrecompileError::under_overflow());
+            assert_eq!(result.unwrap_err(), MagnusPrecompileError::under_overflow());
 
             Ok(())
         })
@@ -1710,7 +1710,7 @@ mod tests {
 
     #[test]
     fn test_pre_t1_is_authorized_reverts_for_invalid_policy_type() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let admin = Address::random();
         let user = Address::random();
         StorageCtx::enter(&mut storage, || {
@@ -1728,7 +1728,7 @@ mod tests {
             // is_authorized should revert for policy_type >= 2 on pre-T1
             let result = registry.is_authorized_as(policy_id, user, AuthRole::Transfer);
             assert!(result.is_err());
-            assert_eq!(result.unwrap_err(), TempoPrecompileError::under_overflow());
+            assert_eq!(result.unwrap_err(), MagnusPrecompileError::under_overflow());
 
             Ok(())
         })
@@ -1737,7 +1737,7 @@ mod tests {
     #[test]
     fn test_pre_t2_to_t2_migration_invalid_policy_still_fails() -> eyre::Result<()> {
         // Create a policy with invalid type on pre-T2
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let admin = Address::random();
         let user = Address::random();
 
@@ -1753,7 +1753,7 @@ mod tests {
         })?;
 
         // Upgrade to T2 and try to use the policy
-        let mut storage = storage.with_spec(TempoHardfork::T2);
+        let mut storage = storage.with_spec(MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let registry = TIP403Registry::new();
 
@@ -1782,7 +1782,7 @@ mod tests {
     #[test]
     fn test_t2_compound_policy_rejects_legacy_invalid_255_policy() -> eyre::Result<()> {
         // Create a policy with invalid type on pre-T1 (stored as 255)
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let admin = Address::random();
         let creator = Address::random();
 
@@ -1798,7 +1798,7 @@ mod tests {
         })?;
 
         // Upgrade to T2 and create a valid simple policy
-        let mut storage = storage.with_spec(TempoHardfork::T2);
+        let mut storage = storage.with_spec(MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
 
@@ -1821,7 +1821,7 @@ mod tests {
             );
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP403RegistryError(TIP403RegistryError::PolicyNotSimple(_))
+                MagnusPrecompileError::TIP403RegistryError(TIP403RegistryError::PolicyNotSimple(_))
             ));
 
             Ok(())
@@ -1830,7 +1830,7 @@ mod tests {
 
     #[test]
     fn test_t2_validate_policy_type_returns_correct_u8() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let admin = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
@@ -1866,7 +1866,7 @@ mod tests {
         // This test verifies that is_simple explicitly errors for __Invalid
         // rather than returning false. We need to manually create a policy
         // with an invalid type to test this edge case.
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let admin = Address::random();
         let user = Address::random();
 
@@ -1883,7 +1883,7 @@ mod tests {
         })?;
 
         // Now on T2, is_authorized should error with InvalidPolicyType
-        let mut storage = storage.with_spec(TempoHardfork::T2);
+        let mut storage = storage.with_spec(MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let registry = TIP403Registry::new();
 
@@ -1899,7 +1899,7 @@ mod tests {
 
     #[test]
     fn test_pre_t1_whitelist_and_blacklist_work_normally() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let admin = Address::random();
         let user = Address::random();
         StorageCtx::enter(&mut storage, || {
@@ -1961,7 +1961,7 @@ mod tests {
 
     #[test]
     fn test_pre_t1_create_policy_event_emits_invalid() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -1978,7 +1978,7 @@ mod tests {
             let data = registry.get_policy_data(policy_id)?;
             assert_eq!(data.policy_type, 255u8);
 
-            Ok::<_, TempoPrecompileError>(())
+            Ok::<_, MagnusPrecompileError>(())
         })?;
 
         let events = storage.events.get(&TIP403_REGISTRY_ADDRESS).unwrap();
@@ -1997,7 +1997,7 @@ mod tests {
 
     #[test]
     fn test_t2_create_policy_rejects_invalid_types() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -2016,7 +2016,7 @@ mod tests {
                 );
                 assert!(matches!(
                     result.unwrap_err(),
-                    TempoPrecompileError::TIP403RegistryError(
+                    MagnusPrecompileError::TIP403RegistryError(
                         TIP403RegistryError::IncompatiblePolicyType(_)
                     )
                 ));
@@ -2028,7 +2028,7 @@ mod tests {
 
     #[test]
     fn test_t2_create_policy_emits_correct_type() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -2050,7 +2050,7 @@ mod tests {
                 },
             )?;
 
-            Ok::<_, TempoPrecompileError>(())
+            Ok::<_, MagnusPrecompileError>(())
         })?;
 
         let events = storage.events.get(&TIP403_REGISTRY_ADDRESS).unwrap();
@@ -2083,7 +2083,7 @@ mod tests {
 
     #[test]
     fn test_compound_policy_data_error_cases() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let admin = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
@@ -2093,7 +2093,7 @@ mod tests {
                 .compound_policy_data(ITIP403Registry::compoundPolicyDataCall { policyId: 999 });
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP403RegistryError(TIP403RegistryError::PolicyNotFound(_))
+                MagnusPrecompileError::TIP403RegistryError(TIP403RegistryError::PolicyNotFound(_))
             ));
 
             // Simple policy should return IncompatiblePolicyType
@@ -2109,7 +2109,7 @@ mod tests {
             });
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP403RegistryError(
+                MagnusPrecompileError::TIP403RegistryError(
                     TIP403RegistryError::IncompatiblePolicyType(_)
                 )
             ));
@@ -2121,7 +2121,7 @@ mod tests {
     #[test]
     fn test_invalid_policy_type() -> eyre::Result<()> {
         // Create a policy with __Invalid type
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let admin = Address::random();
         let user = Address::random();
 
@@ -2143,16 +2143,16 @@ mod tests {
             let result = registry.policy_data(ITIP403Registry::policyDataCall {
                 policyId: policy_id,
             });
-            assert_eq!(result.unwrap_err(), TempoPrecompileError::under_overflow());
+            assert_eq!(result.unwrap_err(), MagnusPrecompileError::under_overflow());
 
             let result = registry.is_authorized_as(policy_id, user, AuthRole::Transfer);
-            assert_eq!(result.unwrap_err(), TempoPrecompileError::under_overflow());
+            assert_eq!(result.unwrap_err(), MagnusPrecompileError::under_overflow());
 
-            Ok::<_, TempoPrecompileError>(())
+            Ok::<_, MagnusPrecompileError>(())
         })?;
 
         // T2+: should return InvalidPolicyType error
-        let mut storage = storage.with_spec(TempoHardfork::T2);
+        let mut storage = storage.with_spec(MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let registry = TIP403Registry::new();
 
@@ -2176,7 +2176,7 @@ mod tests {
 
     #[test]
     fn test_initialize_sets_storage_state() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
 
@@ -2199,7 +2199,7 @@ mod tests {
 
     #[test]
     fn test_policy_exists_boundary_at_counter() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let admin = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
@@ -2238,7 +2238,7 @@ mod tests {
 
     #[test]
     fn test_nonexistent_policy_behavior() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         let user = Address::random();
         let nonexistent_id = 999;
 
@@ -2252,7 +2252,7 @@ mod tests {
         })?;
 
         // T2: reverts with `PolicyNotFound`
-        let mut storage = storage.with_spec(TempoHardfork::T2);
+        let mut storage = storage.with_spec(MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let registry = TIP403Registry::new();
             assert_eq!(
@@ -2273,7 +2273,7 @@ mod tests {
 
     #[test]
     fn test_modify_whitelist_rejects_virtual_address() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -2296,7 +2296,7 @@ mod tests {
             );
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP403RegistryError(
+                MagnusPrecompileError::TIP403RegistryError(
                     TIP403RegistryError::VirtualAddressNotAllowed(_)
                 )
             ));
@@ -2307,7 +2307,7 @@ mod tests {
 
     #[test]
     fn test_modify_blacklist_rejects_virtual_address() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -2330,7 +2330,7 @@ mod tests {
             );
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP403RegistryError(
+                MagnusPrecompileError::TIP403RegistryError(
                     TIP403RegistryError::VirtualAddressNotAllowed(_)
                 )
             ));
@@ -2341,7 +2341,7 @@ mod tests {
 
     #[test]
     fn test_create_policy_with_accounts_rejects_virtual_address() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -2360,7 +2360,7 @@ mod tests {
             );
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP403RegistryError(
+                MagnusPrecompileError::TIP403RegistryError(
                     TIP403RegistryError::VirtualAddressNotAllowed(_)
                 )
             ));

@@ -5,7 +5,7 @@ use futures::{
     SinkExt as _,
     channel::{mpsc, oneshot},
 };
-use magnus_payload_types::TempoPayloadAttributes;
+use magnus_payload_types::MagnusPayloadAttributes;
 use tracing::Span;
 
 use crate::consensus::{Digest, block::Block};
@@ -40,7 +40,7 @@ impl Mailbox {
         &self,
         height: Height,
         digest: Digest,
-        attributes: TempoPayloadAttributes,
+        attributes: MagnusPayloadAttributes,
     ) -> eyre::Result<PayloadId> {
         let (response, rx) = oneshot::channel();
         self.inner
@@ -95,7 +95,7 @@ pub(super) struct CanonicalizeHead {
 pub(super) struct CanonicalizeAndBuild {
     pub(super) height: Height,
     pub(super) digest: Digest,
-    pub(super) attributes: Box<TempoPayloadAttributes>,
+    pub(super) attributes: Box<MagnusPayloadAttributes>,
     pub(super) response: oneshot::Sender<eyre::Result<PayloadId>>,
 }
 

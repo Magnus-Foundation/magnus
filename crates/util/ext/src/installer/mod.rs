@@ -96,8 +96,8 @@ struct ResolvedInstall {
 
 impl Installer {
     pub(crate) fn from_env(exe_dir: Option<&Path>) -> Result<Self, InstallerError> {
-        let bin_dir = if env::var_os("TEMPO_HOME").is_some() {
-            fallback_bin_dir().expect("TEMPO_HOME is set")
+        let bin_dir = if env::var_os("MAGNUS_HOME").is_some() {
+            fallback_bin_dir().expect("MAGNUS_HOME is set")
         } else if let Some(dir) = exe_dir.filter(|d| d.is_dir() && check_dir_writable(d).is_ok()) {
             dir.to_path_buf()
         } else {
@@ -348,9 +348,9 @@ impl Installer {
     }
 }
 
-/// The fallback install directory: `TEMPO_HOME/bin` if set, else `~/.local/bin`.
+/// The fallback install directory: `MAGNUS_HOME/bin` if set, else `~/.local/bin`.
 pub(crate) fn fallback_bin_dir() -> Option<PathBuf> {
-    if let Some(home) = env::var_os("TEMPO_HOME") {
+    if let Some(home) = env::var_os("MAGNUS_HOME") {
         Some(PathBuf::from(home).join("bin"))
     } else {
         default_local_bin().ok()

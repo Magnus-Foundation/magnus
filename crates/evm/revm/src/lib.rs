@@ -9,7 +9,7 @@ mod block;
 use tracing as _;
 
 mod common;
-pub use common::{TempoStateAccess, TempoTx};
+pub use common::{MagnusStateAccess, MagnusTx};
 pub mod error;
 pub mod evm;
 pub mod exec;
@@ -18,9 +18,9 @@ pub mod handler;
 mod instructions;
 mod tx;
 
-pub use block::TempoBlockEnv;
-pub use error::{TempoHaltReason, TempoInvalidTransaction};
-pub use evm::TempoEvm;
+pub use block::MagnusBlockEnv;
+pub use error::{MagnusHaltReason, MagnusInvalidTransaction};
+pub use evm::MagnusEvm;
 pub use handler::{ValidationContext, calculate_aa_batch_intrinsic_gas};
 pub use revm::interpreter::instructions::utility::IntoAddress;
-pub use tx::{TempoBatchCallEnv, TempoTxEnv};
+pub use tx::{MagnusBatchCallEnv, MagnusTxEnv};

@@ -3,7 +3,7 @@ use reth_chainspec::{EthereumHardfork, ForkCondition, Hardforks, Head};
 use reth_primitives_traits::AlloyBlockHeader as _;
 use reth_provider::{BlockNumReader, ChainSpecProvider, HeaderProvider};
 use serde::{Deserialize, Serialize};
-use magnus_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
+use magnus_chainspec::{MagnusChainSpec, hardfork::MagnusHardforks};
 
 /// Response for `magnus_forkSchedule`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ pub struct ForkInfo {
 }
 
 #[rpc(server, namespace = "tempo")]
-pub trait TempoForkScheduleApi {
+pub trait MagnusForkScheduleApi {
     /// Returns the Tempo fork schedule and the currently active fork.
     #[method(name = "forkSchedule")]
     async fn fork_schedule(&self) -> RpcResult<ForkSchedule>;
@@ -40,11 +40,11 @@ pub trait TempoForkScheduleApi {
 
 /// Implementation of `magnus_forkSchedule`.
 #[derive(Debug, Clone)]
-pub struct TempoForkScheduleRpc<P> {
+pub struct MagnusForkScheduleRpc<P> {
     provider: P,
 }
 
-impl<P> TempoForkScheduleRpc<P> {
+impl<P> MagnusForkScheduleRpc<P> {
     /// Create a new fork schedule RPC handler.
     pub fn new(provider: P) -> Self {
         Self { provider }
@@ -56,9 +56,9 @@ fn internal_err(msg: impl ToString) -> jsonrpsee::types::ErrorObject<'static> {
 }
 
 #[async_trait::async_trait]
-impl<P> TempoForkScheduleApiServer for TempoForkScheduleRpc<P>
+impl<P> MagnusForkScheduleApiServer for MagnusForkScheduleRpc<P>
 where
-    P: ChainSpecProvider<ChainSpec = TempoChainSpec>
+    P: ChainSpecProvider<ChainSpec = MagnusChainSpec>
         + BlockNumReader
         + HeaderProvider
         + Send

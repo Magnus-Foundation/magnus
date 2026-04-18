@@ -11,7 +11,7 @@ use commonware_runtime::{Metrics, Pacer, Spawner, Storage};
 
 use eyre::WrapErr as _;
 use rand_08::{CryptoRng, Rng};
-use magnus_node::TempoFullNode;
+use magnus_node::MagnusFullNode;
 
 mod actor;
 mod ingress;
@@ -56,7 +56,7 @@ pub(super) struct Config<TContext> {
     pub(super) executor: crate::executor::Mailbox,
 
     /// A handle to the execution node to verify and create new payloads.
-    pub(super) execution_node: TempoFullNode,
+    pub(super) execution_node: MagnusFullNode,
 
     /// A handle to the subblocks service to get subblocks for proposals.
     pub(crate) subblocks: Option<subblocks::Mailbox>,

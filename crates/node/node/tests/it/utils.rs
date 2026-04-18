@@ -50,7 +50,7 @@ impl ForkSchedule {
     /// For [`Devnet`](Self::Devnet) all forks from the dev genesis are active.
     /// For other schedules, a fork is active only if its timestamp in the
     /// reference genesis is in the past.
-    pub(crate) fn is_active(&self, fork: TempoHardfork) -> bool {
+    pub(crate) fn is_active(&self, fork: MagnusHardfork) -> bool {
         let Some(reference_json) = self.reference_genesis() else {
             return true; // devnet: all forks active
         };
@@ -102,8 +102,8 @@ impl ForkSchedule {
 /// the node starts in a "pre-<next fork>" configuration.
 ///
 /// This scales automatically when new hardforks are appended to
-/// `TempoHardfork` — no manual maintenance required.
-pub(crate) fn make_genesis_at(last_active: TempoHardfork) -> String {
+/// `MagnusHardfork` — no manual maintenance required.
+pub(crate) fn make_genesis_at(last_active: MagnusHardfork) -> String {
     let mut genesis: serde_json::Value =
         serde_json::from_str(include_str!("../assets/test-genesis.json"))
             .expect("test-genesis.json must parse");
@@ -112,8 +112,8 @@ pub(crate) fn make_genesis_at(last_active: TempoHardfork) -> String {
         .expect("genesis must have config");
 
     let mut past_cutoff = false;
-    for &fork in TempoHardfork::VARIANTS {
-        if fork == TempoHardfork::Genesis {
+    for &fork in MagnusHardfork::VARIANTS {
+        if fork == MagnusHardfork::Genesis {
             continue;
         }
         if past_cutoff {
@@ -148,16 +148,16 @@ use reth_node_core::args::RpcServerArgs;
 use reth_rpc_builder::RpcModuleSelection;
 use std::{sync::Arc, time::Duration};
 use magnus_chainspec::{
-    hardfork::{TempoHardfork, TempoHardforks},
-    spec::TempoChainSpec,
+    hardfork::{MagnusHardfork, MagnusHardforks},
+    spec::MagnusChainSpec,
 };
 use magnus_contracts::precompiles::{
     IRolesAuth,
     ITIP20::{self, ITIP20Instance},
     ITIP20Factory,
 };
-use magnus_node::node::TempoNode;
-use magnus_payload_types::TempoPayloadAttributes;
+use magnus_node::node::MagnusNode;
+use magnus_payload_types::MagnusPayloadAttributes;
 use magnus_precompiles::{PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS, tip20::ISSUER_ROLE};
 
 /// Creates a test TIP20 token with issuer role granted to the caller
@@ -263,15 +263,15 @@ pub(crate) async fn await_receipts(
 /// Result type for single node setup
 pub(crate) struct SingleNodeSetup {
     /// The node handle for direct manipulation (inject_tx, advance_block, etc.)
-    pub node: reth_e2e_test_utils::NodeHelperType<TempoNode>,
+    pub node: reth_e2e_test_utils::NodeHelperType<MagnusNode>,
     /// Latest Tempo hardfork active at genesis (timestamp 0).
-    pub hardfork: TempoHardfork,
+    pub hardfork: MagnusHardfork,
 }
 
 /// Result type for multi-node setup
 pub(crate) struct MultiNodeSetup {
     /// Node handles for direct manipulation
-    pub nodes: Vec<reth_e2e_test_utils::NodeHelperType<TempoNode>>,
+    pub nodes: Vec<reth_e2e_test_utils::NodeHelperType<MagnusNode>>,
 }
 
 /// Result type for HTTP-only setup (no direct node access)
@@ -365,7 +365,7 @@ impl TestNodeBuilder {
         let chain_spec = self.build_chain_spec()?;
         let hardfork = chain_spec.magnus_hardfork_at(0);
 
-        let (mut nodes, _wallet) = setup::<TempoNode>(
+        let (mut nodes, _wallet) = setup::<MagnusNode>(
             1,
             Arc::new(chain_spec),
             self.is_dev,
@@ -394,7 +394,7 @@ impl TestNodeBuilder {
 
         let chain_spec = self.build_chain_spec()?;
 
-        let (nodes, _wallet) = setup::<TempoNode>(
+        let (nodes, _wallet) = setup::<MagnusNode>(
             self.node_count,
             Arc::new(chain_spec),
             self.is_dev,
@@ -443,7 +443,7 @@ impl TestNodeBuilder {
 
         let node_handle = NodeBuilder::new(node_config.clone())
             .testing_node(runtime.clone())
-            .node(TempoNode::default())
+            .node(MagnusNode::default())
             .launch_with_debug_capabilities()
             .map_debug_payload_attributes(move |mut attributes| {
                 let validator = dynamic_validator
@@ -470,7 +470,7 @@ impl TestNodeBuilder {
     }
 
     /// Helper to build chain spec from genesis
-    fn build_chain_spec(&self) -> eyre::Result<TempoChainSpec> {
+    fn build_chain_spec(&self) -> eyre::Result<MagnusChainSpec> {
         let mut genesis: serde_json::Value = serde_json::from_str(&self.genesis_content)?;
         if let Some(gas_limit) = &self.custom_gas_limit {
             genesis["gasLimit"] = serde_json::json!(gas_limit);
@@ -478,14 +478,14 @@ impl TestNodeBuilder {
 
         self.schedule.apply(&mut genesis);
 
-        Ok(TempoChainSpec::from_genesis(serde_json::from_value(
+        Ok(MagnusChainSpec::from_genesis(serde_json::from_value(
             genesis,
         )?))
     }
 }
 
 /// Default attributes generator for payload building
-fn default_attributes_generator(timestamp: u64) -> TempoPayloadAttributes {
+fn default_attributes_generator(timestamp: u64) -> MagnusPayloadAttributes {
     PayloadAttributes {
         timestamp,
         prev_randao: alloy::primitives::B256::ZERO,

@@ -99,7 +99,7 @@ mod tests {
         primitives::{Address, FixedBytes},
         sol_types::{SolCall, SolValue},
     };
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::{
         IValidatorConfigV2, IValidatorConfigV2::IValidatorConfigV2Calls, ValidatorConfigV2Error,
     };
@@ -109,7 +109,7 @@ mod tests {
         let owner = Address::random();
 
         // Pre-T2 (T1): calling the precompile should succeed with empty output
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         StorageCtx::enter(&mut storage, || -> eyre::Result<()> {
             let mut vc = ValidatorConfigV2::new();
             vc.initialize(owner)?;
@@ -129,7 +129,7 @@ mod tests {
         })?;
 
         // Pre-T2 (T0): same behavior
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         StorageCtx::enter(&mut storage, || -> eyre::Result<()> {
             let mut vc = ValidatorConfigV2::new();
             vc.initialize(owner)?;
@@ -155,7 +155,7 @@ mod tests {
     fn test_t2_dispatch_works() -> eyre::Result<()> {
         let owner = Address::random();
 
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || -> eyre::Result<()> {
             let mut vc = ValidatorConfigV2::new();
             vc.initialize(owner)?;
@@ -177,7 +177,7 @@ mod tests {
         use commonware_codec::Encode;
         use commonware_cryptography::{Signer, ed25519::PrivateKey};
 
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let owner = Address::random();
         let validator_addr = Address::random();
         StorageCtx::enter(&mut storage, || {
@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_unauthorized_add_validator_dispatch() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let owner = Address::random();
         let non_owner = Address::random();
         let validator_addr = Address::random();
@@ -267,7 +267,7 @@ mod tests {
         let owner = Address::random();
 
         // T2: invalid selector returns reverted output
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || -> eyre::Result<()> {
             let mut vc = ValidatorConfigV2::new();
             vc.initialize(owner)?;
@@ -285,7 +285,7 @@ mod tests {
 
     #[test]
     fn test_selector_coverage() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let mut vc = ValidatorConfigV2::new();
 

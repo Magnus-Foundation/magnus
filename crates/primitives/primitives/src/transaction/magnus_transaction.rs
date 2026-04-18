@@ -3,7 +3,7 @@ use crate::transaction::key_authorization::serde_nonzero_quantity_opt;
 use crate::{
     subblock::{PartialValidatorKey, has_sub_block_nonce_key_prefix},
     transaction::{
-        AASigned, TempoSignature, TempoSignedAuthorization,
+        AASigned, MagnusSignature, MagnusSignedAuthorization,
         key_authorization::SignedKeyAuthorization,
     },
 };
@@ -15,7 +15,7 @@ use alloy_rlp::{Buf, BufMut, Decodable, EMPTY_STRING_CODE, Encodable};
 use core::num::NonZeroU64;
 
 /// Tempo transaction type byte (0x76)
-pub const TEMPO_TX_TYPE_ID: u8 = 0x76;
+pub const MAGNUS_TX_TYPE_ID: u8 = 0x76;
 
 /// Magic byte for the fee payer signature
 pub const FEE_PAYER_SIGNATURE_MAGIC_BYTE: u8 = 0x78;
@@ -26,10 +26,10 @@ pub const P256_SIGNATURE_LENGTH: usize = 129;
 pub const MAX_WEBAUTHN_SIGNATURE_LENGTH: usize = 2048; // 2KB max
 
 /// Nonce key marking an expiring nonce transaction (uses tx hash for replay protection).
-pub const TEMPO_EXPIRING_NONCE_KEY: U256 = U256::MAX;
+pub const MAGNUS_EXPIRING_NONCE_KEY: U256 = U256::MAX;
 
 /// Maximum allowed expiry window for expiring nonce transactions (30 seconds).
-pub const TEMPO_EXPIRING_NONCE_MAX_EXPIRY_SECS: u64 = 30;
+pub const MAGNUS_EXPIRING_NONCE_MAX_EXPIRY_SECS: u64 = 30;
 
 /// Signature type enumeration
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -195,7 +195,7 @@ impl Decodable for Call {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "reth-codec", derive(reth_codecs::Compact))]
-pub struct TempoTransaction {
+pub struct MagnusTransaction {
     /// EIP-155: Simple replay attack protection
     #[cfg_attr(feature = "serde", serde(with = "alloy_serde::quantity"))]
     pub chain_id: ChainId,
@@ -256,12 +256,12 @@ pub struct TempoTransaction {
 
     /// Authorization list (EIP-7702 style with Tempo signatures)
     #[cfg_attr(feature = "serde", serde(rename = "aaAuthorizationList"))]
-    pub magnus_authorization_list: Vec<TempoSignedAuthorization>,
+    pub magnus_authorization_list: Vec<MagnusSignedAuthorization>,
 }
 
 /// Validates the calls list structure for Tempo transactions.
 ///
-/// This is a shared validation function used by both `TempoTransaction::validate()`
+/// This is a shared validation function used by both `MagnusTransaction::validate()`
 /// and the revm handler's `validate_env()` to ensure consistent validation.
 ///
 /// Rules:
@@ -298,11 +298,11 @@ pub fn validate_calls(calls: &[Call], has_authorization_list: bool) -> Result<()
     Ok(())
 }
 
-impl TempoTransaction {
+impl MagnusTransaction {
     /// Get the transaction type
     #[doc(alias = "transaction_type")]
     pub const fn tx_type() -> u8 {
-        TEMPO_TX_TYPE_ID
+        MAGNUS_TX_TYPE_ID
     }
 
     /// Returns true if this is an expiring nonce transaction.
@@ -311,7 +311,7 @@ impl TempoTransaction {
     /// sequential nonces. They are identified by `nonce_key == U256::MAX`.
     #[inline]
     pub fn is_expiring_nonce_tx(&self) -> bool {
-        self.nonce_key == TEMPO_EXPIRING_NONCE_KEY
+        self.nonce_key == MAGNUS_EXPIRING_NONCE_KEY
     }
 
     /// Validates the transaction according to invariant rules.
@@ -349,7 +349,7 @@ impl TempoTransaction {
     }
 
     /// Convert the transaction into a signed transaction
-    pub fn into_signed(self, signature: TempoSignature) -> AASigned {
+    pub fn into_signed(self, signature: MagnusSignature) -> AASigned {
         AASigned::new_unhashed(self, signature)
     }
 
@@ -513,7 +513,7 @@ impl TempoTransaction {
         )
     }
 
-    /// Decodes the inner TempoTransaction fields from RLP bytes
+    /// Decodes the inner MagnusTransaction fields from RLP bytes
     pub(crate) fn rlp_decode_fields(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
         let chain_id = Decodable::decode(buf)?;
         let max_priority_fee_per_gas = Decodable::decode(buf)?;
@@ -599,7 +599,7 @@ impl TempoTransaction {
         Ok(tx)
     }
 
-    /// Returns true if the nonce key of this transaction has the [`TEMPO_SUBBLOCK_NONCE_KEY_PREFIX`](crate::subblock::TEMPO_SUBBLOCK_NONCE_KEY_PREFIX).
+    /// Returns true if the nonce key of this transaction has the [`MAGNUS_SUBBLOCK_NONCE_KEY_PREFIX`](crate::subblock::MAGNUS_SUBBLOCK_NONCE_KEY_PREFIX).
     pub fn has_sub_block_nonce_key_prefix(&self) -> bool {
         has_sub_block_nonce_key_prefix(&self.nonce_key)
     }
@@ -616,7 +616,7 @@ impl TempoTransaction {
     }
 }
 
-impl Transaction for TempoTransaction {
+impl Transaction for MagnusTransaction {
     #[inline]
     fn chain_id(&self) -> Option<ChainId> {
         Some(self.chain_id)
@@ -712,13 +712,13 @@ impl Transaction for TempoTransaction {
     }
 }
 
-impl Typed2718 for TempoTransaction {
+impl Typed2718 for MagnusTransaction {
     fn ty(&self) -> u8 {
-        TEMPO_TX_TYPE_ID
+        MAGNUS_TX_TYPE_ID
     }
 }
 
-impl SignableTransaction<Signature> for TempoTransaction {
+impl SignableTransaction<Signature> for MagnusTransaction {
     fn set_chain_id(&mut self, chain_id: ChainId) {
         self.chain_id = chain_id;
     }
@@ -757,7 +757,7 @@ impl SignableTransaction<Signature> for TempoTransaction {
     }
 }
 
-impl Encodable for TempoTransaction {
+impl Encodable for MagnusTransaction {
     fn encode(&self, out: &mut dyn BufMut) {
         // Encode as RLP list of fields
         let payload_length = self.rlp_encoded_fields_length_default();
@@ -771,7 +771,7 @@ impl Encodable for TempoTransaction {
     }
 }
 
-impl Decodable for TempoTransaction {
+impl Decodable for MagnusTransaction {
     fn decode(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
         let header = alloy_rlp::Header::decode(buf)?;
         if !header.list {
@@ -797,7 +797,7 @@ impl Decodable for TempoTransaction {
 
 // Custom Arbitrary implementation to ensure calls is never empty and CREATE validation passes
 #[cfg(any(test, feature = "arbitrary"))]
-impl<'a> arbitrary::Arbitrary<'a> for TempoTransaction {
+impl<'a> arbitrary::Arbitrary<'a> for MagnusTransaction {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
         // Generate all fields using the default Arbitrary implementation
         let chain_id = u.arbitrary()?;
@@ -918,11 +918,11 @@ mod serde_input {
 mod tests {
     use super::*;
     use crate::{
-        TempoTxEnvelope,
+        MagnusTxEnvelope,
         transaction::{
-            KeyAuthorization, TempoSignedAuthorization,
+            KeyAuthorization, MagnusSignedAuthorization,
             tt_signature::{
-                PrimitiveSignature, SIGNATURE_TYPE_P256, SIGNATURE_TYPE_WEBAUTHN, TempoSignature,
+                PrimitiveSignature, SIGNATURE_TYPE_P256, SIGNATURE_TYPE_WEBAUTHN, MagnusSignature,
                 derive_p256_address,
             },
         },
@@ -945,7 +945,7 @@ mod tests {
         };
 
         // Valid: valid_before > valid_after
-        let tx1 = TempoTransaction {
+        let tx1 = MagnusTransaction {
             valid_before: Some(nz(100)),
             valid_after: Some(nz(50)),
             magnus_authorization_list: vec![],
@@ -955,7 +955,7 @@ mod tests {
         assert!(tx1.validate().is_ok());
 
         // Invalid: valid_before <= valid_after
-        let tx2 = TempoTransaction {
+        let tx2 = MagnusTransaction {
             valid_before: Some(nz(50)),
             valid_after: Some(nz(100)),
             magnus_authorization_list: vec![],
@@ -965,7 +965,7 @@ mod tests {
         assert!(tx2.validate().is_err());
 
         // Invalid: valid_before == valid_after
-        let tx3 = TempoTransaction {
+        let tx3 = MagnusTransaction {
             valid_before: Some(nz(100)),
             valid_after: Some(nz(100)),
             magnus_authorization_list: vec![],
@@ -975,7 +975,7 @@ mod tests {
         assert!(tx3.validate().is_err());
 
         // Valid: no valid_after
-        let tx4 = TempoTransaction {
+        let tx4 = MagnusTransaction {
             valid_before: Some(nz(100)),
             valid_after: None,
             magnus_authorization_list: vec![],
@@ -985,7 +985,7 @@ mod tests {
         assert!(tx4.validate().is_ok());
 
         // Invalid: empty calls
-        let tx5 = TempoTransaction {
+        let tx5 = MagnusTransaction {
             ..Default::default()
         };
         assert!(tx5.validate().is_err());
@@ -993,27 +993,27 @@ mod tests {
 
     #[test]
     fn test_tx_type() {
-        assert_eq!(TempoTransaction::tx_type(), 0x76);
-        assert_eq!(TEMPO_TX_TYPE_ID, 0x76);
+        assert_eq!(MagnusTransaction::tx_type(), 0x76);
+        assert_eq!(MAGNUS_TX_TYPE_ID, 0x76);
     }
 
     #[test]
     fn test_signature_type_detection() {
         // Secp256k1 (detected by 65-byte length, no type identifier)
         let sig1_bytes = vec![0u8; SECP256K1_SIGNATURE_LENGTH];
-        let sig1 = TempoSignature::from_bytes(&sig1_bytes).unwrap();
+        let sig1 = MagnusSignature::from_bytes(&sig1_bytes).unwrap();
         assert_eq!(sig1.signature_type(), SignatureType::Secp256k1);
 
         // P256
         let mut sig2_bytes = vec![SIGNATURE_TYPE_P256];
         sig2_bytes.extend_from_slice(&[0u8; P256_SIGNATURE_LENGTH]);
-        let sig2 = TempoSignature::from_bytes(&sig2_bytes).unwrap();
+        let sig2 = MagnusSignature::from_bytes(&sig2_bytes).unwrap();
         assert_eq!(sig2.signature_type(), SignatureType::P256);
 
         // WebAuthn
         let mut sig3_bytes = vec![SIGNATURE_TYPE_WEBAUTHN];
         sig3_bytes.extend_from_slice(&[0u8; 200]);
-        let sig3 = TempoSignature::from_bytes(&sig3_bytes).unwrap();
+        let sig3 = MagnusSignature::from_bytes(&sig3_bytes).unwrap();
         assert_eq!(sig3.signature_type(), SignatureType::WebAuthn);
     }
 
@@ -1025,7 +1025,7 @@ mod tests {
             input: Bytes::from(vec![1, 2, 3, 4]),
         };
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 1,
             fee_token: Some(address!("0000000000000000000000000000000000000001")),
             max_priority_fee_per_gas: 1000000000,
@@ -1047,7 +1047,7 @@ mod tests {
         tx.encode(&mut buf);
 
         // Decode
-        let decoded = TempoTransaction::decode(&mut buf.as_slice()).unwrap();
+        let decoded = MagnusTransaction::decode(&mut buf.as_slice()).unwrap();
 
         // Verify fields
         assert_eq!(decoded.chain_id, tx.chain_id);
@@ -1077,7 +1077,7 @@ mod tests {
             input: Bytes::new(),
         };
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 1,
             fee_token: None,
             max_priority_fee_per_gas: 1000000000,
@@ -1099,7 +1099,7 @@ mod tests {
         tx.encode(&mut buf);
 
         // Decode
-        let decoded = TempoTransaction::decode(&mut buf.as_slice()).unwrap();
+        let decoded = MagnusTransaction::decode(&mut buf.as_slice()).unwrap();
 
         // Verify fields
         assert_eq!(decoded.chain_id, tx.chain_id);
@@ -1136,7 +1136,7 @@ mod tests {
         };
 
         // Test 1: Protocol nonce (key 0)
-        let tx1 = TempoTransaction {
+        let tx1 = MagnusTransaction {
             nonce_key: U256::ZERO,
             nonce: 1,
             calls: vec![dummy_call.clone()],
@@ -1147,7 +1147,7 @@ mod tests {
         assert_eq!(tx1.nonce_key, U256::ZERO);
 
         // Test 2: User nonce (key 1, nonce 0) - first transaction in parallel sequence
-        let tx2 = TempoTransaction {
+        let tx2 = MagnusTransaction {
             nonce_key: U256::from(1),
             nonce: 0,
             calls: vec![dummy_call.clone()],
@@ -1158,7 +1158,7 @@ mod tests {
         assert_eq!(tx2.nonce_key, U256::from(1));
 
         // Test 3: Different nonce key (key 42) - independent parallel sequence
-        let tx3 = TempoTransaction {
+        let tx3 = MagnusTransaction {
             nonce_key: U256::from(42),
             nonce: 10,
             calls: vec![dummy_call.clone()],
@@ -1170,13 +1170,13 @@ mod tests {
 
         // Test 4: Verify nonce independence between different keys
         // Transactions with same nonce but different keys are independent
-        let tx4a = TempoTransaction {
+        let tx4a = MagnusTransaction {
             nonce_key: U256::from(1),
             nonce: 100,
             calls: vec![dummy_call.clone()],
             ..Default::default()
         };
-        let tx4b = TempoTransaction {
+        let tx4b = MagnusTransaction {
             nonce_key: U256::from(2),
             nonce: 100,
             calls: vec![dummy_call],
@@ -1196,7 +1196,7 @@ mod tests {
             input: Bytes::new(),
         };
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 1,
             max_priority_fee_per_gas: 1000000000,
             max_fee_per_gas: 2000000000,
@@ -1223,7 +1223,7 @@ mod tests {
             input: Bytes::new(),
         };
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             max_priority_fee_per_gas: 1000000000,
             max_fee_per_gas: 2000000000,
             calls: vec![dummy_call],
@@ -1255,7 +1255,7 @@ mod tests {
         };
 
         // Transaction with fee_token = None
-        let tx_no_token = TempoTransaction {
+        let tx_no_token = MagnusTransaction {
             chain_id: 1,
             fee_token: None,
             max_priority_fee_per_gas: 1000000000,
@@ -1271,13 +1271,13 @@ mod tests {
         };
 
         // Transaction with fee_token = token1
-        let tx_token1 = TempoTransaction {
+        let tx_token1 = MagnusTransaction {
             fee_token: Some(token1),
             ..tx_no_token.clone()
         };
 
         // Transaction with fee_token = token2
-        let tx_token2 = TempoTransaction {
+        let tx_token2 = MagnusTransaction {
             fee_token: Some(token2),
             ..tx_no_token.clone()
         };
@@ -1332,7 +1332,7 @@ mod tests {
             input: Bytes::new(),
         };
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 1,
             fee_token: None,
             max_priority_fee_per_gas: 1000000000,
@@ -1348,7 +1348,7 @@ mod tests {
 
         // The fee_payer_signature_hash should start with the magic byte
         // We can't directly inspect the hash construction, but we can verify it's different
-        // from the sender signature hash which uses TEMPO_TX_TYPE_ID (0x76)
+        // from the sender signature hash which uses MAGNUS_TX_TYPE_ID (0x76)
         let sender_hash = tx.signature_hash();
         let fee_payer_hash = tx.fee_payer_signature_hash(sender);
 
@@ -1373,7 +1373,7 @@ mod tests {
         };
 
         // Transaction WITHOUT fee_payer, fee_token = None
-        let tx_no_payer_no_token = TempoTransaction {
+        let tx_no_payer_no_token = MagnusTransaction {
             chain_id: 1,
             fee_token: None,
             max_priority_fee_per_gas: 1000000000,
@@ -1391,13 +1391,13 @@ mod tests {
         };
 
         // Transaction WITHOUT fee_payer, fee_token = token1
-        let tx_no_payer_token1 = TempoTransaction {
+        let tx_no_payer_token1 = MagnusTransaction {
             fee_token: Some(token1),
             ..tx_no_payer_no_token.clone()
         };
 
         // Transaction WITHOUT fee_payer, fee_token = token2
-        let tx_no_payer_token2 = TempoTransaction {
+        let tx_no_payer_token2 = MagnusTransaction {
             fee_token: Some(token2),
             ..tx_no_payer_no_token.clone()
         };
@@ -1435,7 +1435,7 @@ mod tests {
         };
 
         // Transaction with fee_token
-        let tx_with_token = TempoTransaction {
+        let tx_with_token = MagnusTransaction {
             chain_id: 1,
             fee_token: Some(token),
             max_priority_fee_per_gas: 1000000000,
@@ -1453,7 +1453,7 @@ mod tests {
         };
 
         // Transaction without fee_token
-        let tx_without_token = TempoTransaction {
+        let tx_without_token = MagnusTransaction {
             fee_token: None,
             ..tx_with_token.clone()
         };
@@ -1479,8 +1479,8 @@ mod tests {
         );
 
         // Decode and verify
-        let decoded_with = TempoTransaction::decode(&mut buf_with.as_slice()).unwrap();
-        let decoded_without = TempoTransaction::decode(&mut buf_without.as_slice()).unwrap();
+        let decoded_with = MagnusTransaction::decode(&mut buf_with.as_slice()).unwrap();
+        let decoded_without = MagnusTransaction::decode(&mut buf_without.as_slice()).unwrap();
 
         assert_eq!(decoded_with.fee_token, Some(token));
         assert_eq!(decoded_without.fee_token, None);
@@ -1499,7 +1499,7 @@ mod tests {
         };
 
         // Scenario 1: No fee payer, no token
-        let tx_no_payer_no_token = TempoTransaction {
+        let tx_no_payer_no_token = MagnusTransaction {
             chain_id: 1,
             fee_token: None,
             max_priority_fee_per_gas: 1000000000,
@@ -1517,19 +1517,19 @@ mod tests {
         };
 
         // Scenario 2: No fee payer, with token
-        let tx_no_payer_with_token = TempoTransaction {
+        let tx_no_payer_with_token = MagnusTransaction {
             fee_token: Some(token),
             ..tx_no_payer_no_token.clone()
         };
 
         // Scenario 3: With fee payer, no token
-        let tx_with_payer_no_token = TempoTransaction {
+        let tx_with_payer_no_token = MagnusTransaction {
             fee_payer_signature: Some(Signature::test_signature()),
             ..tx_no_payer_no_token.clone()
         };
 
         // Scenario 4: With fee payer, with token
-        let tx_with_payer_with_token = TempoTransaction {
+        let tx_with_payer_with_token = MagnusTransaction {
             fee_token: Some(token),
             fee_payer_signature: Some(Signature::test_signature()),
             ..tx_no_payer_no_token.clone()
@@ -1570,7 +1570,7 @@ mod tests {
         };
 
         // Create transaction WITHOUT key_authorization (old format)
-        let tx_without = TempoTransaction {
+        let tx_without = MagnusTransaction {
             chain_id: 1,
             fee_token: Some(address!("0000000000000000000000000000000000000001")),
             max_priority_fee_per_gas: 1000000000,
@@ -1592,7 +1592,7 @@ mod tests {
         tx_without.encode(&mut buf_without);
 
         // Decode it back
-        let decoded_without = TempoTransaction::decode(&mut buf_without.as_slice()).unwrap();
+        let decoded_without = MagnusTransaction::decode(&mut buf_without.as_slice()).unwrap();
 
         // Verify it matches
         assert_eq!(decoded_without.key_authorization, None);
@@ -1613,7 +1613,7 @@ mod tests {
         }])
         .into_signed(PrimitiveSignature::Secp256k1(Signature::test_signature()));
 
-        let tx_with = TempoTransaction {
+        let tx_with = MagnusTransaction {
             key_authorization: Some(key_auth.clone()),
             ..tx_without.clone()
         };
@@ -1623,7 +1623,7 @@ mod tests {
         tx_with.encode(&mut buf_with);
 
         // Decode it back
-        let decoded_with = TempoTransaction::decode(&mut buf_with.as_slice()).unwrap();
+        let decoded_with = MagnusTransaction::decode(&mut buf_with.as_slice()).unwrap();
 
         // Verify the key_authorization is preserved
         assert!(decoded_with.key_authorization.is_some());
@@ -1646,7 +1646,7 @@ mod tests {
         // Test that an old decoder (simulated by truncating at the right position)
         // can still decode a transaction without key_authorization
         // This simulates backwards compatibility with old code that doesn't know about key_authorization
-        let decoded_old_format = TempoTransaction::decode(&mut buf_without.as_slice()).unwrap();
+        let decoded_old_format = MagnusTransaction::decode(&mut buf_without.as_slice()).unwrap();
         assert_eq!(decoded_old_format.key_authorization, None);
     }
 
@@ -1659,7 +1659,7 @@ mod tests {
             input: Bytes::new(),
         };
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 0,
             fee_token: None,
             max_priority_fee_per_gas: 0,
@@ -1677,7 +1677,7 @@ mod tests {
         };
 
         let signature =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
         let signed = AASigned::new_unhashed(tx, signature);
 
         // Test direct RLP encoding/decoding
@@ -1692,14 +1692,14 @@ mod tests {
 
     #[test]
     fn test_tempo_transaction_envelope_roundtrip_without_key_auth() {
-        // Test that TempoTransaction in envelope works without key_authorization
+        // Test that MagnusTransaction in envelope works without key_authorization
         let call = Call {
             to: TxKind::Create,
             value: U256::ZERO,
             input: Bytes::new(),
         };
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 0,
             fee_token: None,
             max_priority_fee_per_gas: 0,
@@ -1717,18 +1717,18 @@ mod tests {
         };
 
         let signature =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
         let signed = AASigned::new_unhashed(tx, signature);
-        let envelope = TempoTxEnvelope::AA(signed);
+        let envelope = MagnusTxEnvelope::AA(signed);
 
         // Encode and decode the envelope
         let mut buf = Vec::new();
         envelope.encode_2718(&mut buf);
-        let decoded = TempoTxEnvelope::decode_2718(&mut buf.as_slice())
+        let decoded = MagnusTxEnvelope::decode_2718(&mut buf.as_slice())
             .expect("Should decode envelope successfully");
 
         // Verify it's the same
-        if let TempoTxEnvelope::AA(aa_signed) = decoded {
+        if let MagnusTxEnvelope::AA(aa_signed) = decoded {
             assert_eq!(aa_signed.tx().key_authorization, None);
             assert_eq!(aa_signed.tx().calls.len(), 1);
             assert_eq!(aa_signed.tx().chain_id, 0);
@@ -1769,14 +1769,14 @@ mod tests {
 
     #[test]
     fn test_tempo_transaction_decode_rejects_malformed_rlp() {
-        // Test that TempoTransaction decoding rejects RLP with mismatched header length
+        // Test that MagnusTransaction decoding rejects RLP with mismatched header length
         let call = Call {
             to: TxKind::Call(Address::random()),
             value: U256::random(),
             input: Bytes::from(vec![1, 2, 3, 4]),
         };
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 1,
             fee_token: Some(Address::random()),
             max_priority_fee_per_gas: 1000000000,
@@ -1801,7 +1801,7 @@ mod tests {
         let original_len = buf.len();
         buf.truncate(original_len - 5); // Remove 5 bytes from the end
 
-        let result = TempoTransaction::decode(&mut buf.as_slice());
+        let result = MagnusTransaction::decode(&mut buf.as_slice());
         assert!(
             result.is_err(),
             "Decoding should fail when data is truncated"
@@ -1842,14 +1842,14 @@ mod tests {
         };
 
         // Valid: CREATE as first call
-        let tx_valid = TempoTransaction {
+        let tx_valid = MagnusTransaction {
             calls: vec![create_call.clone(), call_call.clone()],
             ..Default::default()
         };
         assert!(tx_valid.validate().is_ok());
 
         // Invalid: CREATE as second call
-        let tx_invalid = TempoTransaction {
+        let tx_invalid = MagnusTransaction {
             calls: vec![call_call, create_call],
             ..Default::default()
         };
@@ -1866,14 +1866,14 @@ mod tests {
         };
 
         // Valid: Single CREATE
-        let tx_valid = TempoTransaction {
+        let tx_valid = MagnusTransaction {
             calls: vec![create_call.clone()],
             ..Default::default()
         };
         assert!(tx_valid.validate().is_ok());
 
         // Invalid: Multiple CREATEs (both at first position, second one triggers error)
-        let tx_invalid = TempoTransaction {
+        let tx_invalid = MagnusTransaction {
             calls: vec![create_call.clone(), create_call],
             ..Default::default()
         };
@@ -1894,17 +1894,17 @@ mod tests {
             input: Bytes::new(),
         };
 
-        let signed_auth = TempoSignedAuthorization::new_unchecked(
+        let signed_auth = MagnusSignedAuthorization::new_unchecked(
             Authorization {
                 chain_id: U256::ONE,
                 address: Address::random(),
                 nonce: 1,
             },
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature())),
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature())),
         );
 
         // Invalid: CREATE call with auth list
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             calls: vec![create_call],
             magnus_authorization_list: vec![signed_auth],
             ..Default::default()
@@ -1929,7 +1929,7 @@ mod tests {
             input: Bytes::from(vec![1, 2, 3]),
         };
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             calls: vec![call1, call2],
             ..Default::default()
         };
@@ -1949,7 +1949,7 @@ mod tests {
             input: Bytes::new(),
         };
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             calls: vec![call1, call2],
             ..Default::default()
         };
@@ -1967,8 +1967,8 @@ mod tests {
 
         // Transaction with expiring nonce key but nonce != 0 should pass validate()
         // (expiring nonce constraints are hardfork-dependent and checked elsewhere)
-        let tx_with_nonzero_nonce = TempoTransaction {
-            nonce_key: TEMPO_EXPIRING_NONCE_KEY,
+        let tx_with_nonzero_nonce = MagnusTransaction {
+            nonce_key: MAGNUS_EXPIRING_NONCE_KEY,
             nonce: 42,
             valid_before: None,
             calls: vec![dummy_call.clone()],
@@ -1980,8 +1980,8 @@ mod tests {
         );
 
         // Transaction with expiring nonce key but no valid_before should pass validate()
-        let tx_without_valid_before = TempoTransaction {
-            nonce_key: TEMPO_EXPIRING_NONCE_KEY,
+        let tx_without_valid_before = MagnusTransaction {
+            nonce_key: MAGNUS_EXPIRING_NONCE_KEY,
             nonce: 0,
             valid_before: None,
             calls: vec![dummy_call.clone()],
@@ -1993,8 +1993,8 @@ mod tests {
         );
 
         // Sanity check: a fully valid expiring nonce tx should also pass
-        let valid_expiring_tx = TempoTransaction {
-            nonce_key: TEMPO_EXPIRING_NONCE_KEY,
+        let valid_expiring_tx = MagnusTransaction {
+            nonce_key: MAGNUS_EXPIRING_NONCE_KEY,
             nonce: 0,
             valid_before: Some(nz(1000)),
             calls: vec![dummy_call],
@@ -2008,8 +2008,8 @@ mod tests {
 mod compact_tests {
     use super::*;
     use crate::transaction::{
-        KeyAuthorization, SignedKeyAuthorization, TempoSignedAuthorization, TokenLimit,
-        tt_signature::{P256SignatureWithPreHash, PrimitiveSignature, TempoSignature},
+        KeyAuthorization, SignedKeyAuthorization, MagnusSignedAuthorization, TokenLimit,
+        tt_signature::{P256SignatureWithPreHash, PrimitiveSignature, MagnusSignature},
     };
     use alloy_eips::{eip2930::AccessListItem, eip7702::Authorization};
     use alloy_primitives::{Signature, U256, address, b256, bytes, hex};
@@ -2022,9 +2022,9 @@ mod compact_tests {
     #[test]
     fn compact_types_have_unused_bits() {
         assert_ne!(
-            TempoTransaction::bitflag_unused_bits(),
+            MagnusTransaction::bitflag_unused_bits(),
             0,
-            "TempoTransaction"
+            "MagnusTransaction"
         );
         assert_ne!(Call::bitflag_unused_bits(), 0, "Call");
     }
@@ -2050,7 +2050,7 @@ mod compact_tests {
 
     #[test]
     fn magnus_transaction_compact_roundtrip() {
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 42170,
             fee_token: Some(address!("0x0000000000000000000000000000000000000abc")),
             max_priority_fee_per_gas: 1_000_000_000,
@@ -2102,13 +2102,13 @@ mod compact_tests {
                     pre_hash: false,
                 }),
             }),
-            magnus_authorization_list: vec![TempoSignedAuthorization::new_unchecked(
+            magnus_authorization_list: vec![MagnusSignedAuthorization::new_unchecked(
                 Authorization {
                     chain_id: U256::from(42170u64),
                     address: address!("0x0000000000000000000000000000000000000099"),
                     nonce: 1,
                 },
-                TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::new(
+                MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::new(
                     U256::from(3u64),
                     U256::from(4u64),
                     true,
@@ -2122,10 +2122,10 @@ mod compact_tests {
 
         let mut buf = vec![];
         let len = tx.to_compact(&mut buf);
-        assert_eq!(buf, expected, "TempoTransaction compact encoding changed");
+        assert_eq!(buf, expected, "MagnusTransaction compact encoding changed");
         assert_eq!(len, expected.len());
 
-        let (decoded, _) = TempoTransaction::from_compact(&expected, expected.len());
+        let (decoded, _) = MagnusTransaction::from_compact(&expected, expected.len());
         assert_eq!(decoded, tx);
     }
 

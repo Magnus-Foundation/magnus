@@ -4,9 +4,9 @@ use revm::{
     state::{AccountInfo, Bytecode},
 };
 use std::collections::HashMap;
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 
-use crate::{error::TempoPrecompileError, storage::PrecompileStorageProvider};
+use crate::{error::MagnusPrecompileError, storage::PrecompileStorageProvider};
 
 /// In-memory [`PrecompileStorageProvider`] for unit tests.
 ///
@@ -20,7 +20,7 @@ pub struct HashMapStorageProvider {
     timestamp: U256,
     beneficiary: Address,
     block_number: u64,
-    spec: TempoHardfork,
+    spec: MagnusHardfork,
     is_static: bool,
     counter_sload: u64,
     snapshots: Vec<Snapshot>,
@@ -40,11 +40,11 @@ struct Snapshot {
 impl HashMapStorageProvider {
     /// Creates a new provider with the given chain ID and default hardfork.
     pub fn new(chain_id: u64) -> Self {
-        Self::new_with_spec(chain_id, TempoHardfork::default())
+        Self::new_with_spec(chain_id, MagnusHardfork::default())
     }
 
     /// Creates a new provider with the given chain ID and hardfork spec.
-    pub fn new_with_spec(chain_id: u64, spec: TempoHardfork) -> Self {
+    pub fn new_with_spec(chain_id: u64, spec: MagnusHardfork) -> Self {
         Self {
             internals: HashMap::new(),
             transient: HashMap::new(),
@@ -69,7 +69,7 @@ impl HashMapStorageProvider {
     }
 
     /// Returns self with the hardfork spec overridden (builder pattern).
-    pub fn with_spec(mut self, spec: TempoHardfork) -> Self {
+    pub fn with_spec(mut self, spec: MagnusHardfork) -> Self {
         self.spec = spec;
         self
     }
@@ -92,7 +92,7 @@ impl PrecompileStorageProvider for HashMapStorageProvider {
         self.block_number
     }
 
-    fn set_code(&mut self, address: Address, code: Bytecode) -> Result<(), TempoPrecompileError> {
+    fn set_code(&mut self, address: Address, code: Bytecode) -> Result<(), MagnusPrecompileError> {
         let account = self.accounts.entry(address).or_default();
         account.code_hash = code.hash_slow();
         account.code = Some(code);
@@ -103,7 +103,7 @@ impl PrecompileStorageProvider for HashMapStorageProvider {
         &mut self,
         address: Address,
         f: &mut dyn FnMut(&AccountInfo),
-    ) -> Result<(), TempoPrecompileError> {
+    ) -> Result<(), MagnusPrecompileError> {
         let account = self.accounts.entry(address).or_default();
         f(&*account);
         Ok(())
@@ -114,7 +114,7 @@ impl PrecompileStorageProvider for HashMapStorageProvider {
         address: Address,
         key: U256,
         value: U256,
-    ) -> Result<(), TempoPrecompileError> {
+    ) -> Result<(), MagnusPrecompileError> {
         self.internals.insert((address, key), value);
         Ok(())
     }
@@ -124,19 +124,19 @@ impl PrecompileStorageProvider for HashMapStorageProvider {
         address: Address,
         key: U256,
         value: U256,
-    ) -> Result<(), TempoPrecompileError> {
+    ) -> Result<(), MagnusPrecompileError> {
         self.transient.insert((address, key), value);
         Ok(())
     }
 
-    fn emit_event(&mut self, address: Address, event: LogData) -> Result<(), TempoPrecompileError> {
+    fn emit_event(&mut self, address: Address, event: LogData) -> Result<(), MagnusPrecompileError> {
         self.events.entry(address).or_default().push(event);
         Ok(())
     }
 
-    fn sload(&mut self, address: Address, key: U256) -> Result<U256, TempoPrecompileError> {
+    fn sload(&mut self, address: Address, key: U256) -> Result<U256, MagnusPrecompileError> {
         if self.fail_on_sload == Some((address, key)) {
-            return Err(TempoPrecompileError::Fatal("injected sload failure".into()));
+            return Err(MagnusPrecompileError::Fatal("injected sload failure".into()));
         }
 
         self.counter_sload += 1;
@@ -147,7 +147,7 @@ impl PrecompileStorageProvider for HashMapStorageProvider {
             .unwrap_or(U256::ZERO))
     }
 
-    fn tload(&mut self, address: Address, key: U256) -> Result<U256, TempoPrecompileError> {
+    fn tload(&mut self, address: Address, key: U256) -> Result<U256, MagnusPrecompileError> {
         Ok(self
             .transient
             .get(&(address, key))
@@ -155,7 +155,7 @@ impl PrecompileStorageProvider for HashMapStorageProvider {
             .unwrap_or(U256::ZERO))
     }
 
-    fn deduct_gas(&mut self, _gas: u64) -> Result<(), TempoPrecompileError> {
+    fn deduct_gas(&mut self, _gas: u64) -> Result<(), MagnusPrecompileError> {
         Ok(())
     }
 
@@ -175,7 +175,7 @@ impl PrecompileStorageProvider for HashMapStorageProvider {
         0
     }
 
-    fn spec(&self) -> TempoHardfork {
+    fn spec(&self) -> MagnusHardfork {
         self.spec
     }
 
@@ -257,7 +257,7 @@ impl HashMapStorageProvider {
     }
 
     /// Overrides the active hardfork spec.
-    pub fn set_spec(&mut self, spec: TempoHardfork) {
+    pub fn set_spec(&mut self, spec: MagnusHardfork) {
         self.spec = spec;
     }
 

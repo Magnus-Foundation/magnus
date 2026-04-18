@@ -3,7 +3,7 @@
 use alloy_primitives::B256;
 use futures::Future;
 use serde::{Deserialize, Serialize};
-use magnus_alloy::rpc::TempoHeaderResponse;
+use magnus_alloy::rpc::MagnusHeaderResponse;
 use magnus_primitives::Block;
 use tokio::sync::broadcast;
 
@@ -125,7 +125,7 @@ pub struct IdentityTransition {
 #[serde(rename_all = "camelCase")]
 pub struct TransitionProofData {
     /// The block header containing the new DKG outcome in extra_data.
-    pub header: TempoHeaderResponse,
+    pub header: MagnusHeaderResponse,
     /// Hex-encoded finalization certificate.
     pub finalization_certificate: String,
 }

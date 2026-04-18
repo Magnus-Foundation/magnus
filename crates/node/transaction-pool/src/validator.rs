@@ -1,6 +1,6 @@
 use crate::{
     amm::AmmLiquidityCache,
-    transaction::{TempoPoolTransactionError, TempoPooledTransaction},
+    transaction::{MagnusPoolTransactionError, MagnusPooledTransaction},
 };
 
 use alloy_evm::EvmEnv;
@@ -17,18 +17,18 @@ use reth_transaction_pool::{
 };
 use revm::context::result::{EVMError, InvalidTransaction};
 use magnus_chainspec::{
-    TempoChainSpec,
-    hardfork::{TempoHardfork, TempoHardforks},
+    MagnusChainSpec,
+    hardfork::{MagnusHardfork, MagnusHardforks},
 };
-use magnus_evm::{TempoEvmConfig, evm::TempoEvm};
+use magnus_evm::{MagnusEvmConfig, evm::MagnusEvm};
 use magnus_precompiles::nonce::{INonce, NonceManager};
 use magnus_primitives::{
-    Block, TempoHeader,
+    Block, MagnusHeader,
     subblock::has_sub_block_nonce_key_prefix,
-    transaction::{TEMPO_EXPIRING_NONCE_KEY, TempoTransaction},
+    transaction::{MAGNUS_EXPIRING_NONCE_KEY, MagnusTransaction},
 };
 use magnus_revm::{
-    TempoBlockEnv, TempoInvalidTransaction, TempoStateAccess, ValidationContext,
+    MagnusBlockEnv, MagnusInvalidTransaction, MagnusStateAccess, ValidationContext,
     error::FeePaymentError,
 };
 
@@ -72,9 +72,9 @@ const MAX_KEYCHAIN_RECIPIENTS_PER_SELECTOR: u8 = 64;
 
 /// Validator for Tempo transactions.
 #[derive(Debug)]
-pub struct TempoTransactionValidator<Client> {
+pub struct MagnusTransactionValidator<Client> {
     /// Inner validator that performs default Ethereum tx validation.
-    pub(crate) inner: EthTransactionValidator<Client, TempoPooledTransaction, TempoEvmConfig>,
+    pub(crate) inner: EthTransactionValidator<Client, MagnusPooledTransaction, MagnusEvmConfig>,
     /// Maximum allowed `valid_after` offset for AA txs.
     pub(crate) aa_valid_after_max_secs: u64,
     /// Maximum number of authorizations allowed in an AA transaction.
@@ -82,21 +82,21 @@ pub struct TempoTransactionValidator<Client> {
     /// Cache of AMM liquidity for validator tokens.
     pub(crate) amm_liquidity_cache: AmmLiquidityCache,
     /// Cached EVM environment from the latest tip block, updated on each `on_new_head_block`.
-    cached_evm_env: RwLock<EvmEnv<TempoHardfork, TempoBlockEnv>>,
+    cached_evm_env: RwLock<EvmEnv<MagnusHardfork, MagnusBlockEnv>>,
 }
 
-impl<Client> TempoTransactionValidator<Client>
+impl<Client> MagnusTransactionValidator<Client>
 where
-    Client: ChainSpecProvider<ChainSpec = TempoChainSpec> + StateProviderFactory,
+    Client: ChainSpecProvider<ChainSpec = MagnusChainSpec> + StateProviderFactory,
 {
     pub fn new(
-        inner: EthTransactionValidator<Client, TempoPooledTransaction, TempoEvmConfig>,
+        inner: EthTransactionValidator<Client, MagnusPooledTransaction, MagnusEvmConfig>,
         aa_valid_after_max_secs: u64,
         max_tempo_authorizations: usize,
         amm_liquidity_cache: AmmLiquidityCache,
     ) -> Self
     where
-        Client: BlockReaderIdExt<Header = TempoHeader>,
+        Client: BlockReaderIdExt<Header = MagnusHeader>,
     {
         let evm_env = inner
             .evm_config()
@@ -136,8 +136,8 @@ where
     /// - `valid_after` must not be too far in the future (wall-clock bound)
     fn ensure_pool_time_bounds(
         &self,
-        tx: &TempoTransaction,
-    ) -> Result<(), TempoPoolTransactionError> {
+        tx: &MagnusTransaction,
+    ) -> Result<(), MagnusPoolTransactionError> {
         let tip_timestamp = self.inner.fork_tracker().tip_timestamp();
 
         // Reject AA txs where `valid_before` is too close to current time (or already expired).
@@ -147,7 +147,7 @@ where
             let valid_before = valid_before.get();
             let min_allowed = tip_timestamp.saturating_add(AA_VALID_BEFORE_MIN_SECS);
             if valid_before <= min_allowed {
-                return Err(TempoPoolTransactionError::InvalidValidBefore {
+                return Err(MagnusPoolTransactionError::InvalidValidBefore {
                     valid_before,
                     min_allowed,
                 });
@@ -164,7 +164,7 @@ where
                 .unwrap_or(0);
             let max_allowed = current_time.saturating_add(self.aa_valid_after_max_secs);
             if valid_after > max_allowed {
-                return Err(TempoPoolTransactionError::InvalidValidAfter {
+                return Err(MagnusPoolTransactionError::InvalidValidAfter {
                     valid_after,
                     max_allowed,
                 });
@@ -177,15 +177,15 @@ where
     /// Validates that an AA transaction does not exceed the maximum authorization list size.
     fn ensure_authorization_list_size(
         &self,
-        transaction: &TempoPooledTransaction,
-    ) -> Result<(), TempoPoolTransactionError> {
+        transaction: &MagnusPooledTransaction,
+    ) -> Result<(), MagnusPoolTransactionError> {
         let Some(aa_tx) = transaction.inner().as_aa() else {
             return Ok(());
         };
 
         let count = aa_tx.tx().magnus_authorization_list.len();
         if count > self.max_tempo_authorizations {
-            return Err(TempoPoolTransactionError::TooManyAuthorizations {
+            return Err(MagnusPoolTransactionError::TooManyAuthorizations {
                 count,
                 max_allowed: self.max_tempo_authorizations,
             });
@@ -200,8 +200,8 @@ where
     /// - Allow peer penalization for sending bad transactions
     fn ensure_aa_field_limits(
         &self,
-        transaction: &TempoPooledTransaction,
-    ) -> Result<(), TempoPoolTransactionError> {
+        transaction: &MagnusPooledTransaction,
+    ) -> Result<(), MagnusPoolTransactionError> {
         let Some(aa_tx) = transaction.inner().as_aa() else {
             return Ok(());
         };
@@ -210,7 +210,7 @@ where
 
         // Check number of calls
         if tx.calls.len() > MAX_AA_CALLS {
-            return Err(TempoPoolTransactionError::TooManyCalls {
+            return Err(MagnusPoolTransactionError::TooManyCalls {
                 count: tx.calls.len(),
                 max_allowed: MAX_AA_CALLS,
             });
@@ -219,7 +219,7 @@ where
         // Check each call's input size
         for (idx, call) in tx.calls.iter().enumerate() {
             if call.input.len() > MAX_CALL_INPUT_SIZE {
-                return Err(TempoPoolTransactionError::CallInputTooLarge {
+                return Err(MagnusPoolTransactionError::CallInputTooLarge {
                     call_index: idx,
                     size: call.input.len(),
                     max_allowed: MAX_CALL_INPUT_SIZE,
@@ -229,7 +229,7 @@ where
 
         // Check access list accounts
         if tx.access_list.len() > MAX_ACCESS_LIST_ACCOUNTS {
-            return Err(TempoPoolTransactionError::TooManyAccessListAccounts {
+            return Err(MagnusPoolTransactionError::TooManyAccessListAccounts {
                 count: tx.access_list.len(),
                 max_allowed: MAX_ACCESS_LIST_ACCOUNTS,
             });
@@ -239,7 +239,7 @@ where
         let mut total_storage_keys = 0usize;
         for (idx, entry) in tx.access_list.iter().enumerate() {
             if entry.storage_keys.len() > MAX_STORAGE_KEYS_PER_ACCOUNT {
-                return Err(TempoPoolTransactionError::TooManyStorageKeysPerAccount {
+                return Err(MagnusPoolTransactionError::TooManyStorageKeysPerAccount {
                     account_index: idx,
                     count: entry.storage_keys.len(),
                     max_allowed: MAX_STORAGE_KEYS_PER_ACCOUNT,
@@ -249,7 +249,7 @@ where
         }
 
         if total_storage_keys > MAX_ACCESS_LIST_STORAGE_KEYS_TOTAL {
-            return Err(TempoPoolTransactionError::TooManyTotalStorageKeys {
+            return Err(MagnusPoolTransactionError::TooManyTotalStorageKeys {
                 count: total_storage_keys,
                 max_allowed: MAX_ACCESS_LIST_STORAGE_KEYS_TOTAL,
             });
@@ -262,7 +262,7 @@ where
             if let Some(limits) = &key_auth.limits
                 && limits.len() > MAX_TOKEN_LIMITS
             {
-                return Err(TempoPoolTransactionError::TooManyTokenLimits {
+                return Err(MagnusPoolTransactionError::TooManyTokenLimits {
                     count: limits.len(),
                     max_allowed: MAX_TOKEN_LIMITS,
                 });
@@ -270,21 +270,21 @@ where
 
             if let Some(scopes) = &key_auth.allowed_calls {
                 if scopes.len() > MAX_KEYCHAIN_CALL_SCOPES as usize {
-                    return Err(TempoPoolTransactionError::Keychain(
+                    return Err(MagnusPoolTransactionError::Keychain(
                         "too many call scopes in key authorization",
                     ));
                 }
 
                 for scope in scopes {
                     if scope.selector_rules.len() > MAX_KEYCHAIN_SELECTOR_RULES_PER_SCOPE as usize {
-                        return Err(TempoPoolTransactionError::Keychain(
+                        return Err(MagnusPoolTransactionError::Keychain(
                             "too many selector rules in call scope",
                         ));
                     }
 
                     for rule in &scope.selector_rules {
                         if rule.recipients.len() > MAX_KEYCHAIN_RECIPIENTS_PER_SELECTOR as usize {
-                            return Err(TempoPoolTransactionError::Keychain(
+                            return Err(MagnusPoolTransactionError::Keychain(
                                 "too many recipients in selector rule",
                             ));
                         }
@@ -298,16 +298,16 @@ where
 
     /// Runs the Tempo EVM validation pipeline against the given state, reusing the
     /// same validation logic that the block executor uses
-    /// ([`TempoEvm::validate_transaction`]).
+    /// ([`MagnusEvm::validate_transaction`]).
     ///
-    /// A throwaway [`TempoEvm`] is created over a [`StateProviderDatabase`]; all state
+    /// A throwaway [`MagnusEvm`] is created over a [`StateProviderDatabase`]; all state
     /// mutations (nonce bumps, fee deduction, key authorisation) are applied to the
     /// journal and discarded when the EVM is dropped.
     fn validate_with_evm(
         &self,
-        transaction: &TempoPooledTransaction,
+        transaction: &MagnusPooledTransaction,
         state_provider: impl StateProvider,
-    ) -> Result<ValidationContext, EVMError<ProviderError, TempoInvalidTransaction>> {
+    ) -> Result<ValidationContext, EVMError<ProviderError, MagnusInvalidTransaction>> {
         let evm_env = self.cached_evm_env.read().clone();
 
         // Create a throwaway EVM and run validation.
@@ -316,7 +316,7 @@ where
         // - Disable nonce check: the pool accepts future-nonce transactions (queued)
         //   and handles nonce ordering separately.
         // - Skip liquidity check: the pool performs its own liquidity validation against a cached view of the AMM state.
-        let mut evm = TempoEvm::new(StateProviderDatabase::new(state_provider), evm_env);
+        let mut evm = MagnusEvm::new(StateProviderDatabase::new(state_provider), evm_env);
         evm.inner_mut().skip_valid_after_check = true;
         evm.inner_mut().skip_liquidity_check = true;
         evm.ctx_mut().cfg.disable_nonce_check = true;
@@ -326,9 +326,9 @@ where
     fn validate_one(
         &self,
         origin: TransactionOrigin,
-        transaction: TempoPooledTransaction,
+        transaction: MagnusPooledTransaction,
         mut state_provider: impl StateProvider,
-    ) -> TransactionValidationOutcome<TempoPooledTransaction> {
+    ) -> TransactionValidationOutcome<MagnusPooledTransaction> {
         // Get the current hardfork based on tip timestamp
         let spec = self
             .inner
@@ -393,13 +393,13 @@ where
             Err(err) => match err {
                 EVMError::Transaction(err) => {
                     let err = match err {
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             InvalidTransaction::LackOfFundForMaxFee { fee, balance },
                         ) => InvalidPoolTransactionError::Consensus(
                             InvalidTransactionError::InsufficientFunds((*balance, *fee).into()),
                         ),
                         err => {
-                            InvalidPoolTransactionError::other(TempoPoolTransactionError::Evm(err))
+                            InvalidPoolTransactionError::other(MagnusPoolTransactionError::Evm(err))
                         }
                     };
                     return TransactionValidationOutcome::Invalid(transaction, err);
@@ -428,7 +428,7 @@ where
                 return TransactionValidationOutcome::Invalid(
                     transaction,
                     InvalidPoolTransactionError::other(
-                        TempoPoolTransactionError::AccessKeyExpired {
+                        MagnusPoolTransactionError::AccessKeyExpired {
                             expiry: key_expiry,
                             min_allowed,
                         },
@@ -451,8 +451,8 @@ where
             Ok(false) => {
                 return TransactionValidationOutcome::Invalid(
                     transaction,
-                    InvalidPoolTransactionError::other(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::CollectFeePreTx(
+                    InvalidPoolTransactionError::other(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::CollectFeePreTx(
                             FeePaymentError::InsufficientAmmLiquidity { fee },
                         ),
                     )),
@@ -506,7 +506,7 @@ where
                         return TransactionValidationOutcome::Invalid(
                             transaction.into_transaction(),
                             InvalidPoolTransactionError::other(
-                                TempoPoolTransactionError::SubblockNonceKey,
+                                MagnusPoolTransactionError::SubblockNonceKey,
                             ),
                         );
                     }
@@ -518,7 +518,7 @@ where
                         .chain_spec()
                         .is_t1_active_at_timestamp(current_time);
 
-                    if is_t1_active && nonce_key == TEMPO_EXPIRING_NONCE_KEY {
+                    if is_t1_active && nonce_key == MAGNUS_EXPIRING_NONCE_KEY {
                         // Expiring nonce transactions are validated by the EVM
                     } else {
                         // This is a 2D nonce transaction - validate against 2D nonce
@@ -564,11 +564,11 @@ where
     }
 }
 
-impl<Client> TransactionValidator for TempoTransactionValidator<Client>
+impl<Client> TransactionValidator for MagnusTransactionValidator<Client>
 where
-    Client: ChainSpecProvider<ChainSpec = TempoChainSpec> + StateProviderFactory,
+    Client: ChainSpecProvider<ChainSpec = MagnusChainSpec> + StateProviderFactory,
 {
-    type Transaction = TempoPooledTransaction;
+    type Transaction = MagnusPooledTransaction;
     type Block = Block;
 
     async fn validate_transaction(
@@ -648,7 +648,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{test_utils::TxBuilder, transaction::TempoPoolTransactionError};
+    use crate::{test_utils::TxBuilder, transaction::MagnusPoolTransactionError};
     use alloy_consensus::{Header, Signed, Transaction, TxLegacy};
     use alloy_primitives::{Address, B256, TxKind, U256, address, uint};
     use alloy_signer::Signature;
@@ -660,18 +660,18 @@ mod tests {
     };
     use revm::context::result::InvalidTransaction;
     use std::sync::Arc;
-    use magnus_chainspec::spec::{MODERATO, TEMPO_T0_BASE_FEE, TEMPO_T1_TX_GAS_LIMIT_CAP};
+    use magnus_chainspec::spec::{MODERATO, MAGNUS_T0_BASE_FEE, MAGNUS_T1_TX_GAS_LIMIT_CAP};
     use magnus_precompiles::{
         PATH_USD_ADDRESS,
         tip20::{TIP20Token, slots as tip20_slots},
     };
     use magnus_primitives::{
-        Block, TempoHeader, TempoPrimitives, TempoTxEnvelope, TempoTxType,
+        Block, MagnusHeader, MagnusPrimitives, MagnusTxEnvelope, MagnusTxType,
         transaction::{
-            TempoTransaction,
-            envelope::TEMPO_SYSTEM_TX_SIGNATURE,
+            MagnusTransaction,
+            envelope::MAGNUS_SYSTEM_TX_SIGNATURE,
             magnus_transaction::Call,
-            tt_signature::{PrimitiveSignature, TempoSignature},
+            tt_signature::{PrimitiveSignature, MagnusSignature},
             tt_signed::AASigned,
         },
     };
@@ -681,12 +681,12 @@ mod tests {
 
     /// Helper to create a mock sealed block with the given timestamp.
     fn create_mock_block(timestamp: u64) -> SealedBlock<Block> {
-        let header = TempoHeader {
+        let header = MagnusHeader {
             inner: Header {
                 timestamp,
-                gas_limit: TEMPO_T1_TX_GAS_LIMIT_CAP,
+                gas_limit: MAGNUS_T1_TX_GAS_LIMIT_CAP,
                 excess_blob_gas: Some(0),
-                base_fee_per_gas: Some(TEMPO_T0_BASE_FEE),
+                base_fee_per_gas: Some(MAGNUS_T0_BASE_FEE),
                 ..Default::default()
             },
             ..Default::default()
@@ -703,7 +703,7 @@ mod tests {
     fn create_aa_transaction(
         valid_after: Option<u64>,
         valid_before: Option<u64>,
-    ) -> TempoPooledTransaction {
+    ) -> MagnusPooledTransaction {
         let mut builder = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"));
         if let Some(va) = valid_after {
@@ -717,19 +717,19 @@ mod tests {
 
     /// Helper function to setup validator with the given transaction and tip timestamp.
     fn setup_validator(
-        transaction: &TempoPooledTransaction,
+        transaction: &MagnusPooledTransaction,
         tip_timestamp: u64,
-    ) -> TempoTransactionValidator<MockEthProvider<TempoPrimitives, TempoChainSpec>> {
-        let provider = MockEthProvider::<TempoPrimitives>::new()
+    ) -> MagnusTransactionValidator<MockEthProvider<MagnusPrimitives, MagnusChainSpec>> {
+        let provider = MockEthProvider::<MagnusPrimitives>::new()
             .with_chain_spec(Arc::unwrap_or_clone(MODERATO.clone()));
         provider.add_account(
             transaction.sender(),
             ExtendedAccount::new(transaction.nonce(), alloy_primitives::U256::ZERO),
         );
         let block_with_gas = Block {
-            header: TempoHeader {
+            header: MagnusHeader {
                 inner: Header {
-                    gas_limit: TEMPO_T1_TX_GAS_LIMIT_CAP,
+                    gas_limit: MAGNUS_T1_TX_GAS_LIMIT_CAP,
                     ..Default::default()
                 },
                 ..Default::default()
@@ -766,13 +766,13 @@ mod tests {
         );
 
         let inner =
-            EthTransactionValidatorBuilder::new(provider.clone(), TempoEvmConfig::moderato())
-                .with_custom_tx_type(TempoTxType::AA as u8)
+            EthTransactionValidatorBuilder::new(provider.clone(), MagnusEvmConfig::moderato())
+                .with_custom_tx_type(MagnusTxType::AA as u8)
                 .disable_balance_check()
                 .build(InMemoryBlobStore::default());
         let amm_cache =
             AmmLiquidityCache::new(provider).expect("failed to setup AmmLiquidityCache");
-        let validator = TempoTransactionValidator::new(
+        let validator = MagnusTransactionValidator::new(
             inner,
             DEFAULT_AA_VALID_AFTER_MAX_SECS,
             DEFAULT_MAX_TEMPO_AUTHORIZATIONS,
@@ -792,8 +792,8 @@ mod tests {
         use alloy_signer::SignerSync;
         use alloy_signer_local::PrivateKeySigner;
         use magnus_primitives::transaction::{
-            TempoSignedAuthorization,
-            tt_signature::{PrimitiveSignature, TempoSignature},
+            MagnusSignedAuthorization,
+            tt_signature::{PrimitiveSignature, MagnusSignature},
         };
 
         let current_time = std::time::SystemTime::now()
@@ -811,9 +811,9 @@ mod tests {
         let signature = authority_signer
             .sign_hash_sync(&authorization.signature_hash())
             .expect("authorization signing should succeed");
-        let magnus_authorization = TempoSignedAuthorization::new_unchecked(
+        let magnus_authorization = MagnusSignedAuthorization::new_unchecked(
             authorization,
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(signature)),
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(signature)),
         );
 
         let transaction = TxBuilder::aa(Address::random())
@@ -854,9 +854,9 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::ValueTransferNotAllowed
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::ValueTransferNotAllowed
                     ))
                 ));
             }
@@ -875,8 +875,8 @@ mod tests {
             value: U256::ZERO,
             input: Default::default(),
         };
-        let envelope = TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, TEMPO_SYSTEM_TX_SIGNATURE));
-        let transaction = TempoPooledTransaction::new(
+        let envelope = MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, MAGNUS_SYSTEM_TX_SIGNATURE));
+        let transaction = MagnusPooledTransaction::new(
             reth_primitives_traits::Recovered::new_unchecked(envelope, Address::ZERO),
         );
         let validator = setup_validator(&transaction, 0);
@@ -906,7 +906,7 @@ mod tests {
             input: Default::default(),
         }];
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: MODERATO.chain_id(),
             max_priority_fee_per_gas: 1_000_000_000,
             max_fee_per_gas: 20_000_000_000,
@@ -921,10 +921,10 @@ mod tests {
 
         let signed = AASigned::new_unhashed(
             tx,
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature())),
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature())),
         );
-        let transaction = TempoPooledTransaction::new(
-            TempoTxEnvelope::from(signed).try_into_recovered().unwrap(),
+        let transaction = MagnusPooledTransaction::new(
+            MagnusTxEnvelope::from(signed).try_into_recovered().unwrap(),
         );
         let validator = setup_validator(&transaction, 0);
 
@@ -935,9 +935,9 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::InvalidFeePayerSignature
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::InvalidFeePayerSignature
                     ))
                 ));
             }
@@ -953,7 +953,7 @@ mod tests {
         let signer = PrivateKeySigner::random();
         let sender = signer.address();
 
-        let mut tx = TempoTransaction {
+        let mut tx = MagnusTransaction {
             chain_id: MODERATO.chain_id(),
             max_priority_fee_per_gas: 1_000_000_000,
             max_fee_per_gas: 20_000_000_000,
@@ -979,11 +979,11 @@ mod tests {
 
         let signed = AASigned::new_unhashed(
             tx,
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature())),
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature())),
         );
 
-        let envelope: TempoTxEnvelope = signed.into();
-        let transaction = TempoPooledTransaction::new(
+        let envelope: MagnusTxEnvelope = signed.into();
+        let transaction = MagnusPooledTransaction::new(
             reth_primitives_traits::Recovered::new_unchecked(envelope, sender),
         );
         let validator = setup_validator(&transaction, u64::MAX);
@@ -995,9 +995,9 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::SelfSponsoredFeePayer
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::SelfSponsoredFeePayer
                     ))
                 ));
             }
@@ -1022,8 +1022,8 @@ mod tests {
 
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(!matches!(
-                err.downcast_other_ref::<TempoPoolTransactionError>(),
-                Some(TempoPoolTransactionError::InvalidValidBefore { .. })
+                err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                Some(MagnusPoolTransactionError::InvalidValidBefore { .. })
             ));
         }
 
@@ -1038,8 +1038,8 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::InvalidValidBefore { .. })
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::InvalidValidBefore { .. })
                 ));
             }
             _ => panic!("Expected Invalid outcome with InvalidValidBefore error, got: {outcome:?}"),
@@ -1055,8 +1055,8 @@ mod tests {
 
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(!matches!(
-                err.downcast_other_ref::<TempoPoolTransactionError>(),
-                Some(TempoPoolTransactionError::InvalidValidBefore { .. })
+                err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                Some(MagnusPoolTransactionError::InvalidValidBefore { .. })
             ));
         }
     }
@@ -1078,8 +1078,8 @@ mod tests {
 
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(!matches!(
-                err.downcast_other_ref::<TempoPoolTransactionError>(),
-                Some(TempoPoolTransactionError::InvalidValidAfter { .. })
+                err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                Some(MagnusPoolTransactionError::InvalidValidAfter { .. })
             ));
         }
 
@@ -1092,8 +1092,8 @@ mod tests {
 
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(!matches!(
-                err.downcast_other_ref::<TempoPoolTransactionError>(),
-                Some(TempoPoolTransactionError::InvalidValidAfter { .. })
+                err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                Some(MagnusPoolTransactionError::InvalidValidAfter { .. })
             ));
         }
 
@@ -1107,8 +1107,8 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::InvalidValidAfter { .. })
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::InvalidValidAfter { .. })
                 ));
             }
             _ => panic!("Expected Invalid outcome with InvalidValidAfter error, got: {outcome:?}"),
@@ -1121,9 +1121,9 @@ mod tests {
     async fn test_aa_intrinsic_gas_validation() {
         use alloy_primitives::{Signature, TxKind, address};
         use magnus_primitives::transaction::{
-            TempoTransaction,
+            MagnusTransaction,
             magnus_transaction::Call,
-            tt_signature::{PrimitiveSignature, TempoSignature},
+            tt_signature::{PrimitiveSignature, MagnusSignature},
             tt_signed::AASigned,
         };
 
@@ -1142,7 +1142,7 @@ mod tests {
                 })
                 .collect();
 
-            let tx = TempoTransaction {
+            let tx = MagnusTransaction {
                 chain_id: MODERATO.chain_id(),
                 max_priority_fee_per_gas: 1_000_000_000,
                 max_fee_per_gas: 20_000_000_000, // 20 gwei, above T1's minimum
@@ -1156,11 +1156,11 @@ mod tests {
 
             let signed = AASigned::new_unhashed(
                 tx,
-                TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+                MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                     Signature::test_signature(),
                 )),
             );
-            TempoPooledTransaction::new(TempoTxEnvelope::from(signed).try_into_recovered().unwrap())
+            MagnusPooledTransaction::new(MagnusTxEnvelope::from(signed).try_into_recovered().unwrap())
         };
 
         // Intrinsic gas for 10 calls: 21k base + 10*2600 cold access + 10*100*4 calldata = ~51k
@@ -1174,9 +1174,9 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                         )
                     ))
@@ -1196,9 +1196,9 @@ mod tests {
 
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(!matches!(
-                err.downcast_other_ref::<TempoPoolTransactionError>(),
-                Some(TempoPoolTransactionError::Evm(
-                    TempoInvalidTransaction::EthInvalidTransaction(
+                err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                Some(MagnusPoolTransactionError::Evm(
+                    MagnusInvalidTransaction::EthInvalidTransaction(
                         InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                     )
                 ))
@@ -1217,9 +1217,9 @@ mod tests {
     async fn test_aa_create_tx_with_2d_nonce_intrinsic_gas() {
         use alloy_primitives::Signature;
         use magnus_primitives::transaction::{
-            TempoTransaction,
+            MagnusTransaction,
             magnus_transaction::Call as TxCall,
-            tt_signature::{PrimitiveSignature, TempoSignature},
+            tt_signature::{PrimitiveSignature, MagnusSignature},
             tt_signed::AASigned,
         };
 
@@ -1246,13 +1246,13 @@ mod tests {
                     .collect()
             };
 
-            let valid_before = if nonce_key == TEMPO_EXPIRING_NONCE_KEY {
+            let valid_before = if nonce_key == MAGNUS_EXPIRING_NONCE_KEY {
                 Some(core::num::NonZeroU64::new(current_time + TEST_VALIDITY_WINDOW).unwrap())
             } else {
                 None
             };
 
-            let tx = TempoTransaction {
+            let tx = MagnusTransaction {
                 chain_id: MODERATO.chain_id(),
                 max_priority_fee_per_gas: 1_000_000_000,
                 max_fee_per_gas: 20_000_000_000,
@@ -1267,11 +1267,11 @@ mod tests {
 
             let signed = AASigned::new_unhashed(
                 tx,
-                TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+                MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                     Signature::test_signature(),
                 )),
             );
-            TempoPooledTransaction::new(TempoTxEnvelope::from(signed).try_into_recovered().unwrap())
+            MagnusPooledTransaction::new(MagnusTxEnvelope::from(signed).try_into_recovered().unwrap())
         };
 
         // Test 1: Verify 1D nonce (nonce_key=0) with low gas fails intrinsic gas check
@@ -1285,9 +1285,9 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::Evm(
-                            TempoInvalidTransaction::EthInvalidTransaction(
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::Evm(
+                            MagnusInvalidTransaction::EthInvalidTransaction(
                                 InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                             )
                         ))
@@ -1300,7 +1300,7 @@ mod tests {
 
         // Test 2: Verify 2D nonce (nonce_key != 0) with same low gas also fails intrinsic gas check
         // This confirms that 2D nonce adds additional gas requirements (for nonce == 0 case)
-        let tx_2d_low_gas = create_aa_tx(30_000, TEMPO_EXPIRING_NONCE_KEY, false);
+        let tx_2d_low_gas = create_aa_tx(30_000, MAGNUS_EXPIRING_NONCE_KEY, false);
         let validator2 = setup_validator(&tx_2d_low_gas, current_time);
         let outcome2 = validator2
             .validate_transaction(TransactionOrigin::External, tx_2d_low_gas)
@@ -1310,9 +1310,9 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::Evm(
-                            TempoInvalidTransaction::EthInvalidTransaction(
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::Evm(
+                            MagnusInvalidTransaction::EthInvalidTransaction(
                                 InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                             )
                         ))
@@ -1334,9 +1334,9 @@ mod tests {
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome3 {
             assert!(
                 !matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                         )
                     ))
@@ -1346,7 +1346,7 @@ mod tests {
         }
 
         // Test 4: 2D nonce with sufficient gas should NOT fail intrinsic gas check
-        let tx_2d_high_gas = create_aa_tx(1_000_000, TEMPO_EXPIRING_NONCE_KEY, false);
+        let tx_2d_high_gas = create_aa_tx(1_000_000, MAGNUS_EXPIRING_NONCE_KEY, false);
         let validator4 = setup_validator(&tx_2d_high_gas, current_time);
         let outcome4 = validator4
             .validate_transaction(TransactionOrigin::External, tx_2d_high_gas)
@@ -1356,9 +1356,9 @@ mod tests {
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome4 {
             assert!(
                 !matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                         )
                     ))
@@ -1372,9 +1372,9 @@ mod tests {
     async fn test_expiring_nonce_intrinsic_gas_uses_lower_cost() {
         use alloy_primitives::{Signature, TxKind, address};
         use magnus_primitives::transaction::{
-            TempoTransaction,
+            MagnusTransaction,
             magnus_transaction::Call,
-            tt_signature::{PrimitiveSignature, TempoSignature},
+            tt_signature::{PrimitiveSignature, MagnusSignature},
             tt_signed::AASigned,
         };
 
@@ -1391,13 +1391,13 @@ mod tests {
                 input: alloy_primitives::Bytes::from(vec![0xd0, 0x9d, 0xe0, 0x8a]), // increment()
             }];
 
-            let tx = TempoTransaction {
+            let tx = MagnusTransaction {
                 chain_id: 1,
                 max_priority_fee_per_gas: 1_000_000_000,
                 max_fee_per_gas: 20_000_000_000,
                 gas_limit,
                 calls,
-                nonce_key: TEMPO_EXPIRING_NONCE_KEY, // Expiring nonce
+                nonce_key: MAGNUS_EXPIRING_NONCE_KEY, // Expiring nonce
                 nonce: 0,
                 valid_before: Some(core::num::NonZeroU64::new(current_time + 25).unwrap()), // Valid for 25 seconds
                 fee_token: Some(address!("0000000000000000000000000000000000000002")),
@@ -1406,11 +1406,11 @@ mod tests {
 
             let signed = AASigned::new_unhashed(
                 tx,
-                TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+                MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                     Signature::test_signature(),
                 )),
             );
-            TempoPooledTransaction::new(TempoTxEnvelope::from(signed).try_into_recovered().unwrap())
+            MagnusPooledTransaction::new(MagnusTxEnvelope::from(signed).try_into_recovered().unwrap())
         };
 
         // Expiring nonce tx should only need ~35k gas (base + EXPIRING_NONCE_GAS of 13k)
@@ -1425,9 +1425,9 @@ mod tests {
         // Should NOT fail with InsufficientGasForAAIntrinsicCost or IntrinsicGasTooLow
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             let is_intrinsic_gas_error = matches!(
-                err.downcast_other_ref::<TempoPoolTransactionError>(),
-                Some(TempoPoolTransactionError::Evm(
-                    TempoInvalidTransaction::EthInvalidTransaction(
+                err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                Some(MagnusPoolTransactionError::Evm(
+                    MagnusInvalidTransaction::EthInvalidTransaction(
                         InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                     )
                 ))
@@ -1451,9 +1451,9 @@ mod tests {
     async fn test_existing_2d_nonce_key_intrinsic_gas() {
         use alloy_primitives::{Signature, TxKind, address};
         use magnus_primitives::transaction::{
-            TempoTransaction,
+            MagnusTransaction,
             magnus_transaction::Call,
-            tt_signature::{PrimitiveSignature, TempoSignature},
+            tt_signature::{PrimitiveSignature, MagnusSignature},
             tt_signed::AASigned,
         };
 
@@ -1470,7 +1470,7 @@ mod tests {
                 input: alloy_primitives::Bytes::from(vec![0xd0, 0x9d, 0xe0, 0x8a]), // increment()
             }];
 
-            let tx = TempoTransaction {
+            let tx = MagnusTransaction {
                 chain_id: MODERATO.chain_id(),
                 max_priority_fee_per_gas: 1_000_000_000,
                 max_fee_per_gas: 20_000_000_000,
@@ -1484,11 +1484,11 @@ mod tests {
 
             let signed = AASigned::new_unhashed(
                 tx,
-                TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+                MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                     Signature::test_signature(),
                 )),
             );
-            TempoPooledTransaction::new(TempoTxEnvelope::from(signed).try_into_recovered().unwrap())
+            MagnusPooledTransaction::new(MagnusTxEnvelope::from(signed).try_into_recovered().unwrap())
         };
 
         // Test 1: 1D nonce (nonce_key=0) with nonce > 0 has no extra 2D nonce charge.
@@ -1501,9 +1501,9 @@ mod tests {
 
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             let is_gas_error = matches!(
-                err.downcast_other_ref::<TempoPoolTransactionError>(),
-                Some(TempoPoolTransactionError::Evm(
-                    TempoInvalidTransaction::EthInvalidTransaction(
+                err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                Some(MagnusPoolTransactionError::Evm(
+                    MagnusInvalidTransaction::EthInvalidTransaction(
                         InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                     )
                 ))
@@ -1527,9 +1527,9 @@ mod tests {
 
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             let is_gas_error = matches!(
-                err.downcast_other_ref::<TempoPoolTransactionError>(),
-                Some(TempoPoolTransactionError::Evm(
-                    TempoInvalidTransaction::EthInvalidTransaction(
+                err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                Some(MagnusPoolTransactionError::Evm(
+                    MagnusInvalidTransaction::EthInvalidTransaction(
                         InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                     )
                 ))
@@ -1555,9 +1555,9 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 let is_gas_error = matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                         )
                     ))
@@ -1585,9 +1585,9 @@ mod tests {
 
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             let is_gas_error = matches!(
-                err.downcast_other_ref::<TempoPoolTransactionError>(),
-                Some(TempoPoolTransactionError::Evm(
-                    TempoInvalidTransaction::EthInvalidTransaction(
+                err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                Some(MagnusPoolTransactionError::Evm(
+                    MagnusInvalidTransaction::EthInvalidTransaction(
                         InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                     )
                 ))
@@ -1621,9 +1621,9 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::ValueTransferNotAllowed
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::ValueTransferNotAllowed
                     ))
                 ));
             }
@@ -1674,9 +1674,9 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::InvalidFeeToken(_)
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::InvalidFeeToken(_)
                     ))
                 ));
             }
@@ -1702,12 +1702,12 @@ mod tests {
             .await;
 
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
-            let magnus_err = err.downcast_other_ref::<TempoPoolTransactionError>();
+            let magnus_err = err.downcast_other_ref::<MagnusPoolTransactionError>();
             assert!(
                 !matches!(
                     magnus_err,
-                    Some(TempoPoolTransactionError::InvalidValidAfter { .. })
-                        | Some(TempoPoolTransactionError::InvalidValidBefore { .. })
+                    Some(MagnusPoolTransactionError::InvalidValidAfter { .. })
+                        | Some(MagnusPoolTransactionError::InvalidValidBefore { .. })
                 ),
                 "Should not fail with validity window errors"
             );
@@ -1738,9 +1738,9 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::Evm(
-                            TempoInvalidTransaction::EthInvalidTransaction(
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::Evm(
+                            MagnusInvalidTransaction::EthInvalidTransaction(
                                 InvalidTransaction::GasPriceLessThanBasefee
                             )
                         ))
@@ -1776,9 +1776,9 @@ mod tests {
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(
                 !matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             InvalidTransaction::GasPriceLessThanBasefee
                         )
                     ))
@@ -1812,9 +1812,9 @@ mod tests {
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(
                 !matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             InvalidTransaction::GasPriceLessThanBasefee
                         )
                     ))
@@ -1847,9 +1847,9 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::Evm(
-                            TempoInvalidTransaction::EthInvalidTransaction(
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::Evm(
+                            MagnusInvalidTransaction::EthInvalidTransaction(
                                 InvalidTransaction::GasPriceLessThanBasefee
                             )
                         ))
@@ -1868,7 +1868,7 @@ mod tests {
         #[test]
         fn test_legacy_keychain_post_t1c_is_bad_transaction() {
             assert!(
-                TempoPoolTransactionError::Evm(TempoInvalidTransaction::LegacyKeychainSignature)
+                MagnusPoolTransactionError::Evm(MagnusInvalidTransaction::LegacyKeychainSignature)
                     .is_bad_transaction(),
                 "Post-T1C V1 rejection should be a bad transaction (permanent)"
             );
@@ -1877,8 +1877,8 @@ mod tests {
         #[test]
         fn test_v2_keychain_pre_t1c_is_not_bad_transaction() {
             assert!(
-                !TempoPoolTransactionError::Evm(
-                    TempoInvalidTransaction::V2KeychainBeforeActivation
+                !MagnusPoolTransactionError::Evm(
+                    MagnusInvalidTransaction::V2KeychainBeforeActivation
                 )
                 .is_bad_transaction(),
                 "Pre-T1C V2 rejection should NOT be a bad transaction (transient)"
@@ -1888,7 +1888,7 @@ mod tests {
         #[test]
         fn test_expired_access_key_is_not_bad_transaction() {
             assert!(
-                !TempoPoolTransactionError::AccessKeyExpired {
+                !MagnusPoolTransactionError::AccessKeyExpired {
                     expiry: 1,
                     min_allowed: 4,
                 }
@@ -1900,7 +1900,7 @@ mod tests {
         #[test]
         fn test_expired_key_authorization_is_not_bad_transaction() {
             assert!(
-                !TempoPoolTransactionError::KeyAuthorizationExpired {
+                !MagnusPoolTransactionError::KeyAuthorizationExpired {
                     expiry: 1,
                     min_allowed: 4,
                 }
@@ -1917,34 +1917,34 @@ mod tests {
     /// Helper function to create an AA transaction with the given number of authorizations.
     fn create_aa_transaction_with_authorizations(
         authorization_count: usize,
-    ) -> TempoPooledTransaction {
+    ) -> MagnusPooledTransaction {
         use alloy_eips::eip7702::Authorization;
         use alloy_primitives::{Signature, TxKind, address};
         use magnus_primitives::transaction::{
-            TempoSignedAuthorization, TempoTransaction,
+            MagnusSignedAuthorization, MagnusTransaction,
             magnus_transaction::Call,
-            tt_signature::{PrimitiveSignature, TempoSignature},
+            tt_signature::{PrimitiveSignature, MagnusSignature},
             tt_signed::AASigned,
         };
 
         // Create dummy authorizations
-        let authorizations: Vec<TempoSignedAuthorization> = (0..authorization_count)
+        let authorizations: Vec<MagnusSignedAuthorization> = (0..authorization_count)
             .map(|i| {
                 let auth = Authorization {
                     chain_id: U256::from(1),
                     nonce: i as u64,
                     address: address!("0000000000000000000000000000000000000001"),
                 };
-                TempoSignedAuthorization::new_unchecked(
+                MagnusSignedAuthorization::new_unchecked(
                     auth,
-                    TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+                    MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                         Signature::test_signature(),
                     )),
                 )
             })
             .collect();
 
-        let tx_aa = TempoTransaction {
+        let tx_aa = MagnusTransaction {
             chain_id: 1,
             max_priority_fee_per_gas: 1_000_000_000,
             max_fee_per_gas: 20_000_000_000, // 20 gwei, above T1's minimum
@@ -1967,11 +1967,11 @@ mod tests {
 
         let signed_tx = AASigned::new_unhashed(
             tx_aa,
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature())),
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature())),
         );
-        let envelope: TempoTxEnvelope = signed_tx.into();
+        let envelope: MagnusTxEnvelope = signed_tx.into();
         let recovered = envelope.try_into_recovered().unwrap();
-        TempoPooledTransaction::new(recovered)
+        MagnusPooledTransaction::new(recovered)
     }
 
     #[tokio::test]
@@ -2051,9 +2051,9 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::Evm(
-                            TempoInvalidTransaction::CallsValidation(_)
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::Evm(
+                            MagnusInvalidTransaction::CallsValidation(_)
                         ))
                     ),
                     "Expected NoCalls error, got: {err:?}"
@@ -2099,9 +2099,9 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::Evm(
-                            TempoInvalidTransaction::CallsValidation(_)
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::Evm(
+                            MagnusInvalidTransaction::CallsValidation(_)
                         ))
                     ),
                     "Expected CreateCallNotFirst error, got: {err:?}"
@@ -2147,9 +2147,9 @@ mod tests {
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(
                 !matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::CallsValidation(_)
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::CallsValidation(_)
                     ))
                 ),
                 "CREATE call as first call should be accepted, got: {err:?}"
@@ -2187,7 +2187,7 @@ mod tests {
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
             .calls(calls)
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .build();
         let validator = setup_validator(&transaction, current_time);
 
@@ -2199,9 +2199,9 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::Evm(
-                            TempoInvalidTransaction::CallsValidation(_)
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::Evm(
+                            MagnusInvalidTransaction::CallsValidation(_)
                         ))
                     ),
                     "Expected CreateCallNotFirst error, got: {err:?}"
@@ -2217,8 +2217,8 @@ mod tests {
         use alloy_eips::eip7702::Authorization;
         use alloy_primitives::Signature;
         use magnus_primitives::transaction::{
-            TempoSignedAuthorization,
-            tt_signature::{PrimitiveSignature, TempoSignature},
+            MagnusSignedAuthorization,
+            tt_signature::{PrimitiveSignature, MagnusSignature},
         };
 
         let current_time = std::time::SystemTime::now()
@@ -2239,16 +2239,16 @@ mod tests {
             nonce: 0,
             address: address!("0000000000000000000000000000000000000001"),
         };
-        let authorization = TempoSignedAuthorization::new_unchecked(
+        let authorization = MagnusSignedAuthorization::new_unchecked(
             auth,
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature())),
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature())),
         );
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
             .calls(calls)
             .authorization_list(vec![authorization])
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .build();
         let validator = setup_validator(&transaction, current_time);
 
@@ -2260,9 +2260,9 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::Evm(
-                            TempoInvalidTransaction::CallsValidation(_)
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::Evm(
+                            MagnusInvalidTransaction::CallsValidation(_)
                         ))
                     ),
                     "Expected CreateCallWithAuthorizationList error, got: {err:?}"
@@ -2325,9 +2325,9 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                         )
                     ))
@@ -2388,9 +2388,9 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::Evm(
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::Evm(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                         )
                     ))
@@ -2471,7 +2471,7 @@ mod tests {
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .calls(calls)
             .build();
         let validator = setup_validator(&transaction, current_time);
@@ -2483,8 +2483,8 @@ mod tests {
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(
                 !matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::TooManyCalls { .. })
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::TooManyCalls { .. })
                 ),
                 "Exactly MAX_AA_CALLS calls should not trigger TooManyCalls, got: {err:?}"
             );
@@ -2508,7 +2508,7 @@ mod tests {
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .calls(calls)
             .build();
         let validator = setup_validator(&transaction, current_time);
@@ -2521,8 +2521,8 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::TooManyCalls { .. })
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::TooManyCalls { .. })
                     ),
                     "Expected TooManyCalls error, got: {err:?}"
                 );
@@ -2546,7 +2546,7 @@ mod tests {
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .calls(calls)
             .build();
         let validator = setup_validator(&transaction, current_time);
@@ -2558,8 +2558,8 @@ mod tests {
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(
                 !matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::CallInputTooLarge { .. })
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::CallInputTooLarge { .. })
                 ),
                 "Exactly MAX_CALL_INPUT_SIZE input should not trigger CallInputTooLarge, got: {err:?}"
             );
@@ -2581,7 +2581,7 @@ mod tests {
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .calls(calls)
             .build();
         let validator = setup_validator(&transaction, current_time);
@@ -2594,8 +2594,8 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 let is_oversized = matches!(err, InvalidPoolTransactionError::OversizedData { .. });
                 let is_call_input_too_large = matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::CallInputTooLarge { .. })
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::CallInputTooLarge { .. })
                 );
                 assert!(
                     is_oversized || is_call_input_too_large,
@@ -2624,7 +2624,7 @@ mod tests {
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .access_list(AccessList(items))
             .build();
         let validator = setup_validator(&transaction, current_time);
@@ -2636,8 +2636,8 @@ mod tests {
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(
                 !matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::TooManyAccessListAccounts { .. })
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::TooManyAccessListAccounts { .. })
                 ),
                 "Exactly MAX_ACCESS_LIST_ACCOUNTS should not trigger TooManyAccessListAccounts, got: {err:?}"
             );
@@ -2662,7 +2662,7 @@ mod tests {
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .access_list(AccessList(items))
             .build();
         let validator = setup_validator(&transaction, current_time);
@@ -2675,8 +2675,8 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::TooManyAccessListAccounts { .. })
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::TooManyAccessListAccounts { .. })
                     ),
                     "Expected TooManyAccessListAccounts error, got: {err:?}"
                 );
@@ -2705,7 +2705,7 @@ mod tests {
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .access_list(AccessList(items))
             .build();
         let validator = setup_validator(&transaction, current_time);
@@ -2717,8 +2717,8 @@ mod tests {
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(
                 !matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::TooManyStorageKeysPerAccount { .. })
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::TooManyStorageKeysPerAccount { .. })
                 ),
                 "Exactly MAX_STORAGE_KEYS_PER_ACCOUNT should not trigger TooManyStorageKeysPerAccount, got: {err:?}"
             );
@@ -2743,7 +2743,7 @@ mod tests {
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .access_list(AccessList(items))
             .build();
         let validator = setup_validator(&transaction, current_time);
@@ -2756,8 +2756,8 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::TooManyStorageKeysPerAccount { .. })
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::TooManyStorageKeysPerAccount { .. })
                     ),
                     "Expected TooManyStorageKeysPerAccount error, got: {err:?}"
                 );
@@ -2792,7 +2792,7 @@ mod tests {
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .access_list(AccessList(items))
             .build();
         let validator = setup_validator(&transaction, current_time);
@@ -2804,8 +2804,8 @@ mod tests {
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
             assert!(
                 !matches!(
-                    err.downcast_other_ref::<TempoPoolTransactionError>(),
-                    Some(TempoPoolTransactionError::TooManyTotalStorageKeys { .. })
+                    err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                    Some(MagnusPoolTransactionError::TooManyTotalStorageKeys { .. })
                 ),
                 "Exactly MAX_ACCESS_LIST_STORAGE_KEYS_TOTAL should not trigger TooManyTotalStorageKeys, got: {err:?}"
             );
@@ -2840,7 +2840,7 @@ mod tests {
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(address!("0000000000000000000000000000000000000002"))
-            .gas_limit(TEMPO_T1_TX_GAS_LIMIT_CAP)
+            .gas_limit(MAGNUS_T1_TX_GAS_LIMIT_CAP)
             .access_list(AccessList(items))
             .build();
         let validator = setup_validator(&transaction, current_time);
@@ -2853,8 +2853,8 @@ mod tests {
             TransactionValidationOutcome::Invalid(_, ref err) => {
                 assert!(
                     matches!(
-                        err.downcast_other_ref::<TempoPoolTransactionError>(),
-                        Some(TempoPoolTransactionError::TooManyTotalStorageKeys { .. })
+                        err.downcast_other_ref::<MagnusPoolTransactionError>(),
+                        Some(MagnusPoolTransactionError::TooManyTotalStorageKeys { .. })
                     ),
                     "Expected TooManyTotalStorageKeys error, got: {err:?}"
                 );

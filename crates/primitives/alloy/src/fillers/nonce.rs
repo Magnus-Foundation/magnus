@@ -1,4 +1,4 @@
-use crate::rpc::TempoTransactionRequest;
+use crate::rpc::MagnusTransactionRequest;
 use alloy_network::{Network, TransactionBuilder};
 use alloy_primitives::{Address, U256};
 use alloy_provider::{
@@ -14,10 +14,10 @@ use std::{
 };
 use magnus_contracts::precompiles::{INonce, NONCE_PRECOMPILE_ADDRESS};
 use magnus_primitives::{
-    subblock::has_sub_block_nonce_key_prefix, transaction::TEMPO_EXPIRING_NONCE_KEY,
+    subblock::has_sub_block_nonce_key_prefix, transaction::MAGNUS_EXPIRING_NONCE_KEY,
 };
 
-/// A [`TxFiller`] that populates the [`TempoTransaction`](`magnus_primitives::TempoTransaction`) transaction with a random `nonce_key`, and `nonce` set to `0`.
+/// A [`TxFiller`] that populates the [`MagnusTransaction`](`magnus_primitives::MagnusTransaction`) transaction with a random `nonce_key`, and `nonce` set to `0`.
 ///
 /// This filler can be used to avoid nonce gaps by having a random 2D nonce key that doesn't conflict with any other transactions.
 #[derive(Clone, Copy, Debug, Default)]
@@ -25,12 +25,12 @@ pub struct Random2DNonceFiller;
 
 impl Random2DNonceFiller {
     /// Returns `true` if either the nonce or nonce key is already filled.
-    fn is_filled(tx: &TempoTransactionRequest) -> bool {
+    fn is_filled(tx: &MagnusTransactionRequest) -> bool {
         tx.nonce().is_some() || tx.nonce_key.is_some()
     }
 }
 
-impl<N: Network<TransactionRequest = TempoTransactionRequest>> TxFiller<N> for Random2DNonceFiller {
+impl<N: Network<TransactionRequest = MagnusTransactionRequest>> TxFiller<N> for Random2DNonceFiller {
     type Fillable = ();
 
     fn status(&self, tx: &N::TransactionRequest) -> FillerControlFlow {
@@ -111,11 +111,11 @@ impl ExpiringNonceFiller {
     }
 
     /// Returns `true` if all expiring nonce fields are properly set:
-    /// - `nonce_key` is `TEMPO_EXPIRING_NONCE_KEY`
+    /// - `nonce_key` is `MAGNUS_EXPIRING_NONCE_KEY`
     /// - `nonce` is `0`
     /// - `valid_before` is set
-    fn is_filled(tx: &TempoTransactionRequest) -> bool {
-        tx.nonce_key == Some(TEMPO_EXPIRING_NONCE_KEY)
+    fn is_filled(tx: &MagnusTransactionRequest) -> bool {
+        tx.nonce_key == Some(MAGNUS_EXPIRING_NONCE_KEY)
             && tx.nonce() == Some(0)
             && tx.valid_before.is_some()
     }
@@ -133,7 +133,7 @@ impl ExpiringNonceFiller {
     }
 }
 
-impl<N: Network<TransactionRequest = TempoTransactionRequest>> TxFiller<N> for ExpiringNonceFiller {
+impl<N: Network<TransactionRequest = MagnusTransactionRequest>> TxFiller<N> for ExpiringNonceFiller {
     type Fillable = ();
 
     fn status(&self, tx: &N::TransactionRequest) -> FillerControlFlow {
@@ -148,7 +148,7 @@ impl<N: Network<TransactionRequest = TempoTransactionRequest>> TxFiller<N> for E
             && !Self::is_filled(builder)
         {
             // Set expiring nonce key (U256::MAX)
-            builder.set_nonce_key(TEMPO_EXPIRING_NONCE_KEY);
+            builder.set_nonce_key(MAGNUS_EXPIRING_NONCE_KEY);
             // Nonce must be 0 for expiring nonce transactions
             builder.set_nonce(0);
             // Set valid_before to current time + expiry window
@@ -188,7 +188,7 @@ impl<N: Network<TransactionRequest = TempoTransactionRequest>> TxFiller<N> for E
 ///
 /// Nonce resolution depends on the key:
 /// - `U256::ZERO` (protocol nonce): uses `get_transaction_count`
-/// - `TEMPO_EXPIRING_NONCE_KEY` (U256::MAX): always 0, no caching (use [`ExpiringNonceFiller`]
+/// - `MAGNUS_EXPIRING_NONCE_KEY` (U256::MAX): always 0, no caching (use [`ExpiringNonceFiller`]
 ///   instead for full expiring nonce support including `valid_before`)
 /// - Any other key: queries the `NonceManager` precompile via `eth_call`
 #[derive(Clone, Debug)]
@@ -235,7 +235,7 @@ impl NonceKeyFiller {
     }
 }
 
-impl<N: Network<TransactionRequest = TempoTransactionRequest>> TxFiller<N> for NonceKeyFiller {
+impl<N: Network<TransactionRequest = MagnusTransactionRequest>> TxFiller<N> for NonceKeyFiller {
     type Fillable = u64;
 
     fn status(&self, tx: &N::TransactionRequest) -> FillerControlFlow {
@@ -268,7 +268,7 @@ impl<N: Network<TransactionRequest = TempoTransactionRequest>> TxFiller<N> for N
             .ok_or_else(|| TransportErrorKind::custom_str("missing `nonce_key`"))?;
 
         // Expiring nonces always use nonce 0
-        if nonce_key == TEMPO_EXPIRING_NONCE_KEY {
+        if nonce_key == MAGNUS_EXPIRING_NONCE_KEY {
             return Ok(0);
         }
 
@@ -314,7 +314,7 @@ impl<N: Network<TransactionRequest = TempoTransactionRequest>> TxFiller<N> for N
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{TempoNetwork, fillers::Random2DNonceFiller, rpc::TempoTransactionRequest};
+    use crate::{MagnusNetwork, fillers::Random2DNonceFiller, rpc::MagnusTransactionRequest};
     use alloy::sol_types::SolCall;
     use alloy_network::TransactionBuilder;
     use alloy_primitives::{Bytes, ruint::aliases::U256};
@@ -323,13 +323,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_random_2d_nonce_filler() -> eyre::Result<()> {
-        let provider = ProviderBuilder::<_, _, TempoNetwork>::default()
+        let provider = ProviderBuilder::<_, _, MagnusNetwork>::default()
             .filler(Random2DNonceFiller)
             .connect_mocked_client(Asserter::default());
 
         // No nonce key, no nonce => nonce key and nonce are filled
         let filled_request = provider
-            .fill(TempoTransactionRequest::default())
+            .fill(MagnusTransactionRequest::default())
             .await?
             .try_into_request()?;
         assert!(filled_request.nonce_key.is_some());
@@ -337,7 +337,7 @@ mod tests {
 
         // Has nonce => nothing is filled
         let filled_request = provider
-            .fill(TempoTransactionRequest::default().with_nonce(1))
+            .fill(MagnusTransactionRequest::default().with_nonce(1))
             .await?
             .try_into_request()?;
         assert!(filled_request.nonce_key.is_none());
@@ -345,7 +345,7 @@ mod tests {
 
         // Has nonce key => nothing is filled
         let filled_request = provider
-            .fill(TempoTransactionRequest::default().with_nonce_key(U256::ONE))
+            .fill(MagnusTransactionRequest::default().with_nonce_key(U256::ONE))
             .await?
             .try_into_request()?;
         assert_eq!(filled_request.nonce_key, Some(U256::ONE));
@@ -357,20 +357,20 @@ mod tests {
     #[tokio::test]
     async fn test_nonce_key_filler_clear_refetches_chain_nonce() -> eyre::Result<()> {
         let asserter = Asserter::new();
-        let provider = ProviderBuilder::<_, _, TempoNetwork>::default()
+        let provider = ProviderBuilder::<_, _, MagnusNetwork>::default()
             .connect_mocked_client(asserter.clone());
         let filler = NonceKeyFiller::default();
         let account = Address::repeat_byte(0x11);
         let nonce_key = U256::from(7_u64);
-        let mut tx = TempoTransactionRequest::default().with_nonce_key(nonce_key);
+        let mut tx = MagnusTransactionRequest::default().with_nonce_key(nonce_key);
         tx.set_from(account);
 
         asserter.push_success(&Bytes::from(INonce::getNonceCall::abi_encode_returns(
             &10_u64,
         )));
 
-        let first = TxFiller::<TempoNetwork>::prepare(&filler, &provider, &tx).await?;
-        let second = TxFiller::<TempoNetwork>::prepare(&filler, &provider, &tx).await?;
+        let first = TxFiller::<MagnusNetwork>::prepare(&filler, &provider, &tx).await?;
+        let second = TxFiller::<MagnusNetwork>::prepare(&filler, &provider, &tx).await?;
 
         assert_eq!(first, 10);
         assert_eq!(second, 11);
@@ -381,7 +381,7 @@ mod tests {
             &42_u64,
         )));
 
-        let reset = TxFiller::<TempoNetwork>::prepare(&filler, &provider, &tx).await?;
+        let reset = TxFiller::<MagnusNetwork>::prepare(&filler, &provider, &tx).await?;
 
         assert_eq!(reset, 42);
 
@@ -391,13 +391,13 @@ mod tests {
     #[tokio::test]
     async fn test_nonce_key_filler_can_disable_caching() -> eyre::Result<()> {
         let asserter = Asserter::new();
-        let provider = ProviderBuilder::<_, _, TempoNetwork>::default()
+        let provider = ProviderBuilder::<_, _, MagnusNetwork>::default()
             .connect_mocked_client(asserter.clone());
         let mut filler = NonceKeyFiller::default();
         filler.disable_caching();
         let account = Address::repeat_byte(0x22);
         let nonce_key = U256::from(7_u64);
-        let mut tx = TempoTransactionRequest::default().with_nonce_key(nonce_key);
+        let mut tx = MagnusTransactionRequest::default().with_nonce_key(nonce_key);
         tx.set_from(account);
 
         asserter.push_success(&Bytes::from(INonce::getNonceCall::abi_encode_returns(
@@ -407,8 +407,8 @@ mod tests {
             &42_u64,
         )));
 
-        let first = TxFiller::<TempoNetwork>::prepare(&filler, &provider, &tx).await?;
-        let second = TxFiller::<TempoNetwork>::prepare(&filler, &provider, &tx).await?;
+        let first = TxFiller::<MagnusNetwork>::prepare(&filler, &provider, &tx).await?;
+        let second = TxFiller::<MagnusNetwork>::prepare(&filler, &provider, &tx).await?;
 
         assert_eq!(first, 10);
         assert_eq!(second, 42);

@@ -5,26 +5,26 @@ use alloy::{
 use async_trait::async_trait;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc, types::error::INTERNAL_ERROR_CODE};
 use reth_rpc_server_types::result::rpc_err;
-use magnus_alloy::TempoNetwork;
+use magnus_alloy::MagnusNetwork;
 use magnus_precompiles::tip20::ITIP20;
 
 #[rpc(server, namespace = "tempo")]
-pub trait TempoFaucetExtApi {
+pub trait MagnusFaucetExtApi {
     #[method(name = "fundAddress")]
     async fn fund_address(&self, address: Address) -> RpcResult<Vec<B256>>;
 }
 
-pub struct TempoFaucetExt {
+pub struct MagnusFaucetExt {
     faucet_token_addresses: Vec<Address>,
     funding_amount: U256,
-    provider: DynProvider<TempoNetwork>,
+    provider: DynProvider<MagnusNetwork>,
 }
 
-impl TempoFaucetExt {
+impl MagnusFaucetExt {
     pub fn new(
         faucet_token_addresses: Vec<Address>,
         funding_amount: U256,
-        provider: DynProvider<TempoNetwork>,
+        provider: DynProvider<MagnusNetwork>,
     ) -> Self {
         Self {
             faucet_token_addresses,
@@ -35,7 +35,7 @@ impl TempoFaucetExt {
 }
 
 #[async_trait]
-impl TempoFaucetExtApiServer for TempoFaucetExt {
+impl MagnusFaucetExtApiServer for MagnusFaucetExt {
     async fn fund_address(&self, address: Address) -> RpcResult<Vec<B256>> {
         let mut tx_hashes = Vec::new();
         for token in &self.faucet_token_addresses {

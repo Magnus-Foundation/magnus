@@ -162,7 +162,7 @@ impl From<SelectorRule> for AbiSelectorRule {
 
 /// Key authorization for provisioning access keys
 ///
-/// Used in TempoTransaction to add a new key to the AccountKeychain precompile.
+/// Used in MagnusTransaction to add a new key to the AccountKeychain precompile.
 /// The transaction must be signed by the root key to authorize adding this access key.
 ///
 /// RLP encoding: `[chain_id, key_type, key_id, expiry?, limits?, allowed_calls?]`
@@ -515,7 +515,7 @@ mod selector_hex_serde {
 mod tests {
     use super::*;
     use crate::transaction::{
-        TempoSignature,
+        MagnusSignature,
         tt_authorization::tests::{generate_secp256k1_keypair, sign_hash},
     };
     use alloy_rlp::{Decodable, Encodable};
@@ -554,7 +554,7 @@ mod tests {
         // Sign and recover
         let signature = sign_hash(&signing_key, &auth.signature_hash());
         let inner_sig = match signature {
-            TempoSignature::Primitive(p) => p,
+            MagnusSignature::Primitive(p) => p,
             _ => panic!("Expected primitive signature"),
         };
         let signed = auth.clone().into_signed(inner_sig);
@@ -567,7 +567,7 @@ mod tests {
         // Wrong signature hash yields wrong address
         let wrong_sig = sign_hash(&signing_key, &B256::random());
         let wrong_inner = match wrong_sig {
-            TempoSignature::Primitive(p) => p,
+            MagnusSignature::Primitive(p) => p,
             _ => panic!("Expected primitive signature"),
         };
         let bad_signed = auth.into_signed(wrong_inner);

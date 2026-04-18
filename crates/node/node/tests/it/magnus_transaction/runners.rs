@@ -14,13 +14,13 @@ use alloy_eips::{Decodable2718, Encodable2718};
 use alloy_primitives::TxKind;
 use reth_primitives_traits::transaction::TxHashRef;
 use magnus_contracts::precompiles::DEFAULT_FEE_TOKEN;
-use magnus_node::rpc::TempoTransactionRequest;
+use magnus_node::rpc::MagnusTransactionRequest;
 use magnus_primitives::{
-    SignatureType, TempoTransaction, TempoTxEnvelope,
+    SignatureType, MagnusTransaction, MagnusTxEnvelope,
     transaction::{
-        KeyAuthorization, SignedKeyAuthorization, TEMPO_EXPIRING_NONCE_KEY, TokenLimit,
+        KeyAuthorization, SignedKeyAuthorization, MAGNUS_EXPIRING_NONCE_KEY, TokenLimit,
         magnus_transaction::Call,
-        tt_signature::{PrimitiveSignature, TempoSignature},
+        tt_signature::{PrimitiveSignature, MagnusSignature},
     },
 };
 
@@ -520,7 +520,7 @@ pub(super) async fn run_estimate_gas_matrix<E: TestEnv>(
                 .collect(),
         };
 
-        let mut request = TempoTransactionRequest {
+        let mut request = MagnusTransactionRequest {
             inner: TransactionRequest {
                 from: Some(signer_addr),
                 ..Default::default()
@@ -803,7 +803,7 @@ pub(super) async fn run_fill_sign_send_matrix<E: TestEnv>(env: &mut E) -> eyre::
 /// Returns the transaction hash.
 async fn submit_expecting<E: TestEnv>(
     env: &mut E,
-    envelope: TempoTxEnvelope,
+    envelope: MagnusTxEnvelope,
     expected: ExpectedOutcome,
     sync: bool,
     fee_payer_ctx: Option<FeePayerContext>,
@@ -1035,7 +1035,7 @@ pub(crate) async fn run_raw_case<E: TestEnv>(
             );
             auth_tx.key_authorization = Some(key_auth);
             let sig = sign_aa_tx_secp256k1(&auth_tx, &root_signer)?;
-            let envelope: TempoTxEnvelope = auth_tx.into_signed(sig).into();
+            let envelope: MagnusTxEnvelope = auth_tx.into_signed(sig).into();
             let hash = *envelope.tx_hash();
             env.submit_tx(envelope.encoded_2718(), hash).await?;
 
@@ -1050,7 +1050,7 @@ pub(crate) async fn run_raw_case<E: TestEnv>(
                 &unauth_pub_y,
                 root_addr,
             )?;
-            let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+            let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
             env.submit_tx_expecting_rejection(envelope.encoded_2718(), None)
                 .await?;
             return Ok(());
@@ -1076,7 +1076,7 @@ pub(crate) async fn run_raw_case<E: TestEnv>(
 
                     tx.key_authorization = Some(invalid_key_auth);
                     let sig = sign_aa_tx_secp256k1(&tx, &root_signer)?;
-                    let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+                    let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
                     env.submit_tx_expecting_rejection(envelope.encoded_2718(), None)
                         .await?;
                     return Ok(());
@@ -1122,7 +1122,7 @@ pub(crate) async fn run_raw_case<E: TestEnv>(
                         &pub_y_3,
                         root_addr,
                     )?;
-                    let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+                    let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
                     env.submit_tx_expecting_rejection(envelope.encoded_2718(), None)
                         .await?;
                     return Ok(());
@@ -1144,7 +1144,7 @@ pub(crate) async fn run_raw_case<E: TestEnv>(
             .await?;
 
             let signature = sign_aa_tx_secp256k1(&tx, &root_signer)?;
-            let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+            let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
 
             submit_expecting(
                 env,
@@ -1202,7 +1202,7 @@ pub(crate) async fn run_raw_case<E: TestEnv>(
                 KeyType::Secp256k1 => unreachable!("handled above"),
             };
 
-            let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+            let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
 
             submit_expecting(
                 env,
@@ -1232,7 +1232,7 @@ async fn run_raw_access_key_case<E: TestEnv>(
     root_signer: &PrivateKeySigner,
     root_addr: Address,
     fee_payer_signer: &PrivateKeySigner,
-    tx: &mut TempoTransaction,
+    tx: &mut MagnusTransaction,
     nonce_before: u64,
     chain_id: u64,
     auth_chain_id_value: u64,
@@ -1264,7 +1264,7 @@ async fn run_raw_access_key_case<E: TestEnv>(
                     );
                     setup_tx.key_authorization = Some(key_auth.clone());
                     let setup_sig = sign_aa_tx_secp256k1(&setup_tx, root_signer)?;
-                    let setup_envelope: TempoTxEnvelope = setup_tx.into_signed(setup_sig).into();
+                    let setup_envelope: MagnusTxEnvelope = setup_tx.into_signed(setup_sig).into();
                     let setup_hash = *setup_envelope.tx_hash();
                     env.submit_tx(setup_envelope.encoded_2718(), setup_hash)
                         .await?;
@@ -1291,7 +1291,7 @@ async fn run_raw_access_key_case<E: TestEnv>(
             .await?;
 
             let sig = sign_aa_tx_with_secp256k1_access_key(tx, &access_signer, root_addr)?;
-            let envelope: TempoTxEnvelope = tx.clone().into_signed(sig).into();
+            let envelope: MagnusTxEnvelope = tx.clone().into_signed(sig).into();
 
             submit_expecting(
                 env,
@@ -1332,7 +1332,7 @@ async fn run_raw_access_key_case<E: TestEnv>(
                     );
                     setup_tx.key_authorization = Some(key_auth.clone());
                     let setup_sig = sign_aa_tx_secp256k1(&setup_tx, root_signer)?;
-                    let setup_envelope: TempoTxEnvelope = setup_tx.into_signed(setup_sig).into();
+                    let setup_envelope: MagnusTxEnvelope = setup_tx.into_signed(setup_sig).into();
                     let setup_hash = *setup_envelope.tx_hash();
                     env.submit_tx(setup_envelope.encoded_2718(), setup_hash)
                         .await?;
@@ -1376,7 +1376,7 @@ async fn run_raw_access_key_case<E: TestEnv>(
                     );
                     setup_tx.key_authorization = Some(key_auth.clone());
                     let setup_sig = sign_aa_tx_secp256k1(&setup_tx, root_signer)?;
-                    let setup_envelope: TempoTxEnvelope = setup_tx.into_signed(setup_sig).into();
+                    let setup_envelope: MagnusTxEnvelope = setup_tx.into_signed(setup_sig).into();
                     let setup_hash = *setup_envelope.tx_hash();
                     env.submit_tx(setup_envelope.encoded_2718(), setup_hash)
                         .await?;
@@ -1418,7 +1418,7 @@ async fn run_raw_access_key_case<E: TestEnv>(
                 _ => unreachable!(),
             };
 
-            let envelope: TempoTxEnvelope = tx.clone().into_signed(sig).into();
+            let envelope: MagnusTxEnvelope = tx.clone().into_signed(sig).into();
 
             submit_expecting(
                 env,
@@ -1526,7 +1526,7 @@ pub(super) async fn run_send_case<E: TestEnv>(
             KeyType::Secp256k1 => unreachable!("guarded above"),
         };
 
-        let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
         let tx_hash = *envelope.tx_hash();
         let receipt = env.submit_tx(envelope.encoded_2718(), tx_hash).await?;
         if let Some(ctx) = fee_payer_ctx {
@@ -1576,7 +1576,7 @@ pub(super) async fn run_send_case<E: TestEnv>(
             .await?;
 
             let signature = sign_aa_tx_secp256k1(&tx, &signer)?;
-            let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+            let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
             let tx_hash = *envelope.tx_hash();
             let receipt = env.submit_tx(envelope.encoded_2718(), tx_hash).await?;
             if let Some(ctx) = fee_payer_ctx {
@@ -1648,7 +1648,7 @@ pub(super) async fn run_send_case<E: TestEnv>(
                 KeyType::Secp256k1 => unreachable!("handled above"),
             };
 
-            let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+            let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
             let tx_hash = *envelope.tx_hash();
             let receipt = env.submit_tx(envelope.encoded_2718(), tx_hash).await?;
             if let Some(ctx) = fee_payer_ctx {
@@ -1747,7 +1747,7 @@ pub(super) async fn run_fill_sign_send<E: TestEnv>(
             KeyType::Secp256k1 => unreachable!(),
         };
 
-        let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
         submit_expecting(env, envelope, test_case.expected, false, None).await?
     } else {
         let signer = PrivateKeySigner::random();
@@ -1799,7 +1799,7 @@ pub(super) async fn run_fill_sign_send<E: TestEnv>(
         }
 
         let signature = sign_aa_tx_secp256k1(&tx, &signer)?;
-        let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
 
         let tx_hash = submit_expecting(env, envelope, test_case.expected, false, None).await?;
 
@@ -1824,7 +1824,7 @@ pub(super) async fn run_fill_sign_send<E: TestEnv>(
             NonceMode::Expiring
             | NonceMode::ExpiringAtBoundary
             | NonceMode::ExpiringExceedsBoundary
-            | NonceMode::ExpiringInPast => TEMPO_EXPIRING_NONCE_KEY,
+            | NonceMode::ExpiringInPast => MAGNUS_EXPIRING_NONCE_KEY,
         };
 
         let raw_tx: Option<serde_json::Value> = env
@@ -1889,12 +1889,12 @@ pub(super) async fn run_fee_payer_cosign_scenario<E: TestEnv>(env: &mut E) -> ey
     ));
 
     let user_signature = sign_aa_tx_secp256k1(&tx, &user_signer)?;
-    let sign_only_envelope: TempoTxEnvelope = tx.into_signed(user_signature).into();
+    let sign_only_envelope: MagnusTxEnvelope = tx.into_signed(user_signature).into();
     let sign_only_encoded = sign_only_envelope.encoded_2718();
 
-    let decoded = TempoTxEnvelope::decode_2718(&mut sign_only_encoded.as_slice())?;
+    let decoded = MagnusTxEnvelope::decode_2718(&mut sign_only_encoded.as_slice())?;
     let (mut decoded_tx, decoded_sig) = match decoded {
-        TempoTxEnvelope::AA(aa_tx) => (aa_tx.tx().clone(), aa_tx.signature().clone()),
+        MagnusTxEnvelope::AA(aa_tx) => (aa_tx.tx().clone(), aa_tx.signature().clone()),
         _ => return Err(eyre::eyre!("Expected AA transaction")),
     };
 
@@ -1902,7 +1902,7 @@ pub(super) async fn run_fee_payer_cosign_scenario<E: TestEnv>(env: &mut E) -> ey
     let fee_payer_signature = fee_payer_signer.sign_hash_sync(&fee_payer_sig_hash)?;
     decoded_tx.fee_payer_signature = Some(fee_payer_signature);
 
-    let final_envelope: TempoTxEnvelope = decoded_tx.into_signed(decoded_sig).into();
+    let final_envelope: MagnusTxEnvelope = decoded_tx.into_signed(decoded_sig).into();
     let tx_hash = *final_envelope.tx_hash();
 
     let receipt = env
@@ -1927,7 +1927,7 @@ pub(super) async fn run_fee_payer_cosign_scenario<E: TestEnv>(env: &mut E) -> ey
 
 /// EIP-7702 authorization list with 3 key types.
 pub(super) async fn run_authorization_list_scenario<E: TestEnv>(env: &mut E) -> eyre::Result<()> {
-    use magnus_primitives::transaction::TempoSignedAuthorization;
+    use magnus_primitives::transaction::MagnusSignedAuthorization;
 
     println!("\n=== Authorization list scenario ===\n");
 
@@ -1944,9 +1944,9 @@ pub(super) async fn run_authorization_list_scenario<E: TestEnv>(env: &mut E) -> 
     let auth1_addr = auth1_signer.address();
     let (auth1, sig_hash1) = build_authorization(chain_id, delegate_address);
     let sig1 = auth1_signer.sign_hash_sync(&sig_hash1)?;
-    let auth1_signed = TempoSignedAuthorization::new_unchecked(
+    let auth1_signed = MagnusSignedAuthorization::new_unchecked(
         auth1,
-        TempoSignature::Primitive(PrimitiveSignature::Secp256k1(sig1)),
+        MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(sig1)),
     );
 
     // Authority 2: P256
@@ -1954,7 +1954,7 @@ pub(super) async fn run_authorization_list_scenario<E: TestEnv>(env: &mut E) -> 
     let (auth2, sig_hash2) = build_authorization(chain_id, delegate_address);
     let inner2 = sign_p256_primitive(sig_hash2, &auth2_key, pub2_x, pub2_y)?;
     let auth2_signed =
-        TempoSignedAuthorization::new_unchecked(auth2, TempoSignature::Primitive(inner2));
+        MagnusSignedAuthorization::new_unchecked(auth2, MagnusSignature::Primitive(inner2));
 
     // Authority 3: WebAuthn
     let (auth3_key, pub3_x, pub3_y, auth3_addr) = generate_p256_access_key();
@@ -1962,20 +1962,20 @@ pub(super) async fn run_authorization_list_scenario<E: TestEnv>(env: &mut E) -> 
     let inner3 =
         sign_webauthn_primitive(sig_hash3, &auth3_key, pub3_x, pub3_y, "https://example.com")?;
     let auth3_signed =
-        TempoSignedAuthorization::new_unchecked(auth3, TempoSignature::Primitive(inner3));
+        MagnusSignedAuthorization::new_unchecked(auth3, MagnusSignature::Primitive(inner3));
 
     // Verify BEFORE state
     assert!(env.provider().get_code_at(auth1_addr).await?.is_empty());
 
     let recipient = Address::random();
-    let tx_request = TempoTransactionRequest {
+    let tx_request = MagnusTransactionRequest {
         inner: TransactionRequest {
             from: Some(sender_addr),
             to: Some(recipient.into()),
             value: Some(U256::ZERO),
             gas: Some(2_000_000),
-            max_fee_per_gas: Some(magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
-            max_priority_fee_per_gas: Some(magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
+            max_fee_per_gas: Some(magnus_chainspec::spec::MAGNUS_T1_BASE_FEE as u128),
+            max_priority_fee_per_gas: Some(magnus_chainspec::spec::MAGNUS_T1_BASE_FEE as u128),
             nonce: Some(env.provider().get_transaction_count(sender_addr).await?),
             chain_id: Some(chain_id),
             ..Default::default()
@@ -1995,7 +1995,7 @@ pub(super) async fn run_authorization_list_scenario<E: TestEnv>(env: &mut E) -> 
         .map_err(|e| eyre::eyre!("Failed to build AA tx: {:?}", e))?;
 
     let signature = sign_aa_tx_secp256k1(&tx, &sender_signer)?;
-    let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+    let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
     let tx_hash = *envelope.tx_hash();
 
     let receipt = env.submit_tx(envelope.encoded_2718(), tx_hash).await?;
@@ -2028,7 +2028,7 @@ pub(super) async fn run_keychain_auth_list_skipped_scenario<E: TestEnv>(
     env: &mut E,
 ) -> eyre::Result<()> {
     use magnus_primitives::transaction::{
-        TempoSignedAuthorization, tt_signature::KeychainSignature,
+        MagnusSignedAuthorization, tt_signature::KeychainSignature,
     };
 
     println!("\n=== Keychain auth list skipped scenario ===\n");
@@ -2055,22 +2055,22 @@ pub(super) async fn run_keychain_auth_list_skipped_scenario<E: TestEnv>(
     let attacker_signature = attacker_signer.sign_hash_sync(&sig_hash)?;
     let inner_sig = PrimitiveSignature::Secp256k1(attacker_signature);
     let keychain_sig = KeychainSignature::new(victim_addr, inner_sig);
-    let spoofed_sig = TempoSignature::Keychain(keychain_sig);
-    let spoofed_auth = TempoSignedAuthorization::new_unchecked(auth, spoofed_sig);
+    let spoofed_sig = MagnusSignature::Keychain(keychain_sig);
+    let spoofed_auth = MagnusSignedAuthorization::new_unchecked(auth, spoofed_sig);
 
     let recovered = spoofed_auth.recover_authority()?;
     assert_eq!(recovered, victim_addr);
 
     let recipient = Address::random();
     let sender_nonce_before = env.provider().get_transaction_count(sender_addr).await?;
-    let tx_request = TempoTransactionRequest {
+    let tx_request = MagnusTransactionRequest {
         inner: TransactionRequest {
             from: Some(sender_addr),
             to: Some(recipient.into()),
             value: Some(U256::ZERO),
             gas: Some(2_000_000),
-            max_fee_per_gas: Some(magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
-            max_priority_fee_per_gas: Some(magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
+            max_fee_per_gas: Some(magnus_chainspec::spec::MAGNUS_T1_BASE_FEE as u128),
+            max_priority_fee_per_gas: Some(magnus_chainspec::spec::MAGNUS_T1_BASE_FEE as u128),
             nonce: Some(sender_nonce_before),
             chain_id: Some(chain_id),
             ..Default::default()
@@ -2090,7 +2090,7 @@ pub(super) async fn run_keychain_auth_list_skipped_scenario<E: TestEnv>(
         .map_err(|e| eyre::eyre!("Failed to build AA tx: {:?}", e))?;
 
     let signature = sign_aa_tx_secp256k1(&tx, &sender_signer)?;
-    let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+    let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
     let tx_hash = *envelope.tx_hash();
 
     let receipt = env
@@ -2154,7 +2154,7 @@ pub(super) async fn run_keychain_expiry_scenario<E: TestEnv>(env: &mut E) -> eyr
     );
     auth_tx.key_authorization = Some(never_auth);
     let sig = sign_aa_tx_secp256k1(&auth_tx, &root_signer)?;
-    let envelope: TempoTxEnvelope = auth_tx.into_signed(sig).into();
+    let envelope: MagnusTxEnvelope = auth_tx.into_signed(sig).into();
     let hash = *envelope.tx_hash();
     env.submit_tx(envelope.encoded_2718(), hash).await?;
     nonce += 1;
@@ -2177,7 +2177,7 @@ pub(super) async fn run_keychain_expiry_scenario<E: TestEnv>(env: &mut E) -> eyr
         &never_pub_y,
         root_addr,
     )?;
-    let envelope: TempoTxEnvelope = transfer_tx.into_signed(never_sig).into();
+    let envelope: MagnusTxEnvelope = transfer_tx.into_signed(never_sig).into();
     let hash = *envelope.tx_hash();
     env.submit_tx(envelope.encoded_2718(), hash).await?;
     nonce += 1;
@@ -2212,7 +2212,7 @@ pub(super) async fn run_keychain_expiry_scenario<E: TestEnv>(env: &mut E) -> eyr
     );
     auth_tx.key_authorization = Some(short_auth);
     let sig = sign_aa_tx_secp256k1(&auth_tx, &root_signer)?;
-    let envelope: TempoTxEnvelope = auth_tx.into_signed(sig).into();
+    let envelope: MagnusTxEnvelope = auth_tx.into_signed(sig).into();
     let hash = *envelope.tx_hash();
     env.submit_tx(envelope.encoded_2718(), hash).await?;
     nonce += 1;
@@ -2236,7 +2236,7 @@ pub(super) async fn run_keychain_expiry_scenario<E: TestEnv>(env: &mut E) -> eyr
         &short_pub_y,
         root_addr,
     )?;
-    let envelope: TempoTxEnvelope = before_tx.into_signed(short_sig).into();
+    let envelope: MagnusTxEnvelope = before_tx.into_signed(short_sig).into();
     let hash = *envelope.tx_hash();
     env.submit_tx(envelope.encoded_2718(), hash).await?;
     nonce += 1;
@@ -2280,7 +2280,7 @@ pub(super) async fn run_keychain_expiry_scenario<E: TestEnv>(env: &mut E) -> eyr
         &short_pub_y,
         root_addr,
     )?;
-    let envelope: TempoTxEnvelope = after_tx.into_signed(expired_sig).into();
+    let envelope: MagnusTxEnvelope = after_tx.into_signed(expired_sig).into();
     env.submit_tx_expecting_rejection(envelope.encoded_2718(), None)
         .await?;
     println!("  ✓ Expired key rejected");
@@ -2302,7 +2302,7 @@ pub(super) async fn run_keychain_expiry_scenario<E: TestEnv>(env: &mut E) -> eyr
     );
     past_tx.key_authorization = Some(past_auth);
     let sig = sign_aa_tx_secp256k1(&past_tx, &root_signer)?;
-    let envelope: TempoTxEnvelope = past_tx.into_signed(sig).into();
+    let envelope: MagnusTxEnvelope = past_tx.into_signed(sig).into();
     env.submit_tx_expecting_rejection(envelope.encoded_2718(), None)
         .await?;
     println!("  ✓ Past-expiry key auth rejected");
@@ -2322,7 +2322,7 @@ pub(super) async fn run_send_negative_scenario<E: TestEnv>(env: &mut E) -> eyre:
     // Case 1: Empty calls
     {
         println!("  Case 1: Empty calls");
-        let request = TempoTransactionRequest {
+        let request = MagnusTransactionRequest {
             inner: TransactionRequest {
                 from: Some(signer_addr),
                 ..Default::default()
@@ -2341,7 +2341,7 @@ pub(super) async fn run_send_negative_scenario<E: TestEnv>(env: &mut E) -> eyre:
     // Case 2: WebAuthn key_type with no key_data
     {
         println!("  Case 2: WebAuthn key_type with no key_data");
-        let request = TempoTransactionRequest {
+        let request = MagnusTransactionRequest {
             inner: TransactionRequest {
                 from: Some(signer_addr),
                 ..Default::default()
@@ -2406,7 +2406,7 @@ pub(super) async fn run_fee_payer_negative_scenario<E: TestEnv>(env: &mut E) -> 
         );
         sign_fee_payer(&mut tx, user_addr, &wrong_signer)?;
         let sig = sign_aa_tx_secp256k1(&tx, &user_signer)?;
-        let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
         env.submit_tx_expecting_rejection(envelope.encoded_2718(), None)
             .await?;
     }
@@ -2430,7 +2430,7 @@ pub(super) async fn run_fee_payer_negative_scenario<E: TestEnv>(env: &mut E) -> 
             false,
         ));
         let sig = sign_aa_tx_secp256k1(&tx, &user_signer)?;
-        let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
         env.submit_tx_expecting_rejection(envelope.encoded_2718(), None)
             .await?;
     }
@@ -2457,7 +2457,7 @@ pub(super) async fn run_fee_payer_negative_scenario<E: TestEnv>(env: &mut E) -> 
         sign_fee_payer(&mut tx, user_addr, &user_signer)?;
 
         let sig = sign_aa_tx_secp256k1(&tx, &user_signer)?;
-        let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
         let expected_err = "fee payer cannot resolve to sender";
         if env.hardfork().is_t2() {
             env.submit_tx_expecting_rejection(envelope.encoded_2718(), Some(expected_err))
@@ -2516,7 +2516,7 @@ pub(super) async fn run_nonce_rejection_scenario<E: TestEnv>(env: &mut E) -> eyr
             2_000_000,
         );
         let sig = sign_aa_tx_secp256k1(&tx, &signer)?;
-        let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
         let tx_hash = *envelope.tx_hash();
         env.submit_tx(envelope.encoded_2718(), tx_hash).await?;
 
@@ -2532,7 +2532,7 @@ pub(super) async fn run_nonce_rejection_scenario<E: TestEnv>(env: &mut E) -> eyr
             2_000_000,
         );
         let replay_sig = sign_aa_tx_secp256k1(&replay_tx, &signer)?;
-        let replay_envelope: TempoTxEnvelope = replay_tx.into_signed(replay_sig).into();
+        let replay_envelope: MagnusTxEnvelope = replay_tx.into_signed(replay_sig).into();
         env.submit_tx_expecting_rejection(replay_envelope.encoded_2718(), None)
             .await?;
     }
@@ -2557,7 +2557,7 @@ pub(super) async fn run_nonce_rejection_scenario<E: TestEnv>(env: &mut E) -> eyr
         );
         tx.nonce_key = U256::from(42);
         let sig = sign_aa_tx_secp256k1(&tx, &signer)?;
-        let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
         let tx_hash = *envelope.tx_hash();
         env.submit_tx(envelope.encoded_2718(), tx_hash).await?;
 
@@ -2574,7 +2574,7 @@ pub(super) async fn run_nonce_rejection_scenario<E: TestEnv>(env: &mut E) -> eyr
         );
         replay_tx.nonce_key = U256::from(42);
         let replay_sig = sign_aa_tx_secp256k1(&replay_tx, &signer)?;
-        let replay_envelope: TempoTxEnvelope = replay_tx.into_signed(replay_sig).into();
+        let replay_envelope: MagnusTxEnvelope = replay_tx.into_signed(replay_sig).into();
         env.submit_tx_expecting_rejection(replay_envelope.encoded_2718(), None)
             .await?;
     }
@@ -2605,7 +2605,7 @@ pub(super) async fn run_gas_fee_boundary_scenario<E: TestEnv>(env: &mut E) -> ey
             .await?;
         let tx = create_basic_aa_tx(chain_id, nonce, calls.clone(), 1);
         let sig = sign_aa_tx_secp256k1(&tx, &signer)?;
-        let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
         env.submit_tx_expecting_rejection(envelope.encoded_2718(), None)
             .await?;
     }
@@ -2623,7 +2623,7 @@ pub(super) async fn run_gas_fee_boundary_scenario<E: TestEnv>(env: &mut E) -> ey
         tx.max_fee_per_gas = 1;
         tx.max_priority_fee_per_gas = 0;
         let sig = sign_aa_tx_secp256k1(&tx, &signer)?;
-        let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
         env.submit_tx_expecting_rejection(envelope.encoded_2718(), None)
             .await?;
     }
@@ -2640,7 +2640,7 @@ pub(super) async fn run_gas_fee_boundary_scenario<E: TestEnv>(env: &mut E) -> ey
         let mut tx = create_basic_aa_tx(chain_id, nonce, calls.clone(), 2_000_000);
         tx.max_priority_fee_per_gas = tx.max_fee_per_gas + 1;
         let sig = sign_aa_tx_secp256k1(&tx, &signer)?;
-        let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
         env.submit_tx_expecting_rejection(envelope.encoded_2718(), None)
             .await?;
     }
@@ -2668,10 +2668,10 @@ pub(super) async fn run_create_contract_address_scenario<E: TestEnv>(
     let init_code =
         Bytes::from_static(&[0x60, 0x2a, 0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3]);
 
-    let tx = TempoTransaction {
+    let tx = MagnusTransaction {
         chain_id,
-        max_priority_fee_per_gas: magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128,
-        max_fee_per_gas: magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128,
+        max_priority_fee_per_gas: magnus_chainspec::spec::MAGNUS_T1_BASE_FEE as u128,
+        max_fee_per_gas: magnus_chainspec::spec::MAGNUS_T1_BASE_FEE as u128,
         gas_limit: 2_000_000,
         calls: vec![Call {
             to: TxKind::Create,
@@ -2686,7 +2686,7 @@ pub(super) async fn run_create_contract_address_scenario<E: TestEnv>(
     };
 
     let sig = sign_aa_tx_secp256k1(&tx, &signer)?;
-    let envelope: TempoTxEnvelope = tx.into_signed(sig).into();
+    let envelope: MagnusTxEnvelope = tx.into_signed(sig).into();
     let tx_hash = *envelope.tx_hash();
 
     let receipt = env.submit_tx(envelope.encoded_2718(), tx_hash).await?;
@@ -2729,7 +2729,7 @@ pub(super) async fn run_fill_transaction_error_decoding_scenario<E: TestEnv>(
     let unfunded_addr = Address::random();
     let recipient = Address::random();
 
-    let request = TempoTransactionRequest {
+    let request = MagnusTransactionRequest {
         inner: TransactionRequest {
             from: Some(unfunded_addr),
             ..Default::default()

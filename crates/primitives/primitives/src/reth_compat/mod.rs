@@ -8,7 +8,7 @@ use alloy_primitives::Log;
 use reth_ethereum_primitives::EthereumReceipt;
 use reth_primitives_traits::NodePrimitives;
 
-use crate::{Block, BlockBody, TempoHeader, TempoPrimitives, TempoTxEnvelope, TempoTxType};
+use crate::{Block, BlockBody, MagnusHeader, MagnusPrimitives, MagnusTxEnvelope, MagnusTxType};
 
 /// Tempo receipt.
 ///
@@ -16,14 +16,14 @@ use crate::{Block, BlockBody, TempoHeader, TempoPrimitives, TempoTxEnvelope, Tem
 /// type that satisfies both alloy trait bounds and reth trait bounds.
 ///
 /// Shadows the alloy-only alias in `lib.rs` when the `reth` feature is active.
-pub type TempoReceipt<L = Log> = EthereumReceipt<TempoTxType, L>;
+pub type MagnusReceipt<L = Log> = EthereumReceipt<MagnusTxType, L>;
 
-impl NodePrimitives for TempoPrimitives {
+impl NodePrimitives for MagnusPrimitives {
     type Block = Block;
-    type BlockHeader = TempoHeader;
+    type BlockHeader = MagnusHeader;
     type BlockBody = BlockBody;
-    type SignedTx = TempoTxEnvelope;
-    type Receipt = TempoReceipt;
+    type SignedTx = MagnusTxEnvelope;
+    type Receipt = MagnusReceipt;
 }
 
 mod ed25519;

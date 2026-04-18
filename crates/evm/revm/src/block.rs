@@ -8,7 +8,7 @@ use revm::{
 /// Tempo block environment.
 #[derive(Debug, Clone, Default, PartialEq, derive_more::Deref, derive_more::DerefMut)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct TempoBlockEnv {
+pub struct MagnusBlockEnv {
     /// Inner [`BlockEnv`].
     #[deref]
     #[deref_mut]
@@ -18,7 +18,7 @@ pub struct TempoBlockEnv {
     pub timestamp_millis_part: u64,
 }
 
-impl TempoBlockEnv {
+impl MagnusBlockEnv {
     /// Returns the current timestamp in milliseconds.
     pub fn timestamp_millis(&self) -> U256 {
         self.inner
@@ -28,7 +28,7 @@ impl TempoBlockEnv {
     }
 }
 
-impl Block for TempoBlockEnv {
+impl Block for MagnusBlockEnv {
     #[inline]
     fn number(&self) -> U256 {
         self.inner.number()
@@ -70,7 +70,7 @@ impl Block for TempoBlockEnv {
     }
 }
 
-impl BlockEnvironment for TempoBlockEnv {
+impl BlockEnvironment for MagnusBlockEnv {
     fn inner_mut(&mut self) -> &mut BlockEnv {
         &mut self.inner
     }
@@ -81,9 +81,9 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
 
-    /// Helper to create a TempoBlockEnv with the given timestamp and millis_part.
-    fn make_block_env(timestamp: U256, millis_part: u64) -> TempoBlockEnv {
-        TempoBlockEnv {
+    /// Helper to create a MagnusBlockEnv with the given timestamp and millis_part.
+    fn make_block_env(timestamp: U256, millis_part: u64) -> MagnusBlockEnv {
+        MagnusBlockEnv {
             inner: BlockEnv {
                 timestamp,
                 ..Default::default()

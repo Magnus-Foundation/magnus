@@ -19,10 +19,10 @@ use alloy::{
 use alloy_eips::Encodable2718;
 use reth_primitives_traits::transaction::TxHashRef;
 use magnus_chainspec::{
-    hardfork::{TempoHardfork, TempoHardforks},
+    hardfork::{MagnusHardfork, MagnusHardforks},
     spec::{DEV, MODERATO, PRESTO},
 };
-use magnus_primitives::{TempoTxEnvelope, transaction::magnus_transaction::Call};
+use magnus_primitives::{MagnusTxEnvelope, transaction::magnus_transaction::Call};
 
 use super::helpers::*;
 
@@ -62,7 +62,7 @@ fn is_already_known(err: &RpcError<TransportErrorKind>) -> bool {
 pub(super) struct RpcEnv {
     provider: alloy::providers::RootProvider,
     chain_id: u64,
-    hardfork: TempoHardfork,
+    hardfork: MagnusHardfork,
 }
 
 impl RpcEnv {
@@ -105,14 +105,14 @@ impl RpcEnv {
     }
 
     pub(super) async fn testnet() -> eyre::Result<Option<Self>> {
-        match std::env::var("TEMPO_TESTNET_RPC_URL") {
+        match std::env::var("MAGNUS_TESTNET_RPC_URL") {
             Ok(url) => Self::connect(&url).await.map(Some),
             Err(_) => Ok(None),
         }
     }
 
     pub(super) async fn devnet() -> eyre::Result<Option<Self>> {
-        match std::env::var("TEMPO_DEVNET_RPC_URL") {
+        match std::env::var("MAGNUS_DEVNET_RPC_URL") {
             Ok(url) => Self::connect(&url).await.map(Some),
             Err(_) => Ok(None),
         }
@@ -130,7 +130,7 @@ impl super::types::TestEnv for RpcEnv {
         self.chain_id
     }
 
-    fn hardfork(&self) -> TempoHardfork {
+    fn hardfork(&self) -> MagnusHardfork {
         self.hardfork
     }
 
@@ -195,7 +195,7 @@ impl super::types::TestEnv for RpcEnv {
             );
 
             let signature = sign_aa_tx_secp256k1(&tx, signer)?;
-            let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+            let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
             let tx_hash = *envelope.tx_hash();
             let encoded = envelope.encoded_2718();
             send_raw_tx(&self.provider, "eth_sendRawTransaction", encoded).await?;

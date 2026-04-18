@@ -55,32 +55,32 @@ use reth_network_peers::pk2id;
 use reth_node_builder::{NodeHandle, WithLaunchContext};
 use reth_rpc_server_types::{RethRpcModule, RpcModuleSelection, RpcModuleValidator};
 use std::{sync::Arc, thread, time::Duration};
-use magnus_chainspec::spec::{TempoChainSpec, TempoChainSpecParser};
+use magnus_chainspec::spec::{MagnusChainSpec, MagnusChainSpecParser};
 use magnus_commonware_node::{feed as consensus_feed, run_consensus_stack};
-use magnus_consensus::TempoConsensus;
-use magnus_evm::TempoEvmConfig;
+use magnus_consensus::MagnusConsensus;
+use magnus_evm::MagnusEvmConfig;
 use magnus_faucet::{
     args::FaucetArgs,
-    faucet::{TempoFaucetExt, TempoFaucetExtApiServer},
+    faucet::{MagnusFaucetExt, MagnusFaucetExtApiServer},
 };
 use magnus_node::{
-    TempoFullNode, TempoNodeArgs,
-    node::TempoNode,
-    rpc::consensus::{TempoConsensusApiServer, TempoConsensusRpc},
+    MagnusFullNode, MagnusNodeArgs,
+    node::MagnusNode,
+    rpc::consensus::{MagnusConsensusApiServer, MagnusConsensusRpc},
     telemetry::{PrometheusMetricsConfig, install_prometheus_metrics},
 };
 use tokio::sync::oneshot;
 use tracing::{debug, info, info_span, warn};
 
-type TempoCli =
-    Cli<TempoChainSpecParser, TempoArgs, TempoRpcModuleValidator, magnus_cmd::TempoSubcommand>;
+type MagnusCli =
+    Cli<MagnusChainSpecParser, MagnusArgs, MagnusRpcModuleValidator, magnus_cmd::MagnusSubcommand>;
 
-const TEMPO_CUSTOM_RPC_MODULES: &[&str] = &["consensus", "operator", "tempo", "token"];
+const MAGNUS_CUSTOM_RPC_MODULES: &[&str] = &["consensus", "operator", "tempo", "token"];
 
 #[derive(Debug, Clone, Copy)]
-struct TempoRpcModuleValidator;
+struct MagnusRpcModuleValidator;
 
-impl RpcModuleValidator for TempoRpcModuleValidator {
+impl RpcModuleValidator for MagnusRpcModuleValidator {
     fn parse_selection(s: &str) -> Result<RpcModuleSelection, String> {
         let selection = s
             .parse::<RpcModuleSelection>()
@@ -92,7 +92,7 @@ impl RpcModuleValidator for TempoRpcModuleValidator {
                     continue;
                 };
 
-                if !TEMPO_CUSTOM_RPC_MODULES.contains(&name.as_str()) {
+                if !MAGNUS_CUSTOM_RPC_MODULES.contains(&name.as_str()) {
                     return Err(format!("Unknown RPC module: '{name}'"));
                 }
             }
@@ -104,10 +104,10 @@ impl RpcModuleValidator for TempoRpcModuleValidator {
 
 // TODO: migrate this to magnus_node eventually.
 #[derive(Debug, Clone, clap::Args)]
-struct TempoArgs {
+struct MagnusArgs {
     /// Follow this specific RPC node for block hashes.
     /// If provided without a value, defaults to the RPC URL for the selected chain.
-    #[arg(long, value_name = "URL", default_missing_value = "auto", num_args(0..=1), env = "TEMPO_FOLLOW")]
+    #[arg(long, value_name = "URL", default_missing_value = "auto", num_args(0..=1), env = "MAGNUS_FOLLOW")]
     pub follow: Option<String>,
 
     /// HTTP endpoint that returns a JSON object mapping chain IDs to bootnode lists.
@@ -119,7 +119,7 @@ struct TempoArgs {
     #[arg(
         long = "tempo.bootnodes-endpoint",
         value_name = "URL",
-        env = "TEMPO_BOOTNODES_ENDPOINT"
+        env = "MAGNUS_BOOTNODES_ENDPOINT"
     )]
     pub bootnodes_endpoint: Option<String>,
 
@@ -133,7 +133,7 @@ struct TempoArgs {
     pub faucet_args: FaucetArgs,
 
     #[command(flatten)]
-    pub node_args: TempoNodeArgs,
+    pub node_args: MagnusNodeArgs,
 
     #[command(flatten)]
     #[cfg(feature = "pyroscope")]
@@ -183,7 +183,7 @@ trait NodeCommandExt {
     fn peer_id(&self) -> reth_network_peers::PeerId;
 }
 
-impl NodeCommandExt for reth_cli_commands::node::NodeCommand<TempoChainSpecParser, TempoArgs> {
+impl NodeCommandExt for reth_cli_commands::node::NodeCommand<MagnusChainSpecParser, MagnusArgs> {
     fn peer_id(&self) -> reth_network_peers::PeerId {
         let data_dir = self.datadir.clone().resolve_datadir(self.chain.chain());
         let sk = self
@@ -284,10 +284,10 @@ fn main() -> eyre::Result<()> {
     magnus_node::init_version_metadata();
     defaults::init_defaults();
 
-    let mut cli = match TempoCli::command()
+    let mut cli = match MagnusCli::command()
         .about("Tempo")
         .try_get_matches_from(std::env::args_os())
-        .and_then(|matches| TempoCli::from_arg_matches(&matches))
+        .and_then(|matches| MagnusCli::from_arg_matches(&matches))
     {
         Ok(cli) => cli,
         Err(err) => {
@@ -380,7 +380,7 @@ fn main() -> eyre::Result<()> {
     let is_node = matches!(cli.command, Commands::Node(_));
 
     let (args_and_node_handle_tx, args_and_node_handle_rx) =
-        oneshot::channel::<(TempoFullNode, TempoArgs)>();
+        oneshot::channel::<(MagnusFullNode, MagnusArgs)>();
     let (consensus_dead_tx, mut consensus_dead_rx) = oneshot::channel();
 
     let shutdown_token = tokio_util::sync::CancellationToken::new();
@@ -507,9 +507,9 @@ fn main() -> eyre::Result<()> {
     });
 
     let components =
-        |spec: Arc<TempoChainSpec>| (TempoEvmConfig::new(spec.clone()), TempoConsensus::new(spec));
+        |spec: Arc<MagnusChainSpec>| (MagnusEvmConfig::new(spec.clone()), MagnusConsensus::new(spec));
 
-    cli.run_with_components::<TempoNode>(components, async move |builder, args| {
+    cli.run_with_components::<MagnusNode>(components, async move |builder, args| {
         let faucet_args = args.faucet_args.clone();
         let validator_key = args
             .consensus
@@ -549,7 +549,7 @@ fn main() -> eyre::Result<()> {
             node,
             node_exit_future,
         } = builder
-            .node(TempoNode::new(&args.node_args, validator_key))
+            .node(MagnusNode::new(&args.node_args, validator_key))
             .apply(|mut builder: WithLaunchContext<_>| {
                 // Enable discv5 peer discovery
                 builder
@@ -578,7 +578,7 @@ fn main() -> eyre::Result<()> {
             })
             .extend_rpc_modules(move |ctx| {
                 if faucet_args.enabled {
-                    let ext = TempoFaucetExt::new(
+                    let ext = MagnusFaucetExt::new(
                         faucet_args.addresses(),
                         faucet_args.amount(),
                         faucet_args.provider(),
@@ -589,7 +589,7 @@ fn main() -> eyre::Result<()> {
 
                 if validator_key.is_some() {
                     ctx.modules
-                        .merge_configured(TempoConsensusRpc::new(cl_feed_state).into_rpc())?;
+                        .merge_configured(MagnusConsensusRpc::new(cl_feed_state).into_rpc())?;
                 }
 
                 Ok(())

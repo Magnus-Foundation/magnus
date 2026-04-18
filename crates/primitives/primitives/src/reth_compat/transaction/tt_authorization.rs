@@ -1,6 +1,6 @@
-use crate::transaction::tt_authorization::TempoSignedAuthorization;
+use crate::transaction::tt_authorization::MagnusSignedAuthorization;
 
-impl reth_codecs::Compact for TempoSignedAuthorization {
+impl reth_codecs::Compact for MagnusSignedAuthorization {
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
         B: alloy_rlp::BufMut + AsMut<[u8]>,

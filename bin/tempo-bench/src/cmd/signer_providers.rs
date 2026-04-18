@@ -10,23 +10,23 @@ use alloy::{
 };
 use indicatif::ProgressIterator;
 use rand::seq::IndexedRandom;
-use magnus_alloy::TempoNetwork;
+use magnus_alloy::MagnusNetwork;
 
-type BenchProvider<F> = FillProvider<F, RootProvider<TempoNetwork>, TempoNetwork>;
+type BenchProvider<F> = FillProvider<F, RootProvider<MagnusNetwork>, MagnusNetwork>;
 type UnsignedProviderFactory<F> =
     Box<dyn Fn(Url, CachedNonceManager) -> BenchProvider<F> + Send + Sync>;
 type SignedProviderFactory = Box<
-    dyn Fn(Secp256k1Signer, Url, CachedNonceManager) -> DynProvider<TempoNetwork> + Send + Sync,
+    dyn Fn(Secp256k1Signer, Url, CachedNonceManager) -> DynProvider<MagnusNetwork> + Send + Sync,
 >;
 
 /// Manages signers and target URLs for creating providers.
 #[derive(Debug, Clone)]
-pub(crate) struct SignerProviderManager<F: TxFiller<TempoNetwork>>(
+pub(crate) struct SignerProviderManager<F: TxFiller<MagnusNetwork>>(
     Arc<SignerProviderManagerInner<F>>,
 );
 
 #[derive(Debug)]
-struct SignerProviderManagerInner<F: TxFiller<TempoNetwork>> {
+struct SignerProviderManagerInner<F: TxFiller<MagnusNetwork>> {
     /// List of secp256k1 signers (faster than k256-based PrivateKeySigner).
     signers: Vec<Secp256k1Signer>,
     /// List of target URLs.
@@ -34,10 +34,10 @@ struct SignerProviderManagerInner<F: TxFiller<TempoNetwork>> {
     /// Providers without signing capabilities.
     unsigned_providers: Vec<BenchProvider<F>>,
     /// List of providers (one per signer) with random target URLs.
-    signer_providers: Vec<(Secp256k1Signer, DynProvider<TempoNetwork>)>,
+    signer_providers: Vec<(Secp256k1Signer, DynProvider<MagnusNetwork>)>,
 }
 
-impl<F: TxFiller<TempoNetwork> + 'static> SignerProviderManager<F> {
+impl<F: TxFiller<MagnusNetwork> + 'static> SignerProviderManager<F> {
     /// Create a new instance of [`SignerProviderManager`].
     ///
     /// 1. Creates `accounts` signers from the `mnemonic` starting with `from_mnemonic_index` index.
@@ -87,7 +87,7 @@ impl<F: TxFiller<TempoNetwork> + 'static> SignerProviderManager<F> {
     }
 
     /// Returns a list of providers (one per target URL) with no signers and fillers set.
-    pub fn target_url_providers(&self) -> Vec<(&Url, DynProvider<TempoNetwork>)> {
+    pub fn target_url_providers(&self) -> Vec<(&Url, DynProvider<MagnusNetwork>)> {
         self.0
             .target_urls
             .iter()
@@ -101,7 +101,7 @@ impl<F: TxFiller<TempoNetwork> + 'static> SignerProviderManager<F> {
     }
 
     /// Returns a list of providers (one per signer) with random target URLs.
-    pub fn signer_providers(&self) -> &[(Secp256k1Signer, DynProvider<TempoNetwork>)] {
+    pub fn signer_providers(&self) -> &[(Secp256k1Signer, DynProvider<MagnusNetwork>)] {
         &self.0.signer_providers
     }
 

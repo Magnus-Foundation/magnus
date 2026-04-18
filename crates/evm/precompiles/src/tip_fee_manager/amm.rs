@@ -1,5 +1,5 @@
 use crate::{
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     storage::Handler,
     tip_fee_manager::{ITIPFeeAMM, TIPFeeAMMError, TIPFeeAMMEvent, TipFeeManager},
     tip20::{ITIP20, TIP20Token, validate_usd_currency},
@@ -28,7 +28,7 @@ pub fn compute_amount_out(amount_in: U256) -> Result<U256> {
     amount_in
         .checked_mul(M)
         .map(|product| product / SCALE)
-        .ok_or(TempoPrecompileError::under_overflow())
+        .ok_or(MagnusPrecompileError::under_overflow())
 }
 
 /// AMM pool reserves for a user-token / validator-token pair.
@@ -115,7 +115,7 @@ impl TipFeeManager {
 
         amount_out_needed
             .try_into()
-            .map_err(|_| TempoPrecompileError::under_overflow())
+            .map_err(|_| MagnusPrecompileError::under_overflow())
     }
 
     /// Reserves pool liquidity in transient storage for a pending fee swap.
@@ -153,7 +153,7 @@ impl TipFeeManager {
             .checked_mul(N)
             .and_then(|product| product.checked_div(SCALE))
             .and_then(|result| result.checked_add(U256::ONE))
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
 
         let amount_in: u128 = amount_in
             .try_into()
@@ -253,7 +253,7 @@ impl TipFeeManager {
         let liquidity = if pool.reserve_user_token == 0 && pool.reserve_validator_token == 0 {
             let half_amount = amount_validator_token
                 .checked_div(uint!(2_U256))
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
 
             if half_amount <= MIN_LIQUIDITY {
                 return Err(TIPFeeAMMError::insufficient_liquidity().into());
@@ -261,7 +261,7 @@ impl TipFeeManager {
 
             total_supply = total_supply
                 .checked_add(MIN_LIQUIDITY)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
             self.set_total_supply(pool_id, total_supply)?;
 
             half_amount
@@ -317,7 +317,7 @@ impl TipFeeManager {
             pool_id,
             total_supply
                 .checked_add(liquidity)
-                .ok_or(TempoPrecompileError::under_overflow())?,
+                .ok_or(MagnusPrecompileError::under_overflow())?,
         )?;
 
         let balance = self.get_liquidity_balances(pool_id, to)?;
@@ -326,7 +326,7 @@ impl TipFeeManager {
             to,
             balance
                 .checked_add(liquidity)
-                .ok_or(TempoPrecompileError::under_overflow())?,
+                .ok_or(MagnusPrecompileError::under_overflow())?,
         )?;
 
         // Emit Mint event
@@ -409,14 +409,14 @@ impl TipFeeManager {
             msg_sender,
             balance
                 .checked_sub(liquidity)
-                .ok_or(TempoPrecompileError::under_overflow())?,
+                .ok_or(MagnusPrecompileError::under_overflow())?,
         )?;
         let total_supply = self.get_total_supply(pool_id)?;
         self.set_total_supply(
             pool_id,
             total_supply
                 .checked_sub(liquidity)
-                .ok_or(TempoPrecompileError::under_overflow())?,
+                .ok_or(MagnusPrecompileError::under_overflow())?,
         )?;
 
         // Update reserves with underflow checks
@@ -479,11 +479,11 @@ impl TipFeeManager {
         let amount_user_token = liquidity
             .checked_mul(U256::from(pool.reserve_user_token))
             .and_then(|product| product.checked_div(total_supply))
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
         let amount_validator_token = liquidity
             .checked_mul(U256::from(pool.reserve_validator_token))
             .and_then(|product| product.checked_div(total_supply))
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
 
         Ok((amount_user_token, amount_validator_token))
     }
@@ -514,19 +514,19 @@ impl TipFeeManager {
         // Update reserves
         let amount_in_u128: u128 = amount_in
             .try_into()
-            .map_err(|_| TempoPrecompileError::under_overflow())?;
+            .map_err(|_| MagnusPrecompileError::under_overflow())?;
         let amount_out_u128: u128 = amount_out
             .try_into()
-            .map_err(|_| TempoPrecompileError::under_overflow())?;
+            .map_err(|_| MagnusPrecompileError::under_overflow())?;
 
         pool.reserve_user_token = pool
             .reserve_user_token
             .checked_add(amount_in_u128)
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
         pool.reserve_validator_token = pool
             .reserve_validator_token
             .checked_sub(amount_out_u128)
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
 
         self.pools[pool_id].write(pool)?;
 
@@ -562,12 +562,12 @@ impl TipFeeManager {
 #[cfg(test)]
 mod tests {
     use alloy::primitives::Address;
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::TIP20Error;
 
     use super::*;
     use crate::{
-        error::TempoPrecompileError,
+        error::MagnusPrecompileError,
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
         test_util::TIP20Setup,
         tip_fee_manager::TIPFeeAMMError,
@@ -622,7 +622,7 @@ mod tests {
             );
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIPFeeAMMError(
+                Err(MagnusPrecompileError::TIPFeeAMMError(
                     TIPFeeAMMError::IdenticalAddresses(_)
                 ))
             ));
@@ -646,7 +646,7 @@ mod tests {
             );
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIPFeeAMMError(
+                Err(MagnusPrecompileError::TIPFeeAMMError(
                     TIPFeeAMMError::IdenticalAddresses(_)
                 ))
             ));
@@ -682,7 +682,7 @@ mod tests {
             );
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIPFeeAMMError(
+                Err(MagnusPrecompileError::TIPFeeAMMError(
                     TIPFeeAMMError::InvalidAmount(_)
                 ))
             ));
@@ -710,7 +710,7 @@ mod tests {
             );
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
             ));
 
             let result = amm.mint(
@@ -722,7 +722,7 @@ mod tests {
             );
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
             ));
             Ok(())
         })
@@ -748,7 +748,7 @@ mod tests {
             );
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
             ));
 
             let result = amm.burn(
@@ -760,7 +760,7 @@ mod tests {
             );
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
             ));
             Ok(())
         })
@@ -786,7 +786,7 @@ mod tests {
             );
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIPFeeAMMError(
+                Err(MagnusPrecompileError::TIPFeeAMMError(
                     TIPFeeAMMError::InsufficientLiquidity(_)
                 ))
             ));
@@ -932,7 +932,7 @@ mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIPFeeAMMError(
+                Err(MagnusPrecompileError::TIPFeeAMMError(
                     TIPFeeAMMError::InsufficientLiquidity(_)
                 ))
             ));
@@ -1089,7 +1089,7 @@ mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIPFeeAMMError(
+                Err(MagnusPrecompileError::TIPFeeAMMError(
                     TIPFeeAMMError::InvalidAmount(_)
                 ))
             ));
@@ -1118,7 +1118,7 @@ mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIPFeeAMMError(
+                Err(MagnusPrecompileError::TIPFeeAMMError(
                     TIPFeeAMMError::InvalidAmount(_)
                 ))
             ));
@@ -1339,7 +1339,7 @@ mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIPFeeAMMError(
+                Err(MagnusPrecompileError::TIPFeeAMMError(
                     TIPFeeAMMError::InsufficientLiquidity(_)
                 ))
             ));
@@ -1369,7 +1369,7 @@ mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIPFeeAMMError(
+                Err(MagnusPrecompileError::TIPFeeAMMError(
                     TIPFeeAMMError::InvalidAmount(_)
                 ))
             ));
@@ -1380,7 +1380,7 @@ mod tests {
 
     #[test]
     fn test_t1c_reserve_pool_liquidity() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1C);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -1420,7 +1420,7 @@ mod tests {
 
     #[test]
     fn test_t1c_burn_respects_reservation() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1C);
         let admin = Address::random();
         let recipient = Address::random();
 
@@ -1453,7 +1453,7 @@ mod tests {
             let result = amm.burn(admin, user_token, validator_token, liquidity, recipient);
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIPFeeAMMError(
+                Err(MagnusPrecompileError::TIPFeeAMMError(
                     TIPFeeAMMError::InsufficientLiquidity(_)
                 ))
             ));
@@ -1464,7 +1464,7 @@ mod tests {
 
     #[test]
     fn test_t1c_partial_burn_with_reservation() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1C);
         let admin = Address::random();
         let recipient = Address::random();
 
@@ -1502,7 +1502,7 @@ mod tests {
 
     #[test]
     fn test_t1c_rebalance_swap_respects_reservation() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1C);
         let admin = Address::random();
         let to = Address::random();
 
@@ -1540,7 +1540,7 @@ mod tests {
 
     #[test]
     fn test_pre_t1c_rebalance_swap_skips_reservation() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1B);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1B);
         let admin = Address::random();
         let to = Address::random();
 
@@ -1575,7 +1575,7 @@ mod tests {
 
     #[test]
     fn test_pre_t1c_no_reservation() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1B);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1B);
         let admin = Address::random();
         let recipient = Address::random();
 

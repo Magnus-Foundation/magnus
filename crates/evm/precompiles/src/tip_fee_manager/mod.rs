@@ -6,7 +6,7 @@ pub mod amm;
 pub mod dispatch;
 
 use crate::{
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     storage::{Handler, Mapping},
     tip_fee_manager::amm::{Pool, PoolKey, compute_amount_out},
     tip20::{ITIP20, TIP20Token, validate_usd_currency},
@@ -239,7 +239,7 @@ impl TipFeeManager {
         self.collected_fees[validator][token].write(
             collected_fees
                 .checked_add(amount)
-                .ok_or(TempoPrecompileError::under_overflow())?,
+                .ok_or(MagnusPrecompileError::under_overflow())?,
         )?;
 
         Ok(())
@@ -287,13 +287,13 @@ impl TipFeeManager {
 
 #[cfg(test)]
 mod tests {
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::TIP20Error;
 
     use super::*;
     use crate::{
         TIP_FEE_MANAGER_ADDRESS,
-        error::TempoPrecompileError,
+        error::MagnusPrecompileError,
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
         test_util::TIP20Setup,
         tip20::{ITIP20, TIP20Token},
@@ -325,7 +325,7 @@ mod tests {
 
     #[test]
     fn test_set_user_token_noop_when_unchanged_pre_t3() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let user = Address::random();
         StorageCtx::enter(&mut storage, || {
             let token = TIP20Setup::create("Test", "TST", user).apply()?;
@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_set_user_token_noop_when_unchanged_t3() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let user = Address::random();
         StorageCtx::enter(&mut storage, || {
             let token = TIP20Setup::create("Test", "TST", user).apply()?;
@@ -392,7 +392,7 @@ mod tests {
             let result = fee_manager.set_validator_token(validator, call.clone(), validator);
             assert_eq!(
                 result,
-                Err(TempoPrecompileError::FeeManagerError(
+                Err(MagnusPrecompileError::FeeManagerError(
                     FeeManagerError::cannot_change_within_block()
                 ))
             );
@@ -430,7 +430,7 @@ mod tests {
             let result = fee_manager.set_validator_token(validator, call, validator);
             assert_eq!(
                 result,
-                Err(TempoPrecompileError::FeeManagerError(
+                Err(MagnusPrecompileError::FeeManagerError(
                     FeeManagerError::cannot_change_within_block()
                 ))
             );
@@ -563,7 +563,7 @@ mod tests {
             let result = fee_manager.set_user_token(user, call);
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
             ));
 
             // Try to set non-USD as validator token - should also fail
@@ -573,7 +573,7 @@ mod tests {
             let result = fee_manager.set_validator_token(validator, call, beneficiary);
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
             ));
 
             Ok(())

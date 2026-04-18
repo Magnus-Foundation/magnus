@@ -19,17 +19,17 @@ use reth_ethereum::{
 };
 use reth_node_builder::ConsensusEngineEvent;
 use reth_node_core::primitives::transaction::TxHashRef;
-use magnus_chainspec::spec::{SYSTEM_TX_COUNT, TEMPO_T1_BASE_FEE};
+use magnus_chainspec::spec::{SYSTEM_TX_COUNT, MAGNUS_T1_BASE_FEE};
 use magnus_node::primitives::{
-    SubBlockMetadata, TempoTransaction, TempoTxEnvelope,
-    subblock::{PartialValidatorKey, TEMPO_SUBBLOCK_NONCE_KEY_PREFIX},
+    SubBlockMetadata, MagnusTransaction, MagnusTxEnvelope,
+    subblock::{PartialValidatorKey, MAGNUS_SUBBLOCK_NONCE_KEY_PREFIX},
     transaction::{Call, calc_gas_balance_spending},
 };
 use magnus_precompiles::{
     DEFAULT_FEE_TOKEN, NONCE_PRECOMPILE_ADDRESS, nonce::NonceManager, tip20::TIP20Token,
 };
 
-use magnus_node::consensus::TEMPO_SHARED_GAS_DIVISOR;
+use magnus_node::consensus::MAGNUS_SHARED_GAS_DIVISOR;
 
 use crate::{Setup, TestingNode, setup_validators};
 
@@ -243,7 +243,7 @@ fn subblocks_are_included_with_failing_txs() {
                 *expected_fees.entry(fee_recipient).or_insert(U256::ZERO) +=
                     calc_gas_balance_spending(
                         receipt.cumulative_gas_used - cumulative_gas_used,
-                        TEMPO_T1_BASE_FEE as u128,
+                        MAGNUS_T1_BASE_FEE as u128,
                     );
                 cumulative_gas_used = receipt.cumulative_gas_used;
 
@@ -359,7 +359,7 @@ fn oversized_subblock_txs_are_removed() {
             if !submitted && block.block_number() >= 1 {
                 let block_gas_limit = block.sealed_block().header().inner.gas_limit;
                 let gas_budget =
-                    block_gas_limit / TEMPO_SHARED_GAS_DIVISOR / how_many_signers as u64;
+                    block_gas_limit / MAGNUS_SHARED_GAS_DIVISOR / how_many_signers as u64;
 
                 oversized_tx_hash = Some(
                     submit_subblock_tx_from(&nodes[0], &PrivateKeySigner::random(), gas_budget + 1)
@@ -407,14 +407,14 @@ async fn submit_subblock_tx_from<TClock: commonware_runtime::Clock>(
     gas_limit: u64,
 ) -> TxHash {
     let mut nonce_bytes = rand_08::random::<[u8; 32]>();
-    nonce_bytes[0] = TEMPO_SUBBLOCK_NONCE_KEY_PREFIX;
+    nonce_bytes[0] = MAGNUS_SUBBLOCK_NONCE_KEY_PREFIX;
     nonce_bytes[1..16].copy_from_slice(&node.public_key().as_ref()[..15]);
 
     let provider = node.execution_provider();
 
-    let gas_price = TEMPO_T1_BASE_FEE as u128;
+    let gas_price = MAGNUS_T1_BASE_FEE as u128;
 
-    let mut tx = TempoTransaction {
+    let mut tx = MagnusTransaction {
         chain_id: provider.chain_spec().chain_id(),
         calls: vec![Call {
             to: Address::ZERO.into(),
@@ -430,7 +430,7 @@ async fn submit_subblock_tx_from<TClock: commonware_runtime::Clock>(
     assert!(tx.subblock_proposer().unwrap().matches(node.public_key()));
     let signature = wallet.sign_transaction_sync(&mut tx).unwrap();
 
-    let tx = TempoTxEnvelope::AA(tx.into_signed(signature.into()));
+    let tx = MagnusTxEnvelope::AA(tx.into_signed(signature.into()));
     let tx_hash = *tx.tx_hash();
     node.execution()
         .eth_api()

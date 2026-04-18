@@ -3,7 +3,7 @@ mod opts;
 
 use clap::Parser;
 use mimalloc::MiMalloc;
-use opts::{TempoBench, TempoBenchSubcommand};
+use opts::{MagnusBench, MagnusBenchSubcommand};
 
 #[global_allocator]
 // Increases RPS by ~5.5% at the time of
@@ -12,9 +12,9 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-    let args = TempoBench::parse();
+    let args = MagnusBench::parse();
 
     match args.cmd {
-        TempoBenchSubcommand::RunMaxTps(cmd) => cmd.run().await,
+        MagnusBenchSubcommand::RunMaxTps(cmd) => cmd.run().await,
     }
 }

@@ -10,7 +10,7 @@ pub use magnus_contracts::precompiles::{IValidatorConfig, ValidatorConfigError};
 use magnus_precompiles_macros::{Storable, contract};
 
 use crate::{
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     ip_validation::ensure_address_is_ip_port,
     storage::{Handler, Mapping},
 };
@@ -100,7 +100,7 @@ impl ValidatorConfig {
     pub fn validators_array(&self, index: u64) -> Result<Address> {
         match self.validators_array.at(index as usize)? {
             Some(elem) => elem.read(),
-            None => Err(TempoPrecompileError::array_oob()),
+            None => Err(MagnusPrecompileError::array_oob()),
         }
     }
 

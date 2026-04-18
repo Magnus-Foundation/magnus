@@ -30,7 +30,7 @@ use commonware_utils::{NZU16, NZU64, NZUsize};
 use eyre::{OptionExt as _, WrapErr as _};
 use futures::future::try_join_all;
 use rand_08::{CryptoRng, Rng};
-use magnus_node::TempoFullNode;
+use magnus_node::MagnusFullNode;
 use tracing::info;
 
 use crate::{
@@ -71,7 +71,7 @@ const MAX_PENDING_ACKS: NonZeroUsize = NZUsize!(1);
 pub struct Builder<TBlocker, TPeerManager> {
     pub fee_recipient: Option<alloy_primitives::Address>,
 
-    pub execution_node: Option<TempoFullNode>,
+    pub execution_node: Option<MagnusFullNode>,
 
     pub blocker: TBlocker,
     pub peer_manager: TPeerManager,
@@ -104,7 +104,7 @@ where
     TBlocker: Blocker<PublicKey = PublicKey> + Sync,
     TPeerManager: AddressableManager<PublicKey = PublicKey> + Sync,
 {
-    pub fn with_execution_node(mut self, execution_node: TempoFullNode) -> Self {
+    pub fn with_execution_node(mut self, execution_node: MagnusFullNode) -> Self {
         self.execution_node = Some(execution_node);
         self
     }

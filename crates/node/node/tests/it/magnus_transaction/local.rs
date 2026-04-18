@@ -23,8 +23,8 @@ use reth_ethereum::network::{NetworkSyncUpdater, SyncState};
 use reth_node_api::BuiltPayload;
 use reth_primitives_traits::transaction::TxHashRef;
 use reth_transaction_pool::TransactionPool;
-use magnus_alloy::TempoNetwork;
-use magnus_chainspec::{hardfork::TempoHardfork, spec::TEMPO_T1_BASE_FEE};
+use magnus_alloy::MagnusNetwork;
+use magnus_chainspec::{hardfork::MagnusHardfork, spec::MAGNUS_T1_BASE_FEE};
 use magnus_contracts::precompiles::{
     DEFAULT_FEE_TOKEN, account_keychain::IAccountKeychain::revokeKeyCall,
 };
@@ -33,10 +33,10 @@ use magnus_precompiles::{
     tip20::ITIP20::{self},
 };
 use magnus_primitives::{
-    TempoTransaction, TempoTxEnvelope,
+    MagnusTransaction, MagnusTxEnvelope,
     transaction::{
         magnus_transaction::Call,
-        tt_signature::{KeychainSignature, PrimitiveSignature, TempoSignature, WebAuthnSignature},
+        tt_signature::{KeychainSignature, PrimitiveSignature, MagnusSignature, WebAuthnSignature},
         tt_signed::AASigned,
     },
 };
@@ -88,7 +88,7 @@ impl super::types::TestEnv for Localnet {
         self.chain_id
     }
 
-    fn hardfork(&self) -> TempoHardfork {
+    fn hardfork(&self) -> MagnusHardfork {
         self.setup.hardfork
     }
 
@@ -176,7 +176,7 @@ impl super::types::TestEnv for Localnet {
             );
 
             let signature = sign_aa_tx_secp256k1(&tx, signer)?;
-            let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+            let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
             let tx_hash = *envelope.tx_hash();
             self.setup
                 .node
@@ -330,7 +330,7 @@ async fn test_aa_2d_nonce_pool_comprehensive() -> eyre::Result<()> {
             recipient,
             0,
             initial_nonce,
-            TEMPO_T1_BASE_FEE as u128,
+            MAGNUS_T1_BASE_FEE as u128,
         )
         .await?,
     ); // Protocol pool
@@ -342,7 +342,7 @@ async fn test_aa_2d_nonce_pool_comprehensive() -> eyre::Result<()> {
             recipient,
             1,
             0,
-            TEMPO_T1_BASE_FEE as u128,
+            MAGNUS_T1_BASE_FEE as u128,
         )
         .await?,
     ); // 2D pool
@@ -354,7 +354,7 @@ async fn test_aa_2d_nonce_pool_comprehensive() -> eyre::Result<()> {
             recipient,
             2,
             0,
-            TEMPO_T1_BASE_FEE as u128,
+            MAGNUS_T1_BASE_FEE as u128,
         )
         .await?,
     ); // 2D pool
@@ -484,7 +484,7 @@ async fn test_aa_2d_nonce_pool_comprehensive() -> eyre::Result<()> {
         .iter()
         .filter(|tx| sent.contains(tx.tx_hash()))
         .filter_map(|tx| match tx {
-            TempoTxEnvelope::AA(aa_tx) => {
+            MagnusTxEnvelope::AA(aa_tx) => {
                 println!(
                     "    TX with nonce_key={}, nonce={}, priority_fee={} gwei",
                     aa_tx.tx().nonce_key,
@@ -522,7 +522,7 @@ async fn test_aa_2d_nonce_pool_comprehensive() -> eyre::Result<()> {
         recipient,
         3,
         0,
-        TEMPO_T1_BASE_FEE as u128,
+        MAGNUS_T1_BASE_FEE as u128,
     )
     .await?;
     println!("  Sent nonce_key=3, nonce=0 (should be pending)");
@@ -535,7 +535,7 @@ async fn test_aa_2d_nonce_pool_comprehensive() -> eyre::Result<()> {
         recipient,
         3,
         2,
-        TEMPO_T1_BASE_FEE as u128,
+        MAGNUS_T1_BASE_FEE as u128,
     )
     .await?;
     println!("  Sent nonce_key=3, nonce=2 (should be queued - gap at nonce=1)");
@@ -601,7 +601,7 @@ async fn test_aa_2d_nonce_pool_comprehensive() -> eyre::Result<()> {
         recipient,
         3,
         1,
-        TEMPO_T1_BASE_FEE as u128,
+        MAGNUS_T1_BASE_FEE as u128,
     )
     .await?;
     println!("\n  Sent nonce_key=3, nonce=1 (fills the gap)");
@@ -693,11 +693,11 @@ async fn send_tx(
     );
     tx.nonce_key = U256::from(nonce_key);
     tx.max_priority_fee_per_gas = priority_fee;
-    tx.max_fee_per_gas = TEMPO_T1_BASE_FEE as u128 + priority_fee;
+    tx.max_fee_per_gas = MAGNUS_T1_BASE_FEE as u128 + priority_fee;
     tx.fee_token = None;
 
     let signature = sign_aa_tx_secp256k1(&tx, signer)?;
-    let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+    let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
     let tx_hash = *envelope.tx_hash();
     setup
         .node
@@ -975,7 +975,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
     webauthn_data1.extend_from_slice(client_data_json1.as_bytes());
 
     let aa_signature1 =
-        TempoSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
+        MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
             webauthn_data: Bytes::from(webauthn_data1),
             r: alloy::primitives::B256::from_slice(&sig_bytes1[0..32]),
             s: alloy::primitives::B256::from_slice(&sig_bytes1[32..64]),
@@ -993,7 +993,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
 
     // Also verify pool rejects the transaction
     let signed_tx1 = AASigned::new_unhashed(tx1, aa_signature1);
-    let envelope1: TempoTxEnvelope = signed_tx1.into();
+    let envelope1: MagnusTxEnvelope = signed_tx1.into();
     let mut encoded1 = Vec::new();
     envelope1.encode_2718(&mut encoded1);
     let inject_result1 = setup.node.rpc.inject_tx(encoded1.into()).await;
@@ -1038,7 +1038,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
     webauthn_data2.extend_from_slice(client_data_json2.as_bytes());
 
     let aa_signature2 =
-        TempoSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
+        MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
             webauthn_data: Bytes::from(webauthn_data2),
             r: alloy::primitives::B256::from_slice(&sig_bytes2[0..32]),
             s: alloy::primitives::B256::from_slice(&sig_bytes2[32..64]),
@@ -1055,7 +1055,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
     println!("✓ Signature recovery correctly failed with wrong private key");
 
     let signed_tx2 = AASigned::new_unhashed(tx2, aa_signature2);
-    let envelope2: TempoTxEnvelope = signed_tx2.into();
+    let envelope2: MagnusTxEnvelope = signed_tx2.into();
     let mut encoded2 = Vec::new();
     envelope2.encode_2718(&mut encoded2);
     let inject_result2 = setup.node.rpc.inject_tx(encoded2.into()).await;
@@ -1100,7 +1100,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
     webauthn_data3.extend_from_slice(client_data_json3.as_bytes());
 
     let aa_signature3 =
-        TempoSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
+        MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
             webauthn_data: Bytes::from(webauthn_data3),
             r: alloy::primitives::B256::from_slice(&sig_bytes3[0..32]),
             s: alloy::primitives::B256::from_slice(&sig_bytes3[32..64]),
@@ -1117,7 +1117,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
     println!("✓ Signature recovery correctly failed with wrong challenge");
 
     let signed_tx3 = AASigned::new_unhashed(tx3, aa_signature3);
-    let envelope3: TempoTxEnvelope = signed_tx3.into();
+    let envelope3: MagnusTxEnvelope = signed_tx3.into();
     let mut encoded3 = Vec::new();
     envelope3.encode_2718(&mut encoded3);
     let inject_result3 = setup.node.rpc.inject_tx(encoded3.into()).await;
@@ -1161,7 +1161,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
     webauthn_data4.extend_from_slice(client_data_json4.as_bytes());
 
     let aa_signature4 =
-        TempoSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
+        MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
             webauthn_data: Bytes::from(webauthn_data4),
             r: alloy::primitives::B256::from_slice(&sig_bytes4[0..32]),
             s: alloy::primitives::B256::from_slice(&sig_bytes4[32..64]),
@@ -1178,7 +1178,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
     println!("✓ Signature recovery correctly failed with wrong authenticator data");
 
     let signed_tx4 = AASigned::new_unhashed(tx4, aa_signature4);
-    let envelope4: TempoTxEnvelope = signed_tx4.into();
+    let envelope4: MagnusTxEnvelope = signed_tx4.into();
     let mut encoded4 = Vec::new();
     envelope4.encode_2718(&mut encoded4);
     let inject_result4 = setup.node.rpc.inject_tx(encoded4.into()).await;
@@ -1223,7 +1223,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
     bad_webauthn_data.extend_from_slice(bad_client_data.as_bytes());
 
     let bad_tempo_signature =
-        TempoSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
+        MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
             webauthn_data: Bytes::from(bad_webauthn_data),
             r: alloy::primitives::B256::from_slice(&bad_sig_bytes[0..32]),
             s: alloy::primitives::B256::from_slice(&bad_sig_bytes[32..64]),
@@ -1232,7 +1232,7 @@ async fn test_aa_webauthn_signature_negative_cases() -> eyre::Result<()> {
         }));
 
     let signed_bad_tx = AASigned::new_unhashed(bad_tx, bad_tempo_signature);
-    let bad_envelope: TempoTxEnvelope = signed_bad_tx.into();
+    let bad_envelope: MagnusTxEnvelope = signed_bad_tx.into();
     let mut encoded_bad = Vec::new();
     bad_envelope.encode_2718(&mut encoded_bad);
 
@@ -1276,13 +1276,13 @@ async fn test_propagate_2d_transactions() -> eyre::Result<()> {
     let mut tx_listener2 = node2.inner.pool.pending_transactions_listener();
 
     let provider1 =
-        ProviderBuilder::new_with_network::<TempoNetwork>().connect_http(node1.rpc_url());
+        ProviderBuilder::new_with_network::<MagnusNetwork>().connect_http(node1.rpc_url());
     let chain_id = provider1.get_chain_id().await?;
 
-    let tx = TempoTransaction {
+    let tx = MagnusTransaction {
         chain_id,
         max_priority_fee_per_gas: 1_000_000_000u128,
-        max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+        max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
         gas_limit: 2_000_000,
         calls: vec![Call {
             to: Address::random().into(),
@@ -1298,9 +1298,9 @@ async fn test_propagate_2d_transactions() -> eyre::Result<()> {
     let signature = wallet.sign_hash_sync(&sig_hash)?;
     let signed_tx = AASigned::new_unhashed(
         tx,
-        TempoSignature::Primitive(PrimitiveSignature::Secp256k1(signature)),
+        MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(signature)),
     );
-    let envelope: TempoTxEnvelope = signed_tx.into();
+    let envelope: MagnusTxEnvelope = signed_tx.into();
     let encoded = envelope.encoded_2718();
 
     // Submitting transaction to first peer
@@ -1328,7 +1328,7 @@ async fn test_propagate_2d_transactions() -> eyre::Result<()> {
 
     // check we can fetch it from the second peer now
     let provider2 =
-        ProviderBuilder::new_with_network::<TempoNetwork>().connect_http(node2.rpc_url());
+        ProviderBuilder::new_with_network::<MagnusNetwork>().connect_http(node2.rpc_url());
     let _rpc_tx = provider2
         .get_transaction_by_hash(pending_hash2)
         .await
@@ -1349,7 +1349,7 @@ async fn test_aa_keychain_revocation_toctou_dos() -> eyre::Result<()> {
     let root_signer = MnemonicBuilder::from_phrase(TEST_MNEMONIC).build()?;
     let root_addr = root_signer.address();
 
-    let provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+    let provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
         .wallet(root_signer.clone())
         .connect_http(setup.node.rpc_url());
     let chain_id = provider.get_chain_id().await?;
@@ -1447,7 +1447,7 @@ async fn test_aa_keychain_revocation_toctou_dos() -> eyre::Result<()> {
     )?;
 
     // Submit the transaction - it should pass validation because the key is still authorized
-    let delayed_tx_envelope: TempoTxEnvelope = delayed_tx.into_signed(access_key_sig).into();
+    let delayed_tx_envelope: MagnusTxEnvelope = delayed_tx.into_signed(access_key_sig).into();
     let delayed_tx_hash = *delayed_tx_envelope.tx_hash();
     setup
         .node
@@ -1595,7 +1595,7 @@ async fn test_aa_expiring_nonce_replay_protection() -> eyre::Result<()> {
     let tx = create_expiring_nonce_tx(chain_id, valid_before, recipient);
 
     let aa_signature = sign_aa_tx_secp256k1(&tx, &alice_signer)?;
-    let envelope: TempoTxEnvelope = tx.into_signed(aa_signature).into();
+    let envelope: MagnusTxEnvelope = tx.into_signed(aa_signature).into();
     let tx_hash = *envelope.tx_hash();
     let encoded = envelope.encoded_2718();
 
@@ -1644,7 +1644,7 @@ async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
     let root_signer = MnemonicBuilder::from_phrase(TEST_MNEMONIC).build()?;
     let root_addr = root_signer.address();
 
-    let provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+    let provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
         .wallet(root_signer.clone())
         .connect_http(setup.node.rpc_url());
     let chain_id = provider.get_chain_id().await?;
@@ -1748,7 +1748,7 @@ async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
     )?;
 
     // Submit the transaction - it should pass validation because the spending limit is still high
-    let delayed_tx_envelope: TempoTxEnvelope = delayed_tx.into_signed(access_key_sig).into();
+    let delayed_tx_envelope: MagnusTxEnvelope = delayed_tx.into_signed(access_key_sig).into();
     let delayed_tx_hash = *delayed_tx_envelope.tx_hash();
     setup
         .node
@@ -1874,11 +1874,11 @@ async fn test_v1_keychain_in_auth_list_rejected_post_t1c() -> eyre::Result<()> {
 
     let inner_signer = alloy::signers::local::PrivateKeySigner::random();
     let inner_signature = inner_signer.sign_hash_sync(&sig_hash)?;
-    let v1_keychain_sig = TempoSignature::Keychain(KeychainSignature::new_v1(
+    let v1_keychain_sig = MagnusSignature::Keychain(KeychainSignature::new_v1(
         Address::random(), // arbitrary user_address
         PrimitiveSignature::Secp256k1(inner_signature),
     ));
-    let auth_signed = magnus_primitives::transaction::TempoSignedAuthorization::new_unchecked(
+    let auth_signed = magnus_primitives::transaction::MagnusSignedAuthorization::new_unchecked(
         auth,
         v1_keychain_sig,
     );
@@ -1894,7 +1894,7 @@ async fn test_v1_keychain_in_auth_list_rejected_post_t1c() -> eyre::Result<()> {
     tx.magnus_authorization_list = vec![auth_signed];
 
     let outer_sig = sign_aa_tx_secp256k1(&tx, &sender_signer)?;
-    let envelope: TempoTxEnvelope = AASigned::new_unhashed(tx, outer_sig).into();
+    let envelope: MagnusTxEnvelope = AASigned::new_unhashed(tx, outer_sig).into();
 
     setup
         .node
@@ -1950,7 +1950,7 @@ async fn test_v2_keychain_blocks_cross_account_replay() -> eyre::Result<()> {
     nonce_alice += 1;
 
     let secp_mock = || {
-        TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+        MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
             alloy_primitives::Signature::test_signature(),
         ))
     };
@@ -2013,8 +2013,8 @@ async fn test_v2_keychain_blocks_cross_account_replay() -> eyre::Result<()> {
         2_000_000,
     );
     let inner = alice_sig.as_keychain().unwrap().signature.clone();
-    let replay_sig = TempoSignature::Keychain(KeychainSignature::new(bob_addr, inner));
-    let replay_tx: TempoTxEnvelope = AASigned::new_unhashed(bob_tx, replay_sig).into();
+    let replay_sig = MagnusSignature::Keychain(KeychainSignature::new(bob_addr, inner));
+    let replay_tx: MagnusTxEnvelope = AASigned::new_unhashed(bob_tx, replay_sig).into();
     setup
         .node
         .rpc
@@ -2046,8 +2046,8 @@ async fn test_v2_keychain_blocks_cross_account_replay() -> eyre::Result<()> {
         2_000_000,
     );
     let inner = alice_sig.as_keychain().unwrap().signature.clone();
-    let replay_sig = TempoSignature::Keychain(KeychainSignature::new(bob_addr, inner));
-    let replay_env: TempoTxEnvelope = AASigned::new_unhashed(bob_tx, replay_sig).into();
+    let replay_sig = MagnusSignature::Keychain(KeychainSignature::new(bob_addr, inner));
+    let replay_env: MagnusTxEnvelope = AASigned::new_unhashed(bob_tx, replay_sig).into();
     setup
         .node
         .rpc
@@ -2064,7 +2064,7 @@ async fn test_v1_keychain_cross_account_replay_pre_t1c() -> eyre::Result<()> {
 
     // Pre-T1C genesis so V1 keychain sigs are accepted.
     let mut setup = TestNodeBuilder::new()
-        .with_genesis(make_genesis_at(TempoHardfork::T1B))
+        .with_genesis(make_genesis_at(MagnusHardfork::T1B))
         .build_with_node_access()
         .await?;
 
@@ -2101,7 +2101,7 @@ async fn test_v1_keychain_cross_account_replay_pre_t1c() -> eyre::Result<()> {
     nonce_alice += 1;
 
     let secp_mock = || {
-        TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+        MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
             alloy_primitives::Signature::test_signature(),
         ))
     };
@@ -2156,11 +2156,11 @@ async fn test_v1_keychain_cross_account_replay_pre_t1c() -> eyre::Result<()> {
 
     // Extract Alice's inner sig, re-wrap for Bob with V1
     let inner = alice_v1_sig.as_keychain().unwrap().signature.clone();
-    let bob_replay_sig = TempoSignature::Keychain(KeychainSignature::new_v1(bob_addr, inner));
+    let bob_replay_sig = MagnusSignature::Keychain(KeychainSignature::new_v1(bob_addr, inner));
 
     // Replay Alice's EXACT tx body for Bob — V1 doesn't bind user_address in the
     // inner sig, so the same sig verifies against the same sig_hash for any user.
-    let replay_env: TempoTxEnvelope = AASigned::new_unhashed(alice_tx, bob_replay_sig).into();
+    let replay_env: MagnusTxEnvelope = AASigned::new_unhashed(alice_tx, bob_replay_sig).into();
     setup
         .node
         .rpc
@@ -2182,7 +2182,7 @@ async fn test_aa_keychain_v2_signature() -> eyre::Result<()> {
     let mut setup = TestNodeBuilder::new().build_with_node_access().await?;
     let root_signer = MnemonicBuilder::from_phrase(TEST_MNEMONIC).build()?;
     let root_addr = root_signer.address();
-    let provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+    let provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
         .wallet(root_signer.clone())
         .connect_http(setup.node.rpc_url());
     let chain_id = provider.get_chain_id().await?;
@@ -2265,7 +2265,7 @@ async fn test_aa_keychain_v2_signature() -> eyre::Result<()> {
     assert!(v1_sig.is_legacy_keychain());
 
     let signed_v1 = AASigned::new_unhashed(v1_tx, v1_sig);
-    let envelope_v1: TempoTxEnvelope = signed_v1.into();
+    let envelope_v1: MagnusTxEnvelope = signed_v1.into();
     let inject_result = setup
         .node
         .rpc

@@ -1,4 +1,4 @@
-use crate::TempoTxEnv;
+use crate::MagnusTxEnv;
 use alloy_consensus::transaction::{Either, Recovered};
 use alloy_primitives::{Address, Bytes, LogData, TxKind, U256};
 use alloy_sol_types::SolCall;
@@ -8,19 +8,19 @@ use revm::{
     context::JournalTr,
     state::{AccountInfo, Bytecode},
 };
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_contracts::precompiles::{
     DEFAULT_FEE_TOKEN, IFeeManager, IStablecoinDEX, STABLECOIN_DEX_ADDRESS,
 };
 use magnus_precompiles::{
     TIP_FEE_MANAGER_ADDRESS,
-    error::{Result as TempoResult, TempoPrecompileError},
+    error::{Result as MagnusResult, MagnusPrecompileError},
     storage::{Handler, PrecompileStorageProvider, StorageCtx},
     tip_fee_manager::TipFeeManager,
     tip20::{ITIP20, TIP20Token},
     tip403_registry::{AuthRole, TIP403Registry},
 };
-use magnus_primitives::{TempoAddressExt, TempoTxEnvelope};
+use magnus_primitives::{MagnusAddressExt, MagnusTxEnvelope};
 
 /// Returns true if the calldata is for a TIP-20 function that should trigger fee token inference.
 /// Only `transfer`, `transferWithMemo`, and `distributeReward` qualify.
@@ -37,7 +37,7 @@ fn is_tip20_fee_inference_call(input: &[u8]) -> bool {
 
 /// Helper trait to abstract over different representations of Tempo transactions.
 #[auto_impl::auto_impl(&, Arc)]
-pub trait TempoTx {
+pub trait MagnusTx {
     /// Returns the transaction's `feeToken` field, if configured.
     fn fee_token(&self) -> Option<Address>;
 
@@ -51,7 +51,7 @@ pub trait TempoTx {
     fn caller(&self) -> Address;
 }
 
-impl TempoTx for TempoTxEnv {
+impl MagnusTx for MagnusTxEnv {
     fn fee_token(&self) -> Option<Address> {
         self.fee_token
     }
@@ -73,7 +73,7 @@ impl TempoTx for TempoTxEnv {
     }
 }
 
-impl TempoTx for Recovered<TempoTxEnvelope> {
+impl MagnusTx for Recovered<MagnusTxEnvelope> {
     fn fee_token(&self) -> Option<Address> {
         self.inner().fee_token()
     }
@@ -96,7 +96,7 @@ impl TempoTx for Recovered<TempoTxEnvelope> {
 /// We provide blanket implementations for revm database, journal and reth state provider.
 ///
 /// The generic marker is used as a workaround to avoid conflicting implementations.
-pub trait TempoStateAccess<M = ()> {
+pub trait MagnusStateAccess<M = ()> {
     /// Error type returned by storage operations.
     type Error: core::fmt::Display;
 
@@ -107,7 +107,7 @@ pub trait TempoStateAccess<M = ()> {
     fn sload(&mut self, address: Address, key: U256) -> Result<U256, Self::Error>;
 
     /// Returns a read-only storage provider for the given spec.
-    fn with_read_only_storage_ctx<R>(&mut self, spec: TempoHardfork, f: impl FnOnce() -> R) -> R
+    fn with_read_only_storage_ctx<R>(&mut self, spec: MagnusHardfork, f: impl FnOnce() -> R) -> R
     where
         Self: Sized,
     {
@@ -117,10 +117,10 @@ pub trait TempoStateAccess<M = ()> {
     /// Resolves user-level or transaction-level fee token preference.
     fn get_fee_token(
         &mut self,
-        tx: impl TempoTx,
+        tx: impl MagnusTx,
         fee_payer: Address,
-        spec: TempoHardfork,
-    ) -> TempoResult<Address>
+        spec: MagnusHardfork,
+    ) -> MagnusResult<Address>
     where
         Self: Sized,
     {
@@ -197,7 +197,7 @@ pub trait TempoStateAccess<M = ()> {
     /// Checks if the given TIP20 token has USD currency.
     ///
     /// IMPORTANT: Caller must ensure `fee_token` has a valid TIP20 prefix.
-    fn is_tip20_usd(&mut self, spec: TempoHardfork, fee_token: Address) -> TempoResult<bool>
+    fn is_tip20_usd(&mut self, spec: MagnusHardfork, fee_token: Address) -> MagnusResult<bool>
     where
         Self: Sized,
     {
@@ -209,7 +209,7 @@ pub trait TempoStateAccess<M = ()> {
     }
 
     /// Checks if the given token can be used as a fee token.
-    fn is_valid_fee_token(&mut self, spec: TempoHardfork, fee_token: Address) -> TempoResult<bool>
+    fn is_valid_fee_token(&mut self, spec: MagnusHardfork, fee_token: Address) -> MagnusResult<bool>
     where
         Self: Sized,
     {
@@ -223,7 +223,7 @@ pub trait TempoStateAccess<M = ()> {
     }
 
     /// Checks if a fee token is paused.
-    fn is_fee_token_paused(&mut self, spec: TempoHardfork, fee_token: Address) -> TempoResult<bool>
+    fn is_fee_token_paused(&mut self, spec: MagnusHardfork, fee_token: Address) -> MagnusResult<bool>
     where
         Self: Sized,
     {
@@ -238,8 +238,8 @@ pub trait TempoStateAccess<M = ()> {
         &mut self,
         fee_token: Address,
         fee_payer: Address,
-        spec: TempoHardfork,
-    ) -> TempoResult<bool>
+        spec: MagnusHardfork,
+    ) -> MagnusResult<bool>
     where
         Self: Sized,
     {
@@ -262,8 +262,8 @@ pub trait TempoStateAccess<M = ()> {
         &mut self,
         token: Address,
         account: Address,
-        spec: TempoHardfork,
-    ) -> TempoResult<U256>
+        spec: MagnusHardfork,
+    ) -> MagnusResult<U256>
     where
         Self: Sized,
     {
@@ -274,7 +274,7 @@ pub trait TempoStateAccess<M = ()> {
     }
 }
 
-impl<DB: Database> TempoStateAccess<()> for DB {
+impl<DB: Database> MagnusStateAccess<()> for DB {
     type Error = DB::Error;
 
     fn basic(&mut self, address: Address) -> Result<AccountInfo, Self::Error> {
@@ -286,7 +286,7 @@ impl<DB: Database> TempoStateAccess<()> for DB {
     }
 }
 
-impl<T: JournalTr> TempoStateAccess<((), ())> for T {
+impl<T: JournalTr> MagnusStateAccess<((), ())> for T {
     type Error = <T::Database as Database>::Error;
 
     fn basic(&mut self, address: Address) -> Result<AccountInfo, Self::Error> {
@@ -299,7 +299,7 @@ impl<T: JournalTr> TempoStateAccess<((), ())> for T {
 }
 
 #[cfg(feature = "reth")]
-impl<T: reth_storage_api::StateProvider> TempoStateAccess<((), (), ())> for T {
+impl<T: reth_storage_api::StateProvider> MagnusStateAccess<((), (), ())> for T {
     type Error = reth_evm::execute::ProviderError;
 
     fn basic(&mut self, address: Address) -> Result<AccountInfo, Self::Error> {
@@ -314,24 +314,24 @@ impl<T: reth_storage_api::StateProvider> TempoStateAccess<((), (), ())> for T {
     }
 }
 
-/// Read-only storage provider that wraps a `TempoStateAccess`.
+/// Read-only storage provider that wraps a `MagnusStateAccess`.
 ///
 /// Implements `PrecompileStorageProvider` by delegating read operations to the backend
 /// and returning errors for write operations.
 ///
-/// The marker generic `M` selects which `TempoStateAccess<M>` impl to use for the backend.
+/// The marker generic `M` selects which `MagnusStateAccess<M>` impl to use for the backend.
 struct ReadOnlyStorageProvider<'a, S, M = ()> {
     state: &'a mut S,
-    spec: TempoHardfork,
+    spec: MagnusHardfork,
     _marker: PhantomData<M>,
 }
 
 impl<'a, S, M> ReadOnlyStorageProvider<'a, S, M>
 where
-    S: TempoStateAccess<M>,
+    S: MagnusStateAccess<M>,
 {
     /// Creates a new read-only storage provider.
-    fn new(state: &'a mut S, spec: TempoHardfork) -> Self {
+    fn new(state: &'a mut S, spec: MagnusHardfork) -> Self {
         Self {
             state,
             spec,
@@ -342,9 +342,9 @@ where
 
 impl<S, M> PrecompileStorageProvider for ReadOnlyStorageProvider<'_, S, M>
 where
-    S: TempoStateAccess<M>,
+    S: MagnusStateAccess<M>,
 {
-    fn spec(&self) -> TempoHardfork {
+    fn spec(&self) -> MagnusHardfork {
         self.spec
     }
 
@@ -353,25 +353,25 @@ where
         true
     }
 
-    fn sload(&mut self, address: Address, key: U256) -> TempoResult<U256> {
+    fn sload(&mut self, address: Address, key: U256) -> MagnusResult<U256> {
         let _ = self
             .state
             .basic(address)
-            .map_err(|e| TempoPrecompileError::Fatal(e.to_string()))?;
+            .map_err(|e| MagnusPrecompileError::Fatal(e.to_string()))?;
         self.state
             .sload(address, key)
-            .map_err(|e| TempoPrecompileError::Fatal(e.to_string()))
+            .map_err(|e| MagnusPrecompileError::Fatal(e.to_string()))
     }
 
     fn with_account_info(
         &mut self,
         address: Address,
         f: &mut dyn FnMut(&AccountInfo),
-    ) -> TempoResult<()> {
+    ) -> MagnusResult<()> {
         let info = self
             .state
             .basic(address)
-            .map_err(|e| TempoPrecompileError::Fatal(e.to_string()))?;
+            .map_err(|e| MagnusPrecompileError::Fatal(e.to_string()))?;
         f(&info);
         Ok(())
     }
@@ -393,7 +393,7 @@ where
         unreachable!("'block_number' not implemented in read-only context yet")
     }
 
-    fn tload(&mut self, _: Address, _: U256) -> TempoResult<U256> {
+    fn tload(&mut self, _: Address, _: U256) -> MagnusResult<U256> {
         unreachable!("'tload' not implemented in read-only context yet")
     }
 
@@ -410,23 +410,23 @@ where
     }
 
     // Write operations are not supported in read-only context
-    fn sstore(&mut self, _: Address, _: U256, _: U256) -> TempoResult<()> {
+    fn sstore(&mut self, _: Address, _: U256, _: U256) -> MagnusResult<()> {
         unreachable!("'sstore' not supported in read-only context")
     }
 
-    fn set_code(&mut self, _: Address, _: Bytecode) -> TempoResult<()> {
+    fn set_code(&mut self, _: Address, _: Bytecode) -> MagnusResult<()> {
         unreachable!("'set_code' not supported in read-only context")
     }
 
-    fn emit_event(&mut self, _: Address, _: LogData) -> TempoResult<()> {
+    fn emit_event(&mut self, _: Address, _: LogData) -> MagnusResult<()> {
         unreachable!("'emit_event' not supported in read-only context")
     }
 
-    fn tstore(&mut self, _: Address, _: U256, _: U256) -> TempoResult<()> {
+    fn tstore(&mut self, _: Address, _: U256, _: U256) -> MagnusResult<()> {
         unreachable!("'tstore' not supported in read-only context")
     }
 
-    fn deduct_gas(&mut self, _: u64) -> TempoResult<()> {
+    fn deduct_gas(&mut self, _: u64) -> MagnusResult<()> {
         unreachable!("'deduct_gas' not supported in read-only context")
     }
 
@@ -450,7 +450,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{TempoBlockEnv, TempoEvm};
+    use crate::{MagnusBlockEnv, MagnusEvm};
     use alloy_primitives::{address, uint};
     use reth_evm::EvmInternals;
     use revm::{
@@ -475,14 +475,14 @@ mod tests {
             caller,
             ..Default::default()
         };
-        let tx = TempoTxEnv {
+        let tx = MagnusTxEnv {
             inner: tx_env,
             fee_token: Some(fee_token),
             ..Default::default()
         };
 
         let mut db = EmptyDB::default();
-        let token = db.get_fee_token(tx, caller, TempoHardfork::Genesis)?;
+        let token = db.get_fee_token(tx, caller, MagnusHardfork::Genesis)?;
         assert_eq!(token, fee_token);
         Ok(())
     }
@@ -499,13 +499,13 @@ mod tests {
             caller,
             ..Default::default()
         };
-        let tx = TempoTxEnv {
+        let tx = MagnusTxEnv {
             inner: tx_env,
             ..Default::default()
         };
 
         let mut db = EmptyDB::default();
-        let result_token = db.get_fee_token(tx, caller, TempoHardfork::Genesis)?;
+        let result_token = db.get_fee_token(tx, caller, MagnusHardfork::Genesis)?;
         assert_eq!(result_token, token);
         Ok(())
     }
@@ -522,7 +522,7 @@ mod tests {
             .unwrap();
 
         let result_token =
-            db.get_fee_token(TempoTxEnv::default(), caller, TempoHardfork::Genesis)?;
+            db.get_fee_token(MagnusTxEnv::default(), caller, MagnusHardfork::Genesis)?;
         assert_eq!(result_token, user_token);
         Ok(())
     }
@@ -538,13 +538,13 @@ mod tests {
             caller,
             ..Default::default()
         };
-        let tx = TempoTxEnv {
+        let tx = MagnusTxEnv {
             inner: tx_env,
             ..Default::default()
         };
 
         let mut db = EmptyDB::default();
-        let result_token = db.get_fee_token(tx, caller, TempoHardfork::Genesis)?;
+        let result_token = db.get_fee_token(tx, caller, MagnusHardfork::Genesis)?;
         assert_eq!(result_token, DEFAULT_FEE_TOKEN);
         Ok(())
     }
@@ -556,13 +556,13 @@ mod tests {
             caller,
             ..Default::default()
         };
-        let tx = TempoTxEnv {
+        let tx = MagnusTxEnv {
             inner: tx_env,
             ..Default::default()
         };
 
         let mut db = EmptyDB::default();
-        let result_token = db.get_fee_token(tx, caller, TempoHardfork::Genesis)?;
+        let result_token = db.get_fee_token(tx, caller, MagnusHardfork::Genesis)?;
         // Should fallback to DEFAULT_FEE_TOKEN when no preferences are found
         assert_eq!(result_token, DEFAULT_FEE_TOKEN);
         Ok(())
@@ -589,13 +589,13 @@ mod tests {
             caller,
             ..Default::default()
         };
-        let tx = TempoTxEnv {
+        let tx = MagnusTxEnv {
             inner: tx_env,
             ..Default::default()
         };
 
         let mut db = EmptyDB::default();
-        let token = db.get_fee_token(tx, caller, TempoHardfork::Genesis)?;
+        let token = db.get_fee_token(tx, caller, MagnusHardfork::Genesis)?;
         assert_eq!(token, token_in);
 
         // Test swapExactAmountOut
@@ -613,12 +613,12 @@ mod tests {
             ..Default::default()
         };
 
-        let tx = TempoTxEnv {
+        let tx = MagnusTxEnv {
             inner: tx_env,
             ..Default::default()
         };
 
-        let token = db.get_fee_token(tx, caller, TempoHardfork::Genesis)?;
+        let token = db.get_fee_token(tx, caller, MagnusHardfork::Genesis)?;
         assert_eq!(token, token_in);
 
         Ok(())
@@ -636,7 +636,7 @@ mod tests {
         db.insert_account_storage(token_address, balance_slot, expected_balance)?;
 
         // Read balance using typed storage
-        let balance = db.get_token_balance(token_address, account, TempoHardfork::Genesis)?;
+        let balance = db.get_token_balance(token_address, account, MagnusHardfork::Genesis)?;
         assert_eq!(balance, expected_balance);
 
         Ok(())
@@ -665,11 +665,11 @@ mod tests {
         let mut db = revm::database::CacheDB::new(EmptyDB::default());
 
         // Default (unpaused) returns false
-        assert!(!db.is_fee_token_paused(TempoHardfork::Genesis, token_address)?);
+        assert!(!db.is_fee_token_paused(MagnusHardfork::Genesis, token_address)?);
 
         // Set paused=true
         db.insert_account_storage(token_address, tip20_slots::PAUSED, U256::from(1))?;
-        assert!(db.is_fee_token_paused(TempoHardfork::Genesis, token_address)?);
+        assert!(db.is_fee_token_paused(MagnusHardfork::Genesis, token_address)?);
 
         Ok(())
     }
@@ -706,7 +706,7 @@ mod tests {
             let mut db = revm::database::CacheDB::new(EmptyDB::default());
             db.insert_account_storage(fee_token, tip20_slots::CURRENCY, *currency_value)?;
 
-            let is_usd = db.is_tip20_usd(TempoHardfork::Genesis, fee_token)?;
+            let is_usd = db.is_tip20_usd(MagnusHardfork::Genesis, fee_token)?;
             assert_eq!(is_usd, *expected, "currency '{label}' failed");
         }
 
@@ -718,10 +718,10 @@ mod tests {
         let admin = Address::random();
         let fee_payer = Address::random();
         let db = revm::database::CacheDB::new(EmptyDB::new());
-        let mut evm = TempoEvm::new(
+        let mut evm = MagnusEvm::new(
             Context::mainnet()
                 .with_db(db)
-                .with_block(TempoBlockEnv::default())
+                .with_block(MagnusBlockEnv::default())
                 .with_cfg(Default::default())
                 .with_tx(Default::default()),
             (),
@@ -766,14 +766,14 @@ mod tests {
         assert!(evm.ctx.journaled_state.can_fee_payer_transfer(
             PATH_USD_ADDRESS,
             fee_payer,
-            TempoHardfork::T1B
+            MagnusHardfork::T1B
         )?);
 
         // Post T1C fails if fee payer not authorized
         assert!(!evm.ctx.journaled_state.can_fee_payer_transfer(
             PATH_USD_ADDRESS,
             fee_payer,
-            TempoHardfork::T1C
+            MagnusHardfork::T1C
         )?);
 
         // Whitelist FeeManager
@@ -797,13 +797,13 @@ mod tests {
         assert!(evm.ctx.journaled_state.can_fee_payer_transfer(
             PATH_USD_ADDRESS,
             fee_payer,
-            TempoHardfork::T1B
+            MagnusHardfork::T1B
         )?);
 
         assert!(evm.ctx.journaled_state.can_fee_payer_transfer(
             PATH_USD_ADDRESS,
             fee_payer,
-            TempoHardfork::T1C
+            MagnusHardfork::T1C
         )?);
 
         Ok(())

@@ -2,7 +2,7 @@
 //! add → update → remove, with real signature verification against
 //! local `file://` manifests.
 //!
-//! Each test gets its own temp directory (`TEMPO_HOME`), test keypair,
+//! Each test gets its own temp directory (`MAGNUS_HOME`), test keypair,
 //! and locally-signed dummy binary. No network access required.
 
 use minisign::{KeyPair, PublicKey};
@@ -39,21 +39,21 @@ impl Fixture {
         let pk_base64 = pk.to_base64();
 
         let prev_env = vec![
-            ("TEMPO_HOME", env::var("TEMPO_HOME").ok()),
-            ("TEMPO_EXT_BASE_URL", env::var("TEMPO_EXT_BASE_URL").ok()),
+            ("MAGNUS_HOME", env::var("MAGNUS_HOME").ok()),
+            ("MAGNUS_EXT_BASE_URL", env::var("MAGNUS_EXT_BASE_URL").ok()),
             (
-                "TEMPO_EXT_PUBLIC_KEY",
-                env::var("TEMPO_EXT_PUBLIC_KEY").ok(),
+                "MAGNUS_EXT_PUBLIC_KEY",
+                env::var("MAGNUS_EXT_PUBLIC_KEY").ok(),
             ),
         ];
 
         unsafe {
-            env::set_var("TEMPO_HOME", &home);
+            env::set_var("MAGNUS_HOME", &home);
             env::set_var(
-                "TEMPO_EXT_BASE_URL",
+                "MAGNUS_EXT_BASE_URL",
                 format!("file://{}", base_dir.display()),
             );
-            env::set_var("TEMPO_EXT_PUBLIC_KEY", &pk_base64);
+            env::set_var("MAGNUS_EXT_PUBLIC_KEY", &pk_base64);
         }
 
         Self {
@@ -603,7 +603,7 @@ fn wrong_key_rejected() {
 
     // Override with a different public key.
     let other_kp = KeyPair::generate_unencrypted_keypair().unwrap();
-    unsafe { env::set_var("TEMPO_EXT_PUBLIC_KEY", other_kp.pk.to_base64()) };
+    unsafe { env::set_var("MAGNUS_EXT_PUBLIC_KEY", other_kp.pk.to_base64()) };
 
     let result = fix.run(&["tempo", "add", "testpkg"]);
     assert!(result.is_err(), "wrong key should be rejected");

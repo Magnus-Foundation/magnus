@@ -23,8 +23,8 @@ use futures::{
     select_biased,
 };
 use reth_provider::{BlockHashReader, BlockNumReader as _};
-use magnus_node::{TempoExecutionData, TempoFullNode};
-use magnus_payload_types::TempoPayloadAttributes;
+use magnus_node::{MagnusExecutionData, MagnusFullNode};
+use magnus_payload_types::MagnusPayloadAttributes;
 use tracing::{
     Level, Span, debug, error, error_span, info, info_span, instrument, warn, warn_span,
 };
@@ -98,7 +98,7 @@ pub(crate) struct Actor<TContext> {
 
     /// A handle to the execution node layer. Used to forward finalized blocks
     /// and to update the canonical chain by sending forkchoice updates.
-    execution_node: TempoFullNode,
+    execution_node: MagnusFullNode,
 
     last_consensus_finalized_height: Height,
     last_execution_finalized_height: Height,
@@ -506,7 +506,7 @@ where
             .execution_node
             .add_ons_handle
             .beacon_engine_handle
-            .new_payload(TempoExecutionData {
+            .new_payload(MagnusExecutionData {
                 block: Arc::new(block),
                 // can be omitted for finalized blocks
                 validator_set: None,
@@ -537,12 +537,12 @@ enum JustCanonicalizeOrAlsoBuild {
     },
     AlsoBuild {
         response: oneshot::Sender<eyre::Result<PayloadId>>,
-        attributes: Box<TempoPayloadAttributes>,
+        attributes: Box<MagnusPayloadAttributes>,
     },
 }
 
 impl JustCanonicalizeOrAlsoBuild {
-    fn attributes(&self) -> Option<&TempoPayloadAttributes> {
+    fn attributes(&self) -> Option<&MagnusPayloadAttributes> {
         match self {
             Self::JustCanonicalize { .. } => None,
             Self::AlsoBuild { attributes, .. } => Some(attributes),

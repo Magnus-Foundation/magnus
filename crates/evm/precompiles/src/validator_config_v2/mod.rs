@@ -10,7 +10,7 @@ use magnus_contracts::precompiles::{VALIDATOR_CONFIG_V2_ADDRESS, ValidatorConfig
 use magnus_precompiles_macros::{Storable, contract};
 
 use crate::{
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     ip_validation::{IpWithPortParseError, ensure_address_is_ip, ensure_address_is_ip_port},
     storage::{Handler, Mapping},
     validator_config::ValidatorConfig,
@@ -24,9 +24,9 @@ use commonware_cryptography::{
 use tracing::trace;
 
 /// Signature namespace for `addValidator` operations.
-pub const VALIDATOR_NS_ADD: &[u8] = b"TEMPO_VALIDATOR_CONFIG_V2_ADD_VALIDATOR";
+pub const VALIDATOR_NS_ADD: &[u8] = b"MAGNUS_VALIDATOR_CONFIG_V2_ADD_VALIDATOR";
 /// Signature namespace for `rotateValidator` operations.
-pub const VALIDATOR_NS_ROTATE: &[u8] = b"TEMPO_VALIDATOR_CONFIG_V2_ROTATE_VALIDATOR";
+pub const VALIDATOR_NS_ROTATE: &[u8] = b"MAGNUS_VALIDATOR_CONFIG_V2_ROTATE_VALIDATOR";
 
 /// Distinguishes `addValidator` from `rotateValidator` signatures at the type level.
 enum SignatureKind {
@@ -312,14 +312,14 @@ impl ValidatorConfigV2 {
 
     fn validate_endpoints(ingress: &str, egress: &str) -> Result<()> {
         ensure_address_is_ip_port(ingress).map_err(|err| {
-            TempoPrecompileError::from(ValidatorConfigV2Error::not_ip_port(
+            MagnusPrecompileError::from(ValidatorConfigV2Error::not_ip_port(
                 ingress.to_string(),
                 err.to_string(),
             ))
         })?;
 
         ensure_address_is_ip(egress).map_err(|err| {
-            TempoPrecompileError::from(ValidatorConfigV2Error::not_ip(
+            MagnusPrecompileError::from(ValidatorConfigV2Error::not_ip(
                 egress.to_string(),
                 err.to_string(),
             ))
@@ -337,7 +337,7 @@ impl ValidatorConfigV2 {
             .parse::<std::net::SocketAddr>()
             .map_err(IpWithPortParseError::from)
             .map_err(|err| {
-                TempoPrecompileError::from(ValidatorConfigV2Error::not_ip_port(
+                MagnusPrecompileError::from(ValidatorConfigV2Error::not_ip_port(
                     ingress.to_string(),
                     err.to_string(),
                 ))

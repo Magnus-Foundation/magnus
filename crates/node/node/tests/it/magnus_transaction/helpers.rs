@@ -20,18 +20,18 @@ use core::num::NonZeroU64;
 use reth_node_api::BuiltPayload;
 use reth_primitives_traits::transaction::TxHashRef;
 use reth_transaction_pool::TransactionPool;
-use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 use magnus_contracts::precompiles::DEFAULT_FEE_TOKEN;
-use magnus_node::rpc::TempoTransactionRequest;
+use magnus_node::rpc::MagnusTransactionRequest;
 use magnus_precompiles::tip20::ITIP20::{self, transferCall};
 use magnus_primitives::{
-    SignatureType, TempoTransaction, TempoTxEnvelope,
+    SignatureType, MagnusTransaction, MagnusTxEnvelope,
     transaction::{
         CallScope, KeyAuthorization, SelectorRule, SignedKeyAuthorization,
-        TEMPO_EXPIRING_NONCE_KEY, TEMPO_EXPIRING_NONCE_MAX_EXPIRY_SECS, TokenLimit,
+        MAGNUS_EXPIRING_NONCE_KEY, MAGNUS_EXPIRING_NONCE_MAX_EXPIRY_SECS, TokenLimit,
         magnus_transaction::Call,
         tt_signature::{
-            KeychainSignature, P256SignatureWithPreHash, PrimitiveSignature, TempoSignature,
+            KeychainSignature, P256SignatureWithPreHash, PrimitiveSignature, MagnusSignature,
             WebAuthnSignature, normalize_p256_s,
         },
     },
@@ -81,7 +81,7 @@ mod legacy_compat {
         transports::{RpcError, TransportErrorKind},
     };
     use serde::de::DeserializeOwned;
-    use magnus_node::rpc::TempoTransactionRequest;
+    use magnus_node::rpc::MagnusTransactionRequest;
 
     fn should_retry_with_selector_arrays(err: &RpcError<TransportErrorKind>) -> bool {
         let err_str = err.to_string().to_lowercase();
@@ -136,7 +136,7 @@ mod legacy_compat {
     pub(super) async fn raw_request<T>(
         provider: &impl Provider,
         method: &'static str,
-        request: &TempoTransactionRequest,
+        request: &MagnusTransactionRequest,
     ) -> Result<T, RpcError<TransportErrorKind>>
     where
         T: DeserializeOwned + std::fmt::Debug + Send + Sync + Unpin + 'static,
@@ -209,10 +209,10 @@ pub(super) async fn fund_address_with(
     }
     .abi_encode();
 
-    let funding_tx = TempoTransaction {
+    let funding_tx = MagnusTransaction {
         chain_id,
-        max_priority_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
-        max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+        max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
+        max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
         gas_limit: 2_000_000,
         calls: vec![Call {
             to: fee_token.into(),
@@ -229,7 +229,7 @@ pub(super) async fn fund_address_with(
 
     // Sign and send the funding transaction
     let signature = funder_signer.sign_hash_sync(&funding_tx.signature_hash())?;
-    let funding_envelope: TempoTxEnvelope = funding_tx.into_signed(signature.into()).into();
+    let funding_envelope: MagnusTxEnvelope = funding_tx.into_signed(signature.into()).into();
     let mut encoded_funding = Vec::new();
     funding_envelope.encode_2718(&mut encoded_funding);
 
@@ -293,7 +293,7 @@ pub(super) async fn verify_tx_not_in_block_via_rpc(
 
 pub(crate) async fn estimate_gas(
     provider: &impl Provider,
-    request: &TempoTransactionRequest,
+    request: &MagnusTransactionRequest,
 ) -> eyre::Result<u64> {
     let hex: String = legacy_compat::raw_request(provider, "eth_estimateGas", request).await?;
     Ok(u64::from_str_radix(hex.trim_start_matches("0x"), 16)?)
@@ -450,7 +450,7 @@ pub(crate) fn generate_p256_access_key() -> (
 pub(crate) fn create_key_authorization(
     root_signer: &impl SignerSync,
     access_key_addr: Address,
-    access_key_signature: TempoSignature,
+    access_key_signature: MagnusSignature,
     chain_id: u64,
     expiry: Option<std::num::NonZeroU64>,
     spending_limits: Option<Vec<magnus_primitives::transaction::TokenLimit>>,
@@ -471,10 +471,10 @@ pub(crate) fn create_key_authorization(
 /// Helper to submit and mine an AA transaction
 pub(super) async fn submit_and_mine_aa_tx(
     setup: &mut SingleNodeSetup,
-    tx: TempoTransaction,
-    signature: TempoSignature,
+    tx: MagnusTransaction,
+    signature: MagnusSignature,
 ) -> eyre::Result<B256> {
-    let envelope: TempoTxEnvelope = tx.into_signed(signature).into();
+    let envelope: MagnusTxEnvelope = tx.into_signed(signature).into();
     let tx_hash = *envelope.tx_hash();
     setup
         .node
@@ -492,7 +492,7 @@ pub(super) async fn authorize_access_key(
     root_signer: &impl SignerSync,
     root_addr: Address,
     access_key_addr: Address,
-    access_key_mock_sig: TempoSignature,
+    access_key_mock_sig: MagnusSignature,
     chain_id: u64,
     nonce: u64,
 ) -> eyre::Result<()> {
@@ -541,12 +541,12 @@ pub(super) fn sign_p256_primitive(
 
 /// Helper to sign AA transaction with P256 access key (wrapped in Keychain signature)
 pub(crate) fn sign_aa_tx_with_p256_access_key(
-    tx: &TempoTransaction,
+    tx: &MagnusTransaction,
     access_key_signing_key: &p256::ecdsa::SigningKey,
     access_pub_key_x: &B256,
     access_pub_key_y: &B256,
     root_key_addr: Address,
-) -> eyre::Result<TempoSignature> {
+) -> eyre::Result<MagnusSignature> {
     let sig_hash = KeychainSignature::signing_hash(tx.signature_hash(), root_key_addr);
     let inner = sign_p256_primitive(
         sig_hash,
@@ -554,7 +554,7 @@ pub(crate) fn sign_aa_tx_with_p256_access_key(
         *access_pub_key_x,
         *access_pub_key_y,
     )?;
-    Ok(TempoSignature::Keychain(KeychainSignature::new(
+    Ok(MagnusSignature::Keychain(KeychainSignature::new(
         root_key_addr,
         inner,
     )))
@@ -563,12 +563,12 @@ pub(crate) fn sign_aa_tx_with_p256_access_key(
 /// Helper to sign AA transaction with P256 access key using legacy V1 keychain signature.
 /// V1 signs the raw sig_hash without binding user_address.
 pub(super) fn sign_aa_tx_with_p256_access_key_v1(
-    tx: &TempoTransaction,
+    tx: &MagnusTransaction,
     access_key_signing_key: &p256::ecdsa::SigningKey,
     access_pub_key_x: &B256,
     access_pub_key_y: &B256,
     root_key_addr: Address,
-) -> eyre::Result<TempoSignature> {
+) -> eyre::Result<MagnusSignature> {
     let sig_hash = tx.signature_hash();
     let inner = sign_p256_primitive(
         sig_hash,
@@ -576,7 +576,7 @@ pub(super) fn sign_aa_tx_with_p256_access_key_v1(
         *access_pub_key_x,
         *access_pub_key_y,
     )?;
-    Ok(TempoSignature::Keychain(KeychainSignature::new_v1(
+    Ok(MagnusSignature::Keychain(KeychainSignature::new_v1(
         root_key_addr,
         inner,
     )))
@@ -584,15 +584,15 @@ pub(super) fn sign_aa_tx_with_p256_access_key_v1(
 
 /// Helper to sign AA transaction with secp256k1 access key (wrapped in Keychain signature)
 pub(crate) fn sign_aa_tx_with_secp256k1_access_key(
-    tx: &TempoTransaction,
+    tx: &MagnusTransaction,
     access_key_signer: &impl SignerSync,
     root_key_addr: Address,
-) -> eyre::Result<TempoSignature> {
+) -> eyre::Result<MagnusSignature> {
     let sig_hash = KeychainSignature::signing_hash(tx.signature_hash(), root_key_addr);
     let signature = access_key_signer.sign_hash_sync(&sig_hash)?;
     let inner_signature = PrimitiveSignature::Secp256k1(signature);
 
-    Ok(TempoSignature::Keychain(KeychainSignature::new(
+    Ok(MagnusSignature::Keychain(KeychainSignature::new(
         root_key_addr,
         inner_signature,
     )))
@@ -601,15 +601,15 @@ pub(crate) fn sign_aa_tx_with_secp256k1_access_key(
 /// Helper to sign AA transaction with secp256k1 access key using legacy V1 keychain signature.
 /// V1 signs the raw sig_hash without binding user_address.
 pub(super) fn sign_aa_tx_with_secp256k1_access_key_v1(
-    tx: &TempoTransaction,
+    tx: &MagnusTransaction,
     access_key_signer: &impl SignerSync,
     root_key_addr: Address,
-) -> eyre::Result<TempoSignature> {
+) -> eyre::Result<MagnusSignature> {
     let sig_hash = tx.signature_hash();
     let signature = access_key_signer.sign_hash_sync(&sig_hash)?;
     let inner_signature = PrimitiveSignature::Secp256k1(signature);
 
-    Ok(TempoSignature::Keychain(KeychainSignature::new_v1(
+    Ok(MagnusSignature::Keychain(KeychainSignature::new_v1(
         root_key_addr,
         inner_signature,
     )))
@@ -652,17 +652,17 @@ pub(super) fn sign_webauthn_primitive(
 
 /// Helper to sign AA transaction with WebAuthn access key (wrapped in Keychain signature)
 pub(crate) fn sign_aa_tx_with_webauthn_access_key(
-    tx: &TempoTransaction,
+    tx: &MagnusTransaction,
     signing_key: &p256::ecdsa::SigningKey,
     pub_key_x: B256,
     pub_key_y: B256,
     origin: &str,
     root_key_addr: Address,
-) -> eyre::Result<TempoSignature> {
+) -> eyre::Result<MagnusSignature> {
     // V2: sign keccak256(0x04 || sig_hash || user_address)
     let sig_hash = KeychainSignature::signing_hash(tx.signature_hash(), root_key_addr);
     let inner = sign_webauthn_primitive(sig_hash, signing_key, pub_key_x, pub_key_y, origin)?;
-    Ok(TempoSignature::Keychain(KeychainSignature::new(
+    Ok(MagnusSignature::Keychain(KeychainSignature::new(
         root_key_addr,
         inner,
     )))
@@ -693,8 +693,8 @@ pub(super) fn create_balance_of_call(account: Address) -> Call {
 /// Helper to create a mock P256 signature for key authorization
 /// This is used when creating a KeyAuthorization - the actual signature is from the root key,
 /// but we need to specify the access key's public key coordinates
-pub(crate) fn create_mock_p256_sig(pub_key_x: B256, pub_key_y: B256) -> TempoSignature {
-    TempoSignature::Primitive(PrimitiveSignature::P256(
+pub(crate) fn create_mock_p256_sig(pub_key_x: B256, pub_key_y: B256) -> MagnusSignature {
+    MagnusSignature::Primitive(PrimitiveSignature::P256(
         magnus_primitives::transaction::tt_signature::P256SignatureWithPreHash {
             r: B256::ZERO,
             s: B256::ZERO,
@@ -706,8 +706,8 @@ pub(crate) fn create_mock_p256_sig(pub_key_x: B256, pub_key_y: B256) -> TempoSig
 }
 
 /// Helper to create a mock secp256k1 signature for key authorization
-pub(crate) fn create_mock_secp256k1_sig() -> TempoSignature {
-    TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::new(
+pub(crate) fn create_mock_secp256k1_sig() -> MagnusSignature {
+    MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::new(
         U256::ZERO,
         U256::ZERO,
         false,
@@ -715,8 +715,8 @@ pub(crate) fn create_mock_secp256k1_sig() -> TempoSignature {
 }
 
 /// Helper to create a mock WebAuthn signature for key authorization
-pub(crate) fn create_mock_webauthn_sig(pub_key_x: B256, pub_key_y: B256) -> TempoSignature {
-    TempoSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
+pub(crate) fn create_mock_webauthn_sig(pub_key_x: B256, pub_key_y: B256) -> MagnusSignature {
+    MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(WebAuthnSignature {
         webauthn_data: Bytes::new(),
         r: B256::ZERO,
         s: B256::ZERO,
@@ -740,17 +740,17 @@ pub(crate) fn create_default_token_limit(
 
 // ===== Transaction Creation Helper Functions =====
 
-/// Helper to create a basic TempoTransaction with common defaults
+/// Helper to create a basic MagnusTransaction with common defaults
 pub(crate) fn create_basic_aa_tx(
     chain_id: u64,
     nonce: u64,
     calls: Vec<Call>,
     gas_limit: u64,
-) -> TempoTransaction {
-    TempoTransaction {
+) -> MagnusTransaction {
+    MagnusTransaction {
         chain_id,
-        max_priority_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
-        max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+        max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
+        max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
         gas_limit,
         calls,
         nonce_key: U256::ZERO,
@@ -766,12 +766,12 @@ pub(crate) fn create_basic_aa_tx(
     }
 }
 
-/// Helper to create an expiring nonce transaction (nonce_key = TEMPO_EXPIRING_NONCE_KEY, nonce = 0)
+/// Helper to create an expiring nonce transaction (nonce_key = MAGNUS_EXPIRING_NONCE_KEY, nonce = 0)
 pub(super) fn create_expiring_nonce_tx(
     chain_id: u64,
     valid_before: u64,
     recipient: Address,
-) -> TempoTransaction {
+) -> MagnusTransaction {
     let mut tx = create_basic_aa_tx(
         chain_id,
         0,
@@ -782,7 +782,7 @@ pub(super) fn create_expiring_nonce_tx(
         }],
         2_000_000,
     );
-    tx.nonce_key = TEMPO_EXPIRING_NONCE_KEY;
+    tx.nonce_key = MAGNUS_EXPIRING_NONCE_KEY;
     tx.valid_before = Some(nonzero_timestamp(valid_before));
     tx
 }
@@ -791,25 +791,25 @@ pub(super) fn create_expiring_nonce_tx(
 
 /// Helper to sign AA transaction with secp256k1 key
 pub(crate) fn sign_aa_tx_secp256k1(
-    tx: &TempoTransaction,
+    tx: &MagnusTransaction,
     signer: &impl SignerSync,
-) -> eyre::Result<TempoSignature> {
+) -> eyre::Result<MagnusSignature> {
     let sig_hash = tx.signature_hash();
     let signature = signer.sign_hash_sync(&sig_hash)?;
-    Ok(TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+    Ok(MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
         signature,
     )))
 }
 
 /// Helper to sign AA transaction with P256 key (with pre-hash)
 pub(crate) fn sign_aa_tx_p256(
-    tx: &TempoTransaction,
+    tx: &MagnusTransaction,
     signing_key: &p256::ecdsa::SigningKey,
     pub_key_x: B256,
     pub_key_y: B256,
-) -> eyre::Result<TempoSignature> {
+) -> eyre::Result<MagnusSignature> {
     let inner = sign_p256_primitive(tx.signature_hash(), signing_key, pub_key_x, pub_key_y)?;
-    Ok(TempoSignature::Primitive(inner))
+    Ok(MagnusSignature::Primitive(inner))
 }
 
 /// Helper to create WebAuthn authenticator data and client data JSON
@@ -832,12 +832,12 @@ pub(super) fn create_webauthn_data(sig_hash: B256, origin: &str) -> (Vec<u8>, St
 
 /// Helper to create WebAuthn signature for AA transaction
 pub(crate) fn sign_aa_tx_webauthn(
-    tx: &TempoTransaction,
+    tx: &MagnusTransaction,
     signing_key: &p256::ecdsa::SigningKey,
     pub_key_x: B256,
     pub_key_y: B256,
     origin: &str,
-) -> eyre::Result<TempoSignature> {
+) -> eyre::Result<MagnusSignature> {
     let inner = sign_webauthn_primitive(
         tx.signature_hash(),
         signing_key,
@@ -845,7 +845,7 @@ pub(crate) fn sign_aa_tx_webauthn(
         pub_key_y,
         origin,
     )?;
-    Ok(TempoSignature::Primitive(inner))
+    Ok(MagnusSignature::Primitive(inner))
 }
 
 // ===== Assertion Helper Functions =====
@@ -871,7 +871,7 @@ pub(super) async fn assert_receipt_status(
 
 pub(crate) async fn configure_fee_payer_context(
     provider: &impl Provider,
-    tx: &mut TempoTransaction,
+    tx: &mut MagnusTransaction,
     fee_payer_enabled: bool,
     signer_addr: Address,
     fee_payer_signer: &PrivateKeySigner,
@@ -934,7 +934,7 @@ pub(crate) async fn assert_batch_recipient_balances(
 }
 
 pub(crate) fn sign_fee_payer(
-    tx: &mut TempoTransaction,
+    tx: &mut MagnusTransaction,
     signer_addr: Address,
     fee_payer: &(impl SignerSync + ?Sized),
 ) -> eyre::Result<()> {
@@ -1078,7 +1078,7 @@ fn require_hex_u128(json: &serde_json::Value, field: &str) -> eyre::Result<u128>
     parse_hex_u128(json, field)?.ok_or_else(|| eyre::eyre!("Missing '{field}' in filled tx"))
 }
 
-pub(crate) fn parse_filled_tx(filled: &serde_json::Value) -> eyre::Result<TempoTransaction> {
+pub(crate) fn parse_filled_tx(filled: &serde_json::Value) -> eyre::Result<MagnusTransaction> {
     let tx = filled
         .get("tx")
         .ok_or_else(|| eyre::eyre!("Missing 'tx' field in response"))?;
@@ -1144,7 +1144,7 @@ pub(crate) fn parse_filled_tx(filled: &serde_json::Value) -> eyre::Result<TempoT
         .transpose()?
         .unwrap_or_default();
 
-    Ok(TempoTransaction {
+    Ok(MagnusTransaction {
         chain_id,
         nonce,
         gas_limit,
@@ -1182,12 +1182,12 @@ pub(crate) fn build_fill_request_context(
         .map(|offset| resolve_timestamp_offset(current_timestamp, offset));
 
     let valid_before = valid_before_offset.or_else(|| match test_case.nonce_mode {
-        NonceMode::Expiring => Some(current_timestamp + TEMPO_EXPIRING_NONCE_MAX_EXPIRY_SECS / 2),
+        NonceMode::Expiring => Some(current_timestamp + MAGNUS_EXPIRING_NONCE_MAX_EXPIRY_SECS / 2),
         NonceMode::ExpiringAtBoundary => {
-            Some(current_timestamp + TEMPO_EXPIRING_NONCE_MAX_EXPIRY_SECS - 1)
+            Some(current_timestamp + MAGNUS_EXPIRING_NONCE_MAX_EXPIRY_SECS - 1)
         }
         NonceMode::ExpiringExceedsBoundary => {
-            Some(current_timestamp + TEMPO_EXPIRING_NONCE_MAX_EXPIRY_SECS + 3600)
+            Some(current_timestamp + MAGNUS_EXPIRING_NONCE_MAX_EXPIRY_SECS + 3600)
         }
         NonceMode::ExpiringInPast => Some(current_timestamp.saturating_sub(1)),
         _ => None,
@@ -1201,7 +1201,7 @@ pub(crate) fn build_fill_request_context(
         NonceMode::Expiring
         | NonceMode::ExpiringAtBoundary
         | NonceMode::ExpiringExceedsBoundary
-        | NonceMode::ExpiringInPast => TEMPO_EXPIRING_NONCE_KEY,
+        | NonceMode::ExpiringInPast => MAGNUS_EXPIRING_NONCE_KEY,
     };
     let nonce_key = if test_case.include_nonce_key {
         Some(nonce_key_value)
@@ -1219,7 +1219,7 @@ pub(crate) fn build_fill_request_context(
     // exercised in the runner by signing the filled tx hash with a separate signer.
     let fee_payer_signature = None;
 
-    let request = TempoTransactionRequest {
+    let request = MagnusTransactionRequest {
         inner: TransactionRequest {
             from: Some(signer_addr),
             nonce: test_case.explicit_nonce,
@@ -1256,7 +1256,7 @@ pub(crate) async fn fill_transaction_from_case(
     test_case: &FillTestCase,
     signer_addr: Address,
     current_timestamp: u64,
-) -> eyre::Result<(TempoTransaction, FillRequestContext)> {
+) -> eyre::Result<(MagnusTransaction, FillRequestContext)> {
     let recipient = Address::random();
     let request_context =
         build_fill_request_context(test_case, signer_addr, recipient, current_timestamp);
@@ -1272,7 +1272,7 @@ pub(crate) async fn fill_transaction_from_case(
 }
 
 pub(crate) fn assert_fill_request_expectations(
-    tx: &TempoTransaction,
+    tx: &MagnusTransaction,
     request_context: &FillRequestContext,
     test_case: &FillTestCase,
 ) -> eyre::Result<()> {

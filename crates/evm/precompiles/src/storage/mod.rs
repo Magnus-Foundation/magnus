@@ -23,9 +23,9 @@ use revm::{
     interpreter::gas::{KECCAK256, KECCAK256WORD},
     state::{AccountInfo, Bytecode},
 };
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 
-use crate::error::{Result, TempoPrecompileError};
+use crate::error::{Result, MagnusPrecompileError};
 
 /// Low-level storage provider for interacting with the EVM.
 ///
@@ -92,7 +92,7 @@ pub trait PrecompileStorageProvider {
     fn reservoir(&self) -> u64;
 
     /// Returns the currently active hardfork.
-    fn spec(&self) -> TempoHardfork;
+    fn spec(&self) -> MagnusHardfork;
 
     /// Returns whether the current call context is static.
     fn is_static(&self) -> bool;
@@ -120,11 +120,11 @@ pub trait PrecompileStorageProvider {
     /// Implementations should use this over naked `keccak256` call to ensure gas is accounted for.
     fn keccak256(&mut self, data: &[u8]) -> Result<B256> {
         let num_words =
-            u64::try_from(data.len().div_ceil(32)).map_err(|_| TempoPrecompileError::OutOfGas)?;
+            u64::try_from(data.len().div_ceil(32)).map_err(|_| MagnusPrecompileError::OutOfGas)?;
         let price = KECCAK256WORD
             .checked_mul(num_words)
             .and_then(|w| w.checked_add(KECCAK256))
-            .ok_or(TempoPrecompileError::OutOfGas)?;
+            .ok_or(MagnusPrecompileError::OutOfGas)?;
         self.deduct_gas(price)?;
         Ok(keccak256(data))
     }

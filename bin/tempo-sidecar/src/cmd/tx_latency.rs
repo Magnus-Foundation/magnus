@@ -11,7 +11,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use poem::{EndpointExt, Route, Server, get, listener::TcpListener};
 use reqwest::Url;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use magnus_alloy::{TempoNetwork, primitives::TempoHeader};
+use magnus_alloy::{MagnusNetwork, primitives::MagnusHeader};
 use tokio::signal;
 use tracing::{debug, error, warn};
 
@@ -53,7 +53,7 @@ impl TransactionLatencyMonitor {
 
     async fn watch_transactions(&mut self) -> Result<()> {
         let rpc_url = self.rpc_url.to_string();
-        let mut provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+        let mut provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
             .connect_ws(WsConnect::new(rpc_url.clone()))
             .await
             .context("failed to connect websocket provider")?;
@@ -78,7 +78,7 @@ impl TransactionLatencyMonitor {
                         Some(hash) => { self.pending.entry(hash).or_insert_with(Self::now_millis); }
                         None => {
                             warn!("pending transaction stream ended; reconnecting");
-                            provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+                            provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
                                 .connect_ws(WsConnect::new(rpc_url.clone()))
                                 .await
                                 .context("failed to reconnect websocket provider")?;
@@ -100,7 +100,7 @@ impl TransactionLatencyMonitor {
         }
     }
 
-    fn on_mined_block(&mut self, header: TempoHeader, mined_txs: B256Set) {
+    fn on_mined_block(&mut self, header: MagnusHeader, mined_txs: B256Set) {
         gauge!("magnus_tx_latency_pending_observed").set(self.pending.len() as f64);
         if self.pending.is_empty() {
             return;

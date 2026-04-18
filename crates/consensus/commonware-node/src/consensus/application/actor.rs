@@ -38,14 +38,14 @@ use reth_ethereum::chainspec::EthChainSpec as _;
 use reth_node_builder::{
     Block as _, BuiltPayload, ConsensusEngineHandle, PayloadAttributes, PayloadKind,
 };
-use magnus_chainspec::{TempoChainSpec, hardfork::TempoHardforks as _};
+use magnus_chainspec::{MagnusChainSpec, hardfork::MagnusHardforks as _};
 use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
-use magnus_node::{TempoExecutionData, TempoFullNode, TempoPayloadTypes};
+use magnus_node::{MagnusExecutionData, MagnusFullNode, MagnusPayloadTypes};
 use magnus_telemetry_util::display_duration;
 
 use reth_provider::{BlockHashReader as _, BlockReader as _};
-use magnus_payload_types::TempoPayloadAttributes;
-use magnus_primitives::TempoConsensusContext;
+use magnus_payload_types::MagnusPayloadAttributes;
+use magnus_primitives::MagnusConsensusContext;
 use tokio::sync::RwLock;
 use tracing::{Level, debug, error, error_span, info, info_span, instrument, warn};
 
@@ -215,7 +215,7 @@ struct Inner<TState> {
 
     marshal: crate::alias::marshal::Mailbox,
 
-    execution_node: TempoFullNode,
+    execution_node: MagnusFullNode,
     executor: crate::executor::Mailbox,
     subblocks: Option<subblocks::Mailbox>,
     scheme_provider: SchemeProvider,
@@ -589,7 +589,7 @@ impl Inner<Init> {
             .chain_spec()
             .is_t4_active_at_timestamp(timestamp)
         {
-            Some(TempoConsensusContext {
+            Some(MagnusConsensusContext {
                 epoch: round.epoch().get(),
                 view: round.view().get(),
                 parent_view: parent_view.get(),
@@ -601,7 +601,7 @@ impl Inner<Init> {
 
         let parent_hash = parent.block_hash();
         let proposer_public_key = crate::utils::public_key_to_b256(&self.public_key);
-        let attrs = TempoPayloadAttributes::new(
+        let attrs = MagnusPayloadAttributes::new(
             self.fee_recipient.unwrap_or_default(),
             Some(proposer_public_key),
             timestamp,
@@ -839,7 +839,7 @@ async fn verify_block<TContext: Pacer>(
     context: TContext,
     epoch: Epoch,
     epoch_strategy: &FixedEpocher,
-    engine: ConsensusEngineHandle<TempoPayloadTypes>,
+    engine: ConsensusEngineHandle<MagnusPayloadTypes>,
     block: &Block,
     parent_digest: Digest,
     scheme_provider: &SchemeProvider,
@@ -874,7 +874,7 @@ async fn verify_block<TContext: Pacer>(
             .collect(),
     );
     let block = block.clone().into_inner();
-    let execution_data = TempoExecutionData {
+    let execution_data = MagnusExecutionData {
         block: Arc::new(block),
         validator_set,
     };
@@ -913,7 +913,7 @@ async fn verify_header(
     block: &Block,
     parent: (View, Digest),
     round: Round,
-    chainspec: &TempoChainSpec,
+    chainspec: &MagnusChainSpec,
     dkg_manager: &crate::dkg::manager::Mailbox,
     epoch_strategy: &FixedEpocher,
     proposer: &PublicKey,
@@ -928,7 +928,7 @@ async fn verify_header(
             .consensus_context
             .ok_or_eyre("missing consensus context")?;
 
-        let expected_ctx = TempoConsensusContext {
+        let expected_ctx = MagnusConsensusContext {
             epoch: round.epoch().get(),
             view: round.view().get(),
             parent_view: parent.0.get(),
@@ -1030,7 +1030,7 @@ fn report_verification_result(
 }
 
 async fn get_parent(
-    execution_node: &TempoFullNode,
+    execution_node: &MagnusFullNode,
     round: Round,
     parent_digest: Digest,
     parent_view: View,

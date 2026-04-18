@@ -10,7 +10,7 @@ use magnus_primitives::transaction::{KeyAuthorizationChainIdError, KeychainVersi
 /// This enum extends the standard Ethereum [`InvalidTransaction`] with Tempo-specific
 /// validation errors that occur during transaction processing.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, thiserror::Error)]
-pub enum TempoInvalidTransaction {
+pub enum MagnusInvalidTransaction {
     /// Standard Ethereum transaction validation error.
     #[error(transparent)]
     EthInvalidTransaction(#[from] InvalidTransaction),
@@ -21,7 +21,7 @@ pub enum TempoInvalidTransaction {
 
     /// System transaction execution failed.
     #[error("system transaction execution failed, result: {_0:?}")]
-    SystemTransactionFailed(Box<ExecutionResult<TempoHaltReason>>),
+    SystemTransactionFailed(Box<ExecutionResult<MagnusHaltReason>>),
 
     /// Fee payer signature recovery failed.
     ///
@@ -222,7 +222,7 @@ pub enum TempoInvalidTransaction {
     CallsValidation(&'static str),
 }
 
-impl TempoInvalidTransaction {
+impl MagnusInvalidTransaction {
     /// Returns `true` if this error is deterministic — i.e. the transaction is inherently
     /// malformed and will never become valid regardless of state changes.
     ///
@@ -304,7 +304,7 @@ impl TempoInvalidTransaction {
     }
 }
 
-impl InvalidTxError for TempoInvalidTransaction {
+impl InvalidTxError for MagnusInvalidTransaction {
     fn is_nonce_too_low(&self) -> bool {
         match self {
             Self::EthInvalidTransaction(err) => err.is_nonce_too_low(),
@@ -320,19 +320,19 @@ impl InvalidTxError for TempoInvalidTransaction {
     }
 }
 
-impl<DBError> From<TempoInvalidTransaction> for EVMError<DBError, TempoInvalidTransaction> {
-    fn from(err: TempoInvalidTransaction) -> Self {
+impl<DBError> From<MagnusInvalidTransaction> for EVMError<DBError, MagnusInvalidTransaction> {
+    fn from(err: MagnusInvalidTransaction) -> Self {
         Self::Transaction(err)
     }
 }
 
-impl From<&'static str> for TempoInvalidTransaction {
+impl From<&'static str> for MagnusInvalidTransaction {
     fn from(err: &'static str) -> Self {
         Self::CallsValidation(err)
     }
 }
 
-impl From<KeychainVersionError> for TempoInvalidTransaction {
+impl From<KeychainVersionError> for MagnusInvalidTransaction {
     fn from(err: KeychainVersionError) -> Self {
         match err {
             KeychainVersionError::LegacyPostT1C => Self::LegacyKeychainSignature,
@@ -371,7 +371,7 @@ pub enum FeePaymentError {
     Other(String),
 }
 
-impl From<KeyAuthorizationChainIdError> for TempoInvalidTransaction {
+impl From<KeyAuthorizationChainIdError> for MagnusInvalidTransaction {
     fn from(err: KeyAuthorizationChainIdError) -> Self {
         Self::KeyAuthorizationChainIdMismatch {
             expected: err.expected,
@@ -380,9 +380,9 @@ impl From<KeyAuthorizationChainIdError> for TempoInvalidTransaction {
     }
 }
 
-impl<DBError> From<FeePaymentError> for EVMError<DBError, TempoInvalidTransaction> {
+impl<DBError> From<FeePaymentError> for EVMError<DBError, MagnusInvalidTransaction> {
     fn from(err: FeePaymentError) -> Self {
-        TempoInvalidTransaction::from(err).into()
+        MagnusInvalidTransaction::from(err).into()
     }
 }
 
@@ -390,7 +390,7 @@ impl<DBError> From<FeePaymentError> for EVMError<DBError, TempoInvalidTransactio
 ///
 /// Used to extend basic [`HaltReason`] with an edge case of a subblock transaction fee payment error.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::From)]
-pub enum TempoHaltReason {
+pub enum MagnusHaltReason {
     /// Basic Ethereum halt reason.
     #[from]
     Ethereum(HaltReason),
@@ -399,13 +399,13 @@ pub enum TempoHaltReason {
 }
 
 #[cfg(feature = "rpc")]
-impl reth_rpc_eth_types::error::api::FromEvmHalt<TempoHaltReason>
+impl reth_rpc_eth_types::error::api::FromEvmHalt<MagnusHaltReason>
     for reth_rpc_eth_types::EthApiError
 {
-    fn from_evm_halt(halt_reason: TempoHaltReason, gas_limit: u64) -> Self {
+    fn from_evm_halt(halt_reason: MagnusHaltReason, gas_limit: u64) -> Self {
         match halt_reason {
-            TempoHaltReason::Ethereum(halt_reason) => Self::from_evm_halt(halt_reason, gas_limit),
-            TempoHaltReason::SubblockTxFeePayment => {
+            MagnusHaltReason::Ethereum(halt_reason) => Self::from_evm_halt(halt_reason, gas_limit),
+            MagnusHaltReason::SubblockTxFeePayment => {
                 Self::EvmCustom("subblock transaction failed to pay fees".to_string())
             }
         }
@@ -417,7 +417,7 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        let err = TempoInvalidTransaction::SystemTransactionMustBeCall;
+        let err = MagnusInvalidTransaction::SystemTransactionMustBeCall;
         assert_eq!(
             err.to_string(),
             "system transaction must be a call, not a create"
@@ -441,34 +441,34 @@ mod tests {
     #[test]
     fn test_from_invalid_transaction() {
         let eth_err = InvalidTransaction::PriorityFeeGreaterThanMaxFee;
-        let magnus_err: TempoInvalidTransaction = eth_err.into();
+        let magnus_err: MagnusInvalidTransaction = eth_err.into();
         assert!(matches!(
             magnus_err,
-            TempoInvalidTransaction::EthInvalidTransaction(_)
+            MagnusInvalidTransaction::EthInvalidTransaction(_)
         ));
     }
 
     #[test]
     fn test_is_nonce_too_low() {
-        let err = TempoInvalidTransaction::EthInvalidTransaction(InvalidTransaction::NonceTooLow {
+        let err = MagnusInvalidTransaction::EthInvalidTransaction(InvalidTransaction::NonceTooLow {
             tx: 1,
             state: 0,
         });
         assert!(err.is_nonce_too_low());
         assert!(err.as_invalid_tx_err().is_some());
 
-        let err = TempoInvalidTransaction::InvalidFeePayerSignature;
+        let err = MagnusInvalidTransaction::InvalidFeePayerSignature;
         assert!(!err.is_nonce_too_low());
         assert!(err.as_invalid_tx_err().is_none());
 
-        let err = TempoInvalidTransaction::SelfSponsoredFeePayer;
+        let err = MagnusInvalidTransaction::SelfSponsoredFeePayer;
         assert!(!err.is_nonce_too_low());
         assert!(err.as_invalid_tx_err().is_none());
     }
 
     #[test]
     fn test_fee_payment_error() {
-        let _: EVMError<(), TempoInvalidTransaction> = FeePaymentError::InsufficientAmmLiquidity {
+        let _: EVMError<(), MagnusInvalidTransaction> = FeePaymentError::InsufficientAmmLiquidity {
             fee: U256::from(1000),
         }
         .into();

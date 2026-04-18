@@ -77,7 +77,7 @@ impl AA2dPoolMetrics {
 /// Metrics for the Tempo pool maintenance task.
 #[derive(Metrics, Clone)]
 #[metrics(scope = "transaction_pool.maintenance")]
-pub struct TempoPoolMaintenanceMetrics {
+pub struct MagnusPoolMaintenanceMetrics {
     /// Total time spent processing a block update in seconds.
     pub block_update_duration_seconds: Histogram,
 

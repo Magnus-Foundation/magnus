@@ -1,39 +1,39 @@
 use crate::{
-    TempoEvmConfig, TempoEvmFactory, block::TempoReceiptBuilder, context::TempoBlockExecutionCtx,
+    MagnusEvmConfig, MagnusEvmFactory, block::MagnusReceiptBuilder, context::MagnusBlockExecutionCtx,
 };
 use alloy_evm::{block::BlockExecutionError, eth::EthBlockExecutorFactory};
 use reth_evm::execute::{BlockAssembler, BlockAssemblerInput};
 use reth_evm_ethereum::EthBlockAssembler;
 use reth_primitives_traits::SealedHeader;
 use std::sync::Arc;
-use magnus_chainspec::TempoChainSpec;
-use magnus_primitives::TempoHeader;
+use magnus_chainspec::MagnusChainSpec;
+use magnus_primitives::MagnusHeader;
 
 /// Assembler for Tempo blocks.
 #[derive(Debug, Clone)]
-pub struct TempoBlockAssembler {
-    pub(crate) inner: EthBlockAssembler<TempoChainSpec>,
+pub struct MagnusBlockAssembler {
+    pub(crate) inner: EthBlockAssembler<MagnusChainSpec>,
 }
 
-impl TempoBlockAssembler {
-    pub fn new(chain_spec: Arc<TempoChainSpec>) -> Self {
+impl MagnusBlockAssembler {
+    pub fn new(chain_spec: Arc<MagnusChainSpec>) -> Self {
         Self {
             inner: EthBlockAssembler::new(chain_spec),
         }
     }
 }
 
-impl BlockAssembler<TempoEvmConfig> for TempoBlockAssembler {
+impl BlockAssembler<MagnusEvmConfig> for MagnusBlockAssembler {
     type Block = magnus_primitives::Block;
 
     fn assemble_block(
         &self,
-        input: BlockAssemblerInput<'_, '_, TempoEvmConfig, TempoHeader>,
+        input: BlockAssemblerInput<'_, '_, MagnusEvmConfig, MagnusHeader>,
     ) -> Result<Self::Block, BlockExecutionError> {
         let BlockAssemblerInput {
             evm_env,
             execution_ctx:
-                TempoBlockExecutionCtx {
+                MagnusBlockExecutionCtx {
                     inner,
                     general_gas_limit,
                     shared_gas_limit,
@@ -56,7 +56,7 @@ impl BlockAssembler<TempoEvmConfig> for TempoBlockAssembler {
 
         // Delegate block building to the inner assembler
         let block = self.inner.assemble_block(BlockAssemblerInput::<
-            EthBlockExecutorFactory<TempoReceiptBuilder, TempoChainSpec, TempoEvmFactory>,
+            EthBlockExecutorFactory<MagnusReceiptBuilder, MagnusChainSpec, MagnusEvmFactory>,
         >::new(
             evm_env,
             inner,
@@ -68,7 +68,7 @@ impl BlockAssembler<TempoEvmConfig> for TempoBlockAssembler {
             state_root,
         ))?;
 
-        Ok(block.map_header(|inner| TempoHeader {
+        Ok(block.map_header(|inner| MagnusHeader {
             inner,
             general_gas_limit,
             timestamp_millis_part,
@@ -92,11 +92,11 @@ mod tests {
     use std::collections::HashMap;
     use magnus_chainspec::spec::MODERATO;
     use magnus_primitives::{
-        TempoHeader, TempoPrimitives, TempoReceipt, TempoTxEnvelope, TempoTxType,
+        MagnusHeader, MagnusPrimitives, MagnusReceipt, MagnusTxEnvelope, MagnusTxType,
     };
-    use magnus_revm::TempoBlockEnv;
+    use magnus_revm::MagnusBlockEnv;
 
-    fn create_legacy_tx() -> TempoTxEnvelope {
+    fn create_legacy_tx() -> MagnusTxEnvelope {
         let tx = TxLegacy {
             chain_id: Some(1),
             nonce: 0,
@@ -106,12 +106,12 @@ mod tests {
             value: U256::ZERO,
             input: Bytes::new(),
         };
-        TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, Signature::test_signature()))
+        MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, Signature::test_signature()))
     }
 
-    fn create_test_receipt(gas_used: u64) -> TempoReceipt {
-        TempoReceipt {
-            tx_type: TempoTxType::Legacy,
+    fn create_test_receipt(gas_used: u64) -> MagnusReceipt {
+        MagnusReceipt {
+            tx_type: MagnusTxType::Legacy,
             success: true,
             cumulative_gas_used: gas_used,
             logs: vec![],
@@ -120,8 +120,8 @@ mod tests {
 
     #[test]
     fn test_assemble_block() {
-        let chainspec = Arc::new(TempoChainSpec::from_genesis(MODERATO.genesis().clone()));
-        let assembler = TempoBlockAssembler::new(chainspec.clone());
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let assembler = MagnusBlockAssembler::new(chainspec.clone());
 
         let block_number = 1u64;
         let timestamp = 1000u64;
@@ -131,7 +131,7 @@ mod tests {
         let shared_gas_limit = 10_000_000u64;
 
         let evm_env = EvmEnv {
-            block_env: TempoBlockEnv {
+            block_env: MagnusBlockEnv {
                 inner: BlockEnv {
                     number: U256::from(block_number),
                     timestamp: U256::from(timestamp),
@@ -145,7 +145,7 @@ mod tests {
             ..Default::default()
         };
 
-        let parent_header = TempoHeader {
+        let parent_header = MagnusHeader {
             inner: alloy_consensus::Header {
                 number: 0,
                 timestamp: 0,
@@ -159,7 +159,7 @@ mod tests {
         };
         let parent = SealedHeader::seal_slow(parent_header);
 
-        let execution_ctx = TempoBlockExecutionCtx {
+        let execution_ctx = MagnusBlockExecutionCtx {
             inner: EthBlockExecutionCtx {
                 parent_hash: parent.hash(),
                 parent_beacon_block_root: Some(B256::ZERO),
@@ -187,10 +187,10 @@ mod tests {
         };
 
         let bundle_state = BundleState::default();
-        let state_provider = NoopProvider::<TempoChainSpec, TempoPrimitives>::new(chainspec);
+        let state_provider = NoopProvider::<MagnusChainSpec, MagnusPrimitives>::new(chainspec);
         let state_root = B256::ZERO;
 
-        let input = BlockAssemblerInput::<TempoEvmConfig, TempoHeader>::new(
+        let input = BlockAssemblerInput::<MagnusEvmConfig, MagnusHeader>::new(
             evm_env,
             execution_ctx,
             &parent,
@@ -228,14 +228,14 @@ mod tests {
 
     #[test]
     fn test_assemble_block_with_consensus_context() {
-        let chainspec = Arc::new(TempoChainSpec::from_genesis(MODERATO.genesis().clone()));
-        let assembler = TempoBlockAssembler::new(chainspec.clone());
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let assembler = MagnusBlockAssembler::new(chainspec.clone());
 
         let gas_limit = 30_000_000u64;
         let general_gas_limit = 10_000_000u64;
         let shared_gas_limit = 10_000_000u64;
 
-        let ctx = magnus_primitives::TempoConsensusContext {
+        let ctx = magnus_primitives::MagnusConsensusContext {
             epoch: 1,
             view: 5,
             proposer: magnus_primitives::ed25519::PublicKey::from_seed([0xab; 32]),
@@ -243,7 +243,7 @@ mod tests {
         };
 
         let evm_env = EvmEnv {
-            block_env: TempoBlockEnv {
+            block_env: MagnusBlockEnv {
                 inner: BlockEnv {
                     number: U256::from(1),
                     timestamp: U256::from(1000),
@@ -257,7 +257,7 @@ mod tests {
             ..Default::default()
         };
 
-        let parent_header = TempoHeader {
+        let parent_header = MagnusHeader {
             inner: alloy_consensus::Header {
                 gas_limit,
                 ..Default::default()
@@ -268,7 +268,7 @@ mod tests {
         };
         let parent = SealedHeader::seal_slow(parent_header);
 
-        let execution_ctx = TempoBlockExecutionCtx {
+        let execution_ctx = MagnusBlockExecutionCtx {
             inner: EthBlockExecutionCtx {
                 parent_hash: parent.hash(),
                 parent_beacon_block_root: Some(B256::ZERO),
@@ -293,9 +293,9 @@ mod tests {
         };
 
         let bundle_state = BundleState::default();
-        let state_provider = NoopProvider::<TempoChainSpec, TempoPrimitives>::new(chainspec);
+        let state_provider = NoopProvider::<MagnusChainSpec, MagnusPrimitives>::new(chainspec);
 
-        let input = BlockAssemblerInput::<TempoEvmConfig, TempoHeader>::new(
+        let input = BlockAssemblerInput::<MagnusEvmConfig, MagnusHeader>::new(
             evm_env,
             execution_ctx,
             &parent,

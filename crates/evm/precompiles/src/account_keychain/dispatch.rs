@@ -7,7 +7,7 @@ use alloy::{
     sol_types::{SolCall, SolInterface},
 };
 use revm::precompile::PrecompileResult;
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_contracts::precompiles::{
     AccountKeychainError,
     IAccountKeychain::{self, IAccountKeychainCalls},
@@ -30,7 +30,7 @@ impl Precompile for AccountKeychain {
 
         dispatch_call(
             calldata,
-            &[SelectorSchedule::new(TempoHardfork::T3)
+            &[SelectorSchedule::new(MagnusHardfork::T3)
                 .with_added(T3_ADDED)
                 .with_dropped(T3_DROPPED)],
             IAccountKeychainCalls::abi_decode,
@@ -118,12 +118,12 @@ mod tests {
         primitives::U256,
         sol_types::{SolCall, SolError},
     };
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::{UnknownFunctionSelector, legacyAuthorizeKeyCall};
 
     #[test]
     fn test_account_keychain_selector_coverage() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let mut fee_manager = AccountKeychain::new();
             let selectors: Vec<_> = IAccountKeychainCalls::SELECTORS
@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_legacy_authorize_key_selector_supported_pre_t3() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1C);
         let account = Address::random();
         let key_id = Address::random();
         let token = Address::random();
@@ -186,7 +186,7 @@ mod tests {
 
     #[test]
     fn test_new_authorize_key_selector_rejected_pre_t3() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1C);
         let account = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -219,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_legacy_authorize_key_selector_rejected_post_t3() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn test_get_remaining_limit_uses_legacy_return_shape_pre_t3() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1C);
         let account = Address::random();
         let key_id = Address::random();
         let token = Address::random();
@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn test_get_remaining_limit_with_period_rejected_pre_t3() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1C);
         let account = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -320,7 +320,7 @@ mod tests {
         let key_id = Address::random();
         let token = Address::random();
 
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let mut keychain = AccountKeychain::new();
             keychain.initialize()?;
@@ -353,7 +353,7 @@ mod tests {
         let selector = getRemainingLimitWithPeriodCall::SELECTOR;
         let calldata = selector.to_vec();
 
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let mut keychain = AccountKeychain::new();
 

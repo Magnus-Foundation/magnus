@@ -88,7 +88,7 @@ fn test_mapping() {
             profile2
         );
 
-        Ok::<(), magnus_precompiles::error::TempoPrecompileError>(())
+        Ok::<(), magnus_precompiles::error::MagnusPrecompileError>(())
     })
     .unwrap();
 }

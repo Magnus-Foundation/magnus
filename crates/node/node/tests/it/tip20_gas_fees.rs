@@ -9,7 +9,7 @@ use alloy_network::TransactionBuilder;
 use alloy_primitives::Bytes;
 use alloy_rpc_types_eth::TransactionRequest;
 use std::env;
-use magnus_alloy::rpc::TempoTransactionReceipt;
+use magnus_alloy::rpc::MagnusTransactionReceipt;
 use magnus_contracts::precompiles::{IFeeManager, ITIP20};
 use magnus_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS};
 use magnus_primitives::transaction::calc_gas_balance_spending;
@@ -47,7 +47,7 @@ async fn test_fee_in_stable() -> eyre::Result<()> {
     let pending_tx = provider.send_transaction(tx).await?;
     let tx_hash = pending_tx.watch().await?;
     let receipt = provider
-        .raw_request::<_, TempoTransactionReceipt>("eth_getTransactionReceipt".into(), (tx_hash,))
+        .raw_request::<_, MagnusTransactionReceipt>("eth_getTransactionReceipt".into(), (tx_hash,))
         .await?;
 
     // Assert that the fee token balance has decreased by gas spent
@@ -115,7 +115,7 @@ async fn test_default_fee_token() -> eyre::Result<()> {
     let pending_tx = new_provider.send_transaction(tx).await?;
     let tx_hash = pending_tx.watch().await?;
     let receipt = new_provider
-        .raw_request::<_, TempoTransactionReceipt>("eth_getTransactionReceipt".into(), (tx_hash,))
+        .raw_request::<_, MagnusTransactionReceipt>("eth_getTransactionReceipt".into(), (tx_hash,))
         .await?;
 
     // Assert that the fee token balance has decreased by gas spent
@@ -167,7 +167,7 @@ async fn test_fee_transfer_logs() -> eyre::Result<()> {
     let pending_tx = provider.send_transaction(tx).await?;
     let tx_hash = pending_tx.watch().await?;
     let receipt = provider
-        .raw_request::<_, TempoTransactionReceipt>("eth_getTransactionReceipt".into(), (tx_hash,))
+        .raw_request::<_, MagnusTransactionReceipt>("eth_getTransactionReceipt".into(), (tx_hash,))
         .await?;
 
     // Assert that the fee token balance has decreased by gas spent

@@ -15,14 +15,14 @@ use alloy_rpc_types_eth::{
     state::{AccountOverride, StateOverride},
 };
 use reth_evm::revm::interpreter::instructions::utility::IntoU256;
-use magnus_chainspec::{hardfork::TempoHardfork, spec::TEMPO_T1_BASE_FEE};
+use magnus_chainspec::{hardfork::MagnusHardfork, spec::MAGNUS_T1_BASE_FEE};
 use magnus_contracts::precompiles::{
     IFeeManager,
     ITIP20::{self, transferCall},
     ITIPFeeAMM, IValidatorConfig, UnknownFunctionSelector,
 };
 use magnus_precompiles::{
-    PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS, error::TempoPrecompileError, storage::ContractStorage,
+    PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS, error::MagnusPrecompileError, storage::ContractStorage,
     tip20::TIP20Token, validator_config::ValidatorConfig,
 };
 use test_case::test_case;
@@ -36,7 +36,7 @@ fn extract_revert_data(
 
 /// Expected revert bytes for `Panic(UnderOverflow)`.
 fn under_overflow_revert() -> Bytes {
-    TempoPrecompileError::under_overflow()
+    MagnusPrecompileError::under_overflow()
         .into_precompile_result(0, 0)
         .unwrap()
         .bytes
@@ -81,7 +81,7 @@ async fn test_eth_call(schedule: ForkSchedule) -> eyre::Result<()> {
     let mint_amount = U256::from(rand::random::<u128>());
     token
         .mint(caller, mint_amount)
-        .gas_price(TEMPO_T1_BASE_FEE as u128)
+        .gas_price(MAGNUS_T1_BASE_FEE as u128)
         .gas(1_000_000)
         .send()
         .await?
@@ -127,7 +127,7 @@ async fn test_eth_trace_call(schedule: ForkSchedule) -> eyre::Result<()> {
     let mint_amount = U256::from(rand::random::<u128>());
     token
         .mint(caller, mint_amount)
-        .gas_price(TEMPO_T1_BASE_FEE as u128)
+        .gas_price(MAGNUS_T1_BASE_FEE as u128)
         .gas(1_000_000)
         .send()
         .await?
@@ -225,7 +225,7 @@ async fn test_eth_get_logs(schedule: ForkSchedule) -> eyre::Result<()> {
     let mint_amount = U256::from(rand::random::<u128>());
     let mint_receipt = token
         .mint(caller, mint_amount)
-        .gas_price(TEMPO_T1_BASE_FEE as u128)
+        .gas_price(MAGNUS_T1_BASE_FEE as u128)
         .gas(1_000_000)
         .send()
         .await?
@@ -235,7 +235,7 @@ async fn test_eth_get_logs(schedule: ForkSchedule) -> eyre::Result<()> {
     let recipient = Address::random();
     token
         .transfer(recipient, mint_amount)
-        .gas_price(TEMPO_T1_BASE_FEE as u128)
+        .gas_price(MAGNUS_T1_BASE_FEE as u128)
         .gas(1_000_000)
         .send()
         .await?
@@ -293,7 +293,7 @@ async fn test_eth_estimate_gas(schedule: ForkSchedule) -> eyre::Result<()> {
     let gas = provider.estimate_gas(tx.clone()).await?;
     // gas estimation is calldata dependent, but should be consistent with same calldata
     // TIP-1000 (T1): gas includes 250k new account cost when nonce=0
-    let expected_gas = if schedule.is_active(TempoHardfork::T3) {
+    let expected_gas = if schedule.is_active(MagnusHardfork::T3) {
         551540
     } else {
         549423
@@ -517,7 +517,7 @@ async fn test_eth_estimate_gas_validator_fee_token_mismatch() -> eyre::Result<()
     let tx = TransactionRequest::default()
         .from(wallet_address)
         .to(*user_fee_token.address())
-        .gas_price(TEMPO_T1_BASE_FEE as u128)
+        .gas_price(MAGNUS_T1_BASE_FEE as u128)
         .input(TransactionInput::new(calldata));
 
     let gas = provider.estimate_gas(tx.clone()).await?;
@@ -615,7 +615,7 @@ async fn test_eth_estimate_gas_preseeded_zero_address_validator_token() -> eyre:
     let tx = TransactionRequest::default()
         .from(wallet_address)
         .to(*user_fee_token.address())
-        .gas_price(TEMPO_T1_BASE_FEE as u128)
+        .gas_price(MAGNUS_T1_BASE_FEE as u128)
         .input(TransactionInput::new(calldata));
 
     let gas = provider.estimate_gas(tx).await?;

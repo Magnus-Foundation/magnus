@@ -1299,19 +1299,19 @@ impl AccountKeychain {
 mod tests {
     use super::*;
     use crate::{
-        error::TempoPrecompileError,
+        error::MagnusPrecompileError,
         storage::{StorageCtx, hashmap::HashMapStorageProvider},
         test_util::TIP20Setup,
     };
     use alloy::primitives::{Address, B256, TxKind, U256};
     use revm::state::Bytecode;
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::{DEFAULT_FEE_TOKEN, IAccountKeychain::SignatureType};
 
     // Helper function to assert unauthorized error
-    fn assert_unauthorized_error(error: TempoPrecompileError) {
+    fn assert_unauthorized_error(error: MagnusPrecompileError) {
         match error {
-            TempoPrecompileError::AccountKeychainError(e) => {
+            MagnusPrecompileError::AccountKeychainError(e) => {
                 assert!(
                     matches!(e, AccountKeychainError::UnauthorizedCaller(_)),
                     "Expected UnauthorizedCaller error, got: {e:?}"
@@ -1321,9 +1321,9 @@ mod tests {
         }
     }
 
-    fn assert_call_not_allowed(error: TempoPrecompileError) {
+    fn assert_call_not_allowed(error: MagnusPrecompileError) {
         match error {
-            TempoPrecompileError::AccountKeychainError(e) => {
+            MagnusPrecompileError::AccountKeychainError(e) => {
                 assert!(
                     matches!(e, AccountKeychainError::CallNotAllowed(_)),
                     "Expected CallNotAllowed error, got: {e:?}"
@@ -1333,9 +1333,9 @@ mod tests {
         }
     }
 
-    fn assert_invalid_call_scope(error: TempoPrecompileError) {
+    fn assert_invalid_call_scope(error: MagnusPrecompileError) {
         match error {
-            TempoPrecompileError::AccountKeychainError(e) => {
+            MagnusPrecompileError::AccountKeychainError(e) => {
                 assert!(
                     matches!(e, AccountKeychainError::InvalidCallScope(_)),
                     "Expected InvalidCallScope error, got: {e:?}"
@@ -1468,7 +1468,7 @@ mod tests {
 
     #[test]
     fn test_admin_operations_require_tx_origin_on_t2() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let tx_origin = Address::random();
         let delegated_sender = Address::random();
         let existing_key = Address::random();
@@ -1548,7 +1548,7 @@ mod tests {
 
     #[test]
     fn test_admin_operations_allow_contract_origin_on_t2() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let contract_sender = Address::random();
         let key_id = Address::random();
         let token = Address::random();
@@ -1617,7 +1617,7 @@ mod tests {
 
     #[test]
     fn test_admin_operations_allow_origin_mismatch_pre_t2() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let msg_sender = Address::random();
         let other_origin = Address::random();
         let key_id = Address::random();
@@ -1673,7 +1673,7 @@ mod tests {
 
     #[test]
     fn test_admin_operations_reject_eoa_mismatch_on_t2() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let account = Address::random();
         let other_origin = Address::random();
         let key_id = Address::random();
@@ -1727,7 +1727,7 @@ mod tests {
     /// This catches any execution path that forgets to call `seed_tx_origin`.
     #[test]
     fn test_admin_operations_reject_unseeded_origin_on_t2() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let account = Address::random();
         let key_id = Address::random();
         let other_key = Address::random();
@@ -1813,7 +1813,7 @@ mod tests {
 
     #[test]
     fn test_replay_protection_revoked_key_cannot_be_reauthorized() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let account = Address::random();
         let key_id = Address::random();
         let token = Address::random();
@@ -1889,7 +1889,7 @@ mod tests {
 
             // Verify it's the correct error
             match replay_result.unwrap_err() {
-                TempoPrecompileError::AccountKeychainError(e) => {
+                MagnusPrecompileError::AccountKeychainError(e) => {
                     assert!(
                         matches!(e, AccountKeychainError::KeyAlreadyRevoked(_)),
                         "Expected KeyAlreadyRevoked error, got: {e:?}"
@@ -1904,7 +1904,7 @@ mod tests {
     #[test]
     fn test_authorize_key_rejects_expiry_in_past() -> eyre::Result<()> {
         // Must use T0 hardfork for expiry validation to be enforced
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         let account = Address::random();
         let key_id = Address::random();
         StorageCtx::enter(&mut storage, || {
@@ -1934,7 +1934,7 @@ mod tests {
 
             // Verify it's the correct error
             match result.unwrap_err() {
-                TempoPrecompileError::AccountKeychainError(e) => {
+                MagnusPrecompileError::AccountKeychainError(e) => {
                     assert!(
                         matches!(e, AccountKeychainError::ExpiryInPast(_)),
                         "Expected ExpiryInPast error, got: {e:?}"
@@ -1959,7 +1959,7 @@ mod tests {
             assert!(
                 matches!(
                     result_past,
-                    Err(TempoPrecompileError::AccountKeychainError(
+                    Err(MagnusPrecompileError::AccountKeychainError(
                         AccountKeychainError::ExpiryInPast(_)
                     ))
                 ),
@@ -1972,7 +1972,7 @@ mod tests {
 
     #[test]
     fn test_pre_t3_authorize_key_rejects_tip_1011_fields_without_writing_key() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1C);
         let account = Address::random();
         let key_id = Address::random();
         let token = Address::random();
@@ -2004,7 +2004,7 @@ mod tests {
             assert!(
                 matches!(
                     result,
-                    Err(TempoPrecompileError::AccountKeychainError(
+                    Err(MagnusPrecompileError::AccountKeychainError(
                         AccountKeychainError::InvalidSpendingLimit(_)
                     ))
                 ),
@@ -2172,7 +2172,7 @@ mod tests {
             let exceed_result = keychain.authorize_approve(eoa, token, U256::ZERO, U256::from(50));
             assert!(matches!(
                 exceed_result,
-                Err(TempoPrecompileError::AccountKeychainError(
+                Err(MagnusPrecompileError::AccountKeychainError(
                     AccountKeychainError::SpendingLimitExceeded(_)
                 ))
             ));
@@ -2317,7 +2317,7 @@ mod tests {
     #[test]
     fn test_authorize_key_rejects_existing_key_boundary() -> eyre::Result<()> {
         // Use pre-T0 to avoid expiry validation (focus on existence check)
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::Genesis);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::Genesis);
         let account = Address::random();
         let key_id = Address::random();
         StorageCtx::enter(&mut storage, || {
@@ -2350,7 +2350,7 @@ mod tests {
             let result = keychain.authorize_key(account, auth_call);
             assert!(result.is_err(), "Should reject when key.expiry > 0");
             match result.unwrap_err() {
-                TempoPrecompileError::AccountKeychainError(e) => {
+                MagnusPrecompileError::AccountKeychainError(e) => {
                     assert!(
                         matches!(e, AccountKeychainError::KeyAlreadyExists(_)),
                         "Expected KeyAlreadyExists, got: {e:?}"
@@ -2843,7 +2843,7 @@ mod tests {
                 "Validation should fail with mismatched signature type"
             );
             match mismatch_result.unwrap_err() {
-                TempoPrecompileError::AccountKeychainError(e) => {
+                MagnusPrecompileError::AccountKeychainError(e) => {
                     assert!(
                         matches!(e, AccountKeychainError::SignatureTypeMismatch(_)),
                         "Expected SignatureTypeMismatch error, got: {e:?}"
@@ -3107,7 +3107,7 @@ mod tests {
             keychain.set_tx_origin(eoa)?;
             keychain.authorize_transfer(eoa, token, U256::from(60))?;
 
-            Ok::<_, TempoPrecompileError>(keychain.keys[eoa][access_key].as_slot().slot())
+            Ok::<_, MagnusPrecompileError>(keychain.keys[eoa][access_key].as_slot().slot())
         })?;
 
         storage.fail_next_sload_at(ACCOUNT_KEYCHAIN_ADDRESS, key_slot);
@@ -3121,7 +3121,7 @@ mod tests {
                 .refund_spending_limit(eoa, token, U256::from(25))
                 .unwrap_err();
 
-            assert!(matches!(err, TempoPrecompileError::Fatal(_)));
+            assert!(matches!(err, MagnusPrecompileError::Fatal(_)));
 
             Ok(())
         })
@@ -3189,7 +3189,7 @@ mod tests {
 
     #[test]
     fn test_t3_refund_spending_limit_clamps_to_max() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let eoa = Address::random();
         let access_key = Address::random();
         let token = Address::random();
@@ -3254,7 +3254,7 @@ mod tests {
 
     #[test]
     fn test_t3_refund_spending_limit_preserves_legacy_rows_without_max() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let eoa = Address::random();
         let access_key = Address::random();
         let token = Address::random();
@@ -3298,7 +3298,7 @@ mod tests {
 
     #[test]
     fn test_t3_authorize_key_ignores_limits_when_enforce_limits_false() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
         let token = Address::random();
@@ -3349,7 +3349,7 @@ mod tests {
 
     #[test]
     fn test_t3_rejects_spending_limits_above_u128() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let invalid_key_id = Address::random();
         let valid_key_id = Address::random();
@@ -3384,7 +3384,7 @@ mod tests {
             assert!(
                 matches!(
                     authorize_result,
-                    Err(TempoPrecompileError::AccountKeychainError(
+                    Err(MagnusPrecompileError::AccountKeychainError(
                         AccountKeychainError::InvalidSpendingLimit(_)
                     ))
                 ),
@@ -3422,7 +3422,7 @@ mod tests {
             assert!(
                 matches!(
                     update_result,
-                    Err(TempoPrecompileError::AccountKeychainError(
+                    Err(MagnusPrecompileError::AccountKeychainError(
                         AccountKeychainError::InvalidSpendingLimit(_)
                     ))
                 ),
@@ -3435,7 +3435,7 @@ mod tests {
 
     #[test]
     fn test_t3_rejects_duplicate_token_limits() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
         let token = Address::random();
@@ -3475,7 +3475,7 @@ mod tests {
             assert!(
                 matches!(
                     result,
-                    Err(TempoPrecompileError::AccountKeychainError(
+                    Err(MagnusPrecompileError::AccountKeychainError(
                         AccountKeychainError::InvalidSpendingLimit(_)
                     ))
                 ),
@@ -3494,7 +3494,7 @@ mod tests {
 
     #[test]
     fn test_spending_limit_state_preserves_legacy_remaining_slot() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
         let token = Address::random();
@@ -3524,7 +3524,7 @@ mod tests {
 
     #[test]
     fn test_t3_rejects_recipient_constrained_scope_for_undeployed_tip20() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
         let recipient = Address::repeat_byte(0x44);
@@ -3571,7 +3571,7 @@ mod tests {
                 .expect_err("unexpected success for undeployed TIP-20 target");
 
             match err {
-                TempoPrecompileError::AccountKeychainError(
+                MagnusPrecompileError::AccountKeychainError(
                     AccountKeychainError::InvalidCallScope(_),
                 ) => {}
                 other => panic!("expected InvalidCallScope, got {other:?}"),
@@ -3583,7 +3583,7 @@ mod tests {
 
     #[test]
     fn test_t3_periodic_limit_rollover() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         storage.set_timestamp(U256::from(1_000u64));
 
         let account = Address::random();
@@ -3660,7 +3660,7 @@ mod tests {
 
     #[test]
     fn test_t3_get_allowed_calls_distinguishes_unrestricted_and_deny_all() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
 
@@ -3707,7 +3707,7 @@ mod tests {
 
     #[test]
     fn test_t3_get_allowed_calls_returns_deny_all_for_inactive_keys() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let revoked_key = Address::random();
         let expiring_key = Address::random();
@@ -3776,7 +3776,7 @@ mod tests {
 
     #[test]
     fn test_expired_key_has_zero_remaining_limit() -> eyre::Result<()> {
-        for hardfork in [TempoHardfork::T0, TempoHardfork::T2, TempoHardfork::T3] {
+        for hardfork in [MagnusHardfork::T0, MagnusHardfork::T2, MagnusHardfork::T3] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
             let account = Address::random();
             let key_id = Address::random();
@@ -3855,7 +3855,7 @@ mod tests {
 
     #[test]
     fn test_revoked_key_has_zero_remaining_limit() -> eyre::Result<()> {
-        for hardfork in [TempoHardfork::T0, TempoHardfork::T2, TempoHardfork::T3] {
+        for hardfork in [MagnusHardfork::T0, MagnusHardfork::T2, MagnusHardfork::T3] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
             let account = Address::random();
             let key_id = Address::random();
@@ -3928,7 +3928,7 @@ mod tests {
     fn test_zero_key_remaining_limit_reads_storage_on_t2_but_not_t3() -> eyre::Result<()> {
         let (account, token) = (Address::random(), Address::random());
 
-        for (hardfork, expected_sloads) in [(TempoHardfork::T2, 1_u64), (TempoHardfork::T3, 0)] {
+        for (hardfork, expected_sloads) in [(MagnusHardfork::T2, 1_u64), (MagnusHardfork::T3, 0)] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
             StorageCtx::enter(&mut storage, || {
                 let mut keychain = AccountKeychain::new();
@@ -3959,7 +3959,7 @@ mod tests {
 
     #[test]
     fn test_t3_set_allowed_calls_rejects_zero_target() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
 
@@ -4004,7 +4004,7 @@ mod tests {
 
     #[test]
     fn test_t3_set_allowed_calls_rejects_empty_scope_batch() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
 
@@ -4053,7 +4053,7 @@ mod tests {
 
     #[test]
     fn test_t3_set_allowed_calls_roundtrip_and_remove_target_scope() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
         let target = Address::random();
@@ -4146,7 +4146,7 @@ mod tests {
 
     #[test]
     fn test_t3_set_allowed_calls_empty_selector_rules_allow_all_selectors() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
         let target = DEFAULT_FEE_TOKEN;
@@ -4206,7 +4206,7 @@ mod tests {
 
     #[test]
     fn test_t3_call_scope_selector_and_recipient_checks() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
         let target = DEFAULT_FEE_TOKEN;
@@ -4291,7 +4291,7 @@ mod tests {
 
     #[test]
     fn test_t3_contract_creation_rejected_for_access_key() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
 

@@ -4,7 +4,7 @@ use crate::{
 use alloy::{primitives::Address, sol_types::SolInterface};
 use revm::precompile::PrecompileResult;
 use magnus_contracts::precompiles::IAddressRegistry::IAddressRegistryCalls;
-use magnus_primitives::{MasterId, TempoAddressExt, UserTag};
+use magnus_primitives::{MasterId, MagnusAddressExt, UserTag};
 
 impl Precompile for AddressRegistry {
     fn call(&mut self, calldata: &[u8], msg_sender: Address) -> PrecompileResult {
@@ -56,11 +56,11 @@ mod tests {
         test_util::{assert_full_coverage, check_selector_coverage},
     };
     use alloy::sol_types::{SolCall, SolValue};
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
 
     #[test]
     fn test_selector_coverage() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let mut registry = AddressRegistry::new();
 
@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn test_get_master_precompile() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let mut registry = AddressRegistry::new();
 
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_is_virtual_address_precompile() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let mut registry = AddressRegistry::new();
 

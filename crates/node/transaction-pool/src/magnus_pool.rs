@@ -3,8 +3,8 @@
 // Routes user nonces (nonce_key>0) to minimal 2D nonce pool
 
 use crate::{
-    amm::AmmLiquidityCache, best::MergeBestTransactions, transaction::TempoPooledTransaction,
-    tt_2d_pool::AA2dPool, validator::TempoTransactionValidator,
+    amm::AmmLiquidityCache, best::MergeBestTransactions, transaction::MagnusPooledTransaction,
+    tt_2d_pool::AA2dPool, validator::MagnusTransactionValidator,
 };
 use alloy_consensus::Transaction;
 use alloy_primitives::{
@@ -30,37 +30,37 @@ use reth_transaction_pool::{
 use revm::database::BundleAccount;
 use std::{sync::Arc, time::Instant};
 use magnus_chainspec::{
-    TempoChainSpec,
-    hardfork::{TempoHardfork, TempoHardforks},
+    MagnusChainSpec,
+    hardfork::{MagnusHardfork, MagnusHardforks},
 };
 use magnus_precompiles::{
     DEFAULT_FEE_TOKEN, TIP_FEE_MANAGER_ADDRESS,
     account_keychain::AccountKeychain,
-    error::Result as TempoPrecompileResult,
+    error::Result as MagnusPrecompileResult,
     storage::Handler,
     tip20::TIP20Token,
     tip403_registry::{REJECT_ALL_POLICY_ID, TIP403Registry},
 };
 use magnus_primitives::Block;
-use magnus_revm::TempoStateAccess;
+use magnus_revm::MagnusStateAccess;
 
 /// Tempo transaction pool that routes based on nonce_key
-pub struct TempoTransactionPool<Client> {
+pub struct MagnusTransactionPool<Client> {
     /// Vanilla pool for all standard transactions and AA transactions with regular nonce.
     protocol_pool: Pool<
-        TransactionValidationTaskExecutor<TempoTransactionValidator<Client>>,
-        CoinbaseTipOrdering<TempoPooledTransaction>,
+        TransactionValidationTaskExecutor<MagnusTransactionValidator<Client>>,
+        CoinbaseTipOrdering<MagnusPooledTransaction>,
         InMemoryBlobStore,
     >,
     /// Minimal pool for 2D nonces (nonce_key > 0)
     aa_2d_pool: Arc<RwLock<AA2dPool>>,
 }
 
-impl<Client> TempoTransactionPool<Client> {
+impl<Client> MagnusTransactionPool<Client> {
     pub fn new(
         protocol_pool: Pool<
-            TransactionValidationTaskExecutor<TempoTransactionValidator<Client>>,
-            CoinbaseTipOrdering<TempoPooledTransaction>,
+            TransactionValidationTaskExecutor<MagnusTransactionValidator<Client>>,
+            CoinbaseTipOrdering<MagnusPooledTransaction>,
             InMemoryBlobStore,
         >,
         aa_2d_pool: AA2dPool,
@@ -71,9 +71,9 @@ impl<Client> TempoTransactionPool<Client> {
         }
     }
 }
-impl<Client> TempoTransactionPool<Client>
+impl<Client> MagnusTransactionPool<Client>
 where
-    Client: StateProviderFactory + ChainSpecProvider<ChainSpec = TempoChainSpec> + 'static,
+    Client: StateProviderFactory + ChainSpecProvider<ChainSpec = MagnusChainSpec> + 'static,
 {
     /// Obtains a clone of the shared [`AmmLiquidityCache`].
     pub fn amm_liquidity_cache(&self) -> AmmLiquidityCache {
@@ -114,7 +114,7 @@ where
     /// per block.
     pub fn evict_invalidated_transactions(
         &self,
-        updates: &crate::maintain::TempoPoolUpdates,
+        updates: &crate::maintain::MagnusPoolUpdates,
     ) -> Vec<TxHash> {
         if !updates.has_invalidation_events() {
             return Vec::new();
@@ -435,7 +435,7 @@ where
     fn add_validated_transaction(
         &self,
         origin: TransactionOrigin,
-        transaction: TransactionValidationOutcome<TempoPooledTransaction>,
+        transaction: TransactionValidationOutcome<MagnusPooledTransaction>,
     ) -> PoolResult<AddedTransactionOutcome> {
         match transaction {
             TransactionValidationOutcome::Valid {
@@ -527,7 +527,7 @@ where
 }
 
 // Manual Clone implementation
-impl<Client> Clone for TempoTransactionPool<Client> {
+impl<Client> Clone for MagnusTransactionPool<Client> {
     fn clone(&self) -> Self {
         Self {
             protocol_pool: self.protocol_pool.clone(),
@@ -537,9 +537,9 @@ impl<Client> Clone for TempoTransactionPool<Client> {
 }
 
 // Manual Debug implementation
-impl<Client> std::fmt::Debug for TempoTransactionPool<Client> {
+impl<Client> std::fmt::Debug for MagnusTransactionPool<Client> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TempoTransactionPool")
+        f.debug_struct("MagnusTransactionPool")
             .field("protocol_pool", &"Pool<...>")
             .field("aa_2d_nonce_pool", &"AA2dPool<...>")
             .field("paused_fee_token_pool", &"PausedFeeTokenPool<...>")
@@ -548,16 +548,16 @@ impl<Client> std::fmt::Debug for TempoTransactionPool<Client> {
 }
 
 // Implement the TransactionPool trait
-impl<Client> TransactionPool for TempoTransactionPool<Client>
+impl<Client> TransactionPool for MagnusTransactionPool<Client>
 where
     Client: StateProviderFactory
-        + ChainSpecProvider<ChainSpec = TempoChainSpec>
+        + ChainSpecProvider<ChainSpec = MagnusChainSpec>
         + Send
         + Sync
         + 'static,
-    TempoPooledTransaction: reth_transaction_pool::EthPoolTransaction,
+    MagnusPooledTransaction: reth_transaction_pool::EthPoolTransaction,
 {
-    type Transaction = TempoPooledTransaction;
+    type Transaction = MagnusPooledTransaction;
 
     fn pool_size(&self) -> PoolSize {
         let mut size = self.protocol_pool.pool_size();
@@ -1117,9 +1117,9 @@ where
     }
 }
 
-impl<Client> TransactionPoolExt for TempoTransactionPool<Client>
+impl<Client> TransactionPoolExt for MagnusTransactionPool<Client>
 where
-    Client: StateProviderFactory + ChainSpecProvider<ChainSpec = TempoChainSpec> + 'static,
+    Client: StateProviderFactory + ChainSpecProvider<ChainSpec = MagnusChainSpec> + 'static,
 {
     type Block = Block;
 
@@ -1158,10 +1158,10 @@ pub(crate) fn exceeds_spending_limit(
     subject: &crate::transaction::KeychainSubject,
     fee_token_cost: alloy_primitives::U256,
     current_timestamp: u64,
-    spec: TempoHardfork,
+    spec: MagnusHardfork,
 ) -> bool {
     provider
-        .with_read_only_storage_ctx(spec, || -> TempoPrecompileResult<bool> {
+        .with_read_only_storage_ctx(spec, || -> MagnusPrecompileResult<bool> {
             let keychain = AccountKeychain::new();
             if !keychain.keys[subject.account][subject.key_id]
                 .read()?
@@ -1191,7 +1191,7 @@ pub(crate) fn exceeds_spending_limit(
 fn get_sender_policy_ids(
     provider: &mut impl StateProvider,
     fee_token: Address,
-    spec: TempoHardfork,
+    spec: MagnusHardfork,
     cache: &mut AddressMap<Vec<u64>>,
 ) -> Option<Vec<u64>> {
     if let Some(cached) = cache.get(&fee_token) {
@@ -1235,7 +1235,7 @@ fn get_sender_policy_ids(
 fn get_recipient_policy_ids(
     provider: &mut impl StateProvider,
     fee_token: Address,
-    spec: TempoHardfork,
+    spec: MagnusHardfork,
 ) -> Option<Vec<u64>> {
     provider.with_read_only_storage_ctx(spec, || {
         let policy_id = TIP20Token::from_address(fee_token)
@@ -1275,18 +1275,18 @@ mod tests {
         validate::{EthTransactionValidatorBuilder, ValidTransaction},
     };
     use magnus_chainspec::{
-        hardfork::TempoHardfork,
-        spec::{MODERATO, TEMPO_T1_TX_GAS_LIMIT_CAP},
+        hardfork::MagnusHardfork,
+        spec::{MODERATO, MAGNUS_T1_TX_GAS_LIMIT_CAP},
     };
     use magnus_contracts::precompiles::ITIP403Registry;
-    use magnus_evm::TempoEvmConfig;
+    use magnus_evm::MagnusEvmConfig;
     use magnus_precompiles::{
         PATH_USD_ADDRESS,
         account_keychain::{AccountKeychain, AuthorizedKey, SpendingLimitState},
         tip20::slots as tip20_slots,
         tip403_registry::{CompoundPolicyData, PolicyData, TIP403Registry},
     };
-    use magnus_primitives::{Block, TempoHeader, TempoPrimitives, TempoTxEnvelope};
+    use magnus_primitives::{Block, MagnusHeader, MagnusPrimitives, MagnusTxEnvelope};
 
     fn provider_with_spending_limit(
         account: Address,
@@ -1302,7 +1302,7 @@ mod tests {
                 remaining: remaining_limit,
                 ..Default::default()
             },
-            TempoHardfork::default(),
+            MagnusHardfork::default(),
         )
     }
 
@@ -1311,7 +1311,7 @@ mod tests {
         key_id: Address,
         fee_token: Address,
         limit_state: SpendingLimitState,
-        setup_spec: TempoHardfork,
+        setup_spec: MagnusHardfork,
     ) -> Box<dyn reth_storage_api::StateProvider> {
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
             magnus_chainspec::spec::MODERATO.clone(),
@@ -1329,7 +1329,7 @@ mod tests {
                 })?;
                 let limit_key = AccountKeychain::spending_limit_key(account, key_id);
                 keychain.spending_limits[limit_key][fee_token].write(limit_state)?;
-                Ok::<(), magnus_precompiles::error::TempoPrecompileError>(())
+                Ok::<(), magnus_precompiles::error::MagnusPrecompileError>(())
             })
             .unwrap();
 
@@ -1337,7 +1337,7 @@ mod tests {
     }
 
     fn set_fee_token_balance(
-        provider: &MockEthProvider<TempoPrimitives, TempoChainSpec>,
+        provider: &MockEthProvider<MagnusPrimitives, MagnusChainSpec>,
         fee_token: Address,
         account: Address,
         balance: U256,
@@ -1376,7 +1376,7 @@ mod tests {
             .inner()
             .clone()
             .into_inner();
-        let TempoTxEnvelope::AA(mut signed) = envelope else {
+        let MagnusTxEnvelope::AA(mut signed) = envelope else {
             panic!("expected AA transaction");
         };
         let fee_payer_hash = signed.tx().fee_payer_signature_hash(sender);
@@ -1385,20 +1385,20 @@ mod tests {
                 .sign_hash_sync(&fee_payer_hash)
                 .expect("fee payer signing should succeed"),
         );
-        let pooled = TempoPooledTransaction::new(Recovered::new_unchecked(
-            TempoTxEnvelope::AA(signed),
+        let pooled = MagnusPooledTransaction::new(Recovered::new_unchecked(
+            MagnusTxEnvelope::AA(signed),
             sender,
         ));
 
-        let provider = MockEthProvider::<TempoPrimitives>::new()
+        let provider = MockEthProvider::<MagnusPrimitives>::new()
             .with_chain_spec(std::sync::Arc::unwrap_or_clone(MODERATO.clone()));
         provider.add_account(sender, ExtendedAccount::new(pooled.nonce(), *pooled.cost()));
         provider.add_block(
             B256::random(),
             Block {
-                header: TempoHeader {
+                header: MagnusHeader {
                     inner: Header {
-                        gas_limit: TEMPO_T1_TX_GAS_LIMIT_CAP,
+                        gas_limit: MAGNUS_T1_TX_GAS_LIMIT_CAP,
                         ..Default::default()
                     },
                     ..Default::default()
@@ -1411,12 +1411,12 @@ mod tests {
         set_fee_token_balance(&provider, PATH_USD_ADDRESS, fee_payer, initial_balance);
 
         let inner =
-            EthTransactionValidatorBuilder::new(provider.clone(), TempoEvmConfig::mainnet())
+            EthTransactionValidatorBuilder::new(provider.clone(), MagnusEvmConfig::mainnet())
                 .disable_balance_check()
                 .build(InMemoryBlobStore::default());
         let amm_cache =
             AmmLiquidityCache::new(provider.clone()).expect("failed to setup AmmLiquidityCache");
-        let validator = TempoTransactionValidator::new(
+        let validator = MagnusTransactionValidator::new(
             inner,
             crate::validator::DEFAULT_AA_VALID_AFTER_MAX_SECS,
             crate::validator::DEFAULT_MAX_TEMPO_AUTHORIZATIONS,
@@ -1430,7 +1430,7 @@ mod tests {
             InMemoryBlobStore::default(),
             PoolConfig::default(),
         );
-        let pool = TempoTransactionPool::new(protocol_pool, AA2dPool::new(Default::default()));
+        let pool = MagnusTransactionPool::new(protocol_pool, AA2dPool::new(Default::default()));
 
         pooled.set_resolved_fee_token(PATH_USD_ADDRESS);
         let validated = TransactionValidationOutcome::Valid {
@@ -1454,7 +1454,7 @@ mod tests {
             pooled.fee_token_cost() - U256::from(1_u64),
         );
 
-        let mut updates = crate::maintain::TempoPoolUpdates::new();
+        let mut updates = crate::maintain::MagnusPoolUpdates::new();
         updates
             .fee_balance_changes
             .entry(PATH_USD_ADDRESS)
@@ -1493,7 +1493,7 @@ mod tests {
 
         // Set up TIP403 registry with compound policy pointing to sub-policies
         provider
-            .setup_storage(TempoHardfork::default(), || {
+            .setup_storage(MagnusHardfork::default(), || {
                 let mut registry = TIP403Registry::new();
                 registry.policy_records[compound_policy_id]
                     .base
@@ -1515,7 +1515,7 @@ mod tests {
         let mut cache: AddressMap<Vec<u64>> = AddressMap::default();
 
         let ids =
-            get_sender_policy_ids(&mut state, fee_token, TempoHardfork::default(), &mut cache)
+            get_sender_policy_ids(&mut state, fee_token, MagnusHardfork::default(), &mut cache)
                 .expect("should resolve policy IDs");
 
         assert!(
@@ -1552,7 +1552,7 @@ mod tests {
         );
 
         provider
-            .setup_storage(TempoHardfork::default(), || {
+            .setup_storage(MagnusHardfork::default(), || {
                 let mut registry = TIP403Registry::new();
                 registry.policy_records[compound_policy_id]
                     .base
@@ -1574,7 +1574,7 @@ mod tests {
         let mut cache: AddressMap<Vec<u64>> = AddressMap::default();
 
         let ids =
-            get_sender_policy_ids(&mut state, fee_token, TempoHardfork::default(), &mut cache)
+            get_sender_policy_ids(&mut state, fee_token, MagnusHardfork::default(), &mut cache)
                 .expect("should resolve policy IDs");
 
         assert!(ids.contains(&compound_policy_id));
@@ -1610,7 +1610,7 @@ mod tests {
         );
 
         provider
-            .setup_storage(TempoHardfork::default(), || {
+            .setup_storage(MagnusHardfork::default(), || {
                 let mut registry = TIP403Registry::new();
                 registry.policy_records[compound_policy_id]
                     .base
@@ -1632,7 +1632,7 @@ mod tests {
         let mut cache: AddressMap<Vec<u64>> = AddressMap::default();
 
         let ids =
-            get_sender_policy_ids(&mut state, fee_token, TempoHardfork::default(), &mut cache)
+            get_sender_policy_ids(&mut state, fee_token, MagnusHardfork::default(), &mut cache)
                 .expect("should resolve policy IDs");
 
         assert!(
@@ -1664,7 +1664,7 @@ mod tests {
         );
 
         provider
-            .setup_storage(TempoHardfork::default(), || {
+            .setup_storage(MagnusHardfork::default(), || {
                 let mut registry = TIP403Registry::new();
                 registry.policy_records[compound_policy_id]
                     .base
@@ -1683,7 +1683,7 @@ mod tests {
             .unwrap();
 
         let mut state = provider.latest().unwrap();
-        let ids = get_recipient_policy_ids(&mut state, fee_token, TempoHardfork::default())
+        let ids = get_recipient_policy_ids(&mut state, fee_token, MagnusHardfork::default())
             .expect("should resolve policy IDs");
 
         assert!(
@@ -1721,7 +1721,7 @@ mod tests {
         );
 
         provider
-            .setup_storage(TempoHardfork::default(), || {
+            .setup_storage(MagnusHardfork::default(), || {
                 let mut registry = TIP403Registry::new();
                 registry.policy_records[simple_policy_id]
                     .base
@@ -1733,7 +1733,7 @@ mod tests {
             .unwrap();
 
         let mut state = provider.latest().unwrap();
-        let ids = get_recipient_policy_ids(&mut state, fee_token, TempoHardfork::default())
+        let ids = get_recipient_policy_ids(&mut state, fee_token, MagnusHardfork::default())
             .expect("should resolve policy IDs");
 
         assert_eq!(ids, vec![simple_policy_id]);
@@ -1762,7 +1762,7 @@ mod tests {
             &subject,
             alloy_primitives::U256::from(200),
             0,
-            TempoHardfork::default(),
+            MagnusHardfork::default(),
         ));
     }
 
@@ -1789,7 +1789,7 @@ mod tests {
             &subject,
             alloy_primitives::U256::from(200),
             0,
-            TempoHardfork::default(),
+            MagnusHardfork::default(),
         ));
     }
 
@@ -1809,7 +1809,7 @@ mod tests {
             magnus_chainspec::spec::MODERATO.clone(),
         ));
         provider
-            .setup_storage(TempoHardfork::default(), || {
+            .setup_storage(MagnusHardfork::default(), || {
                 AccountKeychain::new().keys[account][key_id].write(AuthorizedKey {
                     signature_type: 0,
                     expiry: u64::MAX,
@@ -1824,7 +1824,7 @@ mod tests {
             &subject,
             alloy_primitives::U256::from(1),
             0,
-            TempoHardfork::default(),
+            MagnusHardfork::default(),
         ));
     }
 
@@ -1844,7 +1844,7 @@ mod tests {
             magnus_chainspec::spec::MODERATO.clone(),
         ));
         provider
-            .setup_storage(TempoHardfork::default(), || {
+            .setup_storage(MagnusHardfork::default(), || {
                 AccountKeychain::new().keys[account][key_id].write(AuthorizedKey {
                     signature_type: 0,
                     expiry: u64::MAX,
@@ -1859,7 +1859,7 @@ mod tests {
             &subject,
             alloy_primitives::U256::from(1),
             0,
-            TempoHardfork::default(),
+            MagnusHardfork::default(),
         ));
     }
 
@@ -1884,7 +1884,7 @@ mod tests {
                 period: 60,
                 period_end: 10,
             },
-            TempoHardfork::T3,
+            MagnusHardfork::T3,
         );
 
         assert!(!exceeds_spending_limit(
@@ -1892,14 +1892,14 @@ mod tests {
             &subject,
             alloy_primitives::U256::from(50),
             10,
-            TempoHardfork::T3,
+            MagnusHardfork::T3,
         ));
         assert!(exceeds_spending_limit(
             &mut state,
             &subject,
             alloy_primitives::U256::from(150),
             10,
-            TempoHardfork::T3,
+            MagnusHardfork::T3,
         ));
     }
 }

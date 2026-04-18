@@ -12,7 +12,7 @@ mod bootnodes;
 #[cfg(feature = "reth")]
 pub mod spec;
 #[cfg(feature = "reth")]
-pub use spec::TempoChainSpec;
+pub use spec::MagnusChainSpec;
 
 pub mod constants;
 pub mod hardfork;

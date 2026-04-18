@@ -5,7 +5,7 @@
 //! When the token is unpaused, transactions are moved back to the main pool
 //! and re-validated.
 
-use crate::{RevokedKeys, SpendingLimitUpdates, transaction::TempoPooledTransaction};
+use crate::{RevokedKeys, SpendingLimitUpdates, transaction::MagnusPooledTransaction};
 use alloy_primitives::{Address, TxHash, map::HashMap};
 use reth_transaction_pool::{PoolTransaction, ValidPoolTransaction};
 use std::{sync::Arc, time::Instant};
@@ -25,7 +25,7 @@ pub const PAUSED_POOL_GLOBAL_CAP: usize = 10_000;
 #[derive(Debug, Clone)]
 pub struct PausedEntry {
     /// The valid pool transaction that was paused (Arc to avoid expensive clones).
-    pub tx: Arc<ValidPoolTransaction<TempoPooledTransaction>>,
+    pub tx: Arc<ValidPoolTransaction<MagnusPooledTransaction>>,
     /// The `valid_before` timestamp, if any (for expiry tracking).
     pub valid_before: Option<u64>,
 }
@@ -261,9 +261,9 @@ mod tests {
     use alloy_signer_local::PrivateKeySigner;
     use reth_primitives_traits::Recovered;
     use reth_transaction_pool::TransactionOrigin;
-    use magnus_primitives::{TempoTxEnvelope, transaction::tt_signed::AASigned};
+    use magnus_primitives::{MagnusTxEnvelope, transaction::tt_signed::AASigned};
 
-    fn create_valid_tx(sender: Address) -> Arc<ValidPoolTransaction<TempoPooledTransaction>> {
+    fn create_valid_tx(sender: Address) -> Arc<ValidPoolTransaction<MagnusPooledTransaction>> {
         let pooled = TxBuilder::aa(sender).build();
         Arc::new(wrap_valid_tx(pooled, TransactionOrigin::External))
     }
@@ -272,7 +272,7 @@ mod tests {
         sender: Address,
         fee_token: Address,
         sponsored: bool,
-    ) -> Arc<ValidPoolTransaction<TempoPooledTransaction>> {
+    ) -> Arc<ValidPoolTransaction<MagnusPooledTransaction>> {
         let access_key_signer = PrivateKeySigner::random();
         let pooled = TxBuilder::aa(sender)
             .fee_token(fee_token)
@@ -298,8 +298,8 @@ mod tests {
             );
 
             let aa_signed = AASigned::new_unhashed(tx, aa.signature().clone());
-            let envelope: TempoTxEnvelope = aa_signed.into();
-            TempoPooledTransaction::new(Recovered::new_unchecked(envelope, sender))
+            let envelope: MagnusTxEnvelope = aa_signed.into();
+            MagnusPooledTransaction::new(Recovered::new_unchecked(envelope, sender))
         } else {
             pooled
         };

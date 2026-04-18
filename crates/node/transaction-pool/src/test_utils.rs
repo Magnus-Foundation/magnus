@@ -3,7 +3,7 @@
 //! This module provides common helpers for creating test transactions,
 //! wrapping them in pool structures, and setting up mock providers.
 
-use crate::transaction::TempoPooledTransaction;
+use crate::transaction::MagnusPooledTransaction;
 use alloy_consensus::{Transaction, TxEip1559};
 use alloy_eips::eip2930::AccessList;
 use alloy_primitives::{Address, B256, Signature, TxKind, U256};
@@ -14,17 +14,17 @@ use reth_provider::test_utils::{ExtendedAccount, MockEthProvider};
 use reth_transaction_pool::{TransactionOrigin, ValidPoolTransaction};
 use std::time::Instant;
 use magnus_chainspec::{
-    TempoChainSpec,
-    hardfork::TempoHardfork,
+    MagnusChainSpec,
+    hardfork::MagnusHardfork,
     spec::{DEV, MODERATO},
 };
 use magnus_precompiles::storage::{StorageCtx, hashmap::HashMapStorageProvider};
 use magnus_primitives::{
-    TempoPrimitives, TempoTxEnvelope,
+    MagnusPrimitives, MagnusTxEnvelope,
     transaction::{
-        TempoSignedAuthorization, TempoTransaction,
+        MagnusSignedAuthorization, MagnusTransaction,
         magnus_transaction::Call,
-        tt_signature::{KeychainVersion, PrimitiveSignature, TempoSignature},
+        tt_signature::{KeychainVersion, PrimitiveSignature, MagnusSignature},
         tt_signed::AASigned,
     },
 };
@@ -65,7 +65,7 @@ pub(crate) struct TxBuilder {
     /// Custom calls for AA transactions. If None, a default call is created from `kind` and `value`.
     calls: Option<Vec<Call>>,
     /// Authorization list for AA transactions.
-    authorization_list: Option<Vec<TempoSignedAuthorization>>,
+    authorization_list: Option<Vec<MagnusSignedAuthorization>>,
     /// Access list for AA transactions.
     access_list: AccessList,
 }
@@ -173,7 +173,7 @@ impl TxBuilder {
     /// Set the authorization list for the AA transaction.
     pub(crate) fn authorization_list(
         mut self,
-        authorization_list: Vec<TempoSignedAuthorization>,
+        authorization_list: Vec<MagnusSignedAuthorization>,
     ) -> Self {
         self.authorization_list = Some(authorization_list);
         self
@@ -186,7 +186,7 @@ impl TxBuilder {
     }
 
     /// Build an AA transaction.
-    pub(crate) fn build(self) -> TempoPooledTransaction {
+    pub(crate) fn build(self) -> MagnusPooledTransaction {
         let calls = self.calls.unwrap_or_else(|| {
             vec![Call {
                 to: self.kind,
@@ -195,7 +195,7 @@ impl TxBuilder {
             }]
         });
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: MODERATO.chain_id(),
             max_priority_fee_per_gas: self.max_priority_fee_per_gas,
             max_fee_per_gas: self.max_fee_per_gas,
@@ -213,12 +213,12 @@ impl TxBuilder {
         };
 
         let signature =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
         let aa_signed = AASigned::new_unhashed(tx, signature);
-        let envelope: TempoTxEnvelope = aa_signed.into();
+        let envelope: MagnusTxEnvelope = aa_signed.into();
 
         let recovered = Recovered::new_unchecked(envelope, self.sender);
-        TempoPooledTransaction::new(recovered)
+        MagnusPooledTransaction::new(recovered)
     }
 
     /// Build an AA transaction with a V2 keychain signature.
@@ -229,7 +229,7 @@ impl TxBuilder {
         self,
         user_address: Address,
         access_key_signer: &alloy_signer_local::PrivateKeySigner,
-    ) -> TempoPooledTransaction {
+    ) -> MagnusPooledTransaction {
         self.build_keychain_with_version(user_address, access_key_signer, KeychainVersion::V2)
     }
 
@@ -239,7 +239,7 @@ impl TxBuilder {
         user_address: Address,
         access_key_signer: &alloy_signer_local::PrivateKeySigner,
         version: KeychainVersion,
-    ) -> TempoPooledTransaction {
+    ) -> MagnusPooledTransaction {
         use alloy_signer::SignerSync;
         use magnus_primitives::transaction::tt_signature::KeychainSignature;
 
@@ -251,7 +251,7 @@ impl TxBuilder {
             }]
         });
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 1,
             max_priority_fee_per_gas: self.max_priority_fee_per_gas,
             max_fee_per_gas: self.max_fee_per_gas,
@@ -270,7 +270,7 @@ impl TxBuilder {
 
         // Create a temp AASigned to get the signature hash
         let temp_sig =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
         let unsigned = AASigned::new_unhashed(tx.clone(), temp_sig);
         let sig_hash = unsigned.signature_hash();
 
@@ -282,7 +282,7 @@ impl TxBuilder {
                     .expect("signing failed");
                 (
                     sig_hash,
-                    TempoSignature::Keychain(KeychainSignature::new_v1(
+                    MagnusSignature::Keychain(KeychainSignature::new_v1(
                         user_address,
                         PrimitiveSignature::Secp256k1(signature),
                     )),
@@ -296,7 +296,7 @@ impl TxBuilder {
                     .expect("signing failed");
                 (
                     hash,
-                    TempoSignature::Keychain(KeychainSignature::new(
+                    MagnusSignature::Keychain(KeychainSignature::new(
                         user_address,
                         PrimitiveSignature::Secp256k1(signature),
                     )),
@@ -306,16 +306,16 @@ impl TxBuilder {
         let _ = effective_hash;
 
         let signed_tx = AASigned::new_unhashed(tx, keychain_sig);
-        let envelope: TempoTxEnvelope = signed_tx.into();
+        let envelope: MagnusTxEnvelope = signed_tx.into();
         let recovered = {
             use reth_primitives_traits::SignerRecoverable;
             envelope.try_into_recovered().unwrap()
         };
-        TempoPooledTransaction::new(recovered)
+        MagnusPooledTransaction::new(recovered)
     }
 
     /// Build an EIP-1559 transaction.
-    pub(crate) fn build_eip1559(self) -> TempoPooledTransaction {
+    pub(crate) fn build_eip1559(self) -> MagnusPooledTransaction {
         let tx = TxEip1559 {
             chain_id: self.chain_id,
             to: self.kind,
@@ -326,14 +326,14 @@ impl TxBuilder {
             ..Default::default()
         };
 
-        let envelope = TempoTxEnvelope::Eip1559(alloy_consensus::Signed::new_unchecked(
+        let envelope = MagnusTxEnvelope::Eip1559(alloy_consensus::Signed::new_unchecked(
             tx,
             Signature::test_signature(),
             B256::ZERO,
         ));
 
         let recovered = Recovered::new_unchecked(envelope, self.sender);
-        TempoPooledTransaction::new(recovered)
+        MagnusPooledTransaction::new(recovered)
     }
 }
 
@@ -341,9 +341,9 @@ impl TxBuilder {
 ///
 /// Note: Creates a dummy SenderId for testing since the AA2dPool doesn't use it.
 pub(crate) fn wrap_valid_tx(
-    tx: TempoPooledTransaction,
+    tx: MagnusPooledTransaction,
     origin: TransactionOrigin,
-) -> ValidPoolTransaction<TempoPooledTransaction> {
+) -> ValidPoolTransaction<MagnusPooledTransaction> {
     let tx_id = reth_transaction_pool::identifier::TransactionId::new(0u64.into(), tx.nonce());
     ValidPoolTransaction {
         transaction: tx,
@@ -356,7 +356,7 @@ pub(crate) fn wrap_valid_tx(
 }
 
 /// Creates a mock provider with the DEV chain spec (all hardforks active at genesis).
-pub(crate) fn create_mock_provider() -> MockEthProvider<TempoPrimitives, TempoChainSpec> {
+pub(crate) fn create_mock_provider() -> MockEthProvider<MagnusPrimitives, MagnusChainSpec> {
     MockEthProvider::new().with_chain_spec(std::sync::Arc::unwrap_or_clone(DEV.clone()))
 }
 
@@ -366,7 +366,7 @@ pub(crate) fn create_mock_provider() -> MockEthProvider<TempoPrimitives, TempoCh
 /// # Example
 ///
 /// ```ignore
-/// provider.setup_storage(TempoHardfork::T1C, || {
+/// provider.setup_storage(MagnusHardfork::T1C, || {
 ///     AccountKeychain::new().keys[user][key_id].write(AuthorizedKey {
 ///         signature_type: 0,
 ///         expiry: u64::MAX,
@@ -376,13 +376,13 @@ pub(crate) fn create_mock_provider() -> MockEthProvider<TempoPrimitives, TempoCh
 /// });
 /// ```
 pub(crate) trait MockProviderStorageExt {
-    fn setup_storage<R>(&self, spec: TempoHardfork, f: impl FnOnce() -> R) -> R;
+    fn setup_storage<R>(&self, spec: MagnusHardfork, f: impl FnOnce() -> R) -> R;
 }
 
 impl<T: reth_primitives_traits::NodePrimitives> MockProviderStorageExt
-    for MockEthProvider<T, TempoChainSpec>
+    for MockEthProvider<T, MagnusChainSpec>
 {
-    fn setup_storage<R>(&self, spec: TempoHardfork, f: impl FnOnce() -> R) -> R {
+    fn setup_storage<R>(&self, spec: MagnusHardfork, f: impl FnOnce() -> R) -> R {
         let mut provider = HashMapStorageProvider::new_with_spec(1, spec);
         let result = StorageCtx::enter(&mut provider, f);
 

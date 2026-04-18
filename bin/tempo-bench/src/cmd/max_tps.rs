@@ -10,7 +10,7 @@ use reth_tracing::{
     tracing::{debug, error, info},
 };
 use magnus_alloy::{
-    TempoNetwork, fillers::ExpiringNonceFiller, provider::ext::TempoProviderBuilderExt,
+    MagnusNetwork, fillers::ExpiringNonceFiller, provider::ext::MagnusProviderBuilderExt,
 };
 
 use alloy::{
@@ -172,7 +172,7 @@ pub struct MaxTpsArgs {
     #[arg(long, default_value_t = 0.0)]
     mpp_weight: f64,
 
-    /// Address of a deployed TempoStreamChannel contract. Required when `--mpp-weight` > 0.
+    /// Address of a deployed MagnusStreamChannel contract. Required when `--mpp-weight` > 0.
     #[arg(long, default_value = "0x33b901018174ddabe4841042ab76ba85d4e24f25")]
     mpp_contract_address: Option<Address>,
 
@@ -256,7 +256,7 @@ impl MaxTpsArgs {
                 accounts,
                 self.target_urls.clone(),
                 Box::new(|target_url, _cached_nonce_manager| {
-                    ProviderBuilder::new_with_network::<TempoNetwork>()
+                    ProviderBuilder::new_with_network::<MagnusNetwork>()
                         .with_random_2d_nonces()
                         .connect_http(target_url)
                 }),
@@ -309,7 +309,7 @@ impl MaxTpsArgs {
         }
     }
 
-    async fn run_with_manager<F: TxFiller<TempoNetwork> + 'static>(
+    async fn run_with_manager<F: TxFiller<MagnusNetwork> + 'static>(
         self,
         signer_provider_manager: SignerProviderManager<F>,
     ) -> eyre::Result<()> {
@@ -338,10 +338,10 @@ impl MaxTpsArgs {
 
         // Fund accounts from faucet if requested
         if self.faucet {
-            let faucet_provider: DynProvider<TempoNetwork> =
+            let faucet_provider: DynProvider<MagnusNetwork> =
                 if let Some(ref faucet_url) = self.faucet_url {
                     info!(%faucet_url, "Using custom faucet URL");
-                    ProviderBuilder::new_with_network::<TempoNetwork>()
+                    ProviderBuilder::new_with_network::<MagnusNetwork>()
                         .connect_http(faucet_url.clone())
                         .erased()
                 } else {
@@ -733,7 +733,7 @@ struct GenerateTransactionsInput {
 }
 
 /// Returns an infinite stream of futures, each generating, signing, and encoding one transaction.
-fn generate_transactions<F: TxFiller<TempoNetwork> + 'static>(
+fn generate_transactions<F: TxFiller<MagnusNetwork> + 'static>(
     signer_provider_manager: SignerProviderManager<F>,
     input: GenerateTransactionsInput,
     counters: TransactionCounters,
@@ -957,7 +957,7 @@ fn generate_transactions<F: TxFiller<TempoNetwork> + 'static>(
 
 /// Funds accounts from the faucet using `temp_fundAddress` RPC.
 async fn fund_accounts(
-    provider: &DynProvider<TempoNetwork>,
+    provider: &DynProvider<MagnusNetwork>,
     addresses: &[Address],
     max_concurrent_requests: usize,
     max_concurrent_transactions: usize,
@@ -1055,7 +1055,7 @@ struct BenchmarkReport {
 }
 
 pub async fn generate_report(
-    provider: DynProvider<TempoNetwork>,
+    provider: DynProvider<MagnusNetwork>,
     start_block: BlockNumber,
     end_block: BlockNumber,
     args: &MaxTpsArgs,
@@ -1180,7 +1180,7 @@ async fn monitor_tps(counters: TransactionCounters, target_count: usize, token: 
 }
 
 async fn join_all<
-    T: Future<Output = alloy::contract::Result<PendingTransactionBuilder<TempoNetwork>>>,
+    T: Future<Output = alloy::contract::Result<PendingTransactionBuilder<MagnusNetwork>>>,
 >(
     futures: impl IntoIterator<Item = T>,
     max_concurrent_requests: usize,

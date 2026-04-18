@@ -42,7 +42,7 @@ use magnus_precompiles::{
         AccountKeychain, CallScope as PrecompileCallScope, KeyRestrictions,
         SelectorRule as PrecompileSelectorRule, TokenLimit, authorizeKeyCall,
     },
-    error::TempoPrecompileError,
+    error::MagnusPrecompileError,
     nonce::{
         EXPIRING_NONCE_MAX_EXPIRY_SECS, EXPIRING_NONCE_SET_CAPACITY, INonce::getNonceCall,
         NonceManager,
@@ -54,19 +54,19 @@ use magnus_precompiles::{
     tip20::{ITIP20::InsufficientBalance, TIP20Error, TIP20Token},
 };
 use magnus_primitives::{
-    TempoAddressExt,
+    MagnusAddressExt,
     transaction::{
-        PrimitiveSignature, SignatureType, TEMPO_EXPIRING_NONCE_KEY, TempoSignature,
+        PrimitiveSignature, SignatureType, MAGNUS_EXPIRING_NONCE_KEY, MagnusSignature,
         calc_gas_balance_spending, validate_calls,
     },
 };
 
 use crate::{
-    TempoBatchCallEnv, TempoEvm, TempoInvalidTransaction, TempoTxEnv,
-    common::TempoStateAccess,
-    error::{FeePaymentError, TempoHaltReason},
-    evm::TempoContext,
-    gas_params::TempoGasParams,
+    MagnusBatchCallEnv, MagnusEvm, MagnusInvalidTransaction, MagnusTxEnv,
+    common::MagnusStateAccess,
+    error::{FeePaymentError, MagnusHaltReason},
+    evm::MagnusContext,
+    gas_params::MagnusGasParams,
 };
 
 /// Additional gas for P256 signature verification
@@ -128,10 +128,10 @@ fn primitive_signature_verification_gas(signature: &PrimitiveSignature) -> u64 {
 /// For Keychain signatures, adds key validation overhead to the inner signature cost
 /// Returns the additional gas required beyond the base transaction cost.
 #[inline]
-fn magnus_signature_verification_gas(signature: &TempoSignature) -> u64 {
+fn magnus_signature_verification_gas(signature: &MagnusSignature) -> u64 {
     match signature {
-        TempoSignature::Primitive(prim_sig) => primitive_signature_verification_gas(prim_sig),
-        TempoSignature::Keychain(keychain_sig) => {
+        MagnusSignature::Primitive(prim_sig) => primitive_signature_verification_gas(prim_sig),
+        MagnusSignature::Keychain(keychain_sig) => {
             // Keychain = inner signature + key validation overhead (SLOAD + processing)
             primitive_signature_verification_gas(&keychain_sig.signature) + KEYCHAIN_VALIDATION_GAS
         }
@@ -279,7 +279,7 @@ fn translate_allowed_calls_for_precompile(
 fn calculate_key_authorization_gas(
     key_auth: &magnus_primitives::transaction::SignedKeyAuthorization,
     gas_params: &GasParams,
-    spec: magnus_chainspec::hardfork::TempoHardfork,
+    spec: magnus_chainspec::hardfork::MagnusHardfork,
 ) -> u64 {
     // All signature types pay ECRECOVER_GAS (3k) as the baseline since
     // primitive_signature_verification_gas assumes ecrecover is already in base 21k.
@@ -336,7 +336,7 @@ fn calculate_key_authorization_gas(
 /// handling where nonce_2d_gas is added to init_and_floor_gas but not to evm.initial_gas.
 #[inline]
 fn adjusted_initial_gas(
-    spec: magnus_chainspec::hardfork::TempoHardfork,
+    spec: magnus_chainspec::hardfork::MagnusHardfork,
     evm_initial_gas: u64,
     init_and_floor_gas: &InitialAndFloorGas,
 ) -> InitialAndFloorGas {
@@ -351,13 +351,13 @@ fn adjusted_initial_gas(
 ///
 /// Fees are paid in fee tokens instead of account balance.
 #[derive(Debug)]
-pub struct TempoEvmHandler<DB, I> {
+pub struct MagnusEvmHandler<DB, I> {
     /// Phantom data to avoid type inference issues.
     _phantom: core::marker::PhantomData<(DB, I)>,
 }
 
-impl<DB, I> TempoEvmHandler<DB, I> {
-    /// Create a new [`TempoEvmHandler`] handler instance
+impl<DB, I> MagnusEvmHandler<DB, I> {
+    /// Create a new [`MagnusEvmHandler`] handler instance
     pub fn new() -> Self {
         Self {
             _phantom: core::marker::PhantomData,
@@ -365,11 +365,11 @@ impl<DB, I> TempoEvmHandler<DB, I> {
     }
 }
 
-impl<DB: alloy_evm::Database, I> TempoEvmHandler<DB, I> {
+impl<DB: alloy_evm::Database, I> MagnusEvmHandler<DB, I> {
     fn seed_tx_origin(
         &self,
-        evm: &mut TempoEvm<DB, I>,
-    ) -> Result<(), EVMError<DB::Error, TempoInvalidTransaction>> {
+        evm: &mut MagnusEvm<DB, I>,
+    ) -> Result<(), EVMError<DB::Error, MagnusInvalidTransaction>> {
         let ctx = evm.ctx_mut();
 
         // Seed tx.origin in keychain transient storage for both regular execution and
@@ -388,16 +388,16 @@ impl<DB: alloy_evm::Database, I> TempoEvmHandler<DB, I> {
     }
 }
 
-impl<DB, I> TempoEvmHandler<DB, I>
+impl<DB, I> MagnusEvmHandler<DB, I>
 where
     DB: alloy_evm::Database,
 {
     fn prevalidate_keychain_call_scopes(
         &self,
-        evm: &mut TempoEvm<DB, I>,
+        evm: &mut MagnusEvm<DB, I>,
         calls: &[magnus_primitives::transaction::Call],
         remaining_gas: &mut u64,
-    ) -> Result<Option<FrameResult>, EVMError<DB::Error, TempoInvalidTransaction>> {
+    ) -> Result<Option<FrameResult>, EVMError<DB::Error, MagnusInvalidTransaction>> {
         let spec = *evm.ctx().cfg().spec();
         if !spec.is_t3() {
             return Ok(None);
@@ -449,7 +449,7 @@ where
                         call.input.as_ref(),
                     )?;
                 }
-                Ok::<(), TempoPrecompileError>(())
+                Ok::<(), MagnusPrecompileError>(())
             });
 
         match validation {
@@ -497,16 +497,16 @@ where
     /// execution can use by providing the appropriate exec loop function.
     fn execute_single_call_with<F>(
         &mut self,
-        evm: &mut TempoEvm<DB, I>,
+        evm: &mut MagnusEvm<DB, I>,
         init_and_floor_gas: &InitialAndFloorGas,
         mut run_loop: F,
-    ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>>
+    ) -> Result<FrameResult, EVMError<DB::Error, MagnusInvalidTransaction>>
     where
         F: FnMut(
             &mut Self,
-            &mut TempoEvm<DB, I>,
-            <<TempoEvm<DB, I> as EvmTr>::Frame as FrameTr>::FrameInit,
-        ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>>,
+            &mut MagnusEvm<DB, I>,
+            <<MagnusEvm<DB, I> as EvmTr>::Frame as FrameTr>::FrameInit,
+        ) -> Result<FrameResult, EVMError<DB::Error, MagnusInvalidTransaction>>,
     {
         let gas_limit = evm.ctx().tx().gas_limit() - init_and_floor_gas.initial_total_gas;
 
@@ -527,9 +527,9 @@ where
     /// This calls the same helper methods used by the default [`Handler::execution`] implementation.
     fn execute_single_call(
         &mut self,
-        evm: &mut TempoEvm<DB, I>,
+        evm: &mut MagnusEvm<DB, I>,
         init_and_floor_gas: &InitialAndFloorGas,
-    ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>> {
+    ) -> Result<FrameResult, EVMError<DB::Error, MagnusInvalidTransaction>> {
         self.execute_single_call_with(evm, init_and_floor_gas, Self::run_exec_loop)
     }
 
@@ -550,17 +550,17 @@ where
     /// - Reverting the outer checkpoint undoes all nested changes
     fn execute_multi_call_with<F>(
         &mut self,
-        evm: &mut TempoEvm<DB, I>,
+        evm: &mut MagnusEvm<DB, I>,
         init_and_floor_gas: &InitialAndFloorGas,
         calls: Vec<magnus_primitives::transaction::Call>,
         mut execute_single: F,
-    ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>>
+    ) -> Result<FrameResult, EVMError<DB::Error, MagnusInvalidTransaction>>
     where
         F: FnMut(
             &mut Self,
-            &mut TempoEvm<DB, I>,
+            &mut MagnusEvm<DB, I>,
             &InitialAndFloorGas,
-        ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>>,
+        ) -> Result<FrameResult, EVMError<DB::Error, MagnusInvalidTransaction>>,
     {
         // Create checkpoint for atomic execution - captures state before any calls
         let checkpoint = evm.ctx().journal_mut().checkpoint();
@@ -678,10 +678,10 @@ where
     /// Executes a multi-call AA transaction atomically.
     fn execute_multi_call(
         &mut self,
-        evm: &mut TempoEvm<DB, I>,
+        evm: &mut MagnusEvm<DB, I>,
         init_and_floor_gas: &InitialAndFloorGas,
         calls: Vec<magnus_primitives::transaction::Call>,
-    ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>> {
+    ) -> Result<FrameResult, EVMError<DB::Error, MagnusInvalidTransaction>> {
         self.execute_multi_call_with(evm, init_and_floor_gas, calls, Self::execute_single_call)
     }
 
@@ -691,11 +691,11 @@ where
     /// inspect_run_exec_loop instead of run_exec_loop.
     fn inspect_execute_single_call(
         &mut self,
-        evm: &mut TempoEvm<DB, I>,
+        evm: &mut MagnusEvm<DB, I>,
         init_and_floor_gas: &InitialAndFloorGas,
-    ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>>
+    ) -> Result<FrameResult, EVMError<DB::Error, MagnusInvalidTransaction>>
     where
-        I: Inspector<TempoContext<DB>, EthInterpreter>,
+        I: Inspector<MagnusContext<DB>, EthInterpreter>,
     {
         self.execute_single_call_with(evm, init_and_floor_gas, Self::inspect_run_exec_loop)
     }
@@ -706,12 +706,12 @@ where
     /// inspect_execute_single_call instead of execute_single_call.
     fn inspect_execute_multi_call(
         &mut self,
-        evm: &mut TempoEvm<DB, I>,
+        evm: &mut MagnusEvm<DB, I>,
         init_and_floor_gas: &InitialAndFloorGas,
         calls: Vec<magnus_primitives::transaction::Call>,
-    ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>>
+    ) -> Result<FrameResult, EVMError<DB::Error, MagnusInvalidTransaction>>
     where
-        I: Inspector<TempoContext<DB>, EthInterpreter>,
+        I: Inspector<MagnusContext<DB>, EthInterpreter>,
     {
         self.execute_multi_call_with(
             evm,
@@ -735,17 +735,17 @@ where
     /// behavior as a single source of truth.
     pub fn inspect_execution_with<F>(
         &mut self,
-        evm: &mut TempoEvm<DB, I>,
+        evm: &mut MagnusEvm<DB, I>,
         init_and_floor_gas: &InitialAndFloorGas,
         mut exec_loop: F,
-    ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>>
+    ) -> Result<FrameResult, EVMError<DB::Error, MagnusInvalidTransaction>>
     where
         F: FnMut(
             &mut Self,
-            &mut TempoEvm<DB, I>,
-            <<TempoEvm<DB, I> as EvmTr>::Frame as FrameTr>::FrameInit,
-        ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>>,
-        I: Inspector<TempoContext<DB>, EthInterpreter>,
+            &mut MagnusEvm<DB, I>,
+            <<MagnusEvm<DB, I> as EvmTr>::Frame as FrameTr>::FrameInit,
+        ) -> Result<FrameResult, EVMError<DB::Error, MagnusInvalidTransaction>>,
+        I: Inspector<MagnusContext<DB>, EthInterpreter>,
     {
         let spec = *evm.ctx_ref().cfg().spec();
         let adjusted_gas = adjusted_initial_gas(spec, evm.initial_gas, init_and_floor_gas);
@@ -765,19 +765,19 @@ where
     }
 }
 
-impl<DB, I> Default for TempoEvmHandler<DB, I> {
+impl<DB, I> Default for MagnusEvmHandler<DB, I> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<DB, I> Handler for TempoEvmHandler<DB, I>
+impl<DB, I> Handler for MagnusEvmHandler<DB, I>
 where
     DB: alloy_evm::Database,
 {
-    type Evm = TempoEvm<DB, I>;
-    type Error = EVMError<DB::Error, TempoInvalidTransaction>;
-    type HaltReason = TempoHaltReason;
+    type Evm = MagnusEvm<DB, I>;
+    type Error = EVMError<DB::Error, MagnusInvalidTransaction>;
+    type HaltReason = MagnusHaltReason;
 
     /// Overridden execution method that handles AA vs standard transactions.
     ///
@@ -894,7 +894,7 @@ where
         // Always validate TIP20 prefix to prevent panics in get_token_balance.
         // This is a protocol-level check since validators could bypass initial validation.
         if !fee_token.is_tip20() {
-            return Err(TempoInvalidTransaction::InvalidFeeToken(fee_token).into());
+            return Err(MagnusInvalidTransaction::InvalidFeeToken(fee_token).into());
         }
 
         // Skip USD currency check for cases when the transaction is free and is not a part of a subblock.
@@ -904,7 +904,7 @@ where
                 .is_tip20_usd(cfg.spec, fee_token)
                 .map_err(|err| EVMError::Custom(err.to_string()))?
         {
-            return Err(TempoInvalidTransaction::InvalidFeeToken(fee_token).into());
+            return Err(MagnusInvalidTransaction::InvalidFeeToken(fee_token).into());
         }
 
         // Load the fee payer balance
@@ -922,7 +922,7 @@ where
         let spec = cfg.spec();
 
         // Only treat as expiring nonce if T1 is active, otherwise treat as regular 2D nonce
-        let is_expiring_nonce = nonce_key == TEMPO_EXPIRING_NONCE_KEY && spec.is_t1();
+        let is_expiring_nonce = nonce_key == MAGNUS_EXPIRING_NONCE_KEY && spec.is_t1();
 
         // Validate account nonce and code (EIP-3607) using upstream helper
         pre_execution::validate_account_nonce_and_code(
@@ -964,23 +964,23 @@ where
             let magnus_tx_env = tx
                 .magnus_tx_env
                 .as_ref()
-                .ok_or(TempoInvalidTransaction::ExpiringNonceMissingTxEnv)?;
+                .ok_or(MagnusInvalidTransaction::ExpiringNonceMissingTxEnv)?;
 
             // Expiring nonce txs must have nonce == 0
             if tx.nonce() != 0 {
-                return Err(TempoInvalidTransaction::ExpiringNonceNonceNotZero.into());
+                return Err(MagnusInvalidTransaction::ExpiringNonceNonceNotZero.into());
             }
 
             let replay_hash = if spec.is_t1b() {
                 magnus_tx_env
                     .expiring_nonce_hash
-                    .ok_or(TempoInvalidTransaction::ExpiringNonceMissingTxEnv)?
+                    .ok_or(MagnusInvalidTransaction::ExpiringNonceMissingTxEnv)?
             } else {
                 magnus_tx_env.tx_hash
             };
             let valid_before = magnus_tx_env
                 .valid_before
-                .ok_or(TempoInvalidTransaction::ExpiringNonceMissingValidBefore)?;
+                .ok_or(MagnusInvalidTransaction::ExpiringNonceMissingValidBefore)?;
 
             let block_timestamp = block.timestamp().saturating_to::<u64>();
             StorageCtx::enter_evm(journal, block, cfg, tx, || {
@@ -1007,25 +1007,25 @@ where
                 nonce_manager
                     .check_and_mark_expiring_nonce(replay_hash, valid_before)
                     .map_err(|err| match err {
-                        TempoPrecompileError::Fatal(err) => EVMError::Custom(err),
-                        TempoPrecompileError::NonceError(
+                        MagnusPrecompileError::Fatal(err) => EVMError::Custom(err),
+                        MagnusPrecompileError::NonceError(
                             magnus_contracts::precompiles::NonceError::InvalidExpiringNonceExpiry(_),
                         ) => {
                             let max_allowed =
                                 block_timestamp.saturating_add(EXPIRING_NONCE_MAX_EXPIRY_SECS);
                             if valid_before <= block_timestamp {
-                                TempoInvalidTransaction::NonceManagerError(format!(
+                                MagnusInvalidTransaction::NonceManagerError(format!(
                                     "expiring nonce transaction expired: valid_before ({valid_before}) <= block timestamp ({block_timestamp})"
                                 ))
                                 .into()
                             } else {
-                                TempoInvalidTransaction::NonceManagerError(format!(
+                                MagnusInvalidTransaction::NonceManagerError(format!(
                                     "expiring nonce valid_before ({valid_before}) too far in the future: must be within {EXPIRING_NONCE_MAX_EXPIRY_SECS}s of block timestamp ({block_timestamp}), max allowed is {max_allowed}"
                                 ))
                                 .into()
                             }
                         }
-                        err => TempoInvalidTransaction::NonceManagerError(err.to_string()).into(),
+                        err => MagnusInvalidTransaction::NonceManagerError(err.to_string()).into(),
                     })?;
 
                 if let Some(prev_ptr) = prev_ptr {
@@ -1035,7 +1035,7 @@ where
                         .map_err(|err| EVMError::Custom(err.to_string()))?;
                 }
 
-                Ok::<_, EVMError<DB::Error, TempoInvalidTransaction>>(())
+                Ok::<_, EVMError<DB::Error, MagnusInvalidTransaction>>(())
             })?;
         } else if !nonce_key.is_zero() {
             // 2D nonce transaction
@@ -1050,9 +1050,9 @@ where
                             nonceKey: nonce_key,
                         })
                         .map_err(|err| match err {
-                            TempoPrecompileError::Fatal(err) => EVMError::Custom(err),
+                            MagnusPrecompileError::Fatal(err) => EVMError::Custom(err),
                             err => {
-                                TempoInvalidTransaction::NonceManagerError(err.to_string()).into()
+                                MagnusInvalidTransaction::NonceManagerError(err.to_string()).into()
                             }
                         })?;
 
@@ -1079,11 +1079,11 @@ where
                 nonce_manager
                     .increment_nonce(tx.caller(), nonce_key)
                     .map_err(|err| match err {
-                        TempoPrecompileError::Fatal(err) => EVMError::Custom(err),
-                        err => TempoInvalidTransaction::NonceManagerError(err.to_string()).into(),
+                        MagnusPrecompileError::Fatal(err) => EVMError::Custom(err),
+                        err => MagnusInvalidTransaction::NonceManagerError(err.to_string()).into(),
                     })?;
 
-                Ok::<_, EVMError<DB::Error, TempoInvalidTransaction>>(())
+                Ok::<_, EVMError<DB::Error, MagnusInvalidTransaction>>(())
             })?;
         } else {
             // Protocol nonce (nonce_key == 0)
@@ -1118,12 +1118,12 @@ where
                     // Get the access key address (recovered during Tx->TxEnv conversion and cached)
                     keychain_sig
                         .key_id(&magnus_tx_env.signature_hash)
-                        .map_err(|_| TempoInvalidTransaction::AccessKeyRecoveryFailed)?
+                        .map_err(|_| MagnusInvalidTransaction::AccessKeyRecoveryFailed)?
                 };
 
                 // Only allow if authorizing the same key that's being used (same-tx auth+use)
                 if access_key_addr != key_auth.key_id {
-                    return Err(TempoInvalidTransaction::AccessKeyCannotAuthorizeOtherKeys.into());
+                    return Err(MagnusInvalidTransaction::AccessKeyCannotAuthorizeOtherKeys.into());
                 }
             }
 
@@ -1133,11 +1133,11 @@ where
             // Recover the signer of the KeyAuthorization
             let auth_signer = key_auth
                 .recover_signer()
-                .map_err(|_| TempoInvalidTransaction::KeyAuthorizationSignatureRecoveryFailed)?;
+                .map_err(|_| MagnusInvalidTransaction::KeyAuthorizationSignatureRecoveryFailed)?;
 
             // Verify the KeyAuthorization is signed by the root account
             if auth_signer != *root_account {
-                return Err(TempoInvalidTransaction::KeyAuthorizationNotSignedByRoot {
+                return Err(MagnusInvalidTransaction::KeyAuthorizationNotSignedByRoot {
                     expected: *root_account,
                     actual: auth_signer,
                 }
@@ -1149,20 +1149,20 @@ where
             // Pre-T1C: chain_id == 0 allows replay on any chain (wildcard).
             key_auth
                 .validate_chain_id(cfg.chain_id(), spec.is_t1c())
-                .map_err(TempoInvalidTransaction::from)?;
+                .map_err(MagnusInvalidTransaction::from)?;
 
             // T3 gates all TIP-1011 fields. Before activation, transaction semantics must stay
             // unchanged, so periodic limits and call scopes are rejected.
             if !spec.is_t3() {
                 if key_auth.has_periodic_limits() {
-                    return Err(TempoInvalidTransaction::KeychainValidationFailed {
+                    return Err(MagnusInvalidTransaction::KeychainValidationFailed {
                         reason: "periodic token limits are not active before T3".to_string(),
                     }
                     .into());
                 }
 
                 if key_auth.has_call_scopes() {
-                    return Err(TempoInvalidTransaction::KeychainValidationFailed {
+                    return Err(MagnusInvalidTransaction::KeychainValidationFailed {
                         reason: "call scopes are not active before T3".to_string(),
                     }
                     .into());
@@ -1231,7 +1231,7 @@ where
                 // Validate expiry is not in the past
                 let current_timestamp = block.timestamp().saturating_to::<u64>();
                 if expiry <= current_timestamp {
-                    return Err(TempoInvalidTransaction::AccessKeyExpiryInPast {
+                    return Err(MagnusInvalidTransaction::AccessKeyExpiryInPast {
                         expiry,
                         current_timestamp,
                     }
@@ -1278,9 +1278,9 @@ where
                     // all is good, we can do execution.
                     Ok(_) => Ok(false),
                     // on out of gas we are skipping execution but not invalidating the transaction.
-                    Err(TempoPrecompileError::OutOfGas) => Ok(true),
-                    Err(TempoPrecompileError::Fatal(err)) => Err(EVMError::Custom(err)),
-                    Err(err) => Err(TempoInvalidTransaction::KeychainPrecompileError {
+                    Err(MagnusPrecompileError::OutOfGas) => Ok(true),
+                    Err(MagnusPrecompileError::Fatal(err)) => Err(EVMError::Custom(err)),
+                    Err(err) => Err(MagnusInvalidTransaction::KeychainPrecompileError {
                         reason: err.to_string(),
                     }
                     .into()),
@@ -1327,7 +1327,7 @@ where
 
                 // Sanity check: user_address should match tx.caller
                 if *user_address != tx.caller {
-                    return Err(TempoInvalidTransaction::KeychainUserAddressMismatch {
+                    return Err(MagnusInvalidTransaction::KeychainUserAddressMismatch {
                         user_address: *user_address,
                         caller: tx.caller,
                     }
@@ -1337,7 +1337,7 @@ where
                 // Get the access key address (recovered during pool validation and cached)
                 keychain_sig
                     .key_id(&magnus_tx_env.signature_hash)
-                    .map_err(|_| TempoInvalidTransaction::AccessKeyRecoveryFailed)?
+                    .map_err(|_| MagnusInvalidTransaction::AccessKeyRecoveryFailed)?
             };
 
             // Check if this transaction includes a KeyAuthorization for the same key.
@@ -1365,7 +1365,7 @@ where
                                     key_auth.key_type != keychain_sig.signature.signature_type()
                                 })
                         {
-                            return Err(TempoInvalidTransaction::KeychainValidationFailed {
+                            return Err(MagnusInvalidTransaction::KeychainValidationFailed {
                                 reason: "key authorization key_type does not match the keychain signature type"
                                     .to_string(),
                             }
@@ -1396,7 +1396,7 @@ where
                                 block.timestamp().to::<u64>(),
                                 sig_type,
                             )
-                            .map_err(|e| TempoInvalidTransaction::KeychainValidationFailed {
+                            .map_err(|e| MagnusInvalidTransaction::KeychainValidationFailed {
                                 reason: format!("{e:?}"),
                             })?;
 
@@ -1411,7 +1411,7 @@ where
                         .set_transaction_key(access_key_addr)
                         .map_err(|e| EVMError::Custom(e.to_string()))?;
 
-                    Ok::<_, EVMError<_, TempoInvalidTransaction>>(key_expiry)
+                    Ok::<_, EVMError<_, MagnusInvalidTransaction>>(key_expiry)
                 },
             )?;
 
@@ -1445,14 +1445,14 @@ where
             // indicate the transaction cannot be included (e.g., insufficient liquidity
             // in FeeAMM pool for fee swaps)
             Err(match err {
-                TempoPrecompileError::TIPFeeAMMError(TIPFeeAMMError::InsufficientLiquidity(_)) => {
+                MagnusPrecompileError::TIPFeeAMMError(TIPFeeAMMError::InsufficientLiquidity(_)) => {
                     FeePaymentError::InsufficientAmmLiquidity {
                         fee: gas_balance_spending,
                     }
                     .into()
                 }
 
-                TempoPrecompileError::TIP20(TIP20Error::InsufficientBalance(
+                MagnusPrecompileError::TIP20(TIP20Error::InsufficientBalance(
                     InsufficientBalance { available, .. },
                 )) => FeePaymentError::InsufficientFeeTokenBalance {
                     fee: gas_balance_spending,
@@ -1460,7 +1460,7 @@ where
                 }
                 .into(),
 
-                TempoPrecompileError::Fatal(e) => EVMError::Custom(e),
+                MagnusPrecompileError::Fatal(e) => EVMError::Custom(e),
 
                 _ => FeePaymentError::Other(err.to_string()).into(),
             })
@@ -1556,13 +1556,13 @@ where
             && evm.ctx.tx.has_fee_payer_signature()
             && fee_payer == evm.ctx.tx.caller()
         {
-            return Err(TempoInvalidTransaction::SelfSponsoredFeePayer.into());
+            return Err(MagnusInvalidTransaction::SelfSponsoredFeePayer.into());
         }
 
         // All accounts have zero balance so transfer of value is not possible.
         // Check added in https://github.com/tempoxyz/tempo/pull/759
         if !evm.ctx.tx.value().is_zero() {
-            return Err(TempoInvalidTransaction::ValueTransferNotAllowed.into());
+            return Err(MagnusInvalidTransaction::ValueTransferNotAllowed.into());
         }
 
         // First perform standard validation (header + transaction environment)
@@ -1579,7 +1579,7 @@ where
                 &aa_env.aa_calls,
                 !aa_env.magnus_authorization_list.is_empty(),
             )
-            .map_err(TempoInvalidTransaction::from)?;
+            .map_err(MagnusInvalidTransaction::from)?;
 
             // Access-key CREATE is a cheap structural rejection that does not depend on any
             // per-call scope walk or state mutation. Rejecting it here keeps validation work
@@ -1592,7 +1592,7 @@ where
                     .first()
                     .is_some_and(|call| call.to.is_create())
             {
-                return Err(TempoInvalidTransaction::CallsValidation(
+                return Err(MagnusInvalidTransaction::CallsValidation(
                     "access-key transactions cannot use CREATE as the first call",
                 )
                 .into());
@@ -1602,18 +1602,18 @@ where
             aa_env
                 .signature
                 .validate_version(cfg.spec().is_t1c())
-                .map_err(TempoInvalidTransaction::from)?;
+                .map_err(MagnusInvalidTransaction::from)?;
             for auth in &aa_env.magnus_authorization_list {
                 auth.signature()
                     .validate_version(cfg.spec().is_t1c())
-                    .map_err(TempoInvalidTransaction::from)?;
+                    .map_err(MagnusInvalidTransaction::from)?;
             }
 
             let has_keychain_fields =
                 aa_env.key_authorization.is_some() || aa_env.signature.is_keychain();
 
             if aa_env.subblock_transaction && has_keychain_fields {
-                return Err(TempoInvalidTransaction::KeychainOpInSubblockTransaction.into());
+                return Err(MagnusInvalidTransaction::KeychainOpInSubblockTransaction.into());
             }
 
             // Validate priority fee for AA transactions using revm's validate_priority_fee_tx
@@ -1737,8 +1737,8 @@ where
         // For subblock transactions that failed `collectFeePreTx` call we catch error and treat such transactions as valid.
         if evm.ctx.tx.is_subblock_transaction()
             && let Some(
-                TempoInvalidTransaction::CollectFeePreTx(_)
-                | TempoInvalidTransaction::EthInvalidTransaction(
+                MagnusInvalidTransaction::CollectFeePreTx(_)
+                | MagnusInvalidTransaction::EthInvalidTransaction(
                     InvalidTransaction::LackOfFundForMaxFee { .. },
                 ),
             ) = error.as_invalid_tx_err()
@@ -1752,7 +1752,7 @@ where
             evm.frame_stack().clear();
 
             Ok(ExecutionResult::Halt {
-                reason: TempoHaltReason::SubblockTxFeePayment,
+                reason: MagnusHaltReason::SubblockTxFeePayment,
                 logs: Default::default(),
                 gas: ResultGas::new_with_state_gas(evm.ctx.tx.gas_limit, 0, 0, 0),
             })
@@ -1764,7 +1764,7 @@ where
     }
 }
 
-impl<DB, I> TempoEvmHandler<DB, I>
+impl<DB, I> MagnusEvmHandler<DB, I>
 where
     DB: alloy_evm::Database,
 {
@@ -1773,8 +1773,8 @@ where
     /// Returns a [`ValidationContext`] with context relevant for the transaction pool.
     pub fn validate_transaction(
         &mut self,
-        evm: &mut TempoEvm<DB, I>,
-    ) -> Result<ValidationContext, EVMError<DB::Error, TempoInvalidTransaction>> {
+        evm: &mut MagnusEvm<DB, I>,
+    ) -> Result<ValidationContext, EVMError<DB::Error, MagnusInvalidTransaction>> {
         let mut init_and_floor_gas = self.validate(evm)?;
         self.pre_execution(evm, &mut init_and_floor_gas)?;
         let result = ValidationContext {
@@ -1788,7 +1788,7 @@ where
     }
 }
 
-/// Context returned by [`TempoEvmHandler::validate_transaction`] with resolved
+/// Context returned by [`MagnusEvmHandler::validate_transaction`] with resolved
 /// fee token and key expiry information for use by the transaction pool.
 #[derive(Debug, Clone)]
 pub struct ValidationContext {
@@ -1816,11 +1816,11 @@ pub struct ValidationContext {
 ///   - T1B+: ecrecover + SLOAD + SSTORE × (1 + N limits)
 /// - Floor gas calculation (EIP-7623, Prague+)
 pub fn calculate_aa_batch_intrinsic_gas<'a>(
-    aa_env: &TempoBatchCallEnv,
+    aa_env: &MagnusBatchCallEnv,
     gas_params: &GasParams,
     access_list: Option<impl Iterator<Item = &'a AccessListItem>>,
-    spec: magnus_chainspec::hardfork::TempoHardfork,
-) -> Result<InitialAndFloorGas, TempoInvalidTransaction> {
+    spec: magnus_chainspec::hardfork::MagnusHardfork,
+) -> Result<InitialAndFloorGas, MagnusInvalidTransaction> {
     let calls = &aa_env.aa_calls;
     let signature = &aa_env.signature;
     let authorization_list = &aa_env.magnus_authorization_list;
@@ -1880,7 +1880,7 @@ pub fn calculate_aa_batch_intrinsic_gas<'a>(
         // Note: Transaction value is not allowed in AA transactions as there is no balances in accounts yet.
         // Check added in https://github.com/tempoxyz/tempo/pull/759
         if !call.value.is_zero() {
-            return Err(TempoInvalidTransaction::ValueTransferNotAllowedInAATx);
+            return Err(MagnusInvalidTransaction::ValueTransferNotAllowedInAATx);
         }
 
         // 4c. Value transfer cost using revm constant
@@ -1913,8 +1913,8 @@ pub fn calculate_aa_batch_intrinsic_gas<'a>(
 /// - Signature type (secp256k1: 21k, P256: 26k, WebAuthn: 26k + calldata)
 /// - Batch call costs (per-call overhead, calldata, CREATE, value transfers)
 fn validate_aa_initial_tx_gas<DB, I>(
-    evm: &TempoEvm<DB, I>,
-) -> Result<InitialAndFloorGas, EVMError<DB::Error, TempoInvalidTransaction>>
+    evm: &MagnusEvm<DB, I>,
+) -> Result<InitialAndFloorGas, EVMError<DB::Error, MagnusInvalidTransaction>>
 where
     DB: alloy_evm::Database,
 {
@@ -1948,7 +1948,7 @@ where
     // Calculate 2D nonce gas if nonce_key is non-zero
     // If tx nonce is 0, it's a new key (0 -> 1 transition), otherwise existing key
     if spec.is_t1() {
-        if aa_env.nonce_key == TEMPO_EXPIRING_NONCE_KEY {
+        if aa_env.nonce_key == MAGNUS_EXPIRING_NONCE_KEY {
             // Calculate nonce gas based on nonce type:
             // - Expiring nonce (nonce_key == MAX, T1 active): ring buffer + seen mapping operations
             // - 2D nonce (nonce_key != 0): SLOAD + SSTORE for nonce increment
@@ -2031,16 +2031,16 @@ where
     Ok(balance)
 }
 
-impl<DB, I> InspectorHandler for TempoEvmHandler<DB, I>
+impl<DB, I> InspectorHandler for MagnusEvmHandler<DB, I>
 where
     DB: alloy_evm::Database,
-    I: Inspector<TempoContext<DB>>,
+    I: Inspector<MagnusContext<DB>>,
 {
     type IT = EthInterpreter;
 
     /// Overridden execution method with inspector support that handles AA vs standard transactions.
     ///
-    /// Delegates to [`inspect_execution_with`](TempoEvmHandler::inspect_execution_with) with
+    /// Delegates to [`inspect_execution_with`](MagnusEvmHandler::inspect_execution_with) with
     /// the default [`inspect_run_exec_loop`](Self::inspect_run_exec_loop).
     #[inline]
     fn inspect_execution(
@@ -2070,8 +2070,8 @@ fn oog_frame_result(kind: TxKind, gas_limit: u64) -> FrameResult {
 /// to maintain backward compatibility.
 #[inline]
 fn check_gas_limit(
-    spec: magnus_chainspec::hardfork::TempoHardfork,
-    tx: &TempoTxEnv,
+    spec: magnus_chainspec::hardfork::MagnusHardfork,
+    tx: &MagnusTxEnv,
     adjusted_gas: &InitialAndFloorGas,
 ) -> Option<FrameResult> {
     if spec.is_t0() && tx.gas_limit() < adjusted_gas.initial_total_gas {
@@ -2095,12 +2095,12 @@ pub fn validate_time_window(
     valid_after: Option<u64>,
     valid_before: Option<u64>,
     block_timestamp: u64,
-) -> Result<(), TempoInvalidTransaction> {
+) -> Result<(), MagnusInvalidTransaction> {
     // Validate validAfter constraint
     if let Some(after) = valid_after
         && block_timestamp < after
     {
-        return Err(TempoInvalidTransaction::ValidAfter {
+        return Err(MagnusInvalidTransaction::ValidAfter {
             current: block_timestamp,
             valid_after: after,
         });
@@ -2111,7 +2111,7 @@ pub fn validate_time_window(
     if let Some(before) = valid_before
         && block_timestamp >= before
     {
-        return Err(TempoInvalidTransaction::ValidBefore {
+        return Err(MagnusInvalidTransaction::ValidBefore {
             current: block_timestamp,
             valid_before: before,
         });
@@ -2123,7 +2123,7 @@ pub fn validate_time_window(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{TempoBlockEnv, TempoTxEnv, evm::TempoEvm, tx::TempoBatchCallEnv};
+    use crate::{MagnusBlockEnv, MagnusTxEnv, evm::MagnusEvm, tx::MagnusBatchCallEnv};
     use alloy_primitives::{Address, B256, Bytes, TxKind, U256};
     use proptest::prelude::*;
     use revm::{
@@ -2134,11 +2134,11 @@ mod tests {
         interpreter::{gas::COLD_ACCOUNT_ACCESS_COST, instructions::utility::IntoU256},
         primitives::hardfork::SpecId,
     };
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::DEFAULT_FEE_TOKEN;
     use magnus_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS};
     use magnus_primitives::transaction::{
-        Call, TempoSignature,
+        Call, MagnusSignature,
         tt_signature::{P256SignatureWithPreHash, WebAuthnSignature},
     };
 
@@ -2158,18 +2158,18 @@ mod tests {
             "Test requires a non-TIP20 address"
         );
 
-        let handler: TempoEvmHandler<CacheDB<EmptyDB>, ()> = TempoEvmHandler::default();
+        let handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::default();
 
         // Set up tx with the invalid token as fee_token
-        let tx_env = TempoTxEnv {
+        let tx_env = MagnusTxEnv {
             fee_token: Some(invalid_token),
             ..Default::default()
         };
 
-        let mut evm: TempoEvm<CacheDB<EmptyDB>, ()> = TempoEvm::new(
+        let mut evm: MagnusEvm<CacheDB<EmptyDB>, ()> = MagnusEvm::new(
             Context::mainnet()
                 .with_db(CacheDB::new(EmptyDB::default()))
-                .with_block(TempoBlockEnv::default())
+                .with_block(MagnusBlockEnv::default())
                 .with_cfg(Default::default())
                 .with_tx(tx_env),
             (),
@@ -2180,7 +2180,7 @@ mod tests {
         assert!(
             matches!(
                 result,
-                Err(EVMError::Transaction(TempoInvalidTransaction::InvalidFeeToken(addr))) if addr == invalid_token
+                Err(EVMError::Transaction(MagnusInvalidTransaction::InvalidFeeToken(addr))) if addr == invalid_token
             ),
             "Should reject invalid fee token with InvalidFeeToken error"
         );
@@ -2191,11 +2191,11 @@ mod tests {
         let caller = Address::random();
         let invalid_token = Address::random();
 
-        let handler: TempoEvmHandler<CacheDB<EmptyDB>, ()> = TempoEvmHandler::default();
-        let mut cfg = CfgEnv::<TempoHardfork>::default();
-        cfg.spec = TempoHardfork::T2;
+        let handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::default();
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
+        cfg.spec = MagnusHardfork::T2;
 
-        let tx_env = TempoTxEnv {
+        let tx_env = MagnusTxEnv {
             inner: revm::context::TxEnv {
                 caller,
                 ..Default::default()
@@ -2205,10 +2205,10 @@ mod tests {
             ..Default::default()
         };
 
-        let mut evm: TempoEvm<CacheDB<EmptyDB>, ()> = TempoEvm::new(
+        let mut evm: MagnusEvm<CacheDB<EmptyDB>, ()> = MagnusEvm::new(
             Context::mainnet()
                 .with_db(CacheDB::new(EmptyDB::default()))
-                .with_block(TempoBlockEnv::default())
+                .with_block(MagnusBlockEnv::default())
                 .with_cfg(cfg)
                 .with_tx(tx_env),
             (),
@@ -2218,7 +2218,7 @@ mod tests {
         assert!(matches!(
             result,
             Err(EVMError::Transaction(
-                TempoInvalidTransaction::SelfSponsoredFeePayer
+                MagnusInvalidTransaction::SelfSponsoredFeePayer
             ))
         ));
     }
@@ -2228,11 +2228,11 @@ mod tests {
         let caller = Address::random();
         let invalid_token = Address::random();
 
-        let handler: TempoEvmHandler<CacheDB<EmptyDB>, ()> = TempoEvmHandler::default();
-        let mut cfg = CfgEnv::<TempoHardfork>::default();
-        cfg.spec = TempoHardfork::T1C;
+        let handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::default();
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
+        cfg.spec = MagnusHardfork::T1C;
 
-        let tx_env = TempoTxEnv {
+        let tx_env = MagnusTxEnv {
             inner: revm::context::TxEnv {
                 caller,
                 ..Default::default()
@@ -2242,10 +2242,10 @@ mod tests {
             ..Default::default()
         };
 
-        let mut evm: TempoEvm<CacheDB<EmptyDB>, ()> = TempoEvm::new(
+        let mut evm: MagnusEvm<CacheDB<EmptyDB>, ()> = MagnusEvm::new(
             Context::mainnet()
                 .with_db(CacheDB::new(EmptyDB::default()))
-                .with_block(TempoBlockEnv::default())
+                .with_block(MagnusBlockEnv::default())
                 .with_cfg(cfg)
                 .with_tx(tx_env),
             (),
@@ -2279,11 +2279,11 @@ mod tests {
     #[test]
     fn test_get_fee_token() -> eyre::Result<()> {
         let journal = create_test_journal();
-        let mut ctx: TempoContext<_> = Context::mainnet()
+        let mut ctx: MagnusContext<_> = Context::mainnet()
             .with_db(CacheDB::new(EmptyDB::default()))
-            .with_block(TempoBlockEnv::default())
+            .with_block(MagnusBlockEnv::default())
             .with_cfg(Default::default())
-            .with_tx(TempoTxEnv::default())
+            .with_tx(MagnusTxEnv::default())
             .with_new_journal(journal);
         let user = Address::random();
         ctx.tx.inner.caller = user;
@@ -2340,10 +2340,10 @@ mod tests {
 
     #[test]
     fn test_aa_gas_single_call_vs_normal_tx() {
-        use crate::TempoBatchCallEnv;
+        use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use magnus_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, MagnusSignature};
         let gas_params = GasParams::default();
 
         // Test that AA tx with secp256k1 and single call matches normal tx + per-call overhead
@@ -2357,8 +2357,8 @@ mod tests {
             input: calldata.clone(),
         };
 
-        let aa_env = TempoBatchCallEnv {
-            signature: TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+        let aa_env = MagnusBatchCallEnv {
+            signature: MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                 alloy_primitives::Signature::test_signature(),
             )), // dummy secp256k1 sig
             aa_calls: vec![call],
@@ -2368,7 +2368,7 @@ mod tests {
         };
 
         // Calculate AA gas
-        let spec = magnus_chainspec::hardfork::TempoHardfork::default();
+        let spec = magnus_chainspec::hardfork::MagnusHardfork::default();
         let aa_gas = calculate_aa_batch_intrinsic_gas(
             &aa_env,
             &gas_params,
@@ -2393,10 +2393,10 @@ mod tests {
 
     #[test]
     fn test_aa_gas_multiple_calls_overhead() {
-        use crate::TempoBatchCallEnv;
+        use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use magnus_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, MagnusSignature};
 
         let calldata = Bytes::from(vec![1, 2, 3]); // 3 non-zero bytes
 
@@ -2418,8 +2418,8 @@ mod tests {
             },
         ];
 
-        let aa_env = TempoBatchCallEnv {
-            signature: TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+        let aa_env = MagnusBatchCallEnv {
+            signature: MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                 alloy_primitives::Signature::test_signature(),
             )),
             aa_calls: calls,
@@ -2428,7 +2428,7 @@ mod tests {
             ..Default::default()
         };
 
-        let spec = magnus_chainspec::hardfork::TempoHardfork::default();
+        let spec = magnus_chainspec::hardfork::MagnusHardfork::default();
         let gas = calculate_aa_batch_intrinsic_gas(
             &aa_env,
             &GasParams::default(),
@@ -2451,11 +2451,11 @@ mod tests {
 
     #[test]
     fn test_aa_gas_p256_signature() {
-        use crate::TempoBatchCallEnv;
+        use crate::MagnusBatchCallEnv;
         use alloy_primitives::{B256, Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
         use magnus_primitives::transaction::{
-            Call, TempoSignature, tt_signature::P256SignatureWithPreHash,
+            Call, MagnusSignature, tt_signature::P256SignatureWithPreHash,
         };
 
         let spec = SpecId::CANCUN;
@@ -2467,8 +2467,8 @@ mod tests {
             input: calldata.clone(),
         };
 
-        let aa_env = TempoBatchCallEnv {
-            signature: TempoSignature::Primitive(PrimitiveSignature::P256(
+        let aa_env = MagnusBatchCallEnv {
+            signature: MagnusSignature::Primitive(PrimitiveSignature::P256(
                 P256SignatureWithPreHash {
                     r: B256::ZERO,
                     s: B256::ZERO,
@@ -2487,7 +2487,7 @@ mod tests {
             &aa_env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         )
         .unwrap();
 
@@ -2501,10 +2501,10 @@ mod tests {
 
     #[test]
     fn test_aa_gas_create_call() {
-        use crate::TempoBatchCallEnv;
+        use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use magnus_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, MagnusSignature};
 
         let spec = SpecId::CANCUN; // Post-Shanghai
         let initcode = Bytes::from(vec![0x60, 0x80]); // 2 bytes
@@ -2515,8 +2515,8 @@ mod tests {
             input: initcode.clone(),
         };
 
-        let aa_env = TempoBatchCallEnv {
-            signature: TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+        let aa_env = MagnusBatchCallEnv {
+            signature: MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                 alloy_primitives::Signature::test_signature(),
             )),
             aa_calls: vec![call],
@@ -2529,7 +2529,7 @@ mod tests {
             &aa_env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         )
         .unwrap();
 
@@ -2545,9 +2545,9 @@ mod tests {
 
     #[test]
     fn test_aa_gas_value_transfer() {
-        use crate::TempoBatchCallEnv;
+        use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
-        use magnus_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, MagnusSignature};
 
         let calldata = Bytes::from(vec![1]);
 
@@ -2557,8 +2557,8 @@ mod tests {
             input: calldata,
         };
 
-        let aa_env = TempoBatchCallEnv {
-            signature: TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+        let aa_env = MagnusBatchCallEnv {
+            signature: MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                 alloy_primitives::Signature::test_signature(),
             )),
             aa_calls: vec![call],
@@ -2571,21 +2571,21 @@ mod tests {
             &aa_env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         );
 
         assert_eq!(
             res.unwrap_err(),
-            TempoInvalidTransaction::ValueTransferNotAllowedInAATx
+            MagnusInvalidTransaction::ValueTransferNotAllowedInAATx
         );
     }
 
     #[test]
     fn test_aa_gas_access_list() {
-        use crate::TempoBatchCallEnv;
+        use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use magnus_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, MagnusSignature};
 
         let spec = SpecId::CANCUN;
         let calldata = Bytes::from(vec![]);
@@ -2596,8 +2596,8 @@ mod tests {
             input: calldata.clone(),
         };
 
-        let aa_env = TempoBatchCallEnv {
-            signature: TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+        let aa_env = MagnusBatchCallEnv {
+            signature: MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                 alloy_primitives::Signature::test_signature(),
             )),
             aa_calls: vec![call],
@@ -2611,7 +2611,7 @@ mod tests {
             &aa_env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         )
         .unwrap();
 
@@ -2674,10 +2674,10 @@ mod tests {
 
     #[test]
     fn test_aa_gas_floor_gas_prague() {
-        use crate::TempoBatchCallEnv;
+        use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use magnus_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, MagnusSignature};
 
         let spec = SpecId::PRAGUE;
         let calldata = Bytes::from(vec![1, 2, 3, 4, 5]); // 5 non-zero bytes
@@ -2688,8 +2688,8 @@ mod tests {
             input: calldata.clone(),
         };
 
-        let aa_env = TempoBatchCallEnv {
-            signature: TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+        let aa_env = MagnusBatchCallEnv {
+            signature: MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                 alloy_primitives::Signature::test_signature(),
             )),
             aa_calls: vec![call],
@@ -2702,7 +2702,7 @@ mod tests {
             &aa_env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         )
         .unwrap();
 
@@ -2717,30 +2717,30 @@ mod tests {
     }
 
     /// This test will start failing once we get the balance transfer enabled
-    /// PR that introduced [`TempoInvalidTransaction::ValueTransferNotAllowed`] https://github.com/tempoxyz/tempo/pull/759
+    /// PR that introduced [`MagnusInvalidTransaction::ValueTransferNotAllowed`] https://github.com/tempoxyz/tempo/pull/759
     #[test]
     fn test_zero_value_transfer() -> eyre::Result<()> {
-        use crate::TempoEvm;
+        use crate::MagnusEvm;
 
         // Create a test context with a transaction that has a non-zero value
         let ctx = Context::mainnet()
             .with_db(CacheDB::new(EmptyDB::default()))
             .with_block(Default::default())
             .with_cfg(Default::default())
-            .with_tx(TempoTxEnv::default());
-        let mut evm = TempoEvm::new(ctx, ());
+            .with_tx(MagnusTxEnv::default());
+        let mut evm = MagnusEvm::new(ctx, ());
 
         // Set a non-zero value on the transaction
         evm.ctx.tx.inner.value = U256::from(1000);
 
         // Create the handler
-        let handler = TempoEvmHandler::<_, ()>::new();
+        let handler = MagnusEvmHandler::<_, ()>::new();
 
         // Call validate_env and expect it to fail with ValueTransferNotAllowed
         let result = handler.validate_env(&mut evm);
 
         if let Err(EVMError::Transaction(err)) = result {
-            assert_eq!(err, TempoInvalidTransaction::ValueTransferNotAllowed);
+            assert_eq!(err, MagnusInvalidTransaction::ValueTransferNotAllowed);
         } else {
             panic!("Expected ValueTransferNotAllowed error");
         }
@@ -2781,7 +2781,7 @@ mod tests {
         let gas_0 = calculate_key_authorization_gas(
             &create_key_auth(0),
             &GasParams::default(),
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         );
         assert_eq!(
             gas_0,
@@ -2793,7 +2793,7 @@ mod tests {
         let gas_1 = calculate_key_authorization_gas(
             &create_key_auth(1),
             &GasParams::default(),
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         );
         assert_eq!(
             gas_1,
@@ -2805,7 +2805,7 @@ mod tests {
         let gas_2 = calculate_key_authorization_gas(
             &create_key_auth(2),
             &GasParams::default(),
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         );
         assert_eq!(
             gas_2,
@@ -2817,7 +2817,7 @@ mod tests {
         let gas_3 = calculate_key_authorization_gas(
             &create_key_auth(3),
             &GasParams::default(),
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         );
         assert_eq!(
             gas_3,
@@ -2826,7 +2826,7 @@ mod tests {
         );
 
         // T1B branch: gas = sig_gas + SLOAD + SSTORE * (1 + num_limits) + buffer
-        let t1b_gas_params = crate::gas_params::magnus_gas_params(TempoHardfork::T1B);
+        let t1b_gas_params = crate::gas_params::magnus_gas_params(MagnusHardfork::T1B);
         let sstore =
             t1b_gas_params.get(revm::context_interface::cfg::GasId::sstore_set_without_load_cost());
         let sload =
@@ -2837,7 +2837,7 @@ mod tests {
             let gas = calculate_key_authorization_gas(
                 &create_key_auth(num_limits),
                 &t1b_gas_params,
-                TempoHardfork::T1B,
+                MagnusHardfork::T1B,
             );
             let expected = ECRECOVER_GAS + sload + sstore * (1 + num_limits as u64) + BUFFER;
             assert_eq!(gas, expected, "T1B with {num_limits} limits");
@@ -2847,7 +2847,7 @@ mod tests {
             let gas = calculate_key_authorization_gas(
                 &create_key_auth(num_limits),
                 &t1b_gas_params,
-                TempoHardfork::T3,
+                MagnusHardfork::T3,
             );
             let expected =
                 ECRECOVER_GAS + sload + sstore * (1 + 2 * num_limits as u64) + BUFFER + 5_000;
@@ -2870,7 +2870,7 @@ mod tests {
             signature: PrimitiveSignature::Secp256k1(alloy_primitives::Signature::test_signature()),
         };
 
-        let gas = calculate_key_authorization_gas(&scoped, &t1b_gas_params, TempoHardfork::T3);
+        let gas = calculate_key_authorization_gas(&scoped, &t1b_gas_params, MagnusHardfork::T3);
         // 1 key write + 12 scope slots:
         // account mode(1) + target insertion rows(3) + selector insertion rows(3)
         // + constrained selector recipient-length(1) + recipients values+positions(2*2).
@@ -2927,11 +2927,11 @@ mod tests {
 
     #[test]
     fn test_key_authorization_gas_in_batch() {
-        use crate::TempoBatchCallEnv;
+        use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
         use magnus_primitives::transaction::{
-            Call, KeyAuthorization, SignatureType, SignedKeyAuthorization, TempoSignature,
+            Call, KeyAuthorization, SignatureType, SignedKeyAuthorization, MagnusSignature,
             TokenLimit,
         };
 
@@ -2965,8 +2965,8 @@ mod tests {
             signature: PrimitiveSignature::Secp256k1(alloy_primitives::Signature::test_signature()),
         };
 
-        let aa_env_with_key_auth = TempoBatchCallEnv {
-            signature: TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+        let aa_env_with_key_auth = MagnusBatchCallEnv {
+            signature: MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                 alloy_primitives::Signature::test_signature(),
             )),
             aa_calls: vec![call.clone()],
@@ -2975,8 +2975,8 @@ mod tests {
             ..Default::default()
         };
 
-        let aa_env_without_key_auth = TempoBatchCallEnv {
-            signature: TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+        let aa_env_without_key_auth = MagnusBatchCallEnv {
+            signature: MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                 alloy_primitives::Signature::test_signature(),
             )),
             aa_calls: vec![call],
@@ -2990,7 +2990,7 @@ mod tests {
             &aa_env_with_key_auth,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         )
         .unwrap();
 
@@ -2999,7 +2999,7 @@ mod tests {
             &aa_env_without_key_auth,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         )
         .unwrap();
 
@@ -3013,7 +3013,7 @@ mod tests {
         );
 
         // Also verify absolute values
-        let spec = magnus_chainspec::hardfork::TempoHardfork::default();
+        let spec = magnus_chainspec::hardfork::MagnusHardfork::default();
         let base_tx_gas = calculate_initial_tx_gas(spec.into(), &calldata, false, 0, 0, 0);
         let expected_without = base_tx_gas.initial_total_gas; // no cold access for single call
         let expected_with = expected_without + expected_key_auth_gas;
@@ -3036,31 +3036,31 @@ mod tests {
         const BASE_INTRINSIC_GAS: u64 = 21_000;
 
         for spec in [
-            TempoHardfork::Genesis,
-            TempoHardfork::T0,
-            TempoHardfork::T1,
-            TempoHardfork::T1A,
-            TempoHardfork::T1B,
-            TempoHardfork::T2,
+            MagnusHardfork::Genesis,
+            MagnusHardfork::T0,
+            MagnusHardfork::T1,
+            MagnusHardfork::T1A,
+            MagnusHardfork::T1B,
+            MagnusHardfork::T2,
         ] {
             let gas_params = magnus_gas_params(spec);
 
             let make_evm = |nonce: u64, nonce_key: U256| {
                 let journal = Journal::new(CacheDB::new(EmptyDB::default()));
-                let mut cfg = CfgEnv::<TempoHardfork>::default();
+                let mut cfg = CfgEnv::<MagnusHardfork>::default();
                 cfg.spec = spec;
                 cfg.gas_params = gas_params.clone();
                 let ctx = Context::mainnet()
                     .with_db(CacheDB::new(EmptyDB::default()))
-                    .with_block(TempoBlockEnv::default())
+                    .with_block(MagnusBlockEnv::default())
                     .with_cfg(cfg)
-                    .with_tx(TempoTxEnv {
+                    .with_tx(MagnusTxEnv {
                         inner: revm::context::TxEnv {
                             gas_limit: 1_000_000,
                             nonce,
                             ..Default::default()
                         },
-                        magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
+                        magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                             aa_calls: vec![Call {
                                 to: TxKind::Call(Address::random()),
                                 value: U256::ZERO,
@@ -3072,10 +3072,10 @@ mod tests {
                         ..Default::default()
                     })
                     .with_new_journal(journal);
-                TempoEvm::<_, ()>::new(ctx, ())
+                MagnusEvm::<_, ()>::new(ctx, ())
             };
 
-            let handler: TempoEvmHandler<CacheDB<EmptyDB>, ()> = TempoEvmHandler::new();
+            let handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::new();
 
             // Case 1: Protocol nonce (nonce_key == 0, nonce > 0) - no additional gas
             {
@@ -3125,10 +3125,10 @@ mod tests {
         const BASE_INTRINSIC_GAS: u64 = 21_000;
 
         for spec in [
-            TempoHardfork::Genesis,
-            TempoHardfork::T0,
-            TempoHardfork::T1,
-            TempoHardfork::T2,
+            MagnusHardfork::Genesis,
+            MagnusHardfork::T0,
+            MagnusHardfork::T1,
+            MagnusHardfork::T2,
         ] {
             let gas_params = magnus_gas_params(spec);
 
@@ -3157,20 +3157,20 @@ mod tests {
 
             for (gas_limit, nonce, should_succeed) in cases {
                 let journal = Journal::new(CacheDB::new(EmptyDB::default()));
-                let mut cfg = CfgEnv::<TempoHardfork>::default();
+                let mut cfg = CfgEnv::<MagnusHardfork>::default();
                 cfg.spec = spec;
                 cfg.gas_params = gas_params.clone();
                 let ctx = Context::mainnet()
                     .with_db(CacheDB::new(EmptyDB::default()))
-                    .with_block(TempoBlockEnv::default())
+                    .with_block(MagnusBlockEnv::default())
                     .with_cfg(cfg)
-                    .with_tx(TempoTxEnv {
+                    .with_tx(MagnusTxEnv {
                         inner: revm::context::TxEnv {
                             gas_limit,
                             nonce,
                             ..Default::default()
                         },
-                        magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
+                        magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                             aa_calls: vec![Call {
                                 to: TxKind::Call(Address::random()),
                                 value: U256::ZERO,
@@ -3183,8 +3183,8 @@ mod tests {
                     })
                     .with_new_journal(journal);
 
-                let mut evm: TempoEvm<_, ()> = TempoEvm::new(ctx, ());
-                let handler: TempoEvmHandler<CacheDB<EmptyDB>, ()> = TempoEvmHandler::new();
+                let mut evm: MagnusEvm<_, ()> = MagnusEvm::new(ctx, ());
+                let handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::new();
                 let result = handler.validate_initial_tx_gas(&mut evm);
 
                 if should_succeed {
@@ -3199,7 +3199,7 @@ mod tests {
                     assert!(
                         matches!(
                             err.as_invalid_tx_err(),
-                            Some(TempoInvalidTransaction::EthInvalidTransaction(
+                            Some(MagnusInvalidTransaction::EthInvalidTransaction(
                                 InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                                     | InvalidTransaction::GasFloorMoreThanGasLimit { .. }
                             ))
@@ -3220,17 +3220,17 @@ mod tests {
         let target = DEFAULT_FEE_TOKEN;
 
         let signature =
-            TempoSignature::Keychain(magnus_primitives::transaction::KeychainSignature::new(
+            MagnusSignature::Keychain(magnus_primitives::transaction::KeychainSignature::new(
                 caller,
                 magnus_primitives::transaction::PrimitiveSignature::Secp256k1(
                     alloy_primitives::Signature::test_signature(),
                 ),
             ));
 
-        let mut cfg = CfgEnv::<TempoHardfork>::default();
-        cfg.spec = TempoHardfork::T3;
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
+        cfg.spec = MagnusHardfork::T3;
 
-        let tx_env = TempoTxEnv {
+        let tx_env = MagnusTxEnv {
             inner: revm::context::TxEnv {
                 caller,
                 gas_limit: 1_000_000,
@@ -3238,7 +3238,7 @@ mod tests {
                 ..Default::default()
             },
             fee_token: Some(DEFAULT_FEE_TOKEN),
-            magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
+            magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                 signature,
                 aa_calls: vec![Call {
                     to: TxKind::Call(target),
@@ -3254,13 +3254,13 @@ mod tests {
 
         let ctx = Context::mainnet()
             .with_db(CacheDB::new(EmptyDB::default()))
-            .with_block(TempoBlockEnv::default())
+            .with_block(MagnusBlockEnv::default())
             .with_cfg(cfg)
             .with_tx(tx_env)
             .with_new_journal(create_test_journal());
 
-        let mut evm: TempoEvm<_, ()> = TempoEvm::new(ctx, ());
-        let mut handler: TempoEvmHandler<CacheDB<EmptyDB>, ()> = TempoEvmHandler::new();
+        let mut evm: MagnusEvm<_, ()> = MagnusEvm::new(ctx, ());
+        let mut handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::new();
 
         StorageCtx::enter_ctx(&mut evm.inner.ctx, || {
             let mut keychain = AccountKeychain::new();
@@ -3348,17 +3348,17 @@ mod tests {
         let target = DEFAULT_FEE_TOKEN;
 
         let signature =
-            TempoSignature::Keychain(magnus_primitives::transaction::KeychainSignature::new(
+            MagnusSignature::Keychain(magnus_primitives::transaction::KeychainSignature::new(
                 caller,
                 magnus_primitives::transaction::PrimitiveSignature::Secp256k1(
                     alloy_primitives::Signature::test_signature(),
                 ),
             ));
 
-        let mut cfg = CfgEnv::<TempoHardfork>::default();
-        cfg.spec = TempoHardfork::T3;
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
+        cfg.spec = MagnusHardfork::T3;
 
-        let tx_env = TempoTxEnv {
+        let tx_env = MagnusTxEnv {
             inner: revm::context::TxEnv {
                 caller,
                 gas_limit: 1_000_000,
@@ -3366,7 +3366,7 @@ mod tests {
                 ..Default::default()
             },
             fee_token: Some(DEFAULT_FEE_TOKEN),
-            magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
+            magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                 signature,
                 aa_calls: vec![Call {
                     to: TxKind::Call(target),
@@ -3382,13 +3382,13 @@ mod tests {
 
         let ctx = Context::mainnet()
             .with_db(CacheDB::new(EmptyDB::default()))
-            .with_block(TempoBlockEnv::default())
+            .with_block(MagnusBlockEnv::default())
             .with_cfg(cfg)
             .with_tx(tx_env)
             .with_new_journal(create_test_journal());
 
-        let mut evm: TempoEvm<_, ()> = TempoEvm::new(ctx, ());
-        let mut handler: TempoEvmHandler<CacheDB<EmptyDB>, ()> = TempoEvmHandler::new();
+        let mut evm: MagnusEvm<_, ()> = MagnusEvm::new(ctx, ());
+        let mut handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::new();
 
         StorageCtx::enter_ctx(&mut evm.inner.ctx, || {
             let mut keychain = AccountKeychain::new();
@@ -3448,23 +3448,23 @@ mod tests {
         let access_key = Address::repeat_byte(0x22);
 
         let signature =
-            TempoSignature::Keychain(magnus_primitives::transaction::KeychainSignature::new(
+            MagnusSignature::Keychain(magnus_primitives::transaction::KeychainSignature::new(
                 caller,
                 magnus_primitives::transaction::PrimitiveSignature::Secp256k1(
                     alloy_primitives::Signature::test_signature(),
                 ),
             ));
 
-        let mut cfg = CfgEnv::<TempoHardfork>::default();
-        cfg.spec = TempoHardfork::T3;
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
+        cfg.spec = MagnusHardfork::T3;
 
-        let tx_env = TempoTxEnv {
+        let tx_env = MagnusTxEnv {
             inner: revm::context::TxEnv {
                 caller,
                 gas_limit: 1_000_000,
                 ..Default::default()
             },
-            magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
+            magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                 signature,
                 aa_calls: vec![],
                 signature_hash: B256::ZERO,
@@ -3476,13 +3476,13 @@ mod tests {
 
         let ctx = Context::mainnet()
             .with_db(CacheDB::new(EmptyDB::default()))
-            .with_block(TempoBlockEnv::default())
+            .with_block(MagnusBlockEnv::default())
             .with_cfg(cfg)
             .with_tx(tx_env)
             .with_new_journal(create_test_journal());
 
-        let mut evm: TempoEvm<_, ()> = TempoEvm::new(ctx, ());
-        let handler: TempoEvmHandler<CacheDB<EmptyDB>, ()> = TempoEvmHandler::new();
+        let mut evm: MagnusEvm<_, ()> = MagnusEvm::new(ctx, ());
+        let handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::new();
         let mut remaining_gas = 100_000;
 
         let err = handler
@@ -3499,7 +3499,7 @@ mod tests {
 
     #[test]
     fn test_multicall_gas_refund_accounting() {
-        use crate::evm::TempoEvm;
+        use crate::evm::MagnusEvm;
         use alloy_primitives::{Bytes, TxKind};
         use revm::{
             Context, Journal,
@@ -3521,9 +3521,9 @@ mod tests {
         let journal = Journal::new(db);
         let ctx = Context::mainnet()
             .with_db(CacheDB::new(EmptyDB::default()))
-            .with_block(TempoBlockEnv::default())
+            .with_block(MagnusBlockEnv::default())
             .with_cfg(CfgEnv::default())
-            .with_tx(TempoTxEnv {
+            .with_tx(MagnusTxEnv {
                 inner: revm::context::TxEnv {
                     gas_limit: GAS_LIMIT,
                     ..Default::default()
@@ -3532,8 +3532,8 @@ mod tests {
             })
             .with_new_journal(journal);
 
-        let mut evm: TempoEvm<_, ()> = TempoEvm::new(ctx, ());
-        let mut handler: TempoEvmHandler<CacheDB<EmptyDB>, ()> = TempoEvmHandler::new();
+        let mut evm: MagnusEvm<_, ()> = MagnusEvm::new(ctx, ());
+        let mut handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::new();
 
         // Create mock calls
         let calls = vec![
@@ -3602,15 +3602,15 @@ mod tests {
     /// these gas calculation functions only depend on the signature *type* (Secp256k1,
     /// P256, WebAuthn), not on cryptographic validity. Signature verification happens
     /// separately during `recover_signer()` before transactions enter the pool.
-    fn secp256k1_sig() -> TempoSignature {
-        TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+    fn secp256k1_sig() -> MagnusSignature {
+        MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
             alloy_primitives::Signature::test_signature(),
         ))
     }
 
-    /// Helper to create a TempoBatchCallEnv with specified calls.
-    fn make_aa_env(calls: Vec<Call>) -> TempoBatchCallEnv {
-        TempoBatchCallEnv {
+    /// Helper to create a MagnusBatchCallEnv with specified calls.
+    fn make_aa_env(calls: Vec<Call>) -> MagnusBatchCallEnv {
+        MagnusBatchCallEnv {
             signature: secp256k1_sig(),
             aa_calls: calls,
             key_authorization: None,
@@ -3619,8 +3619,8 @@ mod tests {
         }
     }
 
-    /// Helper to create a single-call TempoBatchCallEnv with given calldata.
-    fn make_single_call_env(calldata: Bytes) -> TempoBatchCallEnv {
+    /// Helper to create a single-call MagnusBatchCallEnv with given calldata.
+    fn make_single_call_env(calldata: Bytes) -> MagnusBatchCallEnv {
         make_aa_env(vec![Call {
             to: TxKind::Call(Address::ZERO),
             value: U256::ZERO,
@@ -3628,8 +3628,8 @@ mod tests {
         }])
     }
 
-    /// Helper to create a multi-call TempoBatchCallEnv with N empty calls.
-    fn make_multi_call_env(num_calls: usize) -> TempoBatchCallEnv {
+    /// Helper to create a multi-call MagnusBatchCallEnv with N empty calls.
+    fn make_multi_call_env(num_calls: usize) -> MagnusBatchCallEnv {
         make_aa_env(
             (0..num_calls)
                 .map(|_| Call {
@@ -3642,12 +3642,12 @@ mod tests {
     }
 
     /// Helper to compute AA batch gas with no access list.
-    fn compute_aa_gas(env: &TempoBatchCallEnv) -> InitialAndFloorGas {
+    fn compute_aa_gas(env: &MagnusBatchCallEnv) -> InitialAndFloorGas {
         calculate_aa_batch_intrinsic_gas(
             env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            magnus_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::MagnusHardfork::default(),
         )
         .unwrap()
     }
@@ -3858,9 +3858,9 @@ mod tests {
             let expected_addr = Address::with_last_byte(0);
             let expected_input = vec![0u8; 1];
 
-            let tx_env = TempoTxEnv {
+            let tx_env = MagnusTxEnv {
                 inner: revm::context::TxEnv::default(),
-                magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
+                magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                     aa_calls: calls,
                     signature: secp256k1_sig(),
                     signature_hash: B256::ZERO,
@@ -3880,9 +3880,9 @@ mod tests {
         /// Property: first_call returns None for AA transaction with zero calls
         #[test]
         fn proptest_first_call_empty_aa(_dummy in 0u8..1) {
-            let tx_env = TempoTxEnv {
+            let tx_env = MagnusTxEnv {
                 inner: revm::context::TxEnv::default(),
-                magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
+                magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                     aa_calls: vec![],
                     signature: secp256k1_sig(),
                     signature_hash: B256::ZERO,
@@ -3900,7 +3900,7 @@ mod tests {
             let calldata = Bytes::from(vec![0xab_u8; calldata_len]);
             let target = Address::random();
 
-            let tx_env = TempoTxEnv {
+            let tx_env = MagnusTxEnv {
                 inner: revm::context::TxEnv {
                     kind: TxKind::Call(target),
                     data: calldata.clone(),
@@ -3948,8 +3948,8 @@ mod tests {
 
             // Test both pre-T1B and T1B branches
             for (gas_params, spec) in [
-                (GasParams::default(), magnus_chainspec::hardfork::TempoHardfork::default()),
-                (crate::gas_params::magnus_gas_params(TempoHardfork::T1B), TempoHardfork::T1B),
+                (GasParams::default(), magnus_chainspec::hardfork::MagnusHardfork::default()),
+                (crate::gas_params::magnus_gas_params(MagnusHardfork::T1B), MagnusHardfork::T1B),
             ] {
                 let gas1 = calculate_key_authorization_gas(&make_key_auth(num_limits1), &gas_params, spec);
                 let gas2 = calculate_key_authorization_gas(&make_key_auth(num_limits2), &gas_params, spec);
@@ -4004,14 +4004,14 @@ mod tests {
             };
 
             // Pre-T1B: minimum is KEY_AUTH_BASE_GAS + ECRECOVER_GAS
-            let gas = calculate_key_authorization_gas(&key_auth, &GasParams::default(), magnus_chainspec::hardfork::TempoHardfork::default());
+            let gas = calculate_key_authorization_gas(&key_auth, &GasParams::default(), magnus_chainspec::hardfork::MagnusHardfork::default());
             let min_gas = KEY_AUTH_BASE_GAS + ECRECOVER_GAS;
             prop_assert!(gas >= min_gas,
                 "Pre-T1B: Key auth gas should be at least {min_gas}, got {gas}");
 
             // T1B: minimum is ECRECOVER_GAS + sload + sstore (0 limits)
-            let t1b_params = crate::gas_params::magnus_gas_params(TempoHardfork::T1B);
-            let gas_t1b = calculate_key_authorization_gas(&key_auth, &t1b_params, TempoHardfork::T1B);
+            let t1b_params = crate::gas_params::magnus_gas_params(MagnusHardfork::T1B);
+            let gas_t1b = calculate_key_authorization_gas(&key_auth, &t1b_params, MagnusHardfork::T1B);
             let sstore = t1b_params.get(revm::context_interface::cfg::GasId::sstore_set_without_load_cost());
             let sload = t1b_params.warm_storage_read_cost() + t1b_params.cold_storage_additional_cost();
             let min_t1b = ECRECOVER_GAS + sload + sstore;
@@ -4037,14 +4037,14 @@ mod tests {
         // Deterministic test addresses
         const TEST_TARGET: Address = Address::new([0xAA; 20]);
         const TEST_NONCE_KEY: U256 = U256::from_limbs([42, 0, 0, 0]);
-        const SPEC: TempoHardfork = TempoHardfork::T1;
+        const SPEC: MagnusHardfork = MagnusHardfork::T1;
         const NEW_NONCE_KEY_GAS: u64 = SPEC.gas_new_nonce_key();
         const EXISTING_NONCE_KEY_GAS: u64 = SPEC.gas_existing_nonce_key();
 
         // Create T1 config with TIP-1000 gas params
-        let mut cfg = CfgEnv::<TempoHardfork>::default();
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
         cfg.spec = SPEC;
-        cfg.gas_params = magnus_gas_params(TempoHardfork::T1);
+        cfg.gas_params = magnus_gas_params(MagnusHardfork::T1);
 
         // Get the expected new_account_cost dynamically from gas params
         let new_account_cost = cfg.gas_params.get(GasId::new_account_cost());
@@ -4054,19 +4054,19 @@ mod tests {
         );
 
         // Helper to create EVM context for testing
-        let make_evm = |cfg: CfgEnv<TempoHardfork>, nonce: u64, nonce_key: U256| {
+        let make_evm = |cfg: CfgEnv<MagnusHardfork>, nonce: u64, nonce_key: U256| {
             let journal = Journal::new(CacheDB::new(EmptyDB::default()));
             let ctx = Context::mainnet()
                 .with_db(CacheDB::new(EmptyDB::default()))
-                .with_block(TempoBlockEnv::default())
+                .with_block(MagnusBlockEnv::default())
                 .with_cfg(cfg)
-                .with_tx(TempoTxEnv {
+                .with_tx(MagnusTxEnv {
                     inner: revm::context::TxEnv {
                         gas_limit: 1_000_000,
                         nonce,
                         ..Default::default()
                     },
-                    magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
+                    magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                         aa_calls: vec![Call {
                             to: TxKind::Call(TEST_TARGET),
                             value: U256::ZERO,
@@ -4078,12 +4078,12 @@ mod tests {
                     ..Default::default()
                 })
                 .with_new_journal(journal);
-            TempoEvm::<_, ()>::new(ctx, ())
+            MagnusEvm::<_, ()>::new(ctx, ())
         };
 
         // Case 1: nonce == 0 with 2D nonce key -> should include new_account_cost
         let mut evm_nonce_zero = make_evm(cfg.clone(), 0, TEST_NONCE_KEY);
-        let handler: TempoEvmHandler<CacheDB<EmptyDB>, ()> = TempoEvmHandler::new();
+        let handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::new();
         let gas_nonce_zero = handler
             .validate_initial_tx_gas(&mut evm_nonce_zero)
             .unwrap();
@@ -4140,26 +4140,26 @@ mod tests {
         const BASE_INTRINSIC_GAS: u64 = 21_000;
         const TEST_TARGET: Address = Address::new([0xBB; 20]);
         const TEST_NONCE_KEY: U256 = U256::from_limbs([99, 0, 0, 0]);
-        const SPEC: TempoHardfork = TempoHardfork::T1;
+        const SPEC: MagnusHardfork = MagnusHardfork::T1;
         const EXISTING_NONCE_KEY_GAS: u64 = SPEC.gas_existing_nonce_key();
 
-        let mut cfg = CfgEnv::<TempoHardfork>::default();
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
         cfg.spec = SPEC;
-        cfg.gas_params = magnus_gas_params(TempoHardfork::T1);
+        cfg.gas_params = magnus_gas_params(MagnusHardfork::T1);
 
-        let make_evm = |cfg: CfgEnv<TempoHardfork>, nonce: u64, nonce_key: U256| {
+        let make_evm = |cfg: CfgEnv<MagnusHardfork>, nonce: u64, nonce_key: U256| {
             let journal = Journal::new(CacheDB::new(EmptyDB::default()));
             let ctx = Context::mainnet()
                 .with_db(CacheDB::new(EmptyDB::default()))
-                .with_block(TempoBlockEnv::default())
+                .with_block(MagnusBlockEnv::default())
                 .with_cfg(cfg)
-                .with_tx(TempoTxEnv {
+                .with_tx(MagnusTxEnv {
                     inner: revm::context::TxEnv {
                         gas_limit: 1_000_000,
                         nonce,
                         ..Default::default()
                     },
-                    magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
+                    magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                         aa_calls: vec![Call {
                             to: TxKind::Call(TEST_TARGET),
                             value: U256::ZERO,
@@ -4171,10 +4171,10 @@ mod tests {
                     ..Default::default()
                 })
                 .with_new_journal(journal);
-            TempoEvm::<_, ()>::new(ctx, ())
+            MagnusEvm::<_, ()>::new(ctx, ())
         };
 
-        let handler: TempoEvmHandler<CacheDB<EmptyDB>, ()> = TempoEvmHandler::new();
+        let handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::new();
 
         // Case 1: Existing 2D nonce key (nonce > 0) should charge EXISTING_NONCE_KEY_GAS
         let mut evm_existing_key = make_evm(cfg.clone(), 5, TEST_NONCE_KEY);
@@ -4243,20 +4243,20 @@ mod tests {
             user: Address,
             access_key: Address,
             key_auth: Option<magnus_primitives::transaction::SignedKeyAuthorization>,
-            spec: TempoHardfork,
-            signature: Option<TempoSignature>,
+            spec: MagnusHardfork,
+            signature: Option<MagnusSignature>,
             seed_key: bool,
         ) -> (
-            TempoEvm<CacheDB<EmptyDB>, ()>,
-            TempoEvmHandler<CacheDB<EmptyDB>, ()>,
+            MagnusEvm<CacheDB<EmptyDB>, ()>,
+            MagnusEvmHandler<CacheDB<EmptyDB>, ()>,
         ) {
             let sig = signature.unwrap_or_else(|| {
-                TempoSignature::Keychain(KeychainSignature::new(user, test_sig()))
+                MagnusSignature::Keychain(KeychainSignature::new(user, test_sig()))
             });
-            let mut cfg = CfgEnv::<TempoHardfork>::default();
+            let mut cfg = CfgEnv::<MagnusHardfork>::default();
             cfg.spec = spec;
 
-            let tx = TempoTxEnv {
+            let tx = MagnusTxEnv {
                 inner: revm::context::TxEnv {
                     caller: user,
                     gas_limit: 1_000_000,
@@ -4264,7 +4264,7 @@ mod tests {
                     ..Default::default()
                 },
                 fee_token: Some(DEFAULT_FEE_TOKEN),
-                magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
+                magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                     signature: sig,
                     aa_calls: vec![Call {
                         to: TxKind::Call(Address::ZERO),
@@ -4281,12 +4281,12 @@ mod tests {
 
             let ctx = Context::mainnet()
                 .with_db(CacheDB::new(EmptyDB::default()))
-                .with_block(TempoBlockEnv::default())
+                .with_block(MagnusBlockEnv::default())
                 .with_cfg(cfg)
                 .with_tx(tx)
                 .with_new_journal(create_test_journal());
 
-            let mut evm: TempoEvm<_, ()> = TempoEvm::new(ctx, ());
+            let mut evm: MagnusEvm<_, ()> = MagnusEvm::new(ctx, ());
 
             StorageCtx::enter_ctx(&mut evm.inner.ctx, || {
                 let mut kc = AccountKeychain::new();
@@ -4312,7 +4312,7 @@ mod tests {
                 }
             });
 
-            (evm, TempoEvmHandler::new())
+            (evm, MagnusEvmHandler::new())
         }
 
         #[test]
@@ -4325,12 +4325,12 @@ mod tests {
                 &bad_signer,
                 KeyAuthorization::unrestricted(1337, SignatureType::Secp256k1, key),
             );
-            let (mut evm, h) = make_evm(user, key, Some(signed), TempoHardfork::T2, None, true);
+            let (mut evm, h) = make_evm(user, key, Some(signed), MagnusHardfork::T2, None, true);
 
             assert!(matches!(
                 h.validate_against_state_and_deduct_caller(&mut evm),
                 Err(EVMError::Transaction(
-                    TempoInvalidTransaction::KeyAuthorizationNotSignedByRoot { .. }
+                    MagnusInvalidTransaction::KeyAuthorizationNotSignedByRoot { .. }
                 ))
             ));
         }
@@ -4345,19 +4345,19 @@ mod tests {
                 &signer,
                 KeyAuthorization::unrestricted(1337, SignatureType::Secp256k1, wrong_key),
             );
-            let (mut evm, h) = make_evm(user, tx_key, Some(signed), TempoHardfork::T2, None, true);
+            let (mut evm, h) = make_evm(user, tx_key, Some(signed), MagnusHardfork::T2, None, true);
 
             assert!(matches!(
                 h.validate_against_state_and_deduct_caller(&mut evm),
                 Err(EVMError::Transaction(
-                    TempoInvalidTransaction::AccessKeyCannotAuthorizeOtherKeys
+                    MagnusInvalidTransaction::AccessKeyCannotAuthorizeOtherKeys
                 ))
             ));
         }
 
         #[test]
         fn test_key_authorization_chain_id_wildcard() {
-            for spec in [TempoHardfork::T1B, TempoHardfork::T2] {
+            for spec in [MagnusHardfork::T1B, MagnusHardfork::T2] {
                 let (signer, user) = generate_keypair();
                 let key = Address::random();
                 let signed = sign_key_auth(
@@ -4384,7 +4384,7 @@ mod tests {
         #[test]
         fn test_key_authorization_chain_id_wrong_and_matching() {
             // Both pre-T1C and post-T1C: wrong chain_id rejected, matching accepted.
-            for spec in [TempoHardfork::T1B, TempoHardfork::T2] {
+            for spec in [MagnusHardfork::T1B, MagnusHardfork::T2] {
                 // Wrong chain_id → rejected
                 let (signer, user) = generate_keypair();
                 let key = Address::random();
@@ -4409,7 +4409,7 @@ mod tests {
                 let (mut evm, h) = make_evm(user, key, Some(signed), spec, None, true);
                 let result = h.validate_against_state_and_deduct_caller(&mut evm);
                 assert!(
-                    !matches!(&result, Err(EVMError::Transaction(TempoInvalidTransaction::KeychainValidationFailed { reason })) if reason.contains("chain_id")),
+                    !matches!(&result, Err(EVMError::Transaction(MagnusInvalidTransaction::KeychainValidationFailed { reason })) if reason.contains("chain_id")),
                     "{spec:?}: matching chain_id should be accepted, got: {result:?}"
                 );
             }
@@ -4426,7 +4426,7 @@ mod tests {
                 KeyAuthorization::unrestricted(1, SignatureType::Secp256k1, key)
                     .with_expiry(expiry),
             );
-            let (mut evm, h) = make_evm(user, key, Some(signed), TempoHardfork::T2, None, false);
+            let (mut evm, h) = make_evm(user, key, Some(signed), MagnusHardfork::T2, None, false);
 
             let _ = h.validate_against_state_and_deduct_caller(&mut evm);
             assert_eq!(evm.key_expiry, Some(expiry));
@@ -4438,7 +4438,7 @@ mod tests {
                 Address::repeat_byte(0x11),
                 Address::repeat_byte(0x22),
                 None,
-                TempoHardfork::T2,
+                MagnusHardfork::T2,
                 None,
                 true,
             );
@@ -4448,7 +4448,7 @@ mod tests {
                 !matches!(
                     result,
                     Err(EVMError::Transaction(
-                        TempoInvalidTransaction::KeychainValidationFailed { .. }
+                        MagnusInvalidTransaction::KeychainValidationFailed { .. }
                     ))
                 ),
                 "Valid authorized key should pass, got: {result:?}"
@@ -4460,36 +4460,36 @@ mod tests {
             let caller = Address::random();
 
             // V1 (legacy) rejected post-T1C
-            let v1 = TempoSignature::Keychain(KeychainSignature::new_v1(caller, test_sig()));
+            let v1 = MagnusSignature::Keychain(KeychainSignature::new_v1(caller, test_sig()));
             let (mut evm, h) = make_evm(
                 caller,
                 Address::ZERO,
                 None,
-                TempoHardfork::T2,
+                MagnusHardfork::T2,
                 Some(v1),
                 false,
             );
             assert!(matches!(
                 h.validate_env(&mut evm),
                 Err(EVMError::Transaction(
-                    TempoInvalidTransaction::LegacyKeychainSignature
+                    MagnusInvalidTransaction::LegacyKeychainSignature
                 ))
             ));
 
             // V2 rejected pre-T1C
-            let v2 = TempoSignature::Keychain(KeychainSignature::new(caller, test_sig()));
+            let v2 = MagnusSignature::Keychain(KeychainSignature::new(caller, test_sig()));
             let (mut evm, h) = make_evm(
                 caller,
                 Address::ZERO,
                 None,
-                TempoHardfork::T1B,
+                MagnusHardfork::T1B,
                 Some(v2),
                 false,
             );
             assert!(matches!(
                 h.validate_env(&mut evm),
                 Err(EVMError::Transaction(
-                    TempoInvalidTransaction::V2KeychainBeforeActivation
+                    MagnusInvalidTransaction::V2KeychainBeforeActivation
                 ))
             ));
         }
@@ -4502,17 +4502,17 @@ mod tests {
                 &signer,
                 KeyAuthorization::unrestricted(1, SignatureType::Secp256k1, key),
             );
-            let (mut evm, h) = make_evm(user, key, Some(signed), TempoHardfork::T2, None, false);
+            let (mut evm, h) = make_evm(user, key, Some(signed), MagnusHardfork::T2, None, false);
 
             let result = h.validate_against_state_and_deduct_caller(&mut evm);
             assert!(
                 !matches!(
                     result,
                     Err(EVMError::Transaction(
-                        TempoInvalidTransaction::KeychainValidationFailed { .. }
-                            | TempoInvalidTransaction::AccessKeyCannotAuthorizeOtherKeys
-                            | TempoInvalidTransaction::KeyAuthorizationNotSignedByRoot { .. }
-                            | TempoInvalidTransaction::KeychainPrecompileError { .. }
+                        MagnusInvalidTransaction::KeychainValidationFailed { .. }
+                            | MagnusInvalidTransaction::AccessKeyCannotAuthorizeOtherKeys
+                            | MagnusInvalidTransaction::KeyAuthorizationNotSignedByRoot { .. }
+                            | MagnusInvalidTransaction::KeychainPrecompileError { .. }
                     ))
                 ),
                 "Same-tx auth+use should pass when key does not exist, got: {result:?}"

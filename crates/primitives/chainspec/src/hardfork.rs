@@ -9,14 +9,14 @@
 //! ### In `hardfork.rs`:
 //! 1. Append a `Vivace` variant to `magnus_hardfork!` — automatically:
 //!    * defines the enum variant via [`hardfork!`]
-//!    * implements trait `TempoHardforks` by adding `is_vivace()`, `is_vivace_active_at_timestamp()`,
+//!    * implements trait `MagnusHardforks` by adding `is_vivace()`, `is_vivace_active_at_timestamp()`,
 //!      and updating `magnus_hardfork_at()`
-//!    * adds tests for each of the `TempoHardfork` methods
-//! 2. Update `From<TempoHardfork> for SpecId` if the hardfork requires a different Ethereum `SpecId`
+//!    * adds tests for each of the `MagnusHardfork` methods
+//! 2. Update `From<MagnusHardfork> for SpecId` if the hardfork requires a different Ethereum `SpecId`
 //!
 //! ### In `spec.rs`:
-//! 3. Add `vivace_time: Option<u64>` field to `TempoGenesisInfo`
-//! 4. Add `TempoHardfork::Vivace => self.vivace_time` arm to `TempoGenesisInfo::fork_time()`
+//! 3. Add `vivace_time: Option<u64>` field to `MagnusGenesisInfo`
+//! 4. Add `MagnusHardfork::Vivace => self.vivace_time` arm to `MagnusGenesisInfo::fork_time()`
 //!
 //! ### In genesis files and generator:
 //! 5. Add `"vivaceTime": 0` to `genesis/dev.json`
@@ -30,11 +30,11 @@ use alloy_hardforks::hardfork;
 
 /// Single-source hardfork definition macro. Append a new variant and everything else is generated:
 ///
-/// * Defines the `TempoHardfork` enum via [`hardfork!`] (including `Display`, `FromStr`,
+/// * Defines the `MagnusHardfork` enum via [`hardfork!`] (including `Display`, `FromStr`,
 ///   `Hardfork` trait impl, and `VARIANTS` const)
-/// * Generates `is_<fork>()` inherent methods on `TempoHardfork` — returns `true` when
+/// * Generates `is_<fork>()` inherent methods on `MagnusHardfork` — returns `true` when
 ///   `*self >= Self::<Fork>`
-/// * Generates the `TempoHardforks` trait with:
+/// * Generates the `MagnusHardforks` trait with:
 ///   - `magnus_fork_activation()` (required — the only method implementors provide)
 ///   - `magnus_hardfork_at()` — walks `VARIANTS` in reverse to find the latest active fork
 ///   - `is_<fork>_active_at_timestamp()` — per-fork convenience helpers
@@ -46,7 +46,7 @@ use alloy_hardforks::hardfork;
 macro_rules! magnus_hardfork {
     (
         $(#[$enum_meta:meta])*
-        TempoHardfork {
+        MagnusHardfork {
             $(#[$genesis_meta:meta])* Genesis,
             $( $(#[$meta:meta])* $variant:ident ),* $(,)?
         }
@@ -55,13 +55,13 @@ macro_rules! magnus_hardfork {
         // delegate to alloy's `hardfork!` macro
         hardfork!(
             $(#[$enum_meta])*
-            TempoHardfork {
+            MagnusHardfork {
                 $(#[$genesis_meta])* Genesis,
                 $( $(#[$meta])* $variant ),*
             }
         );
 
-        impl TempoHardfork {
+        impl MagnusHardfork {
             paste::paste! {
                 $(
                     #[doc = concat!("Returns true if this hardfork is ", stringify!($variant), " or later.")]
@@ -74,25 +74,25 @@ macro_rules! magnus_hardfork {
 
         /// Trait for querying Tempo-specific hardfork activations.
         #[cfg(feature = "reth")]
-        pub trait TempoHardforks: reth_chainspec::EthereumHardforks {
+        pub trait MagnusHardforks: reth_chainspec::EthereumHardforks {
             /// Retrieves activation condition for a Tempo-specific hardfork.
-            fn magnus_fork_activation(&self, fork: TempoHardfork) -> reth_chainspec::ForkCondition;
+            fn magnus_fork_activation(&self, fork: MagnusHardfork) -> reth_chainspec::ForkCondition;
 
             /// Retrieves the Tempo hardfork active at a given timestamp.
-            fn magnus_hardfork_at(&self, timestamp: u64) -> TempoHardfork {
-                for &fork in TempoHardfork::VARIANTS.iter().rev() {
+            fn magnus_hardfork_at(&self, timestamp: u64) -> MagnusHardfork {
+                for &fork in MagnusHardfork::VARIANTS.iter().rev() {
                     if self.magnus_fork_activation(fork).active_at_timestamp(timestamp) {
                         return fork;
                     }
                 }
-                TempoHardfork::Genesis
+                MagnusHardfork::Genesis
             }
 
             paste::paste! {
                 $(
                     #[doc = concat!("Returns true if ", stringify!($variant), " is active at the given timestamp.")]
                     fn [<is_ $variant:lower _active_at_timestamp>](&self, timestamp: u64) -> bool {
-                        self.magnus_fork_activation(TempoHardfork::$variant)
+                        self.magnus_fork_activation(MagnusHardfork::$variant)
                             .active_at_timestamp(timestamp)
                     }
                 )*
@@ -111,7 +111,7 @@ macro_rules! magnus_hardfork {
         #[cfg(all(test, feature = "reth"))]
         mod tests {
             use super::*;
-            use TempoHardfork::*;
+            use MagnusHardfork::*;
             use reth_chainspec::Hardfork;
 
             #[test]
@@ -122,7 +122,7 @@ macro_rules! magnus_hardfork {
 
             #[test]
             fn test_hardfork_trait_implementation() {
-                for fork in TempoHardfork::VARIANTS {
+                for fork in MagnusHardfork::VARIANTS {
                     let _name: &str = Hardfork::name(fork);
                 }
             }
@@ -130,9 +130,9 @@ macro_rules! magnus_hardfork {
             #[test]
             #[cfg(feature = "serde")]
             fn test_tempo_hardfork_serde() {
-                for fork in TempoHardfork::VARIANTS {
+                for fork in MagnusHardfork::VARIANTS {
                     let json = serde_json::to_string(fork).expect("serialize");
-                    let deserialized: TempoHardfork = serde_json::from_str(&json).expect("deserialize");
+                    let deserialized: MagnusHardfork = serde_json::from_str(&json).expect("deserialize");
                     assert_eq!(deserialized, *fork);
                 }
             }
@@ -141,10 +141,10 @@ macro_rules! magnus_hardfork {
                 $(
                     #[test]
                     fn [<test_is_ $variant:lower>]() {
-                        let idx = TempoHardfork::VARIANTS.iter().position(|v| *v == $variant)
+                        let idx = MagnusHardfork::VARIANTS.iter().position(|v| *v == $variant)
                             .expect(concat!(stringify!($variant), " missing from VARIANTS"));
-                        for (i, fork) in TempoHardfork::VARIANTS.iter().enumerate() {
-                            let active = TempoHardfork::[<is_ $variant:lower>](fork);
+                        for (i, fork) in MagnusHardfork::VARIANTS.iter().enumerate() {
+                            let active = MagnusHardfork::[<is_ $variant:lower>](fork);
                             if i >= idx {
                                 assert!(active, "{fork:?} should satisfy is_{}", stringify!([<$variant:lower>]));
                             } else {
@@ -165,7 +165,7 @@ magnus_hardfork! (
     /// Tempo-specific hardforks for network upgrades.
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Default)]
-    TempoHardfork {
+    MagnusHardfork {
         /// Genesis hardfork
         Genesis,
         #[default]
@@ -190,7 +190,7 @@ magnus_hardfork! (
     }
 );
 
-impl TempoHardfork {
+impl MagnusHardfork {
     /// Returns the base fee for this hardfork in attodollars.
     ///
     /// Attodollars are the atomic gas accounting units at 10^-18 USD precision. Individual attodollars are not representable onchain (since TIP-20 tokens only have 6 decimals), but the unit is used for gas accounting.
@@ -200,9 +200,9 @@ impl TempoHardfork {
     /// Economic conversion: ceil(basefee × gas_used / 10^12) = cost in microdollars (TIP-20 tokens)
     pub const fn base_fee(&self) -> u64 {
         if self.is_t1() {
-            return gas::TEMPO_T1_BASE_FEE;
+            return gas::MAGNUS_T1_BASE_FEE;
         }
-        gas::TEMPO_T0_BASE_FEE
+        gas::MAGNUS_T0_BASE_FEE
     }
 
     /// Returns the fixed general gas limit for T1+, or None for pre-T1.
@@ -210,7 +210,7 @@ impl TempoHardfork {
     /// - T1+: 30M gas (fixed)
     pub const fn general_gas_limit(&self) -> Option<u64> {
         if self.is_t1() {
-            return Some(gas::TEMPO_T1_GENERAL_GAS_LIMIT);
+            return Some(gas::MAGNUS_T1_GENERAL_GAS_LIMIT);
         }
         None
     }
@@ -222,7 +222,7 @@ impl TempoHardfork {
     /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
     pub const fn tx_gas_limit_cap(&self) -> Option<u64> {
         if self.is_t1a() {
-            return Some(gas::TEMPO_T1_TX_GAS_LIMIT_CAP);
+            return Some(gas::MAGNUS_T1_TX_GAS_LIMIT_CAP);
         }
         Some(MAX_TX_GAS_LIMIT_OSAKA)
     }
@@ -230,17 +230,17 @@ impl TempoHardfork {
     /// Gas cost for using an existing 2D nonce key
     pub const fn gas_existing_nonce_key(&self) -> u64 {
         if self.is_t2() {
-            return gas::TEMPO_T2_EXISTING_NONCE_KEY_GAS;
+            return gas::MAGNUS_T2_EXISTING_NONCE_KEY_GAS;
         }
-        gas::TEMPO_T1_EXISTING_NONCE_KEY_GAS
+        gas::MAGNUS_T1_EXISTING_NONCE_KEY_GAS
     }
 
     /// Gas cost for using a new 2D nonce key
     pub const fn gas_new_nonce_key(&self) -> u64 {
         if self.is_t2() {
-            return gas::TEMPO_T2_NEW_NONCE_KEY_GAS;
+            return gas::MAGNUS_T2_NEW_NONCE_KEY_GAS;
         }
-        gas::TEMPO_T1_NEW_NONCE_KEY_GAS
+        gas::MAGNUS_T1_NEW_NONCE_KEY_GAS
     }
 
     /// Returns the active hardfork at the given timestamp for the specified chain.
@@ -248,7 +248,7 @@ impl TempoHardfork {
     /// Returns `None` if the chain ID is not a known Tempo chain.
     pub const fn from_chain_and_timestamp(chain_id: u64, timestamp: u64) -> Option<Self> {
         // Walk variants in reverse to find the latest active fork, mirroring
-        // `TempoHardforks::magnus_hardfork_at` but without needing a chainspec instance.
+        // `MagnusHardforks::magnus_hardfork_at` but without needing a chainspec instance.
         let variants = Self::VARIANTS;
         let mut i = variants.len();
         while i > 0 {
@@ -332,19 +332,19 @@ impl TempoHardfork {
     }
 }
 
-impl From<TempoHardfork> for SpecId {
-    fn from(_value: TempoHardfork) -> Self {
+impl From<MagnusHardfork> for SpecId {
+    fn from(_value: MagnusHardfork) -> Self {
         Self::OSAKA
     }
 }
 
-impl From<&TempoHardfork> for SpecId {
-    fn from(value: &TempoHardfork) -> Self {
+impl From<&MagnusHardfork> for SpecId {
+    fn from(value: &MagnusHardfork) -> Self {
         Self::from(*value)
     }
 }
 
-impl From<SpecId> for TempoHardfork {
+impl From<SpecId> for MagnusHardfork {
     fn from(_spec: SpecId) -> Self {
         // All Tempo hardforks map to SpecId::OSAKA, so we cannot derive the hardfork from SpecId.
         // Default to the default hardfork when converting from SpecId.

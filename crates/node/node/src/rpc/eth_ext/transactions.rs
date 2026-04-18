@@ -1,8 +1,8 @@
 use alloy_primitives::Address;
 use serde::{Deserialize, Serialize};
-use magnus_primitives::{TempoTxEnvelope, TempoTxType};
+use magnus_primitives::{MagnusTxEnvelope, MagnusTxType};
 
-pub type Transaction = alloy_rpc_types_eth::Transaction<TempoTxEnvelope>;
+pub type Transaction = alloy_rpc_types_eth::Transaction<MagnusTxEnvelope>;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,5 +22,5 @@ pub struct TransactionsFilter {
     to: Option<Address>,
     /// Transaction type
     #[serde(rename = "type")]
-    type_: Option<TempoTxType>,
+    type_: Option<MagnusTxType>,
 }

@@ -45,12 +45,12 @@ mod tests {
     use alloy::{primitives::B256, sol_types::SolCall};
     use alloy_signer::SignerSync;
     use alloy_signer_local::PrivateKeySigner;
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::ISignatureVerifier;
 
     #[test]
     fn test_signature_verifier_selector_coverage() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let mut verifier = SignatureVerifier::new();
 
@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn test_verify_returns_true_for_correct_signer() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let signer = PrivateKeySigner::random();
             let hash = B256::from([0xAA; 32]);
@@ -90,7 +90,7 @@ mod tests {
 
     #[test]
     fn test_verify_returns_false_for_wrong_signer() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let signer = PrivateKeySigner::random();
             let hash = B256::from([0xBB; 32]);
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_oversized_calldata_reverts_with_invalid_format() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let calldata = vec![0u8; MAX_CALLDATA_LEN + 1];
             let result = SignatureVerifier::new().call(&calldata, Address::ZERO);
@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn test_max_webauthn_verify_passes_size_guard() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let mut sig = vec![0x02u8];
             sig.extend_from_slice(&[0u8; MAX_WEBAUTHN_SIGNATURE_LENGTH]);
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn test_max_calldata_is_not_rejected() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             // Exactly MAX_CALLDATA_LEN bytes should pass the size guard (and fail at ABI
             // decode instead). A zeroed selector is unknown, so we expect an

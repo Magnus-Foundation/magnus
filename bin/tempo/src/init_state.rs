@@ -34,7 +34,7 @@ use reth_provider::{BlockNumReader, DatabaseProviderFactory, HashingWriter};
 use reth_storage_api::{DBProvider, StorageSettingsCache, TrieWriter};
 use reth_trie::{IntermediateStateRootState, StateRootProgress};
 use reth_trie_db::DatabaseStateRoot;
-use magnus_chainspec::spec::TempoChainSpecParser;
+use magnus_chainspec::spec::MagnusChainSpecParser;
 use tracing::info;
 
 /// Magic bytes for the state bloat binary format (8 bytes)
@@ -54,7 +54,7 @@ const HASH_WORKER_QUEUE_DEPTH: usize = 256;
 
 /// Initialize state from a binary dump file.
 #[derive(Debug, Parser)]
-pub(crate) struct InitFromBinaryDump<C: reth_cli::chainspec::ChainSpecParser = TempoChainSpecParser>
+pub(crate) struct InitFromBinaryDump<C: reth_cli::chainspec::ChainSpecParser = MagnusChainSpecParser>
 {
     #[command(flatten)]
     env: EnvironmentArgs<C>,

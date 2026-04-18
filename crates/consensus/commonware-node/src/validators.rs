@@ -13,7 +13,7 @@ use eyre::{OptionExt as _, WrapErr as _};
 use reth_ethereum::evm::revm::{State, database::StateProviderDatabase};
 use reth_node_builder::ConfigureEvm as _;
 use reth_provider::{HeaderProvider as _, StateProviderFactory as _};
-use magnus_node::TempoFullNode;
+use magnus_node::MagnusFullNode;
 use magnus_precompiles::{
     storage::StorageCtx,
     validator_config_v2::{IValidatorConfigV2, ValidatorConfigV2},
@@ -28,7 +28,7 @@ use crate::utils::public_key_to_b256;
 /// This returns both the validators that are `active` as per the contract, and
 /// those that are `known`.
 pub(crate) fn read_active_and_known_peers_at_block_hash(
-    node: &TempoFullNode,
+    node: &MagnusFullNode,
     known: &ordered::Set<PublicKey>,
     hash: B256,
 ) -> eyre::Result<ordered::Map<PublicKey, commonware_p2p::Address>> {
@@ -69,7 +69,7 @@ pub(crate) fn read_active_and_known_peers_at_block_hash(
 
 /// Reads the validator state at the given block hash.
 pub(crate) fn read_validator_config_at_block_hash<C, T>(
-    node: &TempoFullNode,
+    node: &MagnusFullNode,
     block_hash: B256,
     read_fn: impl FnOnce(&C) -> eyre::Result<T>,
 ) -> eyre::Result<(u64, B256, T)>

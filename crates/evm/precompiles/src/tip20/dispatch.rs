@@ -11,7 +11,7 @@ use alloy::{
     sol_types::{SolCall, SolInterface},
 };
 use revm::precompile::PrecompileResult;
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_contracts::precompiles::{IRolesAuth::IRolesAuthCalls, ITIP20::ITIP20Calls, TIP20Error};
 
 const T2_ADDED: &[[u8; 4]] = &[
@@ -57,7 +57,7 @@ impl Precompile for TIP20Token {
 
         dispatch_call(
             calldata,
-            &[SelectorSchedule::new(TempoHardfork::T2).with_added(T2_ADDED)],
+            &[SelectorSchedule::new(MagnusHardfork::T2).with_added(T2_ADDED)],
             TIP20Call::decode,
             |call| match call {
                 // Metadata functions (no calldata decoding needed)
@@ -233,7 +233,7 @@ mod tests {
         sol_types::{SolCall, SolError, SolInterface, SolValue},
     };
 
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::{
         IRolesAuth, RolesAuthError, TIP20Error, UnknownFunctionSelector,
     };
@@ -243,7 +243,7 @@ mod tests {
         let (_, sender) = setup_storage();
 
         // T1: invalid selector returns reverted output
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         StorageCtx::enter(&mut storage, || -> eyre::Result<()> {
             let mut token = TIP20Setup::create("Test", "TST", sender).apply()?;
 
@@ -258,7 +258,7 @@ mod tests {
         })?;
 
         // Pre-T1 (T0): insufficient calldata returns halt
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         StorageCtx::enter(&mut storage, || {
             let mut token = TIP20Setup::create("Test", "TST", sender).apply()?;
 
@@ -757,7 +757,7 @@ mod tests {
         use magnus_contracts::precompiles::{IRolesAuth::IRolesAuthCalls, ITIP20::ITIP20Calls};
 
         // Use T2 hardfork so T2-gated selectors (permit, nonces, DOMAIN_SEPARATOR) are active
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
@@ -783,7 +783,7 @@ mod tests {
     #[test]
     fn test_permit_selectors_gated_behind_t2() -> eyre::Result<()> {
         // Pre-T2: permit/nonces/DOMAIN_SEPARATOR should return unknown selector
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {

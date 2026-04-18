@@ -13,10 +13,10 @@ use parking_lot::RwLock;
 use reth_node_core::rpc::compat::FromConsensusHeader;
 use reth_provider::HeaderProvider as _;
 use std::sync::{Arc, OnceLock};
-use magnus_alloy::rpc::TempoHeaderResponse;
+use magnus_alloy::rpc::MagnusHeaderResponse;
 use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
 use magnus_node::{
-    TempoFullNode,
+    MagnusFullNode,
     rpc::consensus::{
         CertifiedBlock, ConsensusFeed, ConsensusState, Event, IdentityProofError,
         IdentityTransition, IdentityTransitionResponse, Query, TransitionProofData,
@@ -63,7 +63,7 @@ pub struct FeedStateHandle {
     state: Arc<RwLock<FeedState>>,
     marshal: Arc<OnceLock<marshal::Mailbox>>,
     epocher: Arc<OnceLock<FixedEpocher>>,
-    execution_node: Arc<OnceLock<TempoFullNode>>,
+    execution_node: Arc<OnceLock<MagnusFullNode>>,
     events_tx: broadcast::Sender<Event>,
     /// Cache for identity transition proofs to avoid re-walking the chain.
     identity_cache: Arc<RwLock<Option<IdentityTransitionCache>>>,
@@ -100,7 +100,7 @@ impl FeedStateHandle {
     }
 
     /// Set the execution node for header lookups. Should only be called once.
-    pub(crate) fn set_execution_node(&self, execution_node: TempoFullNode) {
+    pub(crate) fn set_execution_node(&self, execution_node: MagnusFullNode) {
         let _ = self.execution_node.set(execution_node);
     }
 
@@ -144,7 +144,7 @@ impl FeedStateHandle {
     async fn try_fill_transitions(
         &self,
         marshal: &mut marshal::Mailbox,
-        execution: &TempoFullNode,
+        execution: &MagnusFullNode,
         epocher: &FixedEpocher,
         start_epoch: u64,
     ) -> Result<(), IdentityProofError> {
@@ -249,7 +249,7 @@ impl FeedStateHandle {
                     old_identity: hex::encode(prev_pubkey.encode()),
                     new_identity: hex::encode(pubkey.encode()),
                     proof: Some(TransitionProofData {
-                        header: TempoHeaderResponse::from_consensus_header(header, 0),
+                        header: MagnusHeaderResponse::from_consensus_header(header, 0),
                         finalization_certificate: hex::encode(finalization.encode()),
                     }),
                 });
@@ -468,7 +468,7 @@ impl ConsensusFeed for FeedStateHandle {
 
 /// Fetch last block of epoch and decode DKG outcome.
 fn get_outcome(
-    execution: &TempoFullNode,
+    execution: &MagnusFullNode,
     epocher: &FixedEpocher,
     epoch: u64,
 ) -> Result<OnchainDkgOutcome, IdentityProofError> {

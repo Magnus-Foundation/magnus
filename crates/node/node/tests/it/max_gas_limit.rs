@@ -1,7 +1,7 @@
 //! Tests for per-transaction gas limit caps across hardforks ([TIP-1000]/[TIP-1010]).
 //!
 //! Pre-T1A: EIP-7825 Osaka limit (16,777,216 gas).
-//! Post-T1A (TIP-1010): per-tx gas limit cap is 30M (`TEMPO_T1_TX_GAS_LIMIT_CAP`).
+//! Post-T1A (TIP-1010): per-tx gas limit cap is 30M (`MAGNUS_T1_TX_GAS_LIMIT_CAP`).
 //!
 //! [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
 //! [TIP-1010]: <https://docs.tempo.xyz/protocol/tips/tip-1010>
@@ -17,7 +17,7 @@ use alloy_network::TxSignerSync;
 use alloy_primitives::Bytes;
 use reth_node_api::BuiltPayload;
 use reth_primitives_traits::transaction::TxHashRef;
-use magnus_chainspec::spec::{TEMPO_T1_BASE_FEE, TEMPO_T1_TX_GAS_LIMIT_CAP};
+use magnus_chainspec::spec::{MAGNUS_T1_BASE_FEE, MAGNUS_T1_TX_GAS_LIMIT_CAP};
 
 use crate::utils::{TEST_MNEMONIC, TestNodeBuilder, make_genesis_at};
 
@@ -33,8 +33,8 @@ fn build_tx(
         nonce,
         gas_limit,
         to: Address::ZERO.into(),
-        max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
-        max_priority_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+        max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
+        max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
         ..Default::default()
     };
     let signature = signer.sign_transaction_sync(&mut tx).unwrap();
@@ -115,7 +115,7 @@ async fn test_post_t1a_tx_at_tempo_cap() -> eyre::Result<()> {
     let provider = ProviderBuilder::new().connect_http(setup.node.rpc_url());
     let chain_id = provider.get_chain_id().await?;
 
-    let raw_tx = build_tx(&signer, chain_id, 0, TEMPO_T1_TX_GAS_LIMIT_CAP);
+    let raw_tx = build_tx(&signer, chain_id, 0, MAGNUS_T1_TX_GAS_LIMIT_CAP);
     let pending = provider.send_raw_transaction(&raw_tx).await?;
     let expected_hash = *pending.tx_hash();
     let payload = setup.node.advance_block().await?;
@@ -145,7 +145,7 @@ async fn test_post_t1a_tx_exceeding_tempo_cap() -> eyre::Result<()> {
     let provider = ProviderBuilder::new().connect_http(setup.node.rpc_url());
     let chain_id = provider.get_chain_id().await?;
 
-    let raw_tx = build_tx(&signer, chain_id, 0, TEMPO_T1_TX_GAS_LIMIT_CAP + 1);
+    let raw_tx = build_tx(&signer, chain_id, 0, MAGNUS_T1_TX_GAS_LIMIT_CAP + 1);
     let result = provider.send_raw_transaction(&raw_tx).await;
     assert!(
         result.is_err(),
@@ -160,7 +160,7 @@ async fn test_post_t1a_tx_exceeding_tempo_cap() -> eyre::Result<()> {
 async fn test_pre_t1a_tx_at_osaka_limit() -> eyre::Result<()> {
     reth_tracing::init_test_tracing();
 
-    let pre_t1a_genesis = make_genesis_at(magnus_chainspec::hardfork::TempoHardfork::T0);
+    let pre_t1a_genesis = make_genesis_at(magnus_chainspec::hardfork::MagnusHardfork::T0);
 
     let mut setup = TestNodeBuilder::new()
         .with_genesis(pre_t1a_genesis)
@@ -193,7 +193,7 @@ async fn test_pre_t1a_tx_at_osaka_limit() -> eyre::Result<()> {
 async fn test_pre_t1a_tx_above_osaka_limit() -> eyre::Result<()> {
     reth_tracing::init_test_tracing();
 
-    let pre_t1a_genesis = make_genesis_at(magnus_chainspec::hardfork::TempoHardfork::T0);
+    let pre_t1a_genesis = make_genesis_at(magnus_chainspec::hardfork::MagnusHardfork::T0);
 
     let setup = TestNodeBuilder::new()
         .with_genesis(pre_t1a_genesis)

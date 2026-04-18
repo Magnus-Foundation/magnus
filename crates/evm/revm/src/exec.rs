@@ -1,8 +1,8 @@
 use crate::{
-    TempoBlockEnv, TempoInvalidTransaction, TempoTxEnv,
-    error::TempoHaltReason,
-    evm::{TempoContext, TempoEvm},
-    handler::TempoEvmHandler,
+    MagnusBlockEnv, MagnusInvalidTransaction, MagnusTxEnv,
+    error::MagnusHaltReason,
+    evm::{MagnusContext, MagnusEvm},
+    handler::MagnusEvmHandler,
 };
 use alloy_evm::{Database, TransactionEnvMut};
 use revm::{
@@ -21,15 +21,15 @@ use revm::{
 /// Total gas system transactions are allowed to use.
 const SYSTEM_CALL_GAS_LIMIT: u64 = 250_000_000;
 
-impl<DB, I> ExecuteEvm for TempoEvm<DB, I>
+impl<DB, I> ExecuteEvm for MagnusEvm<DB, I>
 where
     DB: Database,
 {
-    type Tx = TempoTxEnv;
-    type Block = TempoBlockEnv;
+    type Tx = MagnusTxEnv;
+    type Block = MagnusBlockEnv;
     type State = EvmState;
-    type Error = EVMError<DB::Error, TempoInvalidTransaction>;
-    type ExecutionResult = ExecutionResult<TempoHaltReason>;
+    type Error = EVMError<DB::Error, MagnusInvalidTransaction>;
+    type ExecutionResult = ExecutionResult<MagnusHaltReason>;
 
     fn set_block(&mut self, block: Self::Block) {
         self.inner.ctx.set_block(block);
@@ -37,7 +37,7 @@ where
 
     fn transact_one(&mut self, tx: Self::Tx) -> Result<Self::ExecutionResult, Self::Error> {
         self.inner.ctx.set_tx(tx);
-        let mut h = TempoEvmHandler::new();
+        let mut h = MagnusEvmHandler::new();
         h.run(self)
     }
 
@@ -48,7 +48,7 @@ where
     fn replay(
         &mut self,
     ) -> Result<ExecResultAndState<Self::ExecutionResult, Self::State>, Self::Error> {
-        let mut h = TempoEvmHandler::new();
+        let mut h = MagnusEvmHandler::new();
         h.run(self).map(|result| {
             let state = self.finalize();
             ExecResultAndState::new(result, state)
@@ -56,7 +56,7 @@ where
     }
 }
 
-impl<DB, I> ExecuteCommitEvm for TempoEvm<DB, I>
+impl<DB, I> ExecuteCommitEvm for MagnusEvm<DB, I>
 where
     DB: Database + DatabaseCommit,
 {
@@ -65,10 +65,10 @@ where
     }
 }
 
-impl<DB, I> InspectEvm for TempoEvm<DB, I>
+impl<DB, I> InspectEvm for MagnusEvm<DB, I>
 where
     DB: Database,
-    I: Inspector<TempoContext<DB>>,
+    I: Inspector<MagnusContext<DB>>,
 {
     type Inspector = I;
 
@@ -78,19 +78,19 @@ where
 
     fn inspect_one_tx(&mut self, tx: Self::Tx) -> Result<Self::ExecutionResult, Self::Error> {
         self.inner.ctx.set_tx(tx);
-        let mut h = TempoEvmHandler::new();
+        let mut h = MagnusEvmHandler::new();
         h.inspect_run(self)
     }
 }
 
-impl<DB, I> InspectCommitEvm for TempoEvm<DB, I>
+impl<DB, I> InspectCommitEvm for MagnusEvm<DB, I>
 where
     DB: Database + DatabaseCommit,
-    I: Inspector<TempoContext<DB>>,
+    I: Inspector<MagnusContext<DB>>,
 {
 }
 
-impl<DB, I> SystemCallEvm for TempoEvm<DB, I>
+impl<DB, I> SystemCallEvm for MagnusEvm<DB, I>
 where
     DB: Database,
 {
@@ -103,15 +103,15 @@ where
         let mut tx = TxEnv::new_system_tx_with_caller(caller, system_contract_address, data);
         tx.set_gas_limit(SYSTEM_CALL_GAS_LIMIT);
         self.inner.ctx.set_tx(tx.into());
-        let mut h = TempoEvmHandler::new();
+        let mut h = MagnusEvmHandler::new();
         h.run_system_call(self)
     }
 }
 
-impl<DB, I> InspectSystemCallEvm for TempoEvm<DB, I>
+impl<DB, I> InspectSystemCallEvm for MagnusEvm<DB, I>
 where
     DB: Database,
-    I: Inspector<TempoContext<DB>>,
+    I: Inspector<MagnusContext<DB>>,
 {
     fn inspect_one_system_call_with_caller(
         &mut self,
@@ -122,7 +122,7 @@ where
         let mut tx = TxEnv::new_system_tx_with_caller(caller, system_contract_address, data);
         tx.set_gas_limit(SYSTEM_CALL_GAS_LIMIT);
         self.inner.ctx.set_tx(tx.into());
-        let mut h = TempoEvmHandler::new();
+        let mut h = MagnusEvmHandler::new();
         h.inspect_run_system_call(self)
     }
 }
@@ -132,19 +132,19 @@ mod tests {
     use super::*;
     use revm::{Context, ExecuteEvm, MainContext, database::EmptyDB};
 
-    /// Test set_block and replay with default TempoEvm.
+    /// Test set_block and replay with default MagnusEvm.
     #[test]
     fn test_set_block_and_replay() {
         let db = EmptyDB::new();
         let ctx = Context::mainnet()
             .with_db(db)
-            .with_block(TempoBlockEnv::default())
+            .with_block(MagnusBlockEnv::default())
             .with_cfg(Default::default())
-            .with_tx(TempoTxEnv::default());
-        let mut evm = TempoEvm::new(ctx, ());
+            .with_tx(MagnusTxEnv::default());
+        let mut evm = MagnusEvm::new(ctx, ());
 
         // Set block with default fields
-        evm.set_block(TempoBlockEnv::default());
+        evm.set_block(MagnusBlockEnv::default());
 
         // Replay executes the current transaction and returns result with state.
         // With default tx (no calls, system tx), it should succeed.

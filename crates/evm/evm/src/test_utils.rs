@@ -6,30 +6,30 @@ use reth_chainspec::EthChainSpec;
 use reth_evm::block::StateDB;
 use reth_revm::context::BlockEnv;
 use revm::inspector::NoOpInspector;
-use magnus_chainspec::{TempoChainSpec, spec::MODERATO};
-use magnus_revm::TempoBlockEnv;
+use magnus_chainspec::{MagnusChainSpec, spec::MODERATO};
+use magnus_revm::MagnusBlockEnv;
 
-use crate::{TempoBlockExecutionCtx, block::TempoBlockExecutor, evm::TempoEvm};
+use crate::{MagnusBlockExecutionCtx, block::MagnusBlockExecutor, evm::MagnusEvm};
 use alloy_evm::eth::EthBlockExecutionCtx;
 use alloy_primitives::U256;
 use magnus_primitives::subblock::PartialValidatorKey;
 
-pub(crate) fn test_chainspec() -> Arc<TempoChainSpec> {
-    Arc::new(TempoChainSpec::from_genesis(MODERATO.genesis().clone()))
+pub(crate) fn test_chainspec() -> Arc<MagnusChainSpec> {
+    Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()))
 }
 
-pub(crate) fn test_evm<DB: Database>(db: DB) -> TempoEvm<DB, NoOpInspector> {
+pub(crate) fn test_evm<DB: Database>(db: DB) -> MagnusEvm<DB, NoOpInspector> {
     test_evm_with_basefee(db, 1)
 }
 
 pub(crate) fn test_evm_with_basefee<DB: Database>(
     db: DB,
     basefee: u64,
-) -> TempoEvm<DB, NoOpInspector> {
-    TempoEvm::new(
+) -> MagnusEvm<DB, NoOpInspector> {
+    MagnusEvm::new(
         db,
         EvmEnv {
-            block_env: TempoBlockEnv {
+            block_env: MagnusBlockEnv {
                 inner: BlockEnv {
                     basefee,
                     gas_limit: 30_000_000,
@@ -43,7 +43,7 @@ pub(crate) fn test_evm_with_basefee<DB: Database>(
 }
 
 use crate::block::BlockSection;
-use magnus_primitives::TempoTxEnvelope;
+use magnus_primitives::MagnusTxEnvelope;
 
 pub(crate) struct TestExecutorBuilder {
     pub(crate) block_number: u64,
@@ -55,7 +55,7 @@ pub(crate) struct TestExecutorBuilder {
     pub(crate) subblock_fee_recipients: HashMap<PartialValidatorKey, Address>,
     // Test state to seed into the executor after creation
     pub(crate) initial_section: Option<BlockSection>,
-    pub(crate) initial_seen_subblocks: Vec<(PartialValidatorKey, Vec<TempoTxEnvelope>)>,
+    pub(crate) initial_seen_subblocks: Vec<(PartialValidatorKey, Vec<MagnusTxEnvelope>)>,
     pub(crate) initial_incentive_gas_used: u64,
 }
 
@@ -107,7 +107,7 @@ impl TestExecutorBuilder {
     pub(crate) fn with_seen_subblock(
         mut self,
         proposer: PartialValidatorKey,
-        txs: Vec<TempoTxEnvelope>,
+        txs: Vec<MagnusTxEnvelope>,
     ) -> Self {
         self.initial_seen_subblocks.push((proposer, txs));
         self
@@ -122,12 +122,12 @@ impl TestExecutorBuilder {
     pub(crate) fn build<'a, DB: StateDB>(
         self,
         db: DB,
-        chainspec: &'a Arc<TempoChainSpec>,
-    ) -> TempoBlockExecutor<'a, DB, NoOpInspector> {
-        let evm = TempoEvm::new(
+        chainspec: &'a Arc<MagnusChainSpec>,
+    ) -> MagnusBlockExecutor<'a, DB, NoOpInspector> {
+        let evm = MagnusEvm::new(
             db,
             EvmEnv {
-                block_env: TempoBlockEnv {
+                block_env: MagnusBlockEnv {
                     inner: BlockEnv {
                         number: U256::from(self.block_number),
                         basefee: 1,
@@ -140,7 +140,7 @@ impl TestExecutorBuilder {
             },
         );
 
-        let ctx = TempoBlockExecutionCtx {
+        let ctx = MagnusBlockExecutionCtx {
             inner: EthBlockExecutionCtx {
                 parent_hash: self.parent_hash,
                 parent_beacon_block_root: self.parent_beacon_block_root,
@@ -156,7 +156,7 @@ impl TestExecutorBuilder {
             subblock_fee_recipients: self.subblock_fee_recipients,
         };
 
-        let mut executor = TempoBlockExecutor::new(evm, ctx, chainspec);
+        let mut executor = MagnusBlockExecutor::new(evm, ctx, chainspec);
 
         // Apply test-specific initial state
         if let Some(section) = self.initial_section {

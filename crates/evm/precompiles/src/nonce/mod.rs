@@ -187,7 +187,7 @@ impl NonceManager {
 #[cfg(test)]
 mod tests {
     use crate::{
-        error::TempoPrecompileError,
+        error::MagnusPrecompileError,
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
     };
 
@@ -225,7 +225,7 @@ mod tests {
 
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::NonceError(NonceError::protocol_nonce_not_supported())
+                MagnusPrecompileError::NonceError(NonceError::protocol_nonce_not_supported())
             );
             Ok(())
         })
@@ -315,7 +315,7 @@ mod tests {
             let result = mgr.check_and_mark_expiring_nonce(tx_hash, valid_before);
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::NonceError(NonceError::expiring_nonce_replay())
+                MagnusPrecompileError::NonceError(NonceError::expiring_nonce_replay())
             );
 
             Ok(())
@@ -336,21 +336,21 @@ mod tests {
             let result = mgr.check_and_mark_expiring_nonce(tx_hash, now - 1);
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::NonceError(NonceError::invalid_expiring_nonce_expiry())
+                MagnusPrecompileError::NonceError(NonceError::invalid_expiring_nonce_expiry())
             );
 
             // valid_before exactly at now should fail
             let result = mgr.check_and_mark_expiring_nonce(tx_hash, now);
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::NonceError(NonceError::invalid_expiring_nonce_expiry())
+                MagnusPrecompileError::NonceError(NonceError::invalid_expiring_nonce_expiry())
             );
 
             // valid_before too far in future should fail (uses EXPIRING_NONCE_MAX_EXPIRY_SECS = 30)
             let result = mgr.check_and_mark_expiring_nonce(tx_hash, now + 31);
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::NonceError(NonceError::invalid_expiring_nonce_expiry())
+                MagnusPrecompileError::NonceError(NonceError::invalid_expiring_nonce_expiry())
             );
 
             // valid_before at exactly EXPIRING_NONCE_MAX_EXPIRY_SECS should succeed

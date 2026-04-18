@@ -7,28 +7,28 @@ pub mod operator;
 pub mod simulate;
 pub mod token;
 
-pub use admin::{TempoAdminApi, TempoAdminApiServer};
+pub use admin::{MagnusAdminApi, MagnusAdminApiServer};
 use alloy_primitives::B256;
 use alloy_rpc_types_eth::{Log, ReceiptWithBloom};
-pub use consensus::{TempoConsensusApiServer, TempoConsensusRpc};
-pub use eth_ext::{TempoEthExt, TempoEthExtApiServer};
-pub use fork_schedule::{TempoForkScheduleApiServer, TempoForkScheduleRpc};
+pub use consensus::{MagnusConsensusApiServer, MagnusConsensusRpc};
+pub use eth_ext::{MagnusEthExt, MagnusEthExtApiServer};
+pub use fork_schedule::{MagnusForkScheduleApiServer, MagnusForkScheduleRpc};
 use futures::{TryFutureExt, future::Either};
-pub use operator::{TempoOperatorApiServer, TempoOperatorRpc};
+pub use operator::{MagnusOperatorApiServer, MagnusOperatorRpc};
 use reth_errors::RethError;
 use reth_primitives_traits::{Recovered, TransactionMeta, WithEncoded, transaction::TxHashRef};
 use reth_rpc_eth_api::{FromEthApiError, IntoEthApiError, RpcTxReq};
 use reth_transaction_pool::{PoolPooledTx, TransactionOrigin};
-pub use simulate::{TempoSimulate, TempoSimulateApiServer, TempoSimulateV1Response};
+pub use simulate::{MagnusSimulate, MagnusSimulateApiServer, MagnusSimulateV1Response};
 use std::sync::Arc;
-pub use magnus_alloy::rpc::TempoTransactionRequest;
-use magnus_chainspec::TempoChainSpec;
-use magnus_evm::TempoStateAccess;
+pub use magnus_alloy::rpc::MagnusTransactionRequest;
+use magnus_chainspec::MagnusChainSpec;
+use magnus_evm::MagnusStateAccess;
 use magnus_precompiles::{NONCE_PRECOMPILE_ADDRESS, nonce::NonceManager};
-use magnus_primitives::transaction::TEMPO_EXPIRING_NONCE_KEY;
-pub use token::{TempoToken, TempoTokenApiServer};
+use magnus_primitives::transaction::MAGNUS_EXPIRING_NONCE_KEY;
+pub use token::{MagnusToken, MagnusTokenApiServer};
 
-use crate::{node::TempoNode, rpc::error::TempoEthApiError};
+use crate::{node::MagnusNode, rpc::error::MagnusEthApiError};
 use alloy::primitives::{U256, uint};
 use reth_ethereum::tasks::{
     Runtime,
@@ -59,10 +59,10 @@ use reth_rpc_eth_types::{
     EthApiError, EthStateCache, FeeHistoryCache, GasPriceOracle, PendingBlock, SignError,
     builder::config::PendingBlockKind, receipt::EthReceiptConverter,
 };
-use magnus_alloy::{TempoNetwork, rpc::TempoTransactionReceipt};
-use magnus_evm::TempoEvmConfig;
+use magnus_alloy::{MagnusNetwork, rpc::MagnusTransactionReceipt};
+use magnus_evm::MagnusEvmConfig;
 use magnus_primitives::{
-    TEMPO_GAS_PRICE_SCALING_FACTOR, TempoPrimitives, TempoReceipt, TempoTxEnvelope,
+    MAGNUS_GAS_PRICE_SCALING_FACTOR, MagnusPrimitives, MagnusReceipt, MagnusTxEnvelope,
     subblock::PartialValidatorKey,
 };
 use tokio::sync::{Mutex, broadcast};
@@ -90,12 +90,12 @@ pub const SUBBLOCK_TX_CHANNEL_CAPACITY: usize = 10_000;
 /// This type implements the [`FullEthApi`](reth_rpc_eth_api::helpers::FullEthApi) by implemented
 /// all the `Eth` helper traits and prerequisite traits.
 #[derive(Debug, Clone)]
-pub struct TempoEthApi<N: FullNodeTypes<Types = TempoNode>> {
+pub struct MagnusEthApi<N: FullNodeTypes<Types = MagnusNode>> {
     /// Gateway to node's core components.
-    inner: EthApi<NodeAdapter<N>, DynRpcConverter<TempoEvmConfig, TempoNetwork>>,
+    inner: EthApi<NodeAdapter<N>, DynRpcConverter<MagnusEvmConfig, MagnusNetwork>>,
 
     /// Channel for sending subblock transactions to the subblocks service.
-    subblock_transactions_tx: broadcast::Sender<Recovered<TempoTxEnvelope>>,
+    subblock_transactions_tx: broadcast::Sender<Recovered<MagnusTxEnvelope>>,
 
     /// Validator public key used to filter subblock transactions.
     ///
@@ -105,10 +105,10 @@ pub struct TempoEthApi<N: FullNodeTypes<Types = TempoNode>> {
     validator_key: Option<B256>,
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> TempoEthApi<N> {
-    /// Creates a new `TempoEthApi`.
+impl<N: FullNodeTypes<Types = MagnusNode>> MagnusEthApi<N> {
+    /// Creates a new `MagnusEthApi`.
     pub fn new(
-        eth_api: EthApi<NodeAdapter<N>, DynRpcConverter<TempoEvmConfig, TempoNetwork>>,
+        eth_api: EthApi<NodeAdapter<N>, DynRpcConverter<MagnusEvmConfig, MagnusNetwork>>,
         validator_key: Option<B256>,
     ) -> Self {
         Self {
@@ -119,7 +119,7 @@ impl<N: FullNodeTypes<Types = TempoNode>> TempoEthApi<N> {
     }
 
     /// Returns a [`broadcast::Receiver`] for subblock transactions.
-    pub fn subblock_transactions_rx(&self) -> broadcast::Receiver<Recovered<TempoTxEnvelope>> {
+    pub fn subblock_transactions_rx(&self) -> broadcast::Receiver<Recovered<MagnusTxEnvelope>> {
         self.subblock_transactions_tx.subscribe()
     }
 
@@ -133,17 +133,17 @@ impl<N: FullNodeTypes<Types = TempoNode>> TempoEthApi<N> {
     }
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> EthApiTypes for TempoEthApi<N> {
-    type Error = TempoEthApiError;
-    type NetworkTypes = TempoNetwork;
-    type RpcConvert = DynRpcConverter<TempoEvmConfig, TempoNetwork>;
+impl<N: FullNodeTypes<Types = MagnusNode>> EthApiTypes for MagnusEthApi<N> {
+    type Error = MagnusEthApiError;
+    type NetworkTypes = MagnusNetwork;
+    type RpcConvert = DynRpcConverter<MagnusEvmConfig, MagnusNetwork>;
 
     fn converter(&self) -> &Self::RpcConvert {
         self.inner.converter()
     }
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> RpcNodeCore for TempoEthApi<N> {
+impl<N: FullNodeTypes<Types = MagnusNode>> RpcNodeCore for MagnusEthApi<N> {
     type Primitives = PrimitivesTy<N::Types>;
     type Provider = N::Provider;
     type Pool = <NodeAdapter<N> as FullNodeComponents>::Pool;
@@ -171,21 +171,21 @@ impl<N: FullNodeTypes<Types = TempoNode>> RpcNodeCore for TempoEthApi<N> {
     }
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> RpcNodeCoreExt for TempoEthApi<N> {
+impl<N: FullNodeTypes<Types = MagnusNode>> RpcNodeCoreExt for MagnusEthApi<N> {
     #[inline]
     fn cache(&self) -> &EthStateCache<PrimitivesTy<N::Types>> {
         self.inner.cache()
     }
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> EthApiSpec for TempoEthApi<N> {
+impl<N: FullNodeTypes<Types = MagnusNode>> EthApiSpec for MagnusEthApi<N> {
     #[inline]
     fn starting_block(&self) -> U256 {
         self.inner.starting_block()
     }
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> SpawnBlocking for TempoEthApi<N> {
+impl<N: FullNodeTypes<Types = MagnusNode>> SpawnBlocking for MagnusEthApi<N> {
     #[inline]
     fn io_task_spawner(&self) -> &Runtime {
         self.inner.task_spawner()
@@ -207,7 +207,7 @@ impl<N: FullNodeTypes<Types = TempoNode>> SpawnBlocking for TempoEthApi<N> {
     }
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> LoadPendingBlock for TempoEthApi<N> {
+impl<N: FullNodeTypes<Types = MagnusNode>> LoadPendingBlock for MagnusEthApi<N> {
     #[inline]
     fn pending_block(&self) -> &Mutex<Option<PendingBlock<Self::Primitives>>> {
         self.inner.pending_block()
@@ -225,7 +225,7 @@ impl<N: FullNodeTypes<Types = TempoNode>> LoadPendingBlock for TempoEthApi<N> {
     }
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> LoadFee for TempoEthApi<N> {
+impl<N: FullNodeTypes<Types = MagnusNode>> LoadFee for MagnusEthApi<N> {
     #[inline]
     fn gas_oracle(&self) -> &GasPriceOracle<Self::Provider> {
         self.inner.gas_oracle()
@@ -237,7 +237,7 @@ impl<N: FullNodeTypes<Types = TempoNode>> LoadFee for TempoEthApi<N> {
     }
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> LoadState for TempoEthApi<N> {
+impl<N: FullNodeTypes<Types = MagnusNode>> LoadState for MagnusEthApi<N> {
     async fn next_available_nonce_for(
         &self,
         request: &RpcTxReq<Self::NetworkTypes>,
@@ -245,7 +245,7 @@ impl<N: FullNodeTypes<Types = TempoNode>> LoadState for TempoEthApi<N> {
         if let Some(nonce_key) = request.nonce_key
             && !nonce_key.is_zero()
         {
-            let nonce = if nonce_key == TEMPO_EXPIRING_NONCE_KEY {
+            let nonce = if nonce_key == MAGNUS_EXPIRING_NONCE_KEY {
                 0 // expiring nonce must be 0
             } else {
                 // 2D nonce: fetch from storage
@@ -272,7 +272,7 @@ impl<N: FullNodeTypes<Types = TempoNode>> LoadState for TempoEthApi<N> {
     }
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> EthState for TempoEthApi<N> {
+impl<N: FullNodeTypes<Types = MagnusNode>> EthState for MagnusEthApi<N> {
     #[inline]
     async fn balance(
         &self,
@@ -288,15 +288,15 @@ impl<N: FullNodeTypes<Types = TempoNode>> EthState for TempoEthApi<N> {
     }
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> EthFees for TempoEthApi<N> {}
+impl<N: FullNodeTypes<Types = MagnusNode>> EthFees for MagnusEthApi<N> {}
 
-impl<N: FullNodeTypes<Types = TempoNode>> Trace for TempoEthApi<N> {}
+impl<N: FullNodeTypes<Types = MagnusNode>> Trace for MagnusEthApi<N> {}
 
-impl<N: FullNodeTypes<Types = TempoNode>> EthCall for TempoEthApi<N> {}
+impl<N: FullNodeTypes<Types = MagnusNode>> EthCall for MagnusEthApi<N> {}
 
-impl<N: FullNodeTypes<Types = TempoNode>> GetBlockAccessList for TempoEthApi<N> {}
+impl<N: FullNodeTypes<Types = MagnusNode>> GetBlockAccessList for MagnusEthApi<N> {}
 
-impl<N: FullNodeTypes<Types = TempoNode>> Call for TempoEthApi<N> {
+impl<N: FullNodeTypes<Types = MagnusNode>> Call for MagnusEthApi<N> {
     #[inline]
     fn call_gas_limit(&self) -> u64 {
         self.inner.gas_cap()
@@ -332,7 +332,7 @@ impl<N: FullNodeTypes<Types = TempoNode>> Call for TempoEthApi<N> {
 
         Ok(fee_token_balance
             // multiply by the scaling factor
-            .saturating_mul(TEMPO_GAS_PRICE_SCALING_FACTOR)
+            .saturating_mul(MAGNUS_GAS_PRICE_SCALING_FACTOR)
             // Calculate the amount of gas the caller can afford with the specified gas price.
             .checked_div(U256::from(tx_env.inner.gas_price))
             // This will be 0 if gas price is 0. It is fine, because we check it before.
@@ -343,14 +343,14 @@ impl<N: FullNodeTypes<Types = TempoNode>> Call for TempoEthApi<N> {
     fn create_txn_env(
         &self,
         evm_env: &EvmEnvFor<Self::Evm>,
-        mut request: TempoTransactionRequest,
+        mut request: MagnusTransactionRequest,
         mut db: impl Database<Error: Into<EthApiError>>,
     ) -> Result<TxEnvFor<Self::Evm>, Self::Error> {
         if let Some(nonce_key) = request.nonce_key
             && !nonce_key.is_zero()
             && request.nonce.is_none()
         {
-            let nonce = if nonce_key == TEMPO_EXPIRING_NONCE_KEY {
+            let nonce = if nonce_key == MAGNUS_EXPIRING_NONCE_KEY {
                 0 // expiring nonce must be 0
             } else {
                 // 2D nonce: fetch from storage
@@ -367,13 +367,13 @@ impl<N: FullNodeTypes<Types = TempoNode>> Call for TempoEthApi<N> {
     }
 }
 
-impl<N: FullNodeTypes<Types = TempoNode>> EstimateCall for TempoEthApi<N> {}
-impl<N: FullNodeTypes<Types = TempoNode>> LoadBlock for TempoEthApi<N> {}
-impl<N: FullNodeTypes<Types = TempoNode>> LoadReceipt for TempoEthApi<N> {}
-impl<N: FullNodeTypes<Types = TempoNode>> EthBlocks for TempoEthApi<N> {}
-impl<N: FullNodeTypes<Types = TempoNode>> LoadTransaction for TempoEthApi<N> {}
+impl<N: FullNodeTypes<Types = MagnusNode>> EstimateCall for MagnusEthApi<N> {}
+impl<N: FullNodeTypes<Types = MagnusNode>> LoadBlock for MagnusEthApi<N> {}
+impl<N: FullNodeTypes<Types = MagnusNode>> LoadReceipt for MagnusEthApi<N> {}
+impl<N: FullNodeTypes<Types = MagnusNode>> EthBlocks for MagnusEthApi<N> {}
+impl<N: FullNodeTypes<Types = MagnusNode>> LoadTransaction for MagnusEthApi<N> {}
 
-impl<N: FullNodeTypes<Types = TempoNode>> EthTransactions for TempoEthApi<N> {
+impl<N: FullNodeTypes<Types = MagnusNode>> EthTransactions for MagnusEthApi<N> {
     fn signers(&self) -> &SignersForRpc<Self::Provider, Self::NetworkTypes> {
         self.inner.signers()
     }
@@ -414,18 +414,18 @@ impl<N: FullNodeTypes<Types = TempoNode>> EthTransactions for TempoEthApi<N> {
 /// Converter for Tempo receipts.
 #[derive(Debug, Clone)]
 #[expect(clippy::type_complexity)]
-pub struct TempoReceiptConverter {
+pub struct MagnusReceiptConverter {
     inner: EthReceiptConverter<
-        TempoChainSpec,
-        fn(TempoReceipt, usize, TransactionMeta) -> ReceiptWithBloom<TempoReceipt<Log>>,
+        MagnusChainSpec,
+        fn(MagnusReceipt, usize, TransactionMeta) -> ReceiptWithBloom<MagnusReceipt<Log>>,
     >,
 }
 
-impl TempoReceiptConverter {
-    pub fn new(chain_spec: Arc<TempoChainSpec>) -> Self {
+impl MagnusReceiptConverter {
+    pub fn new(chain_spec: Arc<MagnusChainSpec>) -> Self {
         Self {
             inner: EthReceiptConverter::new(chain_spec).with_builder(
-                |receipt: TempoReceipt, next_log_index, meta| {
+                |receipt: MagnusReceipt, next_log_index, meta| {
                     let mut log_index = next_log_index;
                     receipt
                         .map_logs(|log| {
@@ -449,13 +449,13 @@ impl TempoReceiptConverter {
     }
 }
 
-impl ReceiptConverter<TempoPrimitives> for TempoReceiptConverter {
-    type RpcReceipt = TempoTransactionReceipt;
+impl ReceiptConverter<MagnusPrimitives> for MagnusReceiptConverter {
+    type RpcReceipt = MagnusTransactionReceipt;
     type Error = EthApiError;
 
     fn convert_receipts(
         &self,
-        receipts: Vec<ConvertReceiptInput<'_, TempoPrimitives>>,
+        receipts: Vec<ConvertReceiptInput<'_, MagnusPrimitives>>,
     ) -> Result<Vec<Self::RpcReceipt>, Self::Error> {
         let txs = receipts.iter().map(|r| r.tx).collect::<Vec<_>>();
         self.inner
@@ -463,7 +463,7 @@ impl ReceiptConverter<TempoPrimitives> for TempoReceiptConverter {
             .into_iter()
             .zip(txs)
             .map(|(inner, tx)| {
-                let mut receipt = TempoTransactionReceipt {
+                let mut receipt = MagnusTransactionReceipt {
                     inner,
                     fee_token: None,
                     // should never fail, we only deal with valid transactions here
@@ -487,32 +487,32 @@ impl ReceiptConverter<TempoPrimitives> for TempoReceiptConverter {
 }
 
 #[derive(Debug, Default)]
-pub struct TempoEthApiBuilder {
+pub struct MagnusEthApiBuilder {
     /// Validator public key used to filter subblock transactions.
     pub validator_key: Option<B256>,
 }
 
-impl TempoEthApiBuilder {
+impl MagnusEthApiBuilder {
     /// Creates a new builder with the given validator key.
     pub fn new(validator_key: Option<B256>) -> Self {
         Self { validator_key }
     }
 }
 
-impl<N> EthApiBuilder<NodeAdapter<N>> for TempoEthApiBuilder
+impl<N> EthApiBuilder<NodeAdapter<N>> for MagnusEthApiBuilder
 where
-    N: FullNodeTypes<Types = TempoNode>,
+    N: FullNodeTypes<Types = MagnusNode>,
 {
-    type EthApi = TempoEthApi<N>;
+    type EthApi = MagnusEthApi<N>;
 
     async fn build_eth_api(self, ctx: EthApiCtx<'_, NodeAdapter<N>>) -> eyre::Result<Self::EthApi> {
         let chain_spec = ctx.components.provider.chain_spec();
         let eth_api = ctx
             .eth_api_builder()
             .modify_gas_oracle_config(|config| config.default_suggested_fee = Some(U256::ZERO))
-            .map_converter(|_| RpcConverter::new(TempoReceiptConverter::new(chain_spec)).erased())
+            .map_converter(|_| RpcConverter::new(MagnusReceiptConverter::new(chain_spec)).erased())
             .build();
 
-        Ok(TempoEthApi::new(eth_api, self.validator_key))
+        Ok(MagnusEthApi::new(eth_api, self.validator_key))
     }
 }

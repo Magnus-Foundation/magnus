@@ -3,24 +3,24 @@ use alloy_network::primitives::HeaderResponse;
 use alloy_primitives::{Address, B64, B256, BlockHash, Bloom, Bytes, U256};
 use alloy_rpc_types_eth::Header;
 use serde::{Deserialize, Serialize};
-use magnus_primitives::TempoHeader;
+use magnus_primitives::MagnusHeader;
 
 /// Tempo RPC header response type.
 #[derive(Debug, Clone, Serialize, Deserialize, derive_more::Deref, derive_more::DerefMut)]
 #[serde(rename_all = "camelCase")]
-pub struct TempoHeaderResponse {
+pub struct MagnusHeaderResponse {
     /// Inner [`Header`].
     #[serde(flatten)]
     #[deref]
     #[deref_mut]
-    pub inner: Header<TempoHeader>,
+    pub inner: Header<MagnusHeader>,
 
     /// Block timestamp in milliseconds.
     #[serde(with = "alloy_serde::quantity")]
     pub timestamp_millis: u64,
 }
 
-impl BlockHeader for TempoHeaderResponse {
+impl BlockHeader for MagnusHeaderResponse {
     fn parent_hash(&self) -> B256 {
         self.inner.parent_hash()
     }
@@ -114,14 +114,14 @@ impl BlockHeader for TempoHeaderResponse {
     }
 }
 
-impl HeaderResponse for TempoHeaderResponse {
+impl HeaderResponse for MagnusHeaderResponse {
     fn hash(&self) -> BlockHash {
         self.inner.hash()
     }
 }
 
-impl AsRef<TempoHeader> for TempoHeaderResponse {
-    fn as_ref(&self) -> &TempoHeader {
+impl AsRef<MagnusHeader> for MagnusHeaderResponse {
+    fn as_ref(&self) -> &MagnusHeader {
         &self.inner
     }
 }

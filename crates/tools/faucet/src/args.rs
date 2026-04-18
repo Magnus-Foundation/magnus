@@ -5,7 +5,7 @@ use alloy::{
     signers::local::PrivateKeySigner,
 };
 use clap::Args;
-use magnus_alloy::{TempoNetwork, provider::ext::TempoProviderBuilderExt};
+use magnus_alloy::{MagnusNetwork, provider::ext::MagnusProviderBuilderExt};
 
 /// Faucet-specific CLI arguments
 #[derive(Debug, Clone, Default, Args, PartialEq, Eq)]
@@ -67,8 +67,8 @@ impl FaucetArgs {
         self.amount.expect("No TIP20 token amount provided")
     }
 
-    pub fn provider(&self) -> DynProvider<TempoNetwork> {
-        ProviderBuilder::new_with_network::<TempoNetwork>()
+    pub fn provider(&self) -> DynProvider<MagnusNetwork> {
+        ProviderBuilder::new_with_network::<MagnusNetwork>()
             .with_expiring_nonces()
             .wallet(self.wallet())
             .connect_http(

@@ -1,8 +1,8 @@
 use crate::utils::TestNodeBuilder;
 use alloy::providers::{Provider, ProviderBuilder};
 use reth_chainspec::Hardfork;
-use magnus_alloy::{TempoNetwork, provider::ext::TempoProviderExt};
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_alloy::{MagnusNetwork, provider::ext::MagnusProviderExt};
+use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_node::rpc::fork_schedule::ForkSchedule;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -16,9 +16,9 @@ async fn test_fork_schedule() -> eyre::Result<()> {
         .raw_request("magnus_forkSchedule".into(), ())
         .await?;
 
-    // Every TempoHardfork variant except Genesis must appear.
+    // Every MagnusHardfork variant except Genesis must appear.
     let names: Vec<&str> = schedule.schedule.iter().map(|f| f.name.as_str()).collect();
-    for fork in TempoHardfork::VARIANTS
+    for fork in MagnusHardfork::VARIANTS
         .iter()
         .filter(|f| f.name() != "Genesis")
     {
@@ -28,7 +28,7 @@ async fn test_fork_schedule() -> eyre::Result<()> {
             fork.name()
         );
     }
-    assert_eq!(names.len(), TempoHardfork::VARIANTS.len() - 1);
+    assert_eq!(names.len(), MagnusHardfork::VARIANTS.len() - 1);
 
     // Active fork must be in the schedule.
     assert!(names.contains(&schedule.active.as_str()));
@@ -69,10 +69,10 @@ async fn test_is_hardfork_active() -> eyre::Result<()> {
     reth_tracing::init_test_tracing();
 
     let setup = TestNodeBuilder::new().build_http_only().await?;
-    let provider = ProviderBuilder::new_with_network::<TempoNetwork>().connect_http(setup.http_url);
+    let provider = ProviderBuilder::new_with_network::<MagnusNetwork>().connect_http(setup.http_url);
 
     // Devnet activates all forks at t=0, so every known hardfork should be active.
-    for fork in TempoHardfork::VARIANTS {
+    for fork in MagnusHardfork::VARIANTS {
         assert!(
             provider.is_hardfork_active(*fork).await?,
             "{fork:?} should be active on devnet",

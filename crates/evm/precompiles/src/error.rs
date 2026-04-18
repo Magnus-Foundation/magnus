@@ -1,6 +1,6 @@
 //! Unified error handling for Tempo precompiles.
 //!
-//! Provides [`TempoPrecompileError`] — the top-level error enum — along with an
+//! Provides [`MagnusPrecompileError`] — the top-level error enum — along with an
 //! ABI-selector-based decoder registry for mapping raw revert bytes back to
 //! typed error variants.
 
@@ -29,7 +29,7 @@ use magnus_contracts::precompiles::{
 #[derive(
     Debug, Clone, PartialEq, Eq, thiserror::Error, derive_more::From, derive_more::TryInto,
 )]
-pub enum TempoPrecompileError {
+pub enum MagnusPrecompileError {
     /// Stablecoin DEX error
     #[error("Stablecoin DEX error: {0:?}")]
     StablecoinDEX(StablecoinDEXError),
@@ -100,7 +100,7 @@ pub enum TempoPrecompileError {
     Fatal(String),
 }
 
-impl From<EvmInternalsError> for TempoPrecompileError {
+impl From<EvmInternalsError> for MagnusPrecompileError {
     fn from(value: EvmInternalsError) -> Self {
         match value {
             EvmInternalsError::Database(e) => Self::Fatal(e.to_string()),
@@ -108,7 +108,7 @@ impl From<EvmInternalsError> for TempoPrecompileError {
     }
 }
 
-impl From<JournalLoadError<EvmInternalsError>> for TempoPrecompileError {
+impl From<JournalLoadError<EvmInternalsError>> for MagnusPrecompileError {
     fn from(value: JournalLoadError<EvmInternalsError>) -> Self {
         match value {
             JournalLoadError::DBError(e) => Self::from(e),
@@ -117,7 +117,7 @@ impl From<JournalLoadError<EvmInternalsError>> for TempoPrecompileError {
     }
 }
 
-impl From<JournalLoadError<revm::context::ErasedError>> for TempoPrecompileError {
+impl From<JournalLoadError<revm::context::ErasedError>> for MagnusPrecompileError {
     fn from(value: JournalLoadError<revm::context::ErasedError>) -> Self {
         match value {
             JournalLoadError::DBError(e) => Self::Fatal(e.to_string()),
@@ -127,9 +127,9 @@ impl From<JournalLoadError<revm::context::ErasedError>> for TempoPrecompileError
 }
 
 /// Result type alias for Tempo precompile operations
-pub type Result<T> = std::result::Result<T, TempoPrecompileError>;
+pub type Result<T> = std::result::Result<T, MagnusPrecompileError>;
 
-impl TempoPrecompileError {
+impl MagnusPrecompileError {
     /// Returns true if this error represents a system-level failure that must be propagated
     /// rather than swallowed, because state may be inconsistent.
     pub fn is_system_error(&self) -> bool {
@@ -212,8 +212,8 @@ impl TempoPrecompileError {
 
 /// Registers all ABI error selectors for a [`SolInterface`] type into the decoder registry.
 pub fn add_errors_to_registry<T: SolInterface>(
-    registry: &mut TempoPrecompileErrorRegistry,
-    converter: impl Fn(T) -> TempoPrecompileError + 'static + Send + Sync,
+    registry: &mut MagnusPrecompileErrorRegistry,
+    converter: impl Fn(T) -> MagnusPrecompileError + 'static + Send + Sync,
 ) {
     let converter = Arc::new(converter);
     for selector in T::selectors() {
@@ -234,39 +234,39 @@ pub fn add_errors_to_registry<T: SolInterface>(
 
 /// A decoded precompile error together with the raw revert bytes.
 pub struct DecodedTempoPrecompileError<'a> {
-    pub error: TempoPrecompileError,
+    pub error: MagnusPrecompileError,
     pub revert_bytes: &'a [u8],
 }
 
 /// Maps ABI error selectors to their decoder functions.
-pub type TempoPrecompileErrorRegistry = HashMap<
+pub type MagnusPrecompileErrorRegistry = HashMap<
     Selector,
     Box<dyn for<'a> Fn(&'a [u8]) -> Option<DecodedTempoPrecompileError<'a>> + Send + Sync>,
 >;
 
-/// Builds a [`TempoPrecompileErrorRegistry`] mapping every known error selector to its decoder.
-pub fn error_decoder_registry() -> TempoPrecompileErrorRegistry {
-    let mut registry: TempoPrecompileErrorRegistry = HashMap::new();
+/// Builds a [`MagnusPrecompileErrorRegistry`] mapping every known error selector to its decoder.
+pub fn error_decoder_registry() -> MagnusPrecompileErrorRegistry {
+    let mut registry: MagnusPrecompileErrorRegistry = HashMap::new();
 
-    add_errors_to_registry(&mut registry, TempoPrecompileError::StablecoinDEX);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::TIP20);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::TIP20Factory);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::RolesAuthError);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::AddrRegistryError);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::TIP403RegistryError);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::FeeManagerError);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::TIPFeeAMMError);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::NonceError);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::ValidatorConfigError);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::ValidatorConfigV2Error);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::AccountKeychainError);
-    add_errors_to_registry(&mut registry, TempoPrecompileError::SignatureVerifierError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::StablecoinDEX);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::TIP20);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::TIP20Factory);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::RolesAuthError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::AddrRegistryError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::TIP403RegistryError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::FeeManagerError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::TIPFeeAMMError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::NonceError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::ValidatorConfigError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::ValidatorConfigV2Error);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::AccountKeychainError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::SignatureVerifierError);
 
     registry
 }
 
 /// Global lazily-initialized registry of all Tempo precompile error decoders.
-pub static ERROR_REGISTRY: LazyLock<TempoPrecompileErrorRegistry> =
+pub static ERROR_REGISTRY: LazyLock<MagnusPrecompileErrorRegistry> =
     LazyLock::new(error_decoder_registry);
 
 /// Decodes raw revert bytes into a typed [`DecodedTempoPrecompileError`] using the global
@@ -283,7 +283,7 @@ pub fn decode_error<'a>(data: &'a [u8]) -> Option<DecodedTempoPrecompileError<'a
         .and_then(|decoder| decoder(data))
 }
 
-/// Extension trait to convert `Result<T, TempoPrecompileError>` into a [`PrecompileResult`].
+/// Extension trait to convert `Result<T, MagnusPrecompileError>` into a [`PrecompileResult`].
 pub trait IntoPrecompileResult<T> {
     /// Converts `self` into a [`PrecompileResult`], using `encode_ok` for the success path.
     fn into_precompile_result(
@@ -315,11 +315,11 @@ mod tests {
 
     #[test]
     fn test_add_errors_to_registry_populates_registry() {
-        let mut registry: TempoPrecompileErrorRegistry = HashMap::new();
+        let mut registry: MagnusPrecompileErrorRegistry = HashMap::new();
 
         assert!(registry.is_empty());
 
-        add_errors_to_registry(&mut registry, TempoPrecompileError::StablecoinDEX);
+        add_errors_to_registry(&mut registry, MagnusPrecompileError::StablecoinDEX);
 
         assert!(!registry.is_empty());
 
@@ -357,7 +357,7 @@ mod tests {
         let decoded = result.unwrap();
         assert!(matches!(
             decoded.error,
-            TempoPrecompileError::StablecoinDEX(StablecoinDEXError::OrderDoesNotExist(_))
+            MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::OrderDoesNotExist(_))
         ));
     }
 
@@ -408,7 +408,7 @@ mod tests {
         let decoded = result.unwrap();
         // Verify it's a TIP20 error
         match decoded.error {
-            TempoPrecompileError::TIP20(_) => {}
+            MagnusPrecompileError::TIP20(_) => {}
             other => panic!("Expected TIP20 error, got {other:?}"),
         }
     }

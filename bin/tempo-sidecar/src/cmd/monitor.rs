@@ -6,7 +6,7 @@ use metrics::{describe_counter, describe_gauge};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use poem::{EndpointExt, Route, Server, get, listener::TcpListener};
 use reqwest::Url;
-use magnus_primitives::TempoAddressExt;
+use magnus_primitives::MagnusAddressExt;
 use tokio::signal;
 use tracing_subscriber::EnvFilter;
 

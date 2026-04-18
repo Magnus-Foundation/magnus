@@ -7,14 +7,14 @@ use alloy_rpc_types_eth::{Transaction, TransactionRequest, TransactionTrait};
 use core::num::NonZeroU64;
 use serde::{Deserialize, Serialize};
 use magnus_primitives::{
-    AASigned, SignatureType, TempoTransaction, TempoTxEnvelope,
+    AASigned, SignatureType, MagnusTransaction, MagnusTxEnvelope,
     transaction::{
-        Call, SignedKeyAuthorization, TempoSignedAuthorization, TempoTypedTransaction,
+        Call, SignedKeyAuthorization, MagnusSignedAuthorization, MagnusTypedTransaction,
         key_authorization::serde_nonzero_quantity_opt,
     },
 };
 
-use crate::TempoNetwork;
+use crate::MagnusNetwork;
 
 /// An Ethereum [`TransactionRequest`] extended with Tempo-specific fields.
 #[derive(
@@ -30,7 +30,7 @@ use crate::TempoNetwork;
     derive_more::DerefMut,
 )]
 #[serde(rename_all = "camelCase")]
-pub struct TempoTransactionRequest {
+pub struct MagnusTransactionRequest {
     /// Inner [`TransactionRequest`]
     #[serde(flatten)]
     #[deref]
@@ -41,7 +41,7 @@ pub struct TempoTransactionRequest {
     #[serde(default)]
     pub fee_token: Option<Address>,
 
-    /// Optional nonce key for a 2D [`TempoTransaction`].
+    /// Optional nonce key for a 2D [`MagnusTransaction`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nonce_key: Option<U256>,
 
@@ -73,7 +73,7 @@ pub struct TempoTransactionRequest {
         skip_serializing_if = "Vec::is_empty",
         rename = "aaAuthorizationList"
     )]
-    pub magnus_authorization_list: Vec<TempoSignedAuthorization>,
+    pub magnus_authorization_list: Vec<MagnusSignedAuthorization>,
 
     /// Key authorization for provisioning an access key (for gas estimation).
     /// Provide a signed KeyAuthorization when the transaction provisions an access key.
@@ -108,8 +108,8 @@ pub struct TempoTransactionRequest {
     pub fee_payer_signature: Option<alloy_primitives::Signature>,
 }
 
-impl TempoTransactionRequest {
-    /// Set the fee token for the [`TempoTransaction`] transaction.
+impl MagnusTransactionRequest {
+    /// Set the fee token for the [`MagnusTransaction`] transaction.
     pub fn set_fee_token(&mut self, fee_token: Address) {
         self.fee_token = Some(fee_token);
     }
@@ -120,12 +120,12 @@ impl TempoTransactionRequest {
         self
     }
 
-    /// Set the 2D nonce key for the [`TempoTransaction`] transaction.
+    /// Set the 2D nonce key for the [`MagnusTransaction`] transaction.
     pub fn set_nonce_key(&mut self, nonce_key: U256) {
         self.nonce_key = Some(nonce_key);
     }
 
-    /// Builder-pattern method for setting a 2D nonce key for a [`TempoTransaction`].
+    /// Builder-pattern method for setting a 2D nonce key for a [`MagnusTransaction`].
     pub fn with_nonce_key(mut self, nonce_key: U256) -> Self {
         self.nonce_key = Some(nonce_key);
         self
@@ -228,8 +228,8 @@ impl TempoTransactionRequest {
         self
     }
 
-    /// Attempts to build a [`TempoTransaction`] with the configured fields.
-    pub fn build_aa(self) -> Result<TempoTransaction, ValueError<Self>> {
+    /// Attempts to build a [`MagnusTransaction`] with the configured fields.
+    pub fn build_aa(self) -> Result<MagnusTransaction, ValueError<Self>> {
         if self.calls.is_empty() && self.inner.to.is_none() {
             return Err(ValueError::new(
                 self,
@@ -271,7 +271,7 @@ impl TempoTransactionRequest {
             });
         }
 
-        Ok(TempoTransaction {
+        Ok(MagnusTransaction {
             chain_id: self.inner.chain_id.unwrap_or(4217),
             nonce,
             fee_payer_signature: self.fee_payer_signature,
@@ -290,19 +290,19 @@ impl TempoTransactionRequest {
     }
 }
 
-impl AsRef<TransactionRequest> for TempoTransactionRequest {
+impl AsRef<TransactionRequest> for MagnusTransactionRequest {
     fn as_ref(&self) -> &TransactionRequest {
         &self.inner
     }
 }
 
-impl AsMut<TransactionRequest> for TempoTransactionRequest {
+impl AsMut<TransactionRequest> for MagnusTransactionRequest {
     fn as_mut(&mut self) -> &mut TransactionRequest {
         &mut self.inner
     }
 }
 
-impl From<TransactionRequest> for TempoTransactionRequest {
+impl From<TransactionRequest> for MagnusTransactionRequest {
     fn from(value: TransactionRequest) -> Self {
         Self {
             inner: value,
@@ -312,26 +312,26 @@ impl From<TransactionRequest> for TempoTransactionRequest {
     }
 }
 
-impl From<TempoTransactionRequest> for TransactionRequest {
-    fn from(value: TempoTransactionRequest) -> Self {
+impl From<MagnusTransactionRequest> for TransactionRequest {
+    fn from(value: MagnusTransactionRequest) -> Self {
         value.inner
     }
 }
 
-impl From<Transaction<TempoTxEnvelope>> for TempoTransactionRequest {
-    fn from(tx: Transaction<TempoTxEnvelope>) -> Self {
+impl From<Transaction<MagnusTxEnvelope>> for MagnusTransactionRequest {
+    fn from(tx: Transaction<MagnusTxEnvelope>) -> Self {
         tx.inner.into_inner().into()
     }
 }
 
-impl From<TempoTxEnvelope> for TempoTransactionRequest {
-    fn from(value: TempoTxEnvelope) -> Self {
+impl From<MagnusTxEnvelope> for MagnusTransactionRequest {
+    fn from(value: MagnusTxEnvelope) -> Self {
         match value {
-            TempoTxEnvelope::Legacy(tx) => tx.into(),
-            TempoTxEnvelope::Eip2930(tx) => tx.into(),
-            TempoTxEnvelope::Eip1559(tx) => tx.into(),
-            TempoTxEnvelope::Eip7702(tx) => tx.into(),
-            TempoTxEnvelope::AA(tx) => tx.into(),
+            MagnusTxEnvelope::Legacy(tx) => tx.into(),
+            MagnusTxEnvelope::Eip2930(tx) => tx.into(),
+            MagnusTxEnvelope::Eip1559(tx) => tx.into(),
+            MagnusTxEnvelope::Eip7702(tx) => tx.into(),
+            MagnusTxEnvelope::AA(tx) => tx.into(),
         }
     }
 }
@@ -340,7 +340,7 @@ pub trait FeeToken {
     fn fee_token(&self) -> Option<Address>;
 }
 
-impl FeeToken for TempoTransaction {
+impl FeeToken for MagnusTransaction {
     fn fee_token(&self) -> Option<Address> {
         self.fee_token
     }
@@ -370,7 +370,7 @@ impl FeeToken for TxLegacy {
     }
 }
 
-impl<T: TransactionTrait + FeeToken> From<Signed<T>> for TempoTransactionRequest {
+impl<T: TransactionTrait + FeeToken> From<Signed<T>> for MagnusTransactionRequest {
     fn from(value: Signed<T>) -> Self {
         Self {
             fee_token: value.tx().fee_token(),
@@ -380,8 +380,8 @@ impl<T: TransactionTrait + FeeToken> From<Signed<T>> for TempoTransactionRequest
     }
 }
 
-impl From<TempoTransaction> for TempoTransactionRequest {
-    fn from(tx: TempoTransaction) -> Self {
+impl From<MagnusTransaction> for MagnusTransactionRequest {
+    fn from(tx: MagnusTransaction) -> Self {
         Self {
             fee_token: tx.fee_token,
             inner: TransactionRequest {
@@ -419,69 +419,69 @@ impl From<TempoTransaction> for TempoTransactionRequest {
     }
 }
 
-impl From<AASigned> for TempoTransactionRequest {
+impl From<AASigned> for MagnusTransactionRequest {
     fn from(value: AASigned) -> Self {
         value.into_parts().0.into()
     }
 }
 
-impl From<TempoTypedTransaction> for TempoTransactionRequest {
-    fn from(value: TempoTypedTransaction) -> Self {
+impl From<MagnusTypedTransaction> for MagnusTransactionRequest {
+    fn from(value: MagnusTypedTransaction) -> Self {
         match value {
-            TempoTypedTransaction::Legacy(tx) => Self {
+            MagnusTypedTransaction::Legacy(tx) => Self {
                 inner: tx.into(),
                 fee_token: None,
                 ..Default::default()
             },
-            TempoTypedTransaction::Eip2930(tx) => Self {
+            MagnusTypedTransaction::Eip2930(tx) => Self {
                 inner: tx.into(),
                 fee_token: None,
                 ..Default::default()
             },
-            TempoTypedTransaction::Eip1559(tx) => Self {
+            MagnusTypedTransaction::Eip1559(tx) => Self {
                 inner: tx.into(),
                 fee_token: None,
                 ..Default::default()
             },
-            TempoTypedTransaction::Eip7702(tx) => Self {
+            MagnusTypedTransaction::Eip7702(tx) => Self {
                 inner: tx.into(),
                 fee_token: None,
                 ..Default::default()
             },
-            TempoTypedTransaction::AA(tx) => tx.into(),
+            MagnusTypedTransaction::AA(tx) => tx.into(),
         }
     }
 }
 
 /// Extension trait for [`CallBuilder`]
-pub trait TempoCallBuilderExt {
-    /// Sets the `fee_token` field in the [`TempoTransaction`] transaction to the provided value
+pub trait MagnusCallBuilderExt {
+    /// Sets the `fee_token` field in the [`MagnusTransaction`] transaction to the provided value
     fn fee_token(self, fee_token: Address) -> Self;
 
-    /// Sets the `nonce_key` field in the [`TempoTransaction`] transaction to the provided value
+    /// Sets the `nonce_key` field in the [`MagnusTransaction`] transaction to the provided value
     fn nonce_key(self, nonce_key: U256) -> Self;
 
-    /// Sets the `valid_before` field in the [`TempoTransaction`] transaction.
+    /// Sets the `valid_before` field in the [`MagnusTransaction`] transaction.
     fn valid_before(self, valid_before: NonZeroU64) -> Self;
 
-    /// Sets the `valid_after` field in the [`TempoTransaction`] transaction.
+    /// Sets the `valid_after` field in the [`MagnusTransaction`] transaction.
     fn valid_after(self, valid_after: NonZeroU64) -> Self;
 
-    /// Sets the `key_id` field in the [`TempoTransaction`] transaction.
+    /// Sets the `key_id` field in the [`MagnusTransaction`] transaction.
     fn key_id(self, key_id: Address) -> Self;
 
-    /// Sets the `key_type` field in the [`TempoTransaction`] transaction.
+    /// Sets the `key_type` field in the [`MagnusTransaction`] transaction.
     fn key_type(self, key_type: SignatureType) -> Self;
 
-    /// Sets the `key_data` field in the [`TempoTransaction`] transaction.
+    /// Sets the `key_data` field in the [`MagnusTransaction`] transaction.
     fn key_data(self, key_data: Bytes) -> Self;
 
-    /// Sets the `key_authorization` field in the [`TempoTransaction`] transaction.
+    /// Sets the `key_authorization` field in the [`MagnusTransaction`] transaction.
     fn key_authorization(self, key_authorization: SignedKeyAuthorization) -> Self;
 }
 
-impl<P: Provider<TempoNetwork>, D: CallDecoder> TempoCallBuilderExt
-    for CallBuilder<P, D, TempoNetwork>
+impl<P: Provider<MagnusNetwork>, D: CallDecoder> MagnusCallBuilderExt
+    for CallBuilder<P, D, MagnusNetwork>
 {
     fn fee_token(self, fee_token: Address) -> Self {
         self.map(|request| request.with_fee_token(fee_token))
@@ -521,7 +521,7 @@ mod tests {
     use super::*;
     use alloy_primitives::{Bytes, Signature, address};
     use magnus_primitives::transaction::{
-        Call, KeyAuthorization, PrimitiveSignature, TEMPO_EXPIRING_NONCE_KEY,
+        Call, KeyAuthorization, PrimitiveSignature, MAGNUS_EXPIRING_NONCE_KEY,
     };
 
     fn nz(value: u64) -> NonZeroU64 {
@@ -530,7 +530,7 @@ mod tests {
 
     #[test]
     fn test_set_valid_before() {
-        let mut request = TempoTransactionRequest::default();
+        let mut request = MagnusTransactionRequest::default();
         assert!(request.valid_before.is_none());
 
         request.set_valid_before(nz(1234567890));
@@ -539,7 +539,7 @@ mod tests {
 
     #[test]
     fn test_set_valid_after() {
-        let mut request = TempoTransactionRequest::default();
+        let mut request = MagnusTransactionRequest::default();
         assert!(request.valid_after.is_none());
 
         request.set_valid_after(nz(1234567800));
@@ -548,20 +548,20 @@ mod tests {
 
     #[test]
     fn test_with_valid_before() {
-        let request = TempoTransactionRequest::default().with_valid_before(nz(1234567890));
+        let request = MagnusTransactionRequest::default().with_valid_before(nz(1234567890));
         assert_eq!(request.valid_before, Some(nz(1234567890)));
     }
 
     #[test]
     fn test_with_valid_after() {
-        let request = TempoTransactionRequest::default().with_valid_after(nz(1234567800));
+        let request = MagnusTransactionRequest::default().with_valid_after(nz(1234567800));
         assert_eq!(request.valid_after, Some(nz(1234567800)));
     }
 
     #[test]
     fn test_build_aa_with_validity_window() {
-        let request = TempoTransactionRequest::default()
-            .with_nonce_key(TEMPO_EXPIRING_NONCE_KEY)
+        let request = MagnusTransactionRequest::default()
+            .with_nonce_key(MAGNUS_EXPIRING_NONCE_KEY)
             .with_valid_before(nz(1234567890))
             .with_valid_after(nz(1234567800));
 
@@ -576,24 +576,24 @@ mod tests {
         let tx = request.build_aa().expect("should build transaction");
         assert_eq!(tx.valid_before, Some(nz(1234567890)));
         assert_eq!(tx.valid_after, Some(nz(1234567800)));
-        assert_eq!(tx.nonce_key, TEMPO_EXPIRING_NONCE_KEY);
+        assert_eq!(tx.nonce_key, MAGNUS_EXPIRING_NONCE_KEY);
         assert_eq!(tx.nonce, 0);
     }
 
     #[test]
     fn test_deserialize_rejects_zero_validity_window_bounds() {
-        let err = serde_json::from_str::<TempoTransactionRequest>(r#"{"validBefore":"0x0"}"#)
+        let err = serde_json::from_str::<MagnusTransactionRequest>(r#"{"validBefore":"0x0"}"#)
             .expect_err("zero valid_before must be rejected during deserialization");
         assert!(err.to_string().contains("expected non-zero quantity"));
 
-        let err = serde_json::from_str::<TempoTransactionRequest>(r#"{"validAfter":"0x0"}"#)
+        let err = serde_json::from_str::<MagnusTransactionRequest>(r#"{"validAfter":"0x0"}"#)
             .expect_err("zero valid_after must be rejected during deserialization");
         assert!(err.to_string().contains("expected non-zero quantity"));
     }
 
     #[test]
     fn test_from_tempo_transaction_preserves_validity_window() {
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 1,
             nonce: 0,
             fee_payer_signature: None,
@@ -610,25 +610,25 @@ mod tests {
                 input: Default::default(),
             }],
             magnus_authorization_list: vec![],
-            nonce_key: TEMPO_EXPIRING_NONCE_KEY,
+            nonce_key: MAGNUS_EXPIRING_NONCE_KEY,
             key_authorization: None,
         };
 
-        let request: TempoTransactionRequest = tx.into();
+        let request: MagnusTransactionRequest = tx.into();
         assert_eq!(request.valid_before, Some(nz(1234567890)));
         assert_eq!(request.valid_after, Some(nz(1234567800)));
-        assert_eq!(request.nonce_key, Some(TEMPO_EXPIRING_NONCE_KEY));
+        assert_eq!(request.nonce_key, Some(MAGNUS_EXPIRING_NONCE_KEY));
     }
 
     #[test]
     fn test_expiring_nonce_builder_chain() {
-        let request = TempoTransactionRequest::default()
-            .with_nonce_key(TEMPO_EXPIRING_NONCE_KEY)
+        let request = MagnusTransactionRequest::default()
+            .with_nonce_key(MAGNUS_EXPIRING_NONCE_KEY)
             .with_valid_before(nz(1234567890))
             .with_valid_after(nz(1234567800))
             .with_fee_token(address!("0x20c0000000000000000000000000000000000000"));
 
-        assert_eq!(request.nonce_key, Some(TEMPO_EXPIRING_NONCE_KEY));
+        assert_eq!(request.nonce_key, Some(MAGNUS_EXPIRING_NONCE_KEY));
         assert_eq!(request.valid_before, Some(nz(1234567890)));
         assert_eq!(request.valid_after, Some(nz(1234567800)));
         assert_eq!(
@@ -639,7 +639,7 @@ mod tests {
 
     #[test]
     fn test_set_fee_payer_signature() {
-        let mut request = TempoTransactionRequest::default();
+        let mut request = MagnusTransactionRequest::default();
         assert!(request.fee_payer_signature.is_none());
 
         let sig = Signature::test_signature();
@@ -650,14 +650,14 @@ mod tests {
     #[test]
     fn test_with_fee_payer_signature() {
         let sig = Signature::test_signature();
-        let request = TempoTransactionRequest::default().with_fee_payer_signature(sig);
+        let request = MagnusTransactionRequest::default().with_fee_payer_signature(sig);
         assert!(request.fee_payer_signature.is_some());
     }
 
     #[test]
     fn test_build_aa_with_fee_payer_signature() {
         let sig = Signature::test_signature();
-        let mut request = TempoTransactionRequest::default().with_fee_payer_signature(sig);
+        let mut request = MagnusTransactionRequest::default().with_fee_payer_signature(sig);
 
         request.inner.nonce = Some(0);
         request.inner.gas = Some(21000);
@@ -672,7 +672,7 @@ mod tests {
     #[test]
     fn test_from_tempo_transaction_preserves_fee_payer_signature() {
         let sig = Signature::test_signature();
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 1,
             nonce: 0,
             fee_payer_signature: Some(sig),
@@ -693,7 +693,7 @@ mod tests {
             key_authorization: None,
         };
 
-        let request: TempoTransactionRequest = tx.into();
+        let request: MagnusTransactionRequest = tx.into();
         assert_eq!(request.fee_payer_signature, Some(sig));
     }
 
@@ -706,7 +706,7 @@ mod tests {
         )
         .into_signed(PrimitiveSignature::default());
 
-        let mut request = TempoTransactionRequest {
+        let mut request = MagnusTransactionRequest {
             key_authorization: Some(key_auth.clone()),
             ..Default::default()
         };
@@ -732,7 +732,7 @@ mod tests {
             input: Bytes::from(vec![0xaa]),
         };
 
-        let mut request = TempoTransactionRequest::default();
+        let mut request = MagnusTransactionRequest::default();
         request.set_calls(vec![call.clone()]);
         request.push_call(call.clone());
 
@@ -748,7 +748,7 @@ mod tests {
         )
         .into_signed(PrimitiveSignature::default());
 
-        let request = TempoTransactionRequest::default()
+        let request = MagnusTransactionRequest::default()
             .with_key_id(address!("0x2222222222222222222222222222222222222222"))
             .with_key_type(SignatureType::WebAuthn)
             .with_key_data(Bytes::from_static(b"auth-data"))
@@ -765,7 +765,7 @@ mod tests {
 
     #[test]
     fn test_aa_roundtrip_preserves_count() {
-        let base = TempoTransaction {
+        let base = MagnusTransaction {
             chain_id: 4217,
             nonce: 1,
             gas_limit: 100_000,
@@ -784,7 +784,7 @@ mod tests {
         let mut original = base.clone();
         original.calls = call.clone();
 
-        let roundtrip = TempoTransactionRequest::from(original)
+        let roundtrip = MagnusTransactionRequest::from(original)
             .build_aa()
             .expect("build_aa should succeed");
         assert_eq!(
@@ -808,7 +808,7 @@ mod tests {
         let mut original = base;
         original.calls = batch.clone();
 
-        let roundtrip = TempoTransactionRequest::from(original)
+        let roundtrip = MagnusTransactionRequest::from(original)
             .build_aa()
             .expect("build_aa should succeed");
         assert_eq!(

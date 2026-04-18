@@ -31,7 +31,7 @@ use commonware_cryptography::ed25519::PublicKey;
 use commonware_p2p::AddressableManager;
 use commonware_runtime::{Clock, Metrics, Spawner};
 use futures::channel::mpsc;
-use magnus_node::TempoFullNode;
+use magnus_node::MagnusFullNode;
 
 mod actor;
 mod ingress;
@@ -45,7 +45,7 @@ pub(crate) struct Config<TOracle> {
     pub(crate) oracle: TOracle,
     /// A handle to the full execution node to read block headers and look up
     /// the Validator Config contract
-    pub(crate) execution_node: TempoFullNode,
+    pub(crate) execution_node: MagnusFullNode,
     /// The  epoch strategy used by the node.
     pub(crate) epoch_strategy: FixedEpocher,
     /// The last finalized height according to the consensus layer (marshal).

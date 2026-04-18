@@ -37,7 +37,7 @@ use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
 };
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_commonware_node_config::{SigningKey, SigningShare};
 use magnus_contracts::{
     ARACHNID_CREATE2_FACTORY_ADDRESS, CREATEX_ADDRESS, MULTICALL3_ADDRESS, PERMIT2_ADDRESS,
@@ -46,7 +46,7 @@ use magnus_contracts::{
     precompiles::{ITIP20Factory, IValidatorConfigV2},
 };
 use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
-use magnus_evm::evm::{TempoEvm, TempoEvmFactory};
+use magnus_evm::evm::{MagnusEvm, MagnusEvmFactory};
 use magnus_precompiles::{
     PATH_USD_ADDRESS,
     account_keychain::AccountKeychain,
@@ -557,9 +557,9 @@ impl GenesisArgs {
 
         // Base fee determined by hardfork: T1 active at genesis (t1_time=0) uses T1 fee
         let base_fee: u128 = if self.t1_time == 0 {
-            TempoHardfork::T1.base_fee().into()
+            MagnusHardfork::T1.base_fee().into()
         } else {
-            TempoHardfork::T0.base_fee().into()
+            MagnusHardfork::T0.base_fee().into()
         };
 
         let mut genesis = Genesis::default()
@@ -576,18 +576,18 @@ impl GenesisArgs {
     }
 }
 
-fn setup_tempo_evm(chain_id: u64) -> TempoEvm<CacheDB<EmptyDB>> {
+fn setup_tempo_evm(chain_id: u64) -> MagnusEvm<CacheDB<EmptyDB>> {
     let db = CacheDB::default();
     // revm sets timestamp to 1 by default, override it to 0 for genesis initializations
     let mut env = EvmEnv::default().with_timestamp(U256::ZERO);
     env.cfg_env.chain_id = chain_id;
 
-    let factory = TempoEvmFactory::default();
+    let factory = MagnusEvmFactory::default();
     factory.create_evm(db, env)
 }
 
 /// Deploys the Arachnid CREATE2 factory by directly inserting it into the EVM state.
-fn deploy_arachnid_create2_factory(evm: &mut TempoEvm<CacheDB<EmptyDB>>) {
+fn deploy_arachnid_create2_factory(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) {
     println!("Deploying Arachnid CREATE2 factory at {ARACHNID_CREATE2_FACTORY_ADDRESS}");
 
     evm.db_mut().insert_account_info(
@@ -601,7 +601,7 @@ fn deploy_arachnid_create2_factory(evm: &mut TempoEvm<CacheDB<EmptyDB>>) {
 }
 
 /// Deploys Permit2 contract via the Arachnid CREATE2 factory.
-fn deploy_permit2(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
+fn deploy_permit2(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     // Build calldata for Arachnid CREATE2 factory: salt (32 bytes) || creation bytecode
     let bytecode = &magnus_contracts::Permit2::BYTECODE;
     let calldata: Bytes = PERMIT2_SALT
@@ -627,7 +627,7 @@ fn deploy_permit2(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
 }
 
 /// Initializes the TIP20Factory contract (should be called once before creating any tokens)
-fn initialize_tip20_factory(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
+fn initialize_tip20_factory(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(
         &mut ctx.journaled_state,
@@ -645,7 +645,7 @@ fn create_path_usd_token(
     admin: Address,
     recipients: &[Address],
     amount_per_recipient: u64,
-    evm: &mut TempoEvm<CacheDB<EmptyDB>>,
+    evm: &mut MagnusEvm<CacheDB<EmptyDB>>,
 ) -> eyre::Result<()> {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(
@@ -702,7 +702,7 @@ fn create_and_mint_token(
     recipients: &[Address],
     mint_amount: U256,
     salt_or_address: SaltOrAddress,
-    evm: &mut TempoEvm<CacheDB<EmptyDB>>,
+    evm: &mut MagnusEvm<CacheDB<EmptyDB>>,
 ) -> eyre::Result<Address> {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(
@@ -789,7 +789,7 @@ fn initialize_fee_manager(
     user_fee_token_address: Address,
     initial_accounts: Vec<Address>,
     validators: Vec<Address>,
-    evm: &mut TempoEvm<CacheDB<EmptyDB>>,
+    evm: &mut MagnusEvm<CacheDB<EmptyDB>>,
 ) {
     // Update the beneficiary since the validator can't set the validator fee token for themselves
     let ctx = evm.ctx_mut();
@@ -837,7 +837,7 @@ fn initialize_fee_manager(
 }
 
 /// Initializes the [`TIP403Registry`] contract.
-fn initialize_registry(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
+fn initialize_registry(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(
         &mut ctx.journaled_state,
@@ -850,7 +850,7 @@ fn initialize_registry(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Result<()>
     Ok(())
 }
 
-fn initialize_stablecoin_dex(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
+fn initialize_stablecoin_dex(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(
         &mut ctx.journaled_state,
@@ -863,7 +863,7 @@ fn initialize_stablecoin_dex(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Resu
     Ok(())
 }
 
-fn initialize_nonce_manager(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
+fn initialize_nonce_manager(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(
         &mut ctx.journaled_state,
@@ -877,7 +877,7 @@ fn initialize_nonce_manager(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Resul
 }
 
 /// Initializes the [`AccountKeychain`] contract.
-fn initialize_account_keychain(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
+fn initialize_account_keychain(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(
         &mut ctx.journaled_state,
@@ -890,7 +890,7 @@ fn initialize_account_keychain(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Re
     Ok(())
 }
 
-fn initialize_address_registry(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
+fn initialize_address_registry(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(
         &mut ctx.journaled_state,
@@ -903,7 +903,7 @@ fn initialize_address_registry(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Re
     Ok(())
 }
 
-fn initialize_signature_verifier(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
+fn initialize_signature_verifier(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(
         &mut ctx.journaled_state,
@@ -922,7 +922,7 @@ fn initialize_signature_verifier(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::
 /// Each `add_validator` call requires an Ed25519 signature from the validator's signing key.
 fn initialize_validator_config_v2(
     admin: Address,
-    evm: &mut TempoEvm<CacheDB<EmptyDB>>,
+    evm: &mut MagnusEvm<CacheDB<EmptyDB>>,
     consensus_config: &Option<ConsensusConfig>,
     onchain_validator_addresses: &[Address],
     no_dkg_in_genesis: bool,
@@ -1063,7 +1063,7 @@ fn mint_pairwise_liquidity(
     b_tokens: Vec<Address>,
     amount: U256,
     admin: Address,
-    evm: &mut TempoEvm<CacheDB<EmptyDB>>,
+    evm: &mut MagnusEvm<CacheDB<EmptyDB>>,
 ) {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(

@@ -6,7 +6,7 @@
 mod attrs;
 
 use alloy_primitives::B256;
-pub use attrs::{InterruptHandle, TempoPayloadAttributes};
+pub use attrs::{InterruptHandle, MagnusPayloadAttributes};
 use std::sync::Arc;
 
 use alloy_eips::eip7685::Requests;
@@ -17,30 +17,30 @@ use reth_node_api::{BlockBody, ExecutionPayload, PayloadTypes};
 use reth_payload_primitives::{BuiltPayload, BuiltPayloadExecutedBlock};
 use reth_primitives_traits::{AlloyBlockHeader as _, SealedBlock};
 use serde::{Deserialize, Serialize};
-use magnus_primitives::{Block, TempoPrimitives};
+use magnus_primitives::{Block, MagnusPrimitives};
 
 /// Payload types for Tempo node.
 #[derive(Debug, Clone, Copy, Default)]
 #[non_exhaustive]
-pub struct TempoPayloadTypes;
+pub struct MagnusPayloadTypes;
 
 /// Built payload type for Tempo node.
 ///
 /// Wraps [`EthBuiltPayload`] and optionally includes the executed block data
 /// to enable the engine tree fast path (skipping re-execution for self-built payloads).
 #[derive(Debug, Clone)]
-pub struct TempoBuiltPayload {
+pub struct MagnusBuiltPayload {
     /// The inner built payload.
-    inner: EthBuiltPayload<TempoPrimitives>,
+    inner: EthBuiltPayload<MagnusPrimitives>,
     /// The executed block data, used to skip re-execution in the engine tree.
-    executed_block: Option<BuiltPayloadExecutedBlock<TempoPrimitives>>,
+    executed_block: Option<BuiltPayloadExecutedBlock<MagnusPrimitives>>,
 }
 
-impl TempoBuiltPayload {
-    /// Creates a new [`TempoBuiltPayload`].
+impl MagnusBuiltPayload {
+    /// Creates a new [`MagnusBuiltPayload`].
     pub fn new(
-        inner: EthBuiltPayload<TempoPrimitives>,
-        executed_block: Option<BuiltPayloadExecutedBlock<TempoPrimitives>>,
+        inner: EthBuiltPayload<MagnusPrimitives>,
+        executed_block: Option<BuiltPayloadExecutedBlock<MagnusPrimitives>>,
     ) -> Self {
         Self {
             inner,
@@ -49,8 +49,8 @@ impl TempoBuiltPayload {
     }
 }
 
-impl BuiltPayload for TempoBuiltPayload {
-    type Primitives = TempoPrimitives;
+impl BuiltPayload for MagnusBuiltPayload {
+    type Primitives = MagnusPrimitives;
 
     fn block(&self) -> &SealedBlock<Block> {
         self.inner.block()
@@ -71,14 +71,14 @@ impl BuiltPayload for TempoBuiltPayload {
 
 /// Execution data for Tempo node. Simply wraps a sealed block.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TempoExecutionData {
+pub struct MagnusExecutionData {
     /// The built block.
     pub block: Arc<SealedBlock<Block>>,
     /// Validator set active at the time this block was built.
     pub validator_set: Option<Vec<B256>>,
 }
 
-impl ExecutionPayload for TempoExecutionData {
+impl ExecutionPayload for MagnusExecutionData {
     fn parent_hash(&self) -> alloy_primitives::B256 {
         self.block.parent_hash()
     }
@@ -128,13 +128,13 @@ impl ExecutionPayload for TempoExecutionData {
     }
 }
 
-impl PayloadTypes for TempoPayloadTypes {
-    type ExecutionData = TempoExecutionData;
-    type BuiltPayload = TempoBuiltPayload;
-    type PayloadAttributes = TempoPayloadAttributes;
+impl PayloadTypes for MagnusPayloadTypes {
+    type ExecutionData = MagnusExecutionData;
+    type BuiltPayload = MagnusBuiltPayload;
+    type PayloadAttributes = MagnusPayloadAttributes;
 
     fn block_to_payload(block: SealedBlock<Block>) -> Self::ExecutionData {
-        TempoExecutionData {
+        MagnusExecutionData {
             block: Arc::new(block),
             validator_set: None,
         }

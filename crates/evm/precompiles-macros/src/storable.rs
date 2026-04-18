@@ -246,7 +246,7 @@ fn derive_unit_enum_impl(input: &DeriveInput, data_enum: &DataEnum) -> syn::Resu
                 let value = <u8 as crate::storage::Storable>::load(storage, slot, ctx)?;
                 match value {
                     #(discriminant if discriminant == Self::#variant_names as u8 => Ok(Self::#variant_names),)*
-                    _ => Err(crate::error::TempoPrecompileError::enum_conversion_error()),
+                    _ => Err(crate::error::MagnusPrecompileError::enum_conversion_error()),
                 }
             }
 

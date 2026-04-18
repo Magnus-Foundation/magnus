@@ -1,7 +1,7 @@
 //! Test utilities for precompile dispatch testing
 
 #[cfg(any(test, feature = "test-utils"))]
-use crate::error::TempoPrecompileError;
+use crate::error::MagnusPrecompileError;
 use crate::{
     PATH_USD_ADDRESS, Precompile, Result,
     address_registry::{AddressRegistry, IAddressRegistry},
@@ -17,7 +17,7 @@ use revm::precompile::PrecompileError;
 #[cfg(any(test, feature = "test-utils"))]
 use magnus_contracts::precompiles::TIP20Error;
 use magnus_contracts::precompiles::{TIP20_FACTORY_ADDRESS, UnknownFunctionSelector};
-use magnus_primitives::{MasterId, TempoAddressExt, UserTag};
+use magnus_primitives::{MasterId, MagnusAddressExt, UserTag};
 
 /// Checks that all selectors in an interface have dispatch handlers.
 ///
@@ -363,7 +363,7 @@ impl TIP20Setup {
     }
 
     /// Applies the configuration and asserts it fails with `expected`.
-    pub fn expect_err(self, expected: TempoPrecompileError) {
+    pub fn expect_err(self, expected: MagnusPrecompileError) {
         let result = self.apply();
         assert!(result.is_err_and(|err| err == expected));
     }
@@ -371,7 +371,7 @@ impl TIP20Setup {
     /// Applies the configuration and asserts it fails with the given [`TIP20Error`].
     pub fn expect_tip20_err(self, expected: TIP20Error) {
         let result = self.apply();
-        assert!(result.is_err_and(|err| err == TempoPrecompileError::TIP20(expected)));
+        assert!(result.is_err_and(|err| err == MagnusPrecompileError::TIP20(expected)));
     }
 }
 

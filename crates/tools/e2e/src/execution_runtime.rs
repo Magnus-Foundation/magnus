@@ -45,14 +45,14 @@ use reth_node_core::{
 };
 use reth_rpc_builder::RpcModuleSelection;
 use tempfile::TempDir;
-use magnus_chainspec::TempoChainSpec;
+use magnus_chainspec::MagnusChainSpec;
 use magnus_commonware_node::feed::FeedStateHandle;
 use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
 use magnus_node::{
-    TempoFullNode,
-    evm::{TempoEvmFactory, evm::TempoEvm},
-    node::TempoNode,
-    rpc::consensus::{TempoConsensusApiServer, TempoConsensusRpc},
+    MagnusFullNode,
+    evm::{MagnusEvmFactory, evm::MagnusEvm},
+    node::MagnusNode,
+    rpc::consensus::{MagnusConsensusApiServer, MagnusConsensusRpc},
 };
 use magnus_precompiles::{
     VALIDATOR_CONFIG_V2_ADDRESS,
@@ -229,7 +229,7 @@ impl Builder {
         }
 
         Ok(ExecutionRuntime::with_chain_spec(
-            TempoChainSpec::from_genesis(genesis),
+            MagnusChainSpec::from_genesis(genesis),
         ))
     }
 }
@@ -307,7 +307,7 @@ impl ExecutionRuntime {
     }
 
     /// Constructs a new execution runtime to launch execution nodes.
-    pub fn with_chain_spec(chain_spec: TempoChainSpec) -> Self {
+    pub fn with_chain_spec(chain_spec: MagnusChainSpec) -> Self {
         let tempdir = tempfile::Builder::new()
             // TODO(janis): cargo manifest prefix?
             .prefix("magnus_e2e_test")
@@ -760,7 +760,7 @@ impl ExecutionRuntimeHandle {
 /// avoids the type parameters.
 pub struct ExecutionNode {
     /// All handles to interact with the launched node instances and services.
-    pub node: Box<TempoFullNode>,
+    pub node: Box<MagnusFullNode>,
     /// The [`Runtime`] that drives the node's services.
     pub runtime: Runtime,
     /// The exist future that resolves when the node's engine future resolves.
@@ -820,8 +820,8 @@ impl ExecutionNode {
 /// Returns the chainspec used for e2e tests.
 ///
 /// TODO(janis): allow configuring this.
-pub fn chainspec() -> TempoChainSpec {
-    TempoChainSpec::from_genesis(genesis())
+pub fn chainspec() -> MagnusChainSpec {
+    MagnusChainSpec::from_genesis(genesis())
 }
 
 /// Generate execution node name from public key.
@@ -833,7 +833,7 @@ pub fn execution_node_name(public_key: &PublicKey) -> String {
 impl std::fmt::Debug for ExecutionNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ExecutionNode")
-            .field("node", &"<TempoFullNode>")
+            .field("node", &"<MagnusFullNode>")
             .field("exit_fut", &"<NodeExitFuture>")
             .finish()
     }
@@ -853,7 +853,7 @@ pub fn genesis() -> Genesis {
 /// 3. consensus config is not necessary
 pub async fn launch_execution_node<P: AsRef<Path>>(
     runtime: Runtime,
-    chain_spec: TempoChainSpec,
+    chain_spec: MagnusChainSpec,
     datadir: P,
     config: ExecutionNodeConfig,
     database: DatabaseEnv,
@@ -893,7 +893,7 @@ pub async fn launch_execution_node<P: AsRef<Path>>(
             c
         });
 
-    let magnus_node = TempoNode::default().with_validator_key(validator_key);
+    let magnus_node = MagnusNode::default().with_validator_key(validator_key);
 
     let node_handle = if let Some(rocksdb) = rocksdb {
         NodeBuilder::new(node_config)
@@ -907,7 +907,7 @@ pub async fn launch_execution_node<P: AsRef<Path>>(
     .extend_rpc_modules(move |ctx| {
         if let Some(feed_state) = feed_state {
             ctx.modules
-                .merge_configured(TempoConsensusRpc::new(feed_state).into_rpc())?;
+                .merge_configured(MagnusConsensusRpc::new(feed_state).into_rpc())?;
         }
         Ok(())
     })
@@ -1046,13 +1046,13 @@ pub fn address(index: u32) -> Address {
     secret_key_to_address(MnemonicBuilder::from_phrase_nth(TEST_MNEMONIC, index).credential())
 }
 
-fn setup_tempo_evm(chain_id: u64) -> TempoEvm<CacheDB<EmptyDB>> {
+fn setup_tempo_evm(chain_id: u64) -> MagnusEvm<CacheDB<EmptyDB>> {
     let db = CacheDB::default();
     // revm sets timestamp to 1 by default, override it to 0 for genesis initializations
     let mut env = EvmEnv::default().with_timestamp(U256::ZERO);
     env.cfg_env.chain_id = chain_id;
 
-    let factory = TempoEvmFactory::default();
+    let factory = MagnusEvmFactory::default();
     factory.create_evm(db, env)
 }
 

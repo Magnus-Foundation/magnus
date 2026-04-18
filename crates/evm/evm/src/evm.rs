@@ -10,27 +10,27 @@ use alloy_evm::{
 use alloy_primitives::{Address, Bytes, TxKind};
 use reth_revm::{InspectSystemCallEvm, MainContext, context::result::ExecutionResult};
 use std::ops::{Deref, DerefMut};
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_revm::{
-    TempoHaltReason, TempoInvalidTransaction, TempoTxEnv, ValidationContext, evm::TempoContext,
-    handler::TempoEvmHandler,
+    MagnusHaltReason, MagnusInvalidTransaction, MagnusTxEnv, ValidationContext, evm::MagnusContext,
+    handler::MagnusEvmHandler,
 };
 
-use crate::TempoBlockEnv;
+use crate::MagnusBlockEnv;
 
 #[derive(Debug, Default, Clone, Copy)]
 #[non_exhaustive]
-pub struct TempoEvmFactory;
+pub struct MagnusEvmFactory;
 
-impl EvmFactory for TempoEvmFactory {
-    type Evm<DB: Database, I: Inspector<Self::Context<DB>>> = TempoEvm<DB, I>;
-    type Context<DB: Database> = TempoContext<DB>;
-    type Tx = TempoTxEnv;
+impl EvmFactory for MagnusEvmFactory {
+    type Evm<DB: Database, I: Inspector<Self::Context<DB>>> = MagnusEvm<DB, I>;
+    type Context<DB: Database> = MagnusContext<DB>;
+    type Tx = MagnusTxEnv;
     type Error<DBError: std::error::Error + Send + Sync + 'static> =
-        EVMError<DBError, TempoInvalidTransaction>;
-    type HaltReason = TempoHaltReason;
-    type Spec = TempoHardfork;
-    type BlockEnv = TempoBlockEnv;
+        EVMError<DBError, MagnusInvalidTransaction>;
+    type HaltReason = MagnusHaltReason;
+    type Spec = MagnusHardfork;
+    type BlockEnv = MagnusBlockEnv;
     type Precompiles = PrecompilesMap;
 
     fn create_evm<DB: Database>(
@@ -38,7 +38,7 @@ impl EvmFactory for TempoEvmFactory {
         db: DB,
         input: EvmEnv<Self::Spec, Self::BlockEnv>,
     ) -> Self::Evm<DB, NoOpInspector> {
-        TempoEvm::new(db, input)
+        MagnusEvm::new(db, input)
     }
 
     fn create_evm_with_inspector<DB: Database, I: Inspector<Self::Context<DB>>>(
@@ -47,7 +47,7 @@ impl EvmFactory for TempoEvmFactory {
         input: EvmEnv<Self::Spec, Self::BlockEnv>,
         inspector: I,
     ) -> Self::Evm<DB, I> {
-        TempoEvm::new(db, input).with_inspector(inspector)
+        MagnusEvm::new(db, input).with_inspector(inspector)
     }
 }
 
@@ -57,14 +57,14 @@ impl EvmFactory for TempoEvmFactory {
 /// support. [`Inspector`] support is configurable at runtime because it's part of the underlying
 /// `RevmEvm` type.
 #[expect(missing_debug_implementations)]
-pub struct TempoEvm<DB: Database, I = NoOpInspector> {
-    inner: magnus_revm::TempoEvm<DB, I>,
+pub struct MagnusEvm<DB: Database, I = NoOpInspector> {
+    inner: magnus_revm::MagnusEvm<DB, I>,
     inspect: bool,
 }
 
-impl<DB: Database> TempoEvm<DB> {
-    /// Create a new [`TempoEvm`] instance.
-    pub fn new(db: DB, input: EvmEnv<TempoHardfork, TempoBlockEnv>) -> Self {
+impl<DB: Database> MagnusEvm<DB> {
+    /// Create a new [`MagnusEvm`] instance.
+    pub fn new(db: DB, input: EvmEnv<MagnusHardfork, MagnusBlockEnv>) -> Self {
         let ctx = Context::mainnet()
             .with_db(db)
             .with_block(input.block_env)
@@ -72,36 +72,36 @@ impl<DB: Database> TempoEvm<DB> {
             .with_tx(Default::default());
 
         Self {
-            inner: magnus_revm::TempoEvm::new(ctx, NoOpInspector {}),
+            inner: magnus_revm::MagnusEvm::new(ctx, NoOpInspector {}),
             inspect: false,
         }
     }
 }
 
-impl<DB: Database, I> TempoEvm<DB, I> {
-    /// Consumes this EVM wrapper and returns the inner [`magnus_revm::TempoEvm`].
-    pub fn into_inner(self) -> magnus_revm::TempoEvm<DB, I> {
+impl<DB: Database, I> MagnusEvm<DB, I> {
+    /// Consumes this EVM wrapper and returns the inner [`magnus_revm::MagnusEvm`].
+    pub fn into_inner(self) -> magnus_revm::MagnusEvm<DB, I> {
         self.inner
     }
 
     /// Provides a reference to the EVM context.
-    pub const fn ctx(&self) -> &TempoContext<DB> {
+    pub const fn ctx(&self) -> &MagnusContext<DB> {
         &self.inner.inner.ctx
     }
 
     /// Provides a mutable reference to the EVM context.
-    pub fn ctx_mut(&mut self) -> &mut TempoContext<DB> {
+    pub fn ctx_mut(&mut self) -> &mut MagnusContext<DB> {
         &mut self.inner.inner.ctx
     }
 
-    /// Provides a mutable reference to the inner [`magnus_revm::TempoEvm`].
-    pub fn inner_mut(&mut self) -> &mut magnus_revm::TempoEvm<DB, I> {
+    /// Provides a mutable reference to the inner [`magnus_revm::MagnusEvm`].
+    pub fn inner_mut(&mut self) -> &mut magnus_revm::MagnusEvm<DB, I> {
         &mut self.inner
     }
 
     /// Sets the inspector for the EVM.
-    pub fn with_inspector<OINSP>(self, inspector: OINSP) -> TempoEvm<DB, OINSP> {
-        TempoEvm {
+    pub fn with_inspector<OINSP>(self, inspector: OINSP) -> MagnusEvm<DB, OINSP> {
+        MagnusEvm {
             inner: self.inner.with_inspector(inspector),
             inspect: true,
         }
@@ -112,20 +112,20 @@ impl<DB: Database, I> TempoEvm<DB, I> {
     /// Returns a [`ValidationContext`] with context relevant for the transaction pool.
     pub fn validate_transaction(
         &mut self,
-        tx: impl IntoTxEnv<TempoTxEnv>,
-    ) -> Result<ValidationContext, EVMError<DB::Error, TempoInvalidTransaction>> {
+        tx: impl IntoTxEnv<MagnusTxEnv>,
+    ) -> Result<ValidationContext, EVMError<DB::Error, MagnusInvalidTransaction>> {
         self.inner.inner.ctx.tx = tx.into_tx_env();
-        let mut handler = TempoEvmHandler::new();
+        let mut handler = MagnusEvmHandler::new();
         handler.validate_transaction(&mut self.inner)
     }
 }
 
-impl<DB: Database, I> Deref for TempoEvm<DB, I>
+impl<DB: Database, I> Deref for MagnusEvm<DB, I>
 where
     DB: Database,
-    I: Inspector<TempoContext<DB>>,
+    I: Inspector<MagnusContext<DB>>,
 {
-    type Target = TempoContext<DB>;
+    type Target = MagnusContext<DB>;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -133,10 +133,10 @@ where
     }
 }
 
-impl<DB: Database, I> DerefMut for TempoEvm<DB, I>
+impl<DB: Database, I> DerefMut for MagnusEvm<DB, I>
 where
     DB: Database,
-    I: Inspector<TempoContext<DB>>,
+    I: Inspector<MagnusContext<DB>>,
 {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -144,17 +144,17 @@ where
     }
 }
 
-impl<DB, I> Evm for TempoEvm<DB, I>
+impl<DB, I> Evm for MagnusEvm<DB, I>
 where
     DB: Database,
-    I: Inspector<TempoContext<DB>>,
+    I: Inspector<MagnusContext<DB>>,
 {
     type DB = DB;
-    type Tx = TempoTxEnv;
-    type Error = EVMError<DB::Error, TempoInvalidTransaction>;
-    type HaltReason = TempoHaltReason;
-    type Spec = TempoHardfork;
-    type BlockEnv = TempoBlockEnv;
+    type Tx = MagnusTxEnv;
+    type Error = EVMError<DB::Error, MagnusInvalidTransaction>;
+    type HaltReason = MagnusHaltReason;
+    type Spec = MagnusHardfork;
+    type BlockEnv = MagnusBlockEnv;
     type Precompiles = PrecompilesMap;
     type Inspector = I;
 
@@ -172,7 +172,7 @@ where
     ) -> Result<ResultAndState<Self::HaltReason>, Self::Error> {
         if tx.is_system_tx {
             let TxKind::Call(to) = tx.inner.kind else {
-                return Err(TempoInvalidTransaction::SystemTransactionMustBeCall.into());
+                return Err(MagnusInvalidTransaction::SystemTransactionMustBeCall.into());
             };
 
             let mut result = if self.inspect {
@@ -186,7 +186,7 @@ where
             // system transactions should not consume any gas
             let ExecutionResult::Success { gas, .. } = &mut result.result else {
                 return Err(
-                    TempoInvalidTransaction::SystemTransactionFailed(result.result.into()).into(),
+                    MagnusInvalidTransaction::SystemTransactionFailed(result.result.into()).into(),
                 );
             };
 
@@ -248,7 +248,7 @@ mod tests {
         context::{CfgEnv, TxEnv},
         database::{EmptyDB, in_memory_db::CacheDB},
     };
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_revm::gas_params::magnus_gas_params;
 
     use super::*;
@@ -257,7 +257,7 @@ mod tests {
     fn can_execute_system_tx() {
         let mut evm = test_evm(EmptyDB::default());
         let result = evm
-            .transact(TempoTxEnv {
+            .transact(MagnusTxEnv {
                 inner: TxEnv {
                     caller: Address::ZERO,
                     gas_price: 0,
@@ -276,7 +276,7 @@ mod tests {
     fn test_transact_raw() {
         let mut evm = test_evm_with_basefee(EmptyDB::default(), 0);
 
-        let tx = TempoTxEnv {
+        let tx = MagnusTxEnv {
             inner: TxEnv {
                 caller: Address::repeat_byte(0x01),
                 gas_price: 0,
@@ -302,7 +302,7 @@ mod tests {
         let mut evm = test_evm(EmptyDB::default());
 
         // System transaction
-        let tx = TempoTxEnv {
+        let tx = MagnusTxEnv {
             inner: TxEnv {
                 caller: Address::ZERO,
                 gas_price: 0,
@@ -328,7 +328,7 @@ mod tests {
         let mut evm = test_evm(EmptyDB::default());
 
         // System transaction with Create kind
-        let tx = TempoTxEnv {
+        let tx = MagnusTxEnv {
             inner: TxEnv {
                 caller: Address::ZERO,
                 gas_price: 0,
@@ -346,7 +346,7 @@ mod tests {
         let err = result.unwrap_err();
         assert!(matches!(
             err,
-            EVMError::Transaction(TempoInvalidTransaction::SystemTransactionMustBeCall)
+            EVMError::Transaction(MagnusInvalidTransaction::SystemTransactionMustBeCall)
         ));
     }
 
@@ -369,7 +369,7 @@ mod tests {
         let mut evm = test_evm(cache_db);
 
         // System transaction that will fail with call to contract that reverts
-        let tx = TempoTxEnv {
+        let tx = MagnusTxEnv {
             inner: TxEnv {
                 caller: Address::ZERO,
                 gas_price: 0,
@@ -387,7 +387,7 @@ mod tests {
         let err = result.unwrap_err();
         assert!(matches!(
             err,
-            EVMError::Transaction(TempoInvalidTransaction::SystemTransactionFailed(_))
+            EVMError::Transaction(MagnusInvalidTransaction::SystemTransactionFailed(_))
         ));
     }
 
@@ -410,22 +410,22 @@ mod tests {
 
     /// Helper to create EvmEnv with a specific hardfork spec.
     fn evm_env_with_spec(
-        spec: magnus_chainspec::hardfork::TempoHardfork,
-    ) -> EvmEnv<magnus_chainspec::hardfork::TempoHardfork, TempoBlockEnv> {
-        EvmEnv::<magnus_chainspec::hardfork::TempoHardfork, TempoBlockEnv>::new(
+        spec: magnus_chainspec::hardfork::MagnusHardfork,
+    ) -> EvmEnv<magnus_chainspec::hardfork::MagnusHardfork, MagnusBlockEnv> {
+        EvmEnv::<magnus_chainspec::hardfork::MagnusHardfork, MagnusBlockEnv>::new(
             CfgEnv::new_with_spec_and_gas_params(spec, magnus_gas_params(spec)),
-            TempoBlockEnv::default(),
+            MagnusBlockEnv::default(),
         )
     }
 
-    /// Test that TempoEvm applies custom gas params via `magnus_gas_params()`.
+    /// Test that MagnusEvm applies custom gas params via `magnus_gas_params()`.
     /// This verifies the [TIP-1000] gas parameter override mechanism.
     ///
     /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
     #[test]
     fn test_tempo_evm_applies_gas_params() {
         // Create EVM with T1 hardfork to get TIP-1000 gas params
-        let evm = TempoEvm::new(EmptyDB::default(), evm_env_with_spec(TempoHardfork::T1));
+        let evm = MagnusEvm::new(EmptyDB::default(), evm_env_with_spec(MagnusHardfork::T1));
 
         // Verify gas params were applied (check a known T1 override)
         // T1 has tx_eip7702_per_empty_account_cost = 12,500
@@ -437,23 +437,23 @@ mod tests {
         );
     }
 
-    /// Test that TempoEvm respects the gas limit cap passed in via EvmEnv.
+    /// Test that MagnusEvm respects the gas limit cap passed in via EvmEnv.
     /// Note: The 30M [TIP-1000] gas cap is set in ConfigureEvm::evm_env(), not here.
-    /// This test verifies that TempoEvm::new() preserves the cap from the input.
+    /// This test verifies that MagnusEvm::new() preserves the cap from the input.
     ///
     /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
     #[test]
     fn test_tempo_evm_respects_gas_cap() {
-        let mut env = evm_env_with_spec(TempoHardfork::T1);
-        env.cfg_env.tx_gas_limit_cap = TempoHardfork::T1.tx_gas_limit_cap();
+        let mut env = evm_env_with_spec(MagnusHardfork::T1);
+        env.cfg_env.tx_gas_limit_cap = MagnusHardfork::T1.tx_gas_limit_cap();
 
-        let evm = TempoEvm::new(EmptyDB::default(), env);
+        let evm = MagnusEvm::new(EmptyDB::default(), env);
 
         // Verify gas limit cap is preserved
         assert_eq!(
             evm.ctx().cfg.tx_gas_limit_cap,
-            TempoHardfork::T1.tx_gas_limit_cap(),
-            "TempoEvm should preserve the gas limit cap from input"
+            MagnusHardfork::T1.tx_gas_limit_cap(),
+            "MagnusEvm should preserve the gas limit cap from input"
         );
     }
 
@@ -461,8 +461,8 @@ mod tests {
     #[test]
     fn test_tempo_evm_gas_params_differ_t0_vs_t1() {
         // Create T0 and T1 EVMs
-        let t0_evm = TempoEvm::new(EmptyDB::default(), evm_env_with_spec(TempoHardfork::T0));
-        let t1_evm = TempoEvm::new(EmptyDB::default(), evm_env_with_spec(TempoHardfork::T1));
+        let t0_evm = MagnusEvm::new(EmptyDB::default(), evm_env_with_spec(MagnusHardfork::T0));
+        let t1_evm = MagnusEvm::new(EmptyDB::default(), evm_env_with_spec(MagnusHardfork::T1));
 
         // T0 should have default EIP-7702 cost (25,000)
         // T1 should have reduced cost (12,500)
@@ -490,7 +490,7 @@ mod tests {
     fn test_tempo_evm_t1_state_creation_costs() {
         use revm::context_interface::cfg::GasId;
 
-        let evm = TempoEvm::new(EmptyDB::default(), evm_env_with_spec(TempoHardfork::T1));
+        let evm = MagnusEvm::new(EmptyDB::default(), evm_env_with_spec(MagnusHardfork::T1));
         let gas_params = &evm.ctx().cfg.gas_params;
 
         // Verify TIP-1000 state creation cost increases

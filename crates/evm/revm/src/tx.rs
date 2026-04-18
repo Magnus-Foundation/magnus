@@ -1,4 +1,4 @@
-use crate::TempoInvalidTransaction;
+use crate::MagnusInvalidTransaction;
 use alloy_consensus::{EthereumTxEnvelope, TxEip4844, Typed2718, crypto::secp256k1};
 use alloy_evm::{FromRecoveredTx, FromTxWithEncoded, IntoTxEnv, TransactionEnvMut};
 use alloy_primitives::{Address, B256, Bytes, TxKind, U256};
@@ -12,7 +12,7 @@ use revm::context::{
     },
 };
 use magnus_primitives::{
-    AASigned, TempoSignature, TempoTransaction, TempoTxEnvelope,
+    AASigned, MagnusSignature, MagnusTransaction, MagnusTxEnvelope,
     transaction::{
         Call, RecoveredTempoAuthorization, SignedKeyAuthorization, calc_gas_balance_spending,
     },
@@ -20,9 +20,9 @@ use magnus_primitives::{
 
 /// Tempo transaction environment for AA features.
 #[derive(Debug, Clone, Default)]
-pub struct TempoBatchCallEnv {
+pub struct MagnusBatchCallEnv {
     /// Signature bytes for Tempo transactions
-    pub signature: TempoSignature,
+    pub signature: MagnusSignature,
 
     /// validBefore timestamp
     pub valid_before: Option<u64>,
@@ -72,7 +72,7 @@ pub struct TempoBatchCallEnv {
 }
 /// Tempo transaction environment.
 #[derive(Debug, Clone, Default, derive_more::Deref, derive_more::DerefMut)]
-pub struct TempoTxEnv {
+pub struct MagnusTxEnv {
     /// Inner Ethereum [`TxEnv`].
     #[deref]
     #[deref_mut]
@@ -91,15 +91,15 @@ pub struct TempoTxEnv {
     /// - None corresponds to a transaction without a fee payer
     pub fee_payer: Option<Option<Address>>,
 
-    /// AA-specific transaction environment (boxed to keep TempoTxEnv lean for non-AA tx)
-    pub magnus_tx_env: Option<Box<TempoBatchCallEnv>>,
+    /// AA-specific transaction environment (boxed to keep MagnusTxEnv lean for non-AA tx)
+    pub magnus_tx_env: Option<Box<MagnusBatchCallEnv>>,
 }
 
-impl TempoTxEnv {
+impl MagnusTxEnv {
     /// Resolves fee payer from the signature.
-    pub fn fee_payer(&self) -> Result<Address, TempoInvalidTransaction> {
+    pub fn fee_payer(&self) -> Result<Address, MagnusInvalidTransaction> {
         if let Some(fee_payer) = self.fee_payer {
-            fee_payer.ok_or(TempoInvalidTransaction::InvalidFeePayerSignature)
+            fee_payer.ok_or(MagnusInvalidTransaction::InvalidFeePayerSignature)
         } else {
             Ok(self.caller())
         }
@@ -148,7 +148,7 @@ impl TempoTxEnv {
     }
 }
 
-impl From<TxEnv> for TempoTxEnv {
+impl From<TxEnv> for MagnusTxEnv {
     fn from(inner: TxEnv) -> Self {
         Self {
             inner,
@@ -157,7 +157,7 @@ impl From<TxEnv> for TempoTxEnv {
     }
 }
 
-impl Transaction for TempoTxEnv {
+impl Transaction for MagnusTxEnv {
     type AccessListItem<'a> = &'a AccessListItem;
     type Authorization<'a> = &'a Either<SignedAuthorization, RecoveredAuthorization>;
 
@@ -242,7 +242,7 @@ impl Transaction for TempoTxEnv {
     }
 }
 
-impl TransactionEnvMut for TempoTxEnv {
+impl TransactionEnvMut for MagnusTxEnv {
     fn set_gas_limit(&mut self, gas_limit: u64) {
         self.inner.set_gas_limit(gas_limit);
     }
@@ -256,19 +256,19 @@ impl TransactionEnvMut for TempoTxEnv {
     }
 }
 
-impl IntoTxEnv<Self> for TempoTxEnv {
+impl IntoTxEnv<Self> for MagnusTxEnv {
     fn into_tx_env(self) -> Self {
         self
     }
 }
 
-impl FromRecoveredTx<EthereumTxEnvelope<TxEip4844>> for TempoTxEnv {
+impl FromRecoveredTx<EthereumTxEnvelope<TxEip4844>> for MagnusTxEnv {
     fn from_recovered_tx(tx: &EthereumTxEnvelope<TxEip4844>, sender: Address) -> Self {
         TxEnv::from_recovered_tx(tx, sender).into()
     }
 }
 
-impl FromRecoveredTx<AASigned> for TempoTxEnv {
+impl FromRecoveredTx<AASigned> for MagnusTxEnv {
     fn from_recovered_tx(aa_signed: &AASigned, caller: Address) -> Self {
         let tx = aa_signed.tx();
         let signature = aa_signed.signature();
@@ -279,7 +279,7 @@ impl FromRecoveredTx<AASigned> for TempoTxEnv {
             let _ = keychain_sig.key_id(&aa_signed.signature_hash());
         }
 
-        let TempoTransaction {
+        let MagnusTransaction {
             chain_id,
             fee_token,
             max_priority_fee_per_gas,
@@ -340,8 +340,8 @@ impl FromRecoveredTx<AASigned> for TempoTxEnv {
             fee_payer: fee_payer_signature.map(|sig| {
                 secp256k1::recover_signer(&sig, tx.fee_payer_signature_hash(caller)).ok()
             }),
-            // Bundle AA-specific fields into TempoBatchCallEnv
-            magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
+            // Bundle AA-specific fields into MagnusBatchCallEnv
+            magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                 signature: signature.clone(),
                 valid_before: valid_before.map(NonZeroU64::get),
                 valid_after: valid_after.map(NonZeroU64::get),
@@ -369,25 +369,25 @@ impl FromRecoveredTx<AASigned> for TempoTxEnv {
     }
 }
 
-impl FromRecoveredTx<TempoTxEnvelope> for TempoTxEnv {
-    fn from_recovered_tx(tx: &TempoTxEnvelope, sender: Address) -> Self {
+impl FromRecoveredTx<MagnusTxEnvelope> for MagnusTxEnv {
+    fn from_recovered_tx(tx: &MagnusTxEnvelope, sender: Address) -> Self {
         match tx {
-            tx @ TempoTxEnvelope::Legacy(inner) => Self {
+            tx @ MagnusTxEnvelope::Legacy(inner) => Self {
                 inner: TxEnv::from_recovered_tx(inner.tx(), sender),
                 fee_token: None,
                 is_system_tx: tx.is_system_tx(),
                 fee_payer: None,
                 magnus_tx_env: None, // Non-AA transaction
             },
-            TempoTxEnvelope::Eip2930(tx) => TxEnv::from_recovered_tx(tx.tx(), sender).into(),
-            TempoTxEnvelope::Eip1559(tx) => TxEnv::from_recovered_tx(tx.tx(), sender).into(),
-            TempoTxEnvelope::Eip7702(tx) => TxEnv::from_recovered_tx(tx.tx(), sender).into(),
-            TempoTxEnvelope::AA(tx) => Self::from_recovered_tx(tx, sender),
+            MagnusTxEnvelope::Eip2930(tx) => TxEnv::from_recovered_tx(tx.tx(), sender).into(),
+            MagnusTxEnvelope::Eip1559(tx) => TxEnv::from_recovered_tx(tx.tx(), sender).into(),
+            MagnusTxEnvelope::Eip7702(tx) => TxEnv::from_recovered_tx(tx.tx(), sender).into(),
+            MagnusTxEnvelope::AA(tx) => Self::from_recovered_tx(tx, sender),
         }
     }
 }
 
-impl FromTxWithEncoded<EthereumTxEnvelope<TxEip4844>> for TempoTxEnv {
+impl FromTxWithEncoded<EthereumTxEnvelope<TxEip4844>> for MagnusTxEnv {
     fn from_encoded_tx(
         tx: &EthereumTxEnvelope<TxEip4844>,
         sender: Address,
@@ -397,14 +397,14 @@ impl FromTxWithEncoded<EthereumTxEnvelope<TxEip4844>> for TempoTxEnv {
     }
 }
 
-impl FromTxWithEncoded<AASigned> for TempoTxEnv {
+impl FromTxWithEncoded<AASigned> for MagnusTxEnv {
     fn from_encoded_tx(tx: &AASigned, sender: Address, _encoded: Bytes) -> Self {
         Self::from_recovered_tx(tx, sender)
     }
 }
 
-impl FromTxWithEncoded<TempoTxEnvelope> for TempoTxEnv {
-    fn from_encoded_tx(tx: &TempoTxEnvelope, sender: Address, _encoded: Bytes) -> Self {
+impl FromTxWithEncoded<MagnusTxEnvelope> for MagnusTxEnv {
+    fn from_encoded_tx(tx: &MagnusTxEnvelope, sender: Address, _encoded: Bytes) -> Self {
         Self::from_recovered_tx(tx, sender)
     }
 }
@@ -418,13 +418,13 @@ mod tests {
     use revm::context::{Transaction, TxEnv, result::InvalidTransaction};
     use magnus_primitives::transaction::{
         Call, calc_gas_balance_spending,
-        magnus_transaction::TEMPO_EXPIRING_NONCE_KEY,
-        tt_signature::{PrimitiveSignature, TempoSignature},
+        magnus_transaction::MAGNUS_EXPIRING_NONCE_KEY,
+        tt_signature::{PrimitiveSignature, MagnusSignature},
         tt_signed::AASigned,
         validate_calls,
     };
 
-    use crate::{TempoInvalidTransaction, TempoTxEnv};
+    use crate::{MagnusInvalidTransaction, MagnusTxEnv};
 
     fn create_call(to: TxKind) -> Call {
         Call {
@@ -509,7 +509,7 @@ mod tests {
         let caller = Address::repeat_byte(0xAA);
 
         let make_aa_signed = |nonce_key: U256| -> AASigned {
-            let tx = magnus_primitives::transaction::TempoTransaction {
+            let tx = magnus_primitives::transaction::MagnusTransaction {
                 chain_id: 1,
                 gas_limit: 1_000_000,
                 nonce_key,
@@ -522,15 +522,15 @@ mod tests {
                 }],
                 ..Default::default()
             };
-            let sig = TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+            let sig = MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                 Signature::test_signature(),
             ));
             AASigned::new_unhashed(tx, sig)
         };
 
         // Expiring nonce tx: expiring_nonce_hash should be Some and match direct computation
-        let expiring_signed = make_aa_signed(TEMPO_EXPIRING_NONCE_KEY);
-        let expiring_env = TempoTxEnv::from_recovered_tx(&expiring_signed, caller);
+        let expiring_signed = make_aa_signed(MAGNUS_EXPIRING_NONCE_KEY);
+        let expiring_env = MagnusTxEnv::from_recovered_tx(&expiring_signed, caller);
         let magnus_env = expiring_env.magnus_tx_env.as_ref().unwrap();
         let expected_hash = expiring_signed.expiring_nonce_hash(caller);
         assert_eq!(
@@ -541,7 +541,7 @@ mod tests {
 
         // Regular 2D nonce tx: expiring_nonce_hash should be None
         let regular_signed = make_aa_signed(U256::from(42));
-        let regular_env = super::TempoTxEnv::from_recovered_tx(&regular_signed, caller);
+        let regular_env = super::MagnusTxEnv::from_recovered_tx(&regular_signed, caller);
         let regular_tempo_env = regular_env.magnus_tx_env.as_ref().unwrap();
         assert_eq!(
             regular_tempo_env.expiring_nonce_hash, None,
@@ -551,7 +551,7 @@ mod tests {
 
     #[test]
     fn test_tx_env() {
-        let tx_env = super::TempoTxEnv::default();
+        let tx_env = super::MagnusTxEnv::default();
 
         // Test default values
         assert_eq!(tx_env.inner.nonce, 0);
@@ -565,7 +565,7 @@ mod tests {
     #[test]
     fn test_fee_payer_without_signature_uses_caller() {
         let caller = Address::repeat_byte(0xAB);
-        let tx_env = super::TempoTxEnv {
+        let tx_env = super::MagnusTxEnv {
             inner: TxEnv {
                 caller,
                 ..Default::default()
@@ -579,21 +579,21 @@ mod tests {
 
     #[test]
     fn test_fee_payer_invalid_signature_rejected() {
-        let tx_env = super::TempoTxEnv {
+        let tx_env = super::MagnusTxEnv {
             fee_payer: Some(None),
             ..Default::default()
         };
 
         assert!(matches!(
             tx_env.fee_payer(),
-            Err(TempoInvalidTransaction::InvalidFeePayerSignature)
+            Err(MagnusInvalidTransaction::InvalidFeePayerSignature)
         ));
     }
 
     #[test]
     fn test_fee_payer_resolving_to_sender_is_allowed_in_tx_env() {
         let caller = Address::repeat_byte(0xAB);
-        let tx_env = super::TempoTxEnv {
+        let tx_env = super::MagnusTxEnv {
             inner: TxEnv {
                 caller,
                 ..Default::default()
@@ -607,13 +607,13 @@ mod tests {
 
     #[test]
     fn test_has_fee_payer_signature() {
-        let without_sig = super::TempoTxEnv {
+        let without_sig = super::MagnusTxEnv {
             fee_payer: None,
             ..Default::default()
         };
         assert!(!without_sig.has_fee_payer_signature());
 
-        let with_sig = super::TempoTxEnv {
+        let with_sig = super::MagnusTxEnv {
             fee_payer: Some(Some(Address::repeat_byte(0xAB))),
             ..Default::default()
         };
@@ -624,7 +624,7 @@ mod tests {
     fn test_transaction_env_set_gas_limit() {
         use alloy_evm::TransactionEnvMut;
 
-        let mut tx_env = super::TempoTxEnv::default();
+        let mut tx_env = super::MagnusTxEnv::default();
 
         tx_env.set_gas_limit(21000);
         assert_eq!(tx_env.inner.gas_limit, 21000);
@@ -638,7 +638,7 @@ mod tests {
         use alloy_evm::TransactionEnvMut;
         use revm::context::Transaction;
 
-        let mut tx_env = super::TempoTxEnv::default();
+        let mut tx_env = super::MagnusTxEnv::default();
         assert_eq!(Transaction::nonce(&tx_env), 0);
 
         tx_env.set_nonce(42);
@@ -653,7 +653,7 @@ mod tests {
         use alloy_evm::TransactionEnvMut;
         use revm::context::transaction::{AccessList, AccessListItem};
 
-        let mut tx_env = super::TempoTxEnv::default();
+        let mut tx_env = super::MagnusTxEnv::default();
         assert!(tx_env.inner.access_list.is_empty());
 
         let access_list = AccessList(vec![
@@ -685,7 +685,7 @@ mod tests {
         use alloy_evm::TransactionEnvMut;
         use revm::context::transaction::{AccessList, AccessListItem};
 
-        let mut tx_env = super::TempoTxEnv::default();
+        let mut tx_env = super::MagnusTxEnv::default();
 
         // Set all values
         tx_env.set_gas_limit(50_000);
@@ -715,7 +715,7 @@ mod tests {
             ..Default::default()
         };
 
-        let tx_env: super::TempoTxEnv = inner.into();
+        let tx_env: super::MagnusTxEnv = inner.into();
 
         assert_eq!(tx_env.inner.gas_limit, 75_000);
         assert_eq!(Transaction::nonce(&tx_env), 55);
@@ -734,7 +734,7 @@ mod tests {
         let addr = Address::repeat_byte(0x42);
         let data = Bytes::from(vec![0x01, 0x02, 0x03]);
 
-        let tx_env = super::TempoTxEnv {
+        let tx_env = super::MagnusTxEnv {
             inner: TxEnv {
                 kind: TxKind::Call(addr),
                 data: data.clone(),
@@ -761,8 +761,8 @@ mod tests {
         let input1 = Bytes::from(vec![0xAA, 0xBB]);
         let input2 = Bytes::from(vec![0xCC, 0xDD]);
 
-        let tx_env = super::TempoTxEnv {
-            magnus_tx_env: Some(Box::new(super::TempoBatchCallEnv {
+        let tx_env = super::MagnusTxEnv {
+            magnus_tx_env: Some(Box::new(super::MagnusBatchCallEnv {
                 aa_calls: vec![
                     Call {
                         to: TxKind::Call(addr1),
@@ -790,8 +790,8 @@ mod tests {
     #[test]
     fn test_first_call_with_empty_aa_calls() {
         // Test with magnus_tx_env but empty calls list
-        let tx_env = super::TempoTxEnv {
-            magnus_tx_env: Some(Box::new(super::TempoBatchCallEnv {
+        let tx_env = super::MagnusTxEnv {
+            magnus_tx_env: Some(Box::new(super::MagnusBatchCallEnv {
                 aa_calls: vec![],
                 ..Default::default()
             })),
@@ -814,7 +814,7 @@ mod tests {
         let input3 = Bytes::from(vec![0x04, 0x05, 0x06]);
 
         // Non-AA transaction: returns single call from inner TxEnv
-        let non_aa_tx = super::TempoTxEnv {
+        let non_aa_tx = super::MagnusTxEnv {
             inner: TxEnv {
                 kind: TxKind::Call(addr1),
                 data: input1.clone(),
@@ -828,8 +828,8 @@ mod tests {
         assert_eq!(calls[0].1, input1.as_ref());
 
         // AA transaction with multiple calls
-        let aa_tx = super::TempoTxEnv {
-            magnus_tx_env: Some(Box::new(super::TempoBatchCallEnv {
+        let aa_tx = super::MagnusTxEnv {
+            magnus_tx_env: Some(Box::new(super::MagnusBatchCallEnv {
                 aa_calls: vec![
                     Call {
                         to: TxKind::Call(addr1),
@@ -861,8 +861,8 @@ mod tests {
         assert_eq!(calls[2].1, input3.as_ref());
 
         // AA transaction with empty calls list
-        let empty_aa_tx = super::TempoTxEnv {
-            magnus_tx_env: Some(Box::new(super::TempoBatchCallEnv {
+        let empty_aa_tx = super::MagnusTxEnv {
+            magnus_tx_env: Some(Box::new(super::MagnusBatchCallEnv {
                 aa_calls: vec![],
                 ..Default::default()
             })),
@@ -877,13 +877,13 @@ mod tests {
         any::<[u64; 4]>().prop_map(alloy_primitives::U256::from_limbs)
     }
 
-    /// Helper to create a TempoTxEnv with the given gas/fee/value parameters.
+    /// Helper to create a MagnusTxEnv with the given gas/fee/value parameters.
     fn make_tx_env(
         gas_limit: u64,
         gas_price: u128,
         value: alloy_primitives::U256,
-    ) -> super::TempoTxEnv {
-        super::TempoTxEnv {
+    ) -> super::MagnusTxEnv {
+        super::MagnusTxEnv {
             inner: revm::context::TxEnv {
                 gas_limit,
                 gas_price,
@@ -992,8 +992,8 @@ mod tests {
         /// Property: calls() returns exactly aa_calls.len() for AA transactions
         #[test]
         fn proptest_calls_count_aa_tx(num_calls in 0usize..20) {
-            let aa_tx = super::TempoTxEnv {
-                magnus_tx_env: Some(Box::new(super::TempoBatchCallEnv {
+            let aa_tx = super::MagnusTxEnv {
+                magnus_tx_env: Some(Box::new(super::MagnusBatchCallEnv {
                     aa_calls: (0..num_calls)
                         .map(|_| Call {
                             to: TxKind::Call(alloy_primitives::Address::ZERO),

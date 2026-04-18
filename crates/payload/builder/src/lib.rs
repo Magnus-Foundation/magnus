@@ -5,7 +5,7 @@
 
 mod metrics;
 
-use crate::metrics::{InstrumentedFinishProvider, TempoPayloadBuilderMetrics};
+use crate::metrics::{InstrumentedFinishProvider, MagnusPayloadBuilderMetrics};
 use alloy_consensus::{BlockHeader as _, Signed, Transaction, TxLegacy};
 use alloy_primitives::{Address, U256};
 use alloy_rlp::{Decodable, Encodable};
@@ -44,24 +44,24 @@ use std::{
     },
     time::{Duration, Instant},
 };
-use magnus_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
-use magnus_consensus::TEMPO_SHARED_GAS_DIVISOR;
-use magnus_evm::{TempoEvmConfig, TempoNextBlockEnvAttributes, evm::TempoEvm};
-use magnus_payload_types::{TempoBuiltPayload, TempoPayloadAttributes};
+use magnus_chainspec::{MagnusChainSpec, hardfork::MagnusHardforks};
+use magnus_consensus::MAGNUS_SHARED_GAS_DIVISOR;
+use magnus_evm::{MagnusEvmConfig, MagnusNextBlockEnvAttributes, evm::MagnusEvm};
+use magnus_payload_types::{MagnusBuiltPayload, MagnusPayloadAttributes};
 use magnus_precompiles::{
     storage::StorageCtx, tip_fee_manager::TipFeeManager, validator_config_v2::ValidatorConfigV2,
 };
 use magnus_primitives::{
-    RecoveredSubBlock, SubBlockMetadata, TempoHeader, TempoTxEnvelope,
+    RecoveredSubBlock, SubBlockMetadata, MagnusHeader, MagnusTxEnvelope,
     subblock::PartialValidatorKey,
     transaction::{
         calc_gas_balance_spending,
-        envelope::{TEMPO_SYSTEM_TX_SENDER, TEMPO_SYSTEM_TX_SIGNATURE},
+        envelope::{MAGNUS_SYSTEM_TX_SENDER, MAGNUS_SYSTEM_TX_SIGNATURE},
     },
 };
 use magnus_transaction_pool::{
-    TempoTransactionPool,
-    transaction::{TempoPoolTransactionError, TempoPooledTransaction},
+    MagnusTransactionPool,
+    transaction::{MagnusPoolTransactionError, MagnusPooledTransaction},
 };
 use tracing::{Level, debug, debug_span, error, info, instrument, trace, warn};
 
@@ -77,11 +77,11 @@ fn has_expired_transactions(subblock: &RecoveredSubBlock, timestamp: u64) -> boo
 }
 
 #[derive(Debug, Clone)]
-pub struct TempoPayloadBuilder<Provider> {
-    pool: TempoTransactionPool<Provider>,
+pub struct MagnusPayloadBuilder<Provider> {
+    pool: MagnusTransactionPool<Provider>,
     provider: Provider,
-    evm_config: TempoEvmConfig,
-    metrics: TempoPayloadBuilderMetrics,
+    evm_config: MagnusEvmConfig,
+    metrics: MagnusPayloadBuilderMetrics,
     /// Height at which we've seen an invalid subblock.
     ///
     /// We pre-validate all of the subblock transactions when collecting subblocks, so this
@@ -100,11 +100,11 @@ pub struct TempoPayloadBuilder<Provider> {
     disable_state_cache: bool,
 }
 
-impl<Provider> TempoPayloadBuilder<Provider> {
+impl<Provider> MagnusPayloadBuilder<Provider> {
     pub fn new(
-        pool: TempoTransactionPool<Provider>,
+        pool: MagnusTransactionPool<Provider>,
         provider: Provider,
-        evm_config: TempoEvmConfig,
+        evm_config: MagnusEvmConfig,
         is_dev: bool,
         state_provider_metrics: bool,
         disable_state_cache: bool,
@@ -113,7 +113,7 @@ impl<Provider> TempoPayloadBuilder<Provider> {
             pool,
             provider,
             evm_config,
-            metrics: TempoPayloadBuilderMetrics::default(),
+            metrics: MagnusPayloadBuilderMetrics::default(),
             highest_invalid_subblock: Default::default(),
             is_dev,
             state_provider_metrics,
@@ -122,7 +122,7 @@ impl<Provider> TempoPayloadBuilder<Provider> {
     }
 }
 
-impl<Provider: ChainSpecProvider<ChainSpec = TempoChainSpec>> TempoPayloadBuilder<Provider> {
+impl<Provider: ChainSpecProvider<ChainSpec = MagnusChainSpec>> MagnusPayloadBuilder<Provider> {
     /// Builds system transactions to seal the block.
     ///
     /// Returns a vector of system transactions that must be executed at the end of each block:
@@ -131,7 +131,7 @@ impl<Provider: ChainSpecProvider<ChainSpec = TempoChainSpec>> TempoPayloadBuilde
         &self,
         block_env: &BlockEnv,
         subblocks: &[RecoveredSubBlock],
-    ) -> Vec<Recovered<TempoTxEnvelope>> {
+    ) -> Vec<Recovered<MagnusTxEnvelope>> {
         let chain_spec = self.provider.chain_spec();
         let chain_id = Some(chain_spec.chain().id());
 
@@ -146,7 +146,7 @@ impl<Provider: ChainSpecProvider<ChainSpec = TempoChainSpec>> TempoPayloadBuilde
             .collect();
 
         let subblocks_signatures_tx = Recovered::new_unchecked(
-            TempoTxEnvelope::Legacy(Signed::new_unhashed(
+            MagnusTxEnvelope::Legacy(Signed::new_unhashed(
                 TxLegacy {
                     chain_id,
                     nonce: 0,
@@ -156,22 +156,22 @@ impl<Provider: ChainSpecProvider<ChainSpec = TempoChainSpec>> TempoPayloadBuilde
                     value: U256::ZERO,
                     input: subblocks_input,
                 },
-                TEMPO_SYSTEM_TX_SIGNATURE,
+                MAGNUS_SYSTEM_TX_SIGNATURE,
             )),
-            TEMPO_SYSTEM_TX_SENDER,
+            MAGNUS_SYSTEM_TX_SENDER,
         );
 
         vec![subblocks_signatures_tx]
     }
 }
 
-impl<Provider> PayloadBuilder for TempoPayloadBuilder<Provider>
+impl<Provider> PayloadBuilder for MagnusPayloadBuilder<Provider>
 where
     Provider:
-        StateProviderFactory + ChainSpecProvider<ChainSpec = TempoChainSpec> + Clone + 'static,
+        StateProviderFactory + ChainSpecProvider<ChainSpec = MagnusChainSpec> + Clone + 'static,
 {
-    type Attributes = TempoPayloadAttributes;
-    type BuiltPayload = TempoBuiltPayload;
+    type Attributes = MagnusPayloadAttributes;
+    type BuiltPayload = MagnusBuiltPayload;
 
     fn try_build(
         &self,
@@ -193,7 +193,7 @@ where
 
     fn build_empty_payload(
         &self,
-        config: PayloadConfig<Self::Attributes, TempoHeader>,
+        config: PayloadConfig<Self::Attributes, MagnusHeader>,
     ) -> Result<Self::BuiltPayload, PayloadBuilderError> {
         self.build_payload(
             BuildArguments::new(
@@ -212,9 +212,9 @@ where
     }
 }
 
-impl<Provider> TempoPayloadBuilder<Provider>
+impl<Provider> MagnusPayloadBuilder<Provider>
 where
-    Provider: StateProviderFactory + ChainSpecProvider<ChainSpec = TempoChainSpec>,
+    Provider: StateProviderFactory + ChainSpecProvider<ChainSpec = MagnusChainSpec>,
 {
     #[instrument(
         target = "payload_builder",
@@ -227,12 +227,12 @@ where
     )]
     fn build_payload<Txs>(
         &self,
-        args: BuildArguments<TempoPayloadAttributes, TempoBuiltPayload>,
+        args: BuildArguments<MagnusPayloadAttributes, MagnusBuiltPayload>,
         best_txs: impl FnOnce(BestTransactionsAttributes) -> Txs,
         empty: bool,
-    ) -> Result<BuildOutcome<TempoBuiltPayload>, PayloadBuilderError>
+    ) -> Result<BuildOutcome<MagnusBuiltPayload>, PayloadBuilderError>
     where
-        Txs: BestTransactions<Item = Arc<ValidPoolTransaction<TempoPooledTransaction>>>,
+        Txs: BestTransactions<Item = Arc<ValidPoolTransaction<MagnusPooledTransaction>>>,
     {
         let BuildArguments {
             mut cached_reads,
@@ -301,7 +301,7 @@ where
             .is_osaka_active_at_timestamp(attributes.timestamp);
 
         let block_gas_limit: u64 = parent_header.gas_limit();
-        let shared_gas_limit = block_gas_limit / TEMPO_SHARED_GAS_DIVISOR;
+        let shared_gas_limit = block_gas_limit / MAGNUS_SHARED_GAS_DIVISOR;
         // Non-shared gas limit is the maximum gas available for proposer's pool transactions.
         // The remaining `shared_gas_limit` is reserved for validator subblocks.
         let non_shared_gas_limit = block_gas_limit - shared_gas_limit;
@@ -367,7 +367,7 @@ where
             .builder_for_next_block(
                 &mut db,
                 &parent_header,
-                TempoNextBlockEnvAttributes {
+                MagnusNextBlockEnvAttributes {
                     inner: NextBlockEnvAttributes {
                         timestamp: attributes.timestamp,
                         suggested_fee_recipient: attributes.suggested_fee_recipient,
@@ -477,7 +477,7 @@ where
                 best_txs.mark_invalid(
                     &pool_tx,
                     &InvalidPoolTransactionError::Other(Box::new(
-                        TempoPoolTransactionError::ExceedsNonPaymentLimit,
+                        MagnusPoolTransactionError::ExceedsNonPaymentLimit,
                     )),
                 );
                 self.metrics
@@ -814,7 +814,7 @@ where
             trie_updates: Either::Left(Arc::new(trie_updates)),
         };
 
-        let payload = TempoBuiltPayload::new(eth_payload, Some(executed_block));
+        let payload = MagnusBuiltPayload::new(eth_payload, Some(executed_block));
 
         drop(db);
         if build_until_interrupt {
@@ -829,7 +829,7 @@ where
 }
 
 pub fn is_more_subblocks(
-    best_payload: Option<&TempoBuiltPayload>,
+    best_payload: Option<&MagnusBuiltPayload>,
     subblocks: &[RecoveredSubBlock],
 ) -> bool {
     let Some(best_payload) = best_payload else {
@@ -853,8 +853,8 @@ pub fn is_more_subblocks(
 /// V2 validator config contract, if the contract is active and returns a
 /// non-zero address for the given `public_key`.
 fn maybe_override_fee_recipient<DB: Database>(
-    builder: &mut impl BlockBuilder<Executor: BlockExecutor<Evm = TempoEvm<DB>>>,
-    attributes: &TempoPayloadAttributes,
+    builder: &mut impl BlockBuilder<Executor: BlockExecutor<Evm = MagnusEvm<DB>>>,
+    attributes: &MagnusPayloadAttributes,
 ) {
     let Some(public_key) = attributes.proposer_public_key() else {
         return;
@@ -897,7 +897,7 @@ fn maybe_override_fee_recipient<DB: Database>(
 
 /// Resolves the validator's preferred fee token.
 fn resolve_validator_fee_token(
-    builder: &mut impl BlockBuilder<Executor: BlockExecutor<Evm = TempoEvm<impl Database>>>,
+    builder: &mut impl BlockBuilder<Executor: BlockExecutor<Evm = MagnusEvm<impl Database>>>,
 ) -> Result<Address, PayloadBuilderError> {
     let ctx = builder.evm_mut().ctx_mut();
     let beneficiary = ctx.block.beneficiary;
@@ -916,8 +916,8 @@ mod tests {
     use core::num::NonZeroU64;
     use reth_primitives_traits::SealedBlock;
     use magnus_primitives::{
-        AASigned, Block, SignedSubBlock, SubBlock, SubBlockVersion, TempoSignature,
-        TempoTransaction,
+        AASigned, Block, SignedSubBlock, SubBlock, SubBlockVersion, MagnusSignature,
+        MagnusTransaction,
     };
 
     fn nz(value: u64) -> NonZeroU64 {
@@ -951,12 +951,12 @@ mod tests {
         }
 
         fn with_valid_before(valid_before: Option<NonZeroU64>) -> Self {
-            let tx = TempoTxEnvelope::AA(AASigned::new_unhashed(
-                TempoTransaction {
+            let tx = MagnusTxEnvelope::AA(AASigned::new_unhashed(
+                MagnusTransaction {
                     valid_before,
                     ..Default::default()
                 },
-                TempoSignature::default(),
+                MagnusSignature::default(),
             ));
             let signed = SignedSubBlock {
                 inner: SubBlock {
@@ -971,10 +971,10 @@ mod tests {
         }
     }
 
-    fn payload_with_metadata(count: usize) -> TempoBuiltPayload {
+    fn payload_with_metadata(count: usize) -> MagnusBuiltPayload {
         let metadata: Vec<_> = (0..count).map(|_| SubBlockMetadata::random()).collect();
         let input: Bytes = alloy_rlp::encode(&metadata).into();
-        let tx = TempoTxEnvelope::Legacy(Signed::new_unhashed(
+        let tx = MagnusTxEnvelope::Legacy(Signed::new_unhashed(
             TxLegacy {
                 chain_id: None,
                 nonce: 0,
@@ -987,7 +987,7 @@ mod tests {
             Signature::test_signature(),
         ));
         let block = Block {
-            header: TempoHeader::default(),
+            header: MagnusHeader::default(),
             body: BlockBody {
                 transactions: vec![tx],
                 ommers: vec![],
@@ -996,7 +996,7 @@ mod tests {
         };
         let sealed = Arc::new(SealedBlock::seal_slow(block));
         let eth = EthBuiltPayload::new(sealed, U256::ZERO, None, None);
-        TempoBuiltPayload::new(eth, None)
+        MagnusBuiltPayload::new(eth, None)
     }
 
     #[test]
@@ -1041,7 +1041,7 @@ mod tests {
         // Test that extra_data in attributes can be accessed correctly
         let extra_data = Bytes::from(vec![42, 43, 44, 45, 46]);
 
-        let attrs = TempoPayloadAttributes::new(
+        let attrs = MagnusPayloadAttributes::new(
             Address::default(),
             None,
             1,

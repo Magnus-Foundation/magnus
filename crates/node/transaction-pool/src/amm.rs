@@ -13,20 +13,20 @@ use reth_provider::{
     StateProvider, StateProviderFactory,
 };
 use magnus_chainspec::{
-    TempoChainSpec,
-    hardfork::{TempoHardfork, TempoHardforks},
+    MagnusChainSpec,
+    hardfork::{MagnusHardfork, MagnusHardforks},
 };
-use magnus_evm::TempoStateAccess;
+use magnus_evm::MagnusStateAccess;
 use magnus_precompiles::{
     DEFAULT_FEE_TOKEN, TIP_FEE_MANAGER_ADDRESS,
-    error::Result as TempoResult,
+    error::Result as MagnusResult,
     storage::Handler,
     tip_fee_manager::{
         TipFeeManager,
         amm::{Pool, PoolKey, compute_amount_out},
     },
 };
-use magnus_primitives::{TempoHeader, TempoReceipt};
+use magnus_primitives::{MagnusHeader, MagnusReceipt};
 use magnus_revm::IntoAddress;
 
 /// Number of recent validators/tokens to track.
@@ -43,8 +43,8 @@ impl AmmLiquidityCache {
     pub fn new<Client>(client: Client) -> ProviderResult<Self>
     where
         Client: StateProviderFactory
-            + HeaderProvider<Header = TempoHeader>
-            + ChainSpecProvider<ChainSpec = TempoChainSpec>,
+            + HeaderProvider<Header = MagnusHeader>
+            + ChainSpecProvider<ChainSpec = MagnusChainSpec>,
     {
         let this = Self {
             inner: Default::default(),
@@ -94,7 +94,7 @@ impl AmmLiquidityCache {
 
         // Spec doesn't affect raw storage reads (sload), so default is safe here.
         state_provider
-            .with_read_only_storage_ctx(TempoHardfork::default(), || -> TempoResult<bool> {
+            .with_read_only_storage_ctx(MagnusHardfork::default(), || -> MagnusResult<bool> {
                 // Otherwise, load pools that weren't found in cache and check if they have enough liquidity
                 for validator_token in missing_in_cache {
                     // This might race other fetches but we're OK with it.
@@ -136,8 +136,8 @@ impl AmmLiquidityCache {
     pub fn repopulate<Client>(&self, client: &Client) -> ProviderResult<()>
     where
         Client: StateProviderFactory
-            + HeaderProvider<Header = TempoHeader>
-            + ChainSpecProvider<ChainSpec = TempoChainSpec>,
+            + HeaderProvider<Header = MagnusHeader>
+            + ChainSpecProvider<ChainSpec = MagnusChainSpec>,
     {
         self.clear();
         let tip = client.best_block_number()?;
@@ -148,7 +148,7 @@ impl AmmLiquidityCache {
 
     /// Processes a new [`ExecutionOutcome`] and caches new validator
     /// fee token preferences and AMM pool liquidity changes.
-    pub fn on_new_state(&self, execution_outcome: &ExecutionOutcome<TempoReceipt>) {
+    pub fn on_new_state(&self, execution_outcome: &ExecutionOutcome<MagnusReceipt>) {
         let Some(storage) = execution_outcome
             .account_state(&TIP_FEE_MANAGER_ADDRESS)
             .map(|acc| &acc.storage)
@@ -177,11 +177,11 @@ impl AmmLiquidityCache {
     /// Processes new blocks and records recent validators and their fee token preferences in the cache.
     pub fn on_new_blocks<'a, P>(
         &self,
-        headers: impl IntoIterator<Item = &'a SealedHeader<TempoHeader>>,
+        headers: impl IntoIterator<Item = &'a SealedHeader<MagnusHeader>>,
         client: P,
     ) -> ProviderResult<()>
     where
-        P: StateProviderFactory + ChainSpecProvider<ChainSpec: TempoHardforks>,
+        P: StateProviderFactory + ChainSpecProvider<ChainSpec: MagnusHardforks>,
     {
         let headers = headers.into_iter().collect::<Vec<_>>();
         let latest_hash = if let Some(header) = headers.last() {
@@ -488,13 +488,13 @@ mod tests {
     #[test]
     fn test_on_new_state_early_return_no_fee_manager_account() {
         use reth_provider::ExecutionOutcome;
-        use magnus_primitives::TempoReceipt;
+        use magnus_primitives::MagnusReceipt;
 
         let cache = AmmLiquidityCache {
             inner: Arc::new(RwLock::new(AmmLiquidityCacheInner::default())),
         };
 
-        let execution_outcome: ExecutionOutcome<TempoReceipt> = ExecutionOutcome::default();
+        let execution_outcome: ExecutionOutcome<MagnusReceipt> = ExecutionOutcome::default();
         cache.on_new_state(&execution_outcome);
 
         let inner = cache.inner.read();
@@ -764,7 +764,7 @@ mod tests {
         let new_validator = Address::random();
         let provider = create_mock_provider();
         for i in 0..3u64 {
-            let header = TempoHeader {
+            let header = MagnusHeader {
                 inner: Header {
                     number: i,
                     beneficiary: new_validator,

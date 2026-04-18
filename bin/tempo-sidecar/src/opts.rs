@@ -6,14 +6,14 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-pub struct TempoSidecar {
+pub struct MagnusSidecar {
     // TODO: add node args
     #[command(subcommand)]
-    pub cmd: TempoSidecarSubcommand,
+    pub cmd: MagnusSidecarSubcommand,
 }
 
 #[derive(Subcommand, Debug)]
-pub enum TempoSidecarSubcommand {
+pub enum MagnusSidecarSubcommand {
     FeeAMMMonitor(MonitorArgs),
     SimpleArb(SimpleArbArgs),
     SyntheticLoad(SyntheticLoadArgs),

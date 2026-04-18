@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::rpc::{TempoHeaderResponse, TempoTransactionReceipt, TempoTransactionRequest};
+use crate::rpc::{MagnusHeaderResponse, MagnusTransactionReceipt, MagnusTransactionRequest};
 use alloy_consensus::{ReceiptWithBloom, TxType, error::UnsupportedTransactionType};
 
 use alloy_network::{
@@ -14,33 +14,33 @@ use alloy_provider::fillers::{
 use alloy_rpc_types_eth::{AccessList, Block, Transaction};
 use alloy_signer_local::PrivateKeySigner;
 use magnus_primitives::{
-    TempoHeader, TempoReceipt, TempoTxEnvelope, TempoTxType, transaction::TempoTypedTransaction,
+    MagnusHeader, MagnusReceipt, MagnusTxEnvelope, MagnusTxType, transaction::MagnusTypedTransaction,
 };
 
 /// Set of recommended fillers.
 ///
 /// `N` is a nonce filler.
-pub type TempoFillers<N> = JoinFill<N, JoinFill<GasFiller, ChainIdFiller>>;
+pub type MagnusFillers<N> = JoinFill<N, JoinFill<GasFiller, ChainIdFiller>>;
 
 /// The Tempo specific configuration of [`Network`] schema and consensus primitives.
 #[derive(Default, Debug, Clone, Copy)]
 #[non_exhaustive]
-pub struct TempoNetwork;
+pub struct MagnusNetwork;
 
-impl Network for TempoNetwork {
-    type TxType = TempoTxType;
-    type TxEnvelope = TempoTxEnvelope;
-    type UnsignedTx = TempoTypedTransaction;
-    type ReceiptEnvelope = ReceiptWithBloom<TempoReceipt>;
-    type Header = TempoHeader;
-    type TransactionRequest = TempoTransactionRequest;
-    type TransactionResponse = Transaction<TempoTxEnvelope>;
-    type ReceiptResponse = TempoTransactionReceipt;
-    type HeaderResponse = TempoHeaderResponse;
-    type BlockResponse = Block<Transaction<TempoTxEnvelope>, Self::HeaderResponse>;
+impl Network for MagnusNetwork {
+    type TxType = MagnusTxType;
+    type TxEnvelope = MagnusTxEnvelope;
+    type UnsignedTx = MagnusTypedTransaction;
+    type ReceiptEnvelope = ReceiptWithBloom<MagnusReceipt>;
+    type Header = MagnusHeader;
+    type TransactionRequest = MagnusTransactionRequest;
+    type TransactionResponse = Transaction<MagnusTxEnvelope>;
+    type ReceiptResponse = MagnusTransactionReceipt;
+    type HeaderResponse = MagnusHeaderResponse;
+    type BlockResponse = Block<Transaction<MagnusTxEnvelope>, Self::HeaderResponse>;
 }
 
-impl TransactionBuilder for TempoTransactionRequest {
+impl TransactionBuilder for MagnusTransactionRequest {
     fn chain_id(&self) -> Option<ChainId> {
         TransactionBuilder::chain_id(&self.inner)
     }
@@ -138,14 +138,14 @@ impl TransactionBuilder for TempoTransactionRequest {
     }
 }
 
-impl NetworkTransactionBuilder<TempoNetwork> for TempoTransactionRequest {
-    fn complete_type(&self, ty: TempoTxType) -> Result<(), Vec<&'static str>> {
+impl NetworkTransactionBuilder<MagnusNetwork> for MagnusTransactionRequest {
+    fn complete_type(&self, ty: MagnusTxType) -> Result<(), Vec<&'static str>> {
         match ty {
-            TempoTxType::AA => self.complete_aa(),
-            TempoTxType::Legacy
-            | TempoTxType::Eip2930
-            | TempoTxType::Eip1559
-            | TempoTxType::Eip7702 => NetworkTransactionBuilder::<Ethereum>::complete_type(
+            MagnusTxType::AA => self.complete_aa(),
+            MagnusTxType::Legacy
+            | MagnusTxType::Eip2930
+            | MagnusTxType::Eip1559
+            | MagnusTxType::Eip7702 => NetworkTransactionBuilder::<Ethereum>::complete_type(
                 &self.inner,
                 ty.try_into().expect("tempo tx types checked"),
             ),
@@ -160,7 +160,7 @@ impl NetworkTransactionBuilder<TempoNetwork> for TempoTransactionRequest {
         NetworkTransactionBuilder::<Ethereum>::can_build(&self.inner) || self.can_build_aa()
     }
 
-    fn output_tx_type(&self) -> TempoTxType {
+    fn output_tx_type(&self) -> MagnusTxType {
         if !self.calls.is_empty()
             || self.nonce_key.is_some()
             || self.fee_token.is_some()
@@ -173,26 +173,26 @@ impl NetworkTransactionBuilder<TempoNetwork> for TempoTransactionRequest {
             || self.valid_after.is_some()
             || self.fee_payer_signature.is_some()
         {
-            TempoTxType::AA
+            MagnusTxType::AA
         } else {
             match NetworkTransactionBuilder::<Ethereum>::output_tx_type(&self.inner) {
-                TxType::Legacy => TempoTxType::Legacy,
-                TxType::Eip2930 => TempoTxType::Eip2930,
-                TxType::Eip1559 => TempoTxType::Eip1559,
+                TxType::Legacy => MagnusTxType::Legacy,
+                TxType::Eip2930 => MagnusTxType::Eip2930,
+                TxType::Eip1559 => MagnusTxType::Eip1559,
                 // EIP-4844 transactions are not supported on Tempo
-                TxType::Eip4844 => TempoTxType::Legacy,
-                TxType::Eip7702 => TempoTxType::Eip7702,
+                TxType::Eip4844 => MagnusTxType::Legacy,
+                TxType::Eip7702 => MagnusTxType::Eip7702,
             }
         }
     }
 
-    fn output_tx_type_checked(&self) -> Option<TempoTxType> {
+    fn output_tx_type_checked(&self) -> Option<MagnusTxType> {
         match self.output_tx_type() {
-            TempoTxType::AA => Some(TempoTxType::AA).filter(|_| self.can_build_aa()),
-            TempoTxType::Legacy
-            | TempoTxType::Eip2930
-            | TempoTxType::Eip1559
-            | TempoTxType::Eip7702 => {
+            MagnusTxType::AA => Some(MagnusTxType::AA).filter(|_| self.can_build_aa()),
+            MagnusTxType::Legacy
+            | MagnusTxType::Eip2930
+            | MagnusTxType::Eip1559
+            | MagnusTxType::Eip7702 => {
                 NetworkTransactionBuilder::<Ethereum>::output_tx_type_checked(&self.inner)?
                     .try_into()
                     .ok()
@@ -206,12 +206,12 @@ impl NetworkTransactionBuilder<TempoNetwork> for TempoTransactionRequest {
         self.inner.populate_blob_hashes();
     }
 
-    fn build_unsigned(self) -> BuildResult<TempoTypedTransaction, TempoNetwork> {
+    fn build_unsigned(self) -> BuildResult<MagnusTypedTransaction, MagnusNetwork> {
         match self.output_tx_type() {
-            TempoTxType::AA => match self.complete_aa() {
+            MagnusTxType::AA => match self.complete_aa() {
                 Ok(..) => Ok(self.build_aa().expect("checked by above condition").into()),
                 Err(missing) => Err(TransactionBuilderError::InvalidTransactionRequest(
-                    TempoTxType::AA,
+                    MagnusTxType::AA,
                     missing,
                 )
                 .into_unbuilt(self)),
@@ -246,15 +246,15 @@ impl NetworkTransactionBuilder<TempoNetwork> for TempoTransactionRequest {
         }
     }
 
-    async fn build<W: NetworkWallet<TempoNetwork>>(
+    async fn build<W: NetworkWallet<MagnusNetwork>>(
         self,
         wallet: &W,
-    ) -> Result<TempoTxEnvelope, TransactionBuilderError<TempoNetwork>> {
+    ) -> Result<MagnusTxEnvelope, TransactionBuilderError<MagnusNetwork>> {
         Ok(wallet.sign_request(self).await?)
     }
 }
 
-impl TempoTransactionRequest {
+impl MagnusTransactionRequest {
     fn can_build_aa(&self) -> bool {
         (!self.calls.is_empty() || self.inner.to.is_some())
             && self.inner.nonce.is_some()
@@ -290,15 +290,15 @@ impl TempoTransactionRequest {
     }
 }
 
-impl RecommendedFillers for TempoNetwork {
-    type RecommendedFillers = TempoFillers<NonceFiller>;
+impl RecommendedFillers for MagnusNetwork {
+    type RecommendedFillers = MagnusFillers<NonceFiller>;
 
     fn recommended_fillers() -> Self::RecommendedFillers {
         Default::default()
     }
 }
 
-impl IntoWallet<TempoNetwork> for PrivateKeySigner {
+impl IntoWallet<MagnusNetwork> for PrivateKeySigner {
     type NetworkWallet = EthereumWallet;
 
     fn into_wallet(self) -> Self::NetworkWallet {
@@ -314,12 +314,12 @@ mod tests {
     use alloy_primitives::{B256, Signature};
     use alloy_rpc_types_eth::{AccessListItem, Authorization, TransactionRequest};
     use magnus_primitives::{
-        SignatureType, TempoSignature,
-        transaction::{KeyAuthorization, PrimitiveSignature, TempoSignedAuthorization},
+        SignatureType, MagnusSignature,
+        transaction::{KeyAuthorization, PrimitiveSignature, MagnusSignedAuthorization},
     };
 
     #[test_case::test_case(
-        TempoTransactionRequest {
+        MagnusTransactionRequest {
             inner: TransactionRequest {
                 to: Some(TxKind::Call(Address::repeat_byte(0xDE))),
                 gas_price: Some(1234),
@@ -329,7 +329,7 @@ mod tests {
             },
             ..Default::default()
         },
-        TempoTypedTransaction::Legacy(TxLegacy {
+        MagnusTypedTransaction::Legacy(TxLegacy {
             to: TxKind::Call(Address::repeat_byte(0xDE)),
             gas_price: 1234,
             nonce: 57,
@@ -339,7 +339,7 @@ mod tests {
         "Legacy"
     )]
     #[test_case::test_case(
-        TempoTransactionRequest {
+        MagnusTransactionRequest {
             inner: TransactionRequest {
                 to: Some(TxKind::Call(Address::repeat_byte(0xDE))),
                 max_fee_per_gas: Some(1234),
@@ -350,7 +350,7 @@ mod tests {
             },
             ..Default::default()
         },
-        TempoTypedTransaction::Eip1559(TxEip1559 {
+        MagnusTypedTransaction::Eip1559(TxEip1559 {
             to: TxKind::Call(Address::repeat_byte(0xDE)),
             max_fee_per_gas: 1234,
             max_priority_fee_per_gas: 987,
@@ -362,7 +362,7 @@ mod tests {
         "EIP-1559"
     )]
     #[test_case::test_case(
-        TempoTransactionRequest {
+        MagnusTransactionRequest {
             inner: TransactionRequest {
                 to: Some(TxKind::Call(Address::repeat_byte(0xDE))),
                 gas_price: Some(1234),
@@ -376,7 +376,7 @@ mod tests {
             },
             ..Default::default()
         },
-        TempoTypedTransaction::Eip2930(TxEip2930 {
+        MagnusTypedTransaction::Eip2930(TxEip2930 {
             to: TxKind::Call(Address::repeat_byte(0xDE)),
             gas_price: 1234,
             nonce: 57,
@@ -391,7 +391,7 @@ mod tests {
         "EIP-2930"
     )]
     #[test_case::test_case(
-        TempoTransactionRequest {
+        MagnusTransactionRequest {
             inner: TransactionRequest {
                 to: Some(TxKind::Call(Address::repeat_byte(0xDE))),
                 max_fee_per_gas: Some(1234),
@@ -412,7 +412,7 @@ mod tests {
             },
             ..Default::default()
         },
-        TempoTypedTransaction::Eip7702(TxEip7702 {
+        MagnusTypedTransaction::Eip7702(TxEip7702 {
             to: Address::repeat_byte(0xDE),
             max_fee_per_gas: 1234,
             max_priority_fee_per_gas: 987,
@@ -434,8 +434,8 @@ mod tests {
         "EIP-7702"
     )]
     fn test_transaction_builds_successfully(
-        request: TempoTransactionRequest,
-        expected_transaction: TempoTypedTransaction,
+        request: MagnusTransactionRequest,
+        expected_transaction: MagnusTypedTransaction,
     ) {
         let actual_transaction = request
             .build_unsigned()
@@ -445,7 +445,7 @@ mod tests {
     }
 
     #[test_case::test_case(
-        TempoTransactionRequest {
+        MagnusTransactionRequest {
             inner: TransactionRequest {
                 to: Some(TxKind::Call(Address::repeat_byte(0xDE))),
                 max_priority_fee_per_gas: Some(987),
@@ -458,7 +458,7 @@ mod tests {
         "Failed to build transaction: EIP-1559 transaction can't be built due to missing keys: [\"max_fee_per_gas\"]";
         "EIP-1559 missing max fee"
     )]
-    fn test_transaction_fails_to_build(request: TempoTransactionRequest, expected_error: &str) {
+    fn test_transaction_fails_to_build(request: MagnusTransactionRequest, expected_error: &str) {
         let actual_error = request
             .build_unsigned()
             .expect_err("some required fields should be missing")
@@ -469,20 +469,20 @@ mod tests {
 
     #[test]
     fn output_tx_type_empty_request_is_not_aa() {
-        let req = TempoTransactionRequest::default();
-        assert_ne!(req.output_tx_type(), TempoTxType::AA);
+        let req = MagnusTransactionRequest::default();
+        assert_ne!(req.output_tx_type(), MagnusTxType::AA);
     }
 
     #[test]
     fn output_tx_type_tempo_authorization_list_is_aa() {
-        let req = TempoTransactionRequest {
-            magnus_authorization_list: vec![TempoSignedAuthorization::new_unchecked(
+        let req = MagnusTransactionRequest {
+            magnus_authorization_list: vec![MagnusSignedAuthorization::new_unchecked(
                 Authorization {
                     chain_id: U256::ZERO,
                     address: Address::ZERO,
                     nonce: 0,
                 },
-                TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::new(
+                MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::new(
                     U256::ZERO,
                     U256::ZERO,
                     false,
@@ -490,12 +490,12 @@ mod tests {
             )],
             ..Default::default()
         };
-        assert_eq!(req.output_tx_type(), TempoTxType::AA);
+        assert_eq!(req.output_tx_type(), MagnusTxType::AA);
     }
 
     #[test]
     fn output_tx_type_key_authorization_is_aa() {
-        let req = TempoTransactionRequest {
+        let req = MagnusTransactionRequest {
             key_authorization: Some(
                 KeyAuthorization::unrestricted(0, SignatureType::Secp256k1, Address::ZERO)
                     .into_signed(PrimitiveSignature::Secp256k1(Signature::new(
@@ -506,39 +506,39 @@ mod tests {
             ),
             ..Default::default()
         };
-        assert_eq!(req.output_tx_type(), TempoTxType::AA);
+        assert_eq!(req.output_tx_type(), MagnusTxType::AA);
     }
 
     #[test]
     fn output_tx_type_key_id_is_aa() {
-        let req = TempoTransactionRequest {
+        let req = MagnusTransactionRequest {
             key_id: Some(Address::ZERO),
             ..Default::default()
         };
-        assert_eq!(req.output_tx_type(), TempoTxType::AA);
+        assert_eq!(req.output_tx_type(), MagnusTxType::AA);
     }
 
     #[test]
     fn output_tx_type_fee_payer_signature_is_aa() {
-        let req = TempoTransactionRequest {
+        let req = MagnusTransactionRequest {
             fee_payer_signature: Some(Signature::new(U256::ZERO, U256::ZERO, false)),
             ..Default::default()
         };
-        assert_eq!(req.output_tx_type(), TempoTxType::AA);
+        assert_eq!(req.output_tx_type(), MagnusTxType::AA);
     }
 
     #[test]
     fn output_tx_type_validity_window_is_aa() {
-        let req = TempoTransactionRequest {
+        let req = MagnusTransactionRequest {
             valid_before: Some(core::num::NonZeroU64::new(1000).unwrap()),
             ..Default::default()
         };
-        assert_eq!(req.output_tx_type(), TempoTxType::AA);
+        assert_eq!(req.output_tx_type(), MagnusTxType::AA);
 
-        let req = TempoTransactionRequest {
+        let req = MagnusTransactionRequest {
             valid_after: Some(core::num::NonZeroU64::new(500).unwrap()),
             ..Default::default()
         };
-        assert_eq!(req.output_tx_type(), TempoTxType::AA);
+        assert_eq!(req.output_tx_type(), MagnusTxType::AA);
     }
 }

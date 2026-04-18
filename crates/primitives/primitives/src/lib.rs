@@ -7,18 +7,18 @@
 pub use alloy_consensus::Header;
 
 mod address;
-pub use address::{MasterId, TempoAddressExt, UserTag, is_tip20_prefix};
+pub use address::{MasterId, MagnusAddressExt, UserTag, is_tip20_prefix};
 pub mod ed25519;
 
 pub mod transaction;
 pub use transaction::{
     AASigned, MAX_WEBAUTHN_SIGNATURE_LENGTH, P256_SIGNATURE_LENGTH, SECP256K1_SIGNATURE_LENGTH,
-    SignatureType, TEMPO_GAS_PRICE_SCALING_FACTOR, TEMPO_TX_TYPE_ID, TempoSignature,
-    TempoTransaction, TempoTxEnvelope, TempoTxType, derive_p256_address,
+    SignatureType, MAGNUS_GAS_PRICE_SCALING_FACTOR, MAGNUS_TX_TYPE_ID, MagnusSignature,
+    MagnusTransaction, MagnusTxEnvelope, MagnusTxType, derive_p256_address,
 };
 
 mod header;
-pub use header::{TempoConsensusContext, TempoHeader};
+pub use header::{MagnusConsensusContext, MagnusHeader};
 
 pub mod subblock;
 pub use subblock::{
@@ -30,10 +30,10 @@ extern crate alloc;
 use once_cell as _;
 
 /// Tempo block.
-pub type Block = alloy_consensus::Block<TempoTxEnvelope, TempoHeader>;
+pub type Block = alloy_consensus::Block<MagnusTxEnvelope, MagnusHeader>;
 
 /// Tempo block body.
-pub type BlockBody = alloy_consensus::BlockBody<TempoTxEnvelope, TempoHeader>;
+pub type BlockBody = alloy_consensus::BlockBody<MagnusTxEnvelope, MagnusHeader>;
 
 #[cfg(feature = "reth")]
 mod reth_compat;
@@ -41,12 +41,12 @@ mod reth_compat;
 /// Tempo receipt.
 /// Implements reth trait bounds when the `reth` feature is enabled.
 #[cfg(feature = "reth")]
-pub use reth_compat::TempoReceipt;
+pub use reth_compat::MagnusReceipt;
 #[cfg(not(feature = "reth"))]
-pub type TempoReceipt<L = alloy_primitives::Log> = alloy_consensus::EthereumReceipt<TempoTxType, L>;
+pub type MagnusReceipt<L = alloy_primitives::Log> = alloy_consensus::EthereumReceipt<MagnusTxType, L>;
 
 /// Marker type for Tempo node primitives.
 /// Implements [`reth_primitives_traits::NodePrimitives`] when the `reth` feature is enabled.
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 #[non_exhaustive]
-pub struct TempoPrimitives;
+pub struct MagnusPrimitives;

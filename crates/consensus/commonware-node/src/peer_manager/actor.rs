@@ -15,8 +15,8 @@ use futures::{StreamExt as _, channel::mpsc};
 use prometheus_client::metrics::gauge::Gauge;
 use reth_provider::{BlockIdReader as _, HeaderProvider as _};
 use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
-use magnus_node::TempoFullNode;
-use magnus_primitives::TempoHeader;
+use magnus_node::MagnusFullNode;
+use magnus_primitives::MagnusHeader;
 use tracing::{Span, debug, error, info_span, instrument};
 
 use crate::validators::read_active_and_known_peers_at_block_hash;
@@ -38,7 +38,7 @@ where
     context: ContextCell<TContext>,
 
     oracle: TPeerManager,
-    execution_node: TempoFullNode,
+    execution_node: MagnusFullNode,
     epoch_strategy: FixedEpocher,
     last_finalized_height: Height,
     mailbox: mpsc::UnboundedReceiver<MessageWithCause>,
@@ -290,7 +290,7 @@ struct LastTrackedPeerSet {
 }
 
 #[instrument(skip_all, fields(height), err)]
-fn read_header_at_height(execution_node: &TempoFullNode, height: u64) -> eyre::Result<TempoHeader> {
+fn read_header_at_height(execution_node: &MagnusFullNode, height: u64) -> eyre::Result<MagnusHeader> {
     execution_node
         .provider
         .header_by_number(height)

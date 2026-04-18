@@ -13,7 +13,7 @@ pub mod tokens;
 pub mod tokens_by_address;
 
 #[rpc(server, namespace = "token")]
-pub trait TempoTokenApi {
+pub trait MagnusTokenApi {
     /// Gets paginated role change history for TIP-20 tokens on Tempo.
     ///
     /// Tracks role grants and revocations from the RoleMembershipUpdated event for audit trails and compliance monitoring.
@@ -45,18 +45,18 @@ pub trait TempoTokenApi {
 
 /// The JSON-RPC handlers for the `token_` namespace.
 #[derive(Debug, Clone, Default)]
-pub struct TempoToken<EthApi> {
+pub struct MagnusToken<EthApi> {
     eth_api: EthApi,
 }
 
-impl<EthApi> TempoToken<EthApi> {
+impl<EthApi> MagnusToken<EthApi> {
     pub fn new(eth_api: EthApi) -> Self {
         Self { eth_api }
     }
 }
 
 #[async_trait::async_trait]
-impl<EthApi: RpcNodeCore> TempoTokenApiServer for TempoToken<EthApi> {
+impl<EthApi: RpcNodeCore> MagnusTokenApiServer for MagnusToken<EthApi> {
     async fn role_history(
         &self,
         _params: PaginationParams<RoleHistoryFilters>,
@@ -76,7 +76,7 @@ impl<EthApi: RpcNodeCore> TempoTokenApiServer for TempoToken<EthApi> {
     }
 }
 
-impl<EthApi: RpcNodeCore> TempoToken<EthApi> {
+impl<EthApi: RpcNodeCore> MagnusToken<EthApi> {
     /// Access the underlying provider.
     pub fn provider(&self) -> &EthApi::Provider {
         self.eth_api.provider()

@@ -9,7 +9,7 @@ pub(crate) use actor::Actor;
 use eyre::WrapErr as _;
 use futures::channel::mpsc;
 pub(crate) use ingress::Mailbox;
-use magnus_node::TempoFullNode;
+use magnus_node::MagnusFullNode;
 
 pub(crate) fn init<TContext>(
     context: TContext,
@@ -27,7 +27,7 @@ where
 pub(crate) struct Config {
     /// A handle to the execution node layer. Used to forward finalized blocks
     /// and to update the canonical chain by sending forkchoice updates.
-    pub(crate) execution_node: TempoFullNode,
+    pub(crate) execution_node: MagnusFullNode,
 
     /// The last finalized height according to the consensus layer.
     /// If on startup there is a mismatch between the execution layer and the

@@ -1,4 +1,4 @@
-use crate::opts::{TempoSidecar, TempoSidecarSubcommand};
+use crate::opts::{MagnusSidecar, MagnusSidecarSubcommand};
 use clap::Parser;
 
 mod cmd;
@@ -27,12 +27,12 @@ fn install_crypto_provider() {
 async fn main() -> eyre::Result<()> {
     install_crypto_provider();
 
-    let args = TempoSidecar::parse();
+    let args = MagnusSidecar::parse();
 
     match args.cmd {
-        TempoSidecarSubcommand::FeeAMMMonitor(cmd) => cmd.run().await,
-        TempoSidecarSubcommand::SimpleArb(cmd) => cmd.run().await,
-        TempoSidecarSubcommand::SyntheticLoad(cmd) => cmd.run().await,
-        TempoSidecarSubcommand::TxLatencyMonitor(cmd) => cmd.run().await,
+        MagnusSidecarSubcommand::FeeAMMMonitor(cmd) => cmd.run().await,
+        MagnusSidecarSubcommand::SimpleArb(cmd) => cmd.run().await,
+        MagnusSidecarSubcommand::SyntheticLoad(cmd) => cmd.run().await,
+        MagnusSidecarSubcommand::TxLatencyMonitor(cmd) => cmd.run().await,
     }
 }

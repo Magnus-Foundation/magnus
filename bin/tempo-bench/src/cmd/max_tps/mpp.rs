@@ -4,7 +4,7 @@ use alloy::{
     sol,
     sol_types::{SolCall, SolValue},
 };
-use magnus_alloy::{primitives::transaction::Call, rpc::TempoTransactionRequest};
+use magnus_alloy::{primitives::transaction::Call, rpc::MagnusTransactionRequest};
 
 sol! {
     #[sol(rpc)]
@@ -52,7 +52,7 @@ pub(super) fn compute_channel_id(
     )
 }
 
-/// Build a `TempoTransactionRequest` with two calls: channel open + close.
+/// Build a `MagnusTransactionRequest` with two calls: channel open + close.
 ///
 /// The signer is both payer and payee, so `close` succeeds immediately.
 pub(super) fn build_open_and_close(
@@ -61,7 +61,7 @@ pub(super) fn build_open_and_close(
     token: Address,
     salt: B256,
     channel_id: B256,
-) -> TempoTransactionRequest {
+) -> MagnusTransactionRequest {
     let open_call = Call {
         to: channel_address.into(),
         input: ITempoStreamChannel::openCall {
@@ -88,7 +88,7 @@ pub(super) fn build_open_and_close(
         value: U256::ZERO,
     };
 
-    TempoTransactionRequest {
+    MagnusTransactionRequest {
         calls: vec![open_call, close_call],
         ..Default::default()
     }
@@ -96,7 +96,7 @@ pub(super) fn build_open_and_close(
 
 /// Approves the channel contract to spend tokens for signers that need it.
 pub(super) async fn setup(
-    signer_providers: &[(Secp256k1Signer, DynProvider<TempoNetwork>)],
+    signer_providers: &[(Secp256k1Signer, DynProvider<MagnusNetwork>)],
     channel_address: Address,
     fee_token: Address,
     max_concurrent_requests: usize,

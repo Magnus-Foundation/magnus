@@ -6,11 +6,11 @@ use alloy::{
     primitives::{U256, address, keccak256},
     providers::ProviderBuilder,
 };
-use magnus_alloy::{TempoNetwork, contracts::precompiles::ITIP20};
+use magnus_alloy::{MagnusNetwork, contracts::precompiles::ITIP20};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+    let provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
         .connect(&std::env::var("RPC_URL").expect("No RPC URL set"))
         .await?;
 

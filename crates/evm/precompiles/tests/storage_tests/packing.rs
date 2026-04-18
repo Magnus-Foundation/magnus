@@ -256,7 +256,7 @@ fn test_unit_enum_storage_rejects_invalid_discriminant() {
         let enum_slot = Slot::<PackedStatus>::new(base_slot, address);
         assert_eq!(
             enum_slot.read().unwrap_err(),
-            error::TempoPrecompileError::enum_conversion_error()
+            error::MagnusPrecompileError::enum_conversion_error()
         );
     });
 }
@@ -468,7 +468,7 @@ fn test_packed_two_slot_contents() {
             "0x1212121212121212121212121212121212121212", // offset 0 (20 bytes)
         ]);
         assert_eq!(slot, expected);
-        Ok::<(), error::TempoPrecompileError>(())
+        Ok::<(), error::MagnusPrecompileError>(())
     })
     .unwrap();
 }
@@ -504,7 +504,7 @@ fn test_packed_three_slot_contents() {
             "0x1111111111111111", // offset 0 (8 bytes)
         ]);
         assert_eq!(slot0, expected);
-        Ok::<(), error::TempoPrecompileError>(())
+        Ok::<(), error::MagnusPrecompileError>(())
     })
     .unwrap();
 }
@@ -543,7 +543,7 @@ fn test_rule2_slot_contents() {
             "0x42",               // offset 0 (1 byte)
         ]);
         assert_eq!(slot0, expected);
-        Ok::<(), error::TempoPrecompileError>(())
+        Ok::<(), error::MagnusPrecompileError>(())
     })
     .unwrap();
 }
@@ -596,7 +596,7 @@ fn test_partially_packed_slot_contents() {
             value.addr2,
             "addr2 field mismatch in slot 2"
         );
-        Ok::<(), error::TempoPrecompileError>(())
+        Ok::<(), error::MagnusPrecompileError>(())
     })
     .unwrap();
 }
@@ -639,7 +639,7 @@ fn test_partial_update_preserves_adjacent_fields() {
         assert_eq!(extracted_a, 0x1111111111111111, "field a was corrupted");
         assert_eq!(extracted_b, 0x9999999999999999, "field b was not updated");
         assert_eq!(extracted_c, 0x3333333333333333, "field c was corrupted");
-        Ok::<(), error::TempoPrecompileError>(())
+        Ok::<(), error::MagnusPrecompileError>(())
     })
     .unwrap();
 }
@@ -708,7 +708,7 @@ fn test_delete_zeros_all_slots() {
         assert_eq!(slot0_after, U256::ZERO, "slot 0 not zeroed after delete");
         assert_eq!(slot1_after, U256::ZERO, "slot 1 not zeroed after delete");
         assert_eq!(slot2_after, U256::ZERO, "slot 2 not zeroed after delete");
-        Ok::<(), error::TempoPrecompileError>(())
+        Ok::<(), error::MagnusPrecompileError>(())
     })
     .unwrap();
 }
@@ -739,7 +739,7 @@ fn test_slot_boundary_at_32_bytes() {
 
         assert_eq!(slot0, value.data, "data field mismatch in slot 0");
         assert_eq!(slot1, U256::from(value.flag), "flag");
-        Ok::<(), error::TempoPrecompileError>(())
+        Ok::<(), error::MagnusPrecompileError>(())
     })
     .unwrap();
 }

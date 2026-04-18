@@ -15,7 +15,7 @@ use alloy::primitives::{Address, U256};
 use std::ops::{Index, IndexMut};
 
 use crate::{
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     storage::{
         Handler, Layout, LayoutCtx, Storable, StorableType, StorageOps,
         packing::{PackedSlot, calc_element_loc, calc_packed_slot_count},
@@ -300,7 +300,7 @@ where
         // Read current length
         let length = self.len()?;
         if length >= Self::max_index() {
-            return Err(TempoPrecompileError::Fatal("Vec is at max capacity".into()));
+            return Err(MagnusPrecompileError::Fatal("Vec is at max capacity".into()));
         }
 
         // Write element at the end
@@ -381,7 +381,7 @@ where
 fn load_checked_len<S: StorageOps>(storage: &S, slot: U256) -> Result<usize> {
     let raw = storage.load(slot)?;
     if raw > U256::from(u32::MAX) {
-        return Err(TempoPrecompileError::under_overflow());
+        return Err(MagnusPrecompileError::under_overflow());
     }
     Ok(raw.to::<usize>())
 }
@@ -1636,7 +1636,7 @@ mod tests {
 
             // PoC value from audit: must be rejected with under_overflow
             len_slot.write(U256::from(0x0004000000000000u64))?;
-            assert_eq!(handler.len(), Err(TempoPrecompileError::under_overflow()));
+            assert_eq!(handler.len(), Err(MagnusPrecompileError::under_overflow()));
 
             // Boundary: u32::MAX is accepted
             len_slot.write(U256::from(u32::MAX))?;
@@ -1644,7 +1644,7 @@ mod tests {
 
             // Boundary: u32::MAX + 1 is rejected with under_overflow
             len_slot.write(U256::from(u32::MAX as u64 + 1))?;
-            assert_eq!(handler.len(), Err(TempoPrecompileError::under_overflow()));
+            assert_eq!(handler.len(), Err(MagnusPrecompileError::under_overflow()));
 
             // Large but valid values below u32::MAX are accepted (no arbitrary cap)
             len_slot.write(U256::from(100_000u64))?;

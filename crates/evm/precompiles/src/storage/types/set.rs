@@ -50,7 +50,7 @@ use std::{
 };
 
 use crate::{
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     storage::{
         Handler, Layout, LayoutCtx, Storable, StorableType, StorageKey, StorageOps,
         types::{Mapping, Slot, vec::VecHandler},
@@ -212,7 +212,7 @@ where
     }
 
     fn store<S: StorageOps>(&self, _storage: &mut S, _slot: U256, _ctx: LayoutCtx) -> Result<()> {
-        Err(TempoPrecompileError::Fatal(
+        Err(MagnusPrecompileError::Fatal(
             "Set must be stored via SetHandler::write() to maintain position invariants".into(),
         ))
     }
@@ -442,19 +442,19 @@ where
     }
 
     fn t_read(&self) -> Result<Set<T>> {
-        Err(TempoPrecompileError::Fatal(
+        Err(MagnusPrecompileError::Fatal(
             "Set types don't support transient storage".into(),
         ))
     }
 
     fn t_write(&mut self, _value: Set<T>) -> Result<()> {
-        Err(TempoPrecompileError::Fatal(
+        Err(MagnusPrecompileError::Fatal(
             "Set types don't support transient storage".into(),
         ))
     }
 
     fn t_delete(&mut self) -> Result<()> {
-        Err(TempoPrecompileError::Fatal(
+        Err(MagnusPrecompileError::Fatal(
             "Set types don't support transient storage".into(),
         ))
     }

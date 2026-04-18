@@ -1,4 +1,4 @@
-use crate::TempoEvmConfig;
+use crate::MagnusEvmConfig;
 use alloy_consensus::crypto::RecoveryError;
 use alloy_primitives::Address;
 use reth_evm::{
@@ -7,23 +7,23 @@ use reth_evm::{
 };
 use reth_primitives_traits::{SealedBlock, SignedTransaction};
 use std::sync::Arc;
-use magnus_payload_types::TempoExecutionData;
-use magnus_primitives::{Block, TempoTxEnvelope};
-use magnus_revm::TempoTxEnv;
+use magnus_payload_types::MagnusExecutionData;
+use magnus_primitives::{Block, MagnusTxEnvelope};
+use magnus_revm::MagnusTxEnv;
 
-impl ConfigureEngineEvm<TempoExecutionData> for TempoEvmConfig {
+impl ConfigureEngineEvm<MagnusExecutionData> for MagnusEvmConfig {
     fn evm_env_for_payload(
         &self,
-        payload: &TempoExecutionData,
+        payload: &MagnusExecutionData,
     ) -> Result<EvmEnvFor<Self>, Self::Error> {
         self.evm_env(&payload.block)
     }
 
     fn context_for_payload<'a>(
         &self,
-        payload: &'a TempoExecutionData,
+        payload: &'a MagnusExecutionData,
     ) -> Result<ExecutionCtxFor<'a, Self>, Self::Error> {
-        let TempoExecutionData {
+        let MagnusExecutionData {
             block,
             validator_set,
         } = payload;
@@ -36,7 +36,7 @@ impl ConfigureEngineEvm<TempoExecutionData> for TempoEvmConfig {
 
     fn tx_iterator_for_payload(
         &self,
-        payload: &TempoExecutionData,
+        payload: &MagnusExecutionData,
     ) -> Result<impl ExecutableTxIterator<Self>, Self::Error> {
         let block = payload.block.clone();
         let mut transactions = Vec::with_capacity(payload.block.body().transactions.len());
@@ -56,7 +56,7 @@ impl ConfigureEngineEvm<TempoExecutionData> for TempoEvmConfig {
 }
 
 /// A [`reth_evm::execute::ExecutableTxFor`] implementation that contains a pointer to the
-/// block and the transaction index, allowing to prepare a [`TempoTxEnv`] without having to
+/// block and the transaction index, allowing to prepare a [`MagnusTxEnv`] without having to
 /// clone block or transaction.
 #[derive(Clone)]
 struct RecoveredInBlock {
@@ -80,8 +80,8 @@ impl RecoveredInBlock {
     }
 }
 
-impl RecoveredTx<TempoTxEnvelope> for RecoveredInBlock {
-    fn tx(&self) -> &TempoTxEnvelope {
+impl RecoveredTx<MagnusTxEnvelope> for RecoveredInBlock {
+    fn tx(&self) -> &MagnusTxEnvelope {
         &self.block.body().transactions[self.index]
     }
 
@@ -90,9 +90,9 @@ impl RecoveredTx<TempoTxEnvelope> for RecoveredInBlock {
     }
 }
 
-impl ToTxEnv<TempoTxEnv> for RecoveredInBlock {
-    fn to_tx_env(&self) -> TempoTxEnv {
-        let mut tx_env = TempoTxEnv::from_recovered_tx(self.tx(), *self.signer());
+impl ToTxEnv<MagnusTxEnv> for RecoveredInBlock {
+    fn to_tx_env(&self) -> MagnusTxEnv {
+        let mut tx_env = MagnusTxEnv::from_recovered_tx(self.tx(), *self.signer());
         if let Some(magnus_tx_env) = tx_env.magnus_tx_env.as_mut() {
             magnus_tx_env.expiring_nonce_idx = self.expiring_nonce_idx;
         }
@@ -101,10 +101,10 @@ impl ToTxEnv<TempoTxEnv> for RecoveredInBlock {
     }
 }
 
-impl ExecutableTxParts<TempoTxEnv, TempoTxEnvelope> for RecoveredInBlock {
+impl ExecutableTxParts<MagnusTxEnv, MagnusTxEnvelope> for RecoveredInBlock {
     type Recovered = Self;
 
-    fn into_parts(self) -> (TempoTxEnv, Self::Recovered) {
+    fn into_parts(self) -> (MagnusTxEnv, Self::Recovered) {
         (self.to_tx_env(), self)
     }
 }
@@ -118,12 +118,12 @@ mod tests {
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
     use reth_chainspec::EthChainSpec;
     use reth_evm::{ConfigureEngineEvm, ConvertTx, ExecutableTxTuple};
-    use magnus_chainspec::{TempoChainSpec, spec::MODERATO};
+    use magnus_chainspec::{MagnusChainSpec, spec::MODERATO};
     use magnus_primitives::{
-        BlockBody, SubBlockMetadata, TempoHeader, transaction::envelope::TEMPO_SYSTEM_TX_SIGNATURE,
+        BlockBody, SubBlockMetadata, MagnusHeader, transaction::envelope::MAGNUS_SYSTEM_TX_SIGNATURE,
     };
 
-    fn create_legacy_tx() -> TempoTxEnvelope {
+    fn create_legacy_tx() -> MagnusTxEnvelope {
         let tx = TxLegacy {
             chain_id: Some(1),
             nonce: 0,
@@ -133,16 +133,16 @@ mod tests {
             value: U256::ZERO,
             input: Bytes::new(),
         };
-        TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, Signature::test_signature()))
+        MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, Signature::test_signature()))
     }
 
-    fn create_subblock_metadata_tx(chain_id: u64, block_number: u64) -> TempoTxEnvelope {
+    fn create_subblock_metadata_tx(chain_id: u64, block_number: u64) -> MagnusTxEnvelope {
         let metadata: Vec<SubBlockMetadata> = vec![];
         let mut input = BytesMut::new();
         metadata.encode(&mut input);
         input.extend_from_slice(&U256::from(block_number).to_be_bytes::<32>());
 
-        TempoTxEnvelope::Legacy(Signed::new_unhashed(
+        MagnusTxEnvelope::Legacy(Signed::new_unhashed(
             TxLegacy {
                 chain_id: Some(chain_id),
                 nonce: 0,
@@ -152,12 +152,12 @@ mod tests {
                 value: U256::ZERO,
                 input: input.freeze().into(),
             },
-            TEMPO_SYSTEM_TX_SIGNATURE,
+            MAGNUS_SYSTEM_TX_SIGNATURE,
         ))
     }
 
-    fn create_test_block(transactions: Vec<TempoTxEnvelope>) -> Arc<SealedBlock<Block>> {
-        let header = TempoHeader {
+    fn create_test_block(transactions: Vec<MagnusTxEnvelope>) -> Arc<SealedBlock<Block>> {
+        let header = MagnusHeader {
             inner: alloy_consensus::Header {
                 number: 1,
                 timestamp: 1000,
@@ -183,8 +183,8 @@ mod tests {
 
     #[test]
     fn test_tx_iterator_for_payload() {
-        let chainspec = Arc::new(TempoChainSpec::from_genesis(MODERATO.genesis().clone()));
-        let evm_config = TempoEvmConfig::new(chainspec.clone());
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let evm_config = MagnusEvmConfig::new(chainspec.clone());
 
         let tx1 = create_legacy_tx();
         let tx2 = create_legacy_tx();
@@ -192,7 +192,7 @@ mod tests {
 
         let block = create_test_block(vec![tx1, tx2, system_tx]);
 
-        let payload = TempoExecutionData {
+        let payload = MagnusExecutionData {
             block,
             validator_set: None,
         };
@@ -216,14 +216,14 @@ mod tests {
 
     #[test]
     fn test_context_for_payload() {
-        let chainspec = Arc::new(TempoChainSpec::from_genesis(MODERATO.genesis().clone()));
-        let evm_config = TempoEvmConfig::new(chainspec.clone());
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let evm_config = MagnusEvmConfig::new(chainspec.clone());
 
         let system_tx = create_subblock_metadata_tx(chainspec.chain().id(), 1);
         let block = create_test_block(vec![system_tx]);
         let validator_set = Some(vec![B256::repeat_byte(0x01), B256::repeat_byte(0x02)]);
 
-        let payload = TempoExecutionData {
+        let payload = MagnusExecutionData {
             block,
             validator_set: validator_set.clone(),
         };
@@ -242,13 +242,13 @@ mod tests {
 
     #[test]
     fn test_evm_env_for_payload() {
-        let chainspec = Arc::new(TempoChainSpec::from_genesis(MODERATO.genesis().clone()));
-        let evm_config = TempoEvmConfig::new(chainspec.clone());
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let evm_config = MagnusEvmConfig::new(chainspec.clone());
 
         let system_tx = create_subblock_metadata_tx(chainspec.chain().id(), 1);
         let block = create_test_block(vec![system_tx]);
 
-        let payload = TempoExecutionData {
+        let payload = MagnusExecutionData {
             block: block.clone(),
             validator_set: None,
         };

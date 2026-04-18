@@ -1,6 +1,6 @@
-use crate::transaction::envelope::TempoTxEnvelope;
+use crate::transaction::envelope::MagnusTxEnvelope;
 
-impl reth_primitives_traits::InMemorySize for TempoTxEnvelope {
+impl reth_primitives_traits::InMemorySize for MagnusTxEnvelope {
     fn size(&self) -> usize {
         match self {
             Self::Legacy(tx) => tx.size(),
@@ -15,9 +15,9 @@ impl reth_primitives_traits::InMemorySize for TempoTxEnvelope {
 #[cfg(feature = "reth-codec")]
 mod codec {
     use crate::{
-        TempoSignature, TempoTransaction,
+        MagnusSignature, MagnusTransaction,
         transaction::{
-            envelope::{TEMPO_SYSTEM_TX_SIGNATURE, TempoTxEnvelope, TempoTxType},
+            envelope::{MAGNUS_SYSTEM_TX_SIGNATURE, MagnusTxEnvelope, MagnusTxType},
             tt_signed::AASigned,
         },
     };
@@ -37,8 +37,8 @@ mod codec {
         },
     };
 
-    impl reth_codecs::alloy::transaction::FromTxCompact for TempoTxEnvelope {
-        type TxType = TempoTxType;
+    impl reth_codecs::alloy::transaction::FromTxCompact for MagnusTxEnvelope {
+        type TxType = MagnusTxType;
 
         fn from_tx_compact(
             buf: &[u8],
@@ -49,33 +49,33 @@ mod codec {
             use reth_codecs::Compact;
 
             match tx_type {
-                TempoTxType::Legacy => {
+                MagnusTxType::Legacy => {
                     let (tx, buf) = TxLegacy::from_compact(buf, buf.len());
                     let tx = Signed::new_unhashed(tx, signature);
                     (Self::Legacy(tx), buf)
                 }
-                TempoTxType::Eip2930 => {
+                MagnusTxType::Eip2930 => {
                     let (tx, buf) = TxEip2930::from_compact(buf, buf.len());
                     let tx = Signed::new_unhashed(tx, signature);
                     (Self::Eip2930(tx), buf)
                 }
-                TempoTxType::Eip1559 => {
+                MagnusTxType::Eip1559 => {
                     let (tx, buf) = TxEip1559::from_compact(buf, buf.len());
                     let tx = Signed::new_unhashed(tx, signature);
                     (Self::Eip1559(tx), buf)
                 }
-                TempoTxType::Eip7702 => {
+                MagnusTxType::Eip7702 => {
                     let (tx, buf) = TxEip7702::from_compact(buf, buf.len());
                     let tx = Signed::new_unhashed(tx, signature);
                     (Self::Eip7702(tx), buf)
                 }
-                TempoTxType::AA => {
-                    let (tx, buf) = TempoTransaction::from_compact(buf, buf.len());
+                MagnusTxType::AA => {
+                    let (tx, buf) = MagnusTransaction::from_compact(buf, buf.len());
                     // The provided `signature` is unused for AA transactions. The real
-                    // `TempoSignature` was appended to the buffer in `to_tx_compact` and
+                    // `MagnusSignature` was appended to the buffer in `to_tx_compact` and
                     // is decoded here instead.
                     let (sig_bytes, buf) = Bytes::from_compact(buf, buf.len());
-                    let aa_sig = TempoSignature::from_bytes(&sig_bytes)
+                    let aa_sig = MagnusSignature::from_bytes(&sig_bytes)
                         .map_err(|e| panic!("Failed to decode AA signature: {e}"))
                         .unwrap();
                     let tx = AASigned::new_unhashed(tx, aa_sig);
@@ -85,7 +85,7 @@ mod codec {
         }
     }
 
-    impl reth_codecs::alloy::transaction::ToTxCompact for TempoTxEnvelope {
+    impl reth_codecs::alloy::transaction::ToTxCompact for MagnusTxEnvelope {
         fn to_tx_compact(&self, buf: &mut (impl BufMut + AsMut<[u8]>)) {
             match self {
                 Self::Legacy(tx) => tx.tx().to_compact(buf),
@@ -101,7 +101,7 @@ mod codec {
         }
     }
 
-    impl Envelope for TempoTxEnvelope {
+    impl Envelope for MagnusTxEnvelope {
         fn signature(&self) -> &Signature {
             match self {
                 Self::Legacy(tx) => tx.signature(),
@@ -110,13 +110,13 @@ mod codec {
                 Self::Eip7702(tx) => tx.signature(),
                 Self::AA(_tx) => {
                     // The `Envelope` trait requires `&Signature` (ECDSA), but AA transactions
-                    // use `TempoSignature` which is a different type. We return a dummy zero
+                    // use `MagnusSignature` which is a different type. We return a dummy zero
                     // signature here because `CompactEnvelope::to_compact` calls this to
-                    // serialize a signature into the buffer. The actual `TempoSignature` is
+                    // serialize a signature into the buffer. The actual `MagnusSignature` is
                     // encoded separately in `ToTxCompact::to_tx_compact` and decoded back in
                     // `FromTxCompact::from_tx_compact`, where the dummy signature passed in
                     // is ignored for the AA variant.
-                    &TEMPO_SYSTEM_TX_SIGNATURE
+                    &MAGNUS_SYSTEM_TX_SIGNATURE
                 }
             }
         }
@@ -126,7 +126,7 @@ mod codec {
         }
     }
 
-    impl Compact for TempoTxType {
+    impl Compact for MagnusTxType {
         fn to_compact<B>(&self, buf: &mut B) -> usize
         where
             B: BufMut + AsMut<[u8]>,
@@ -140,7 +140,7 @@ mod codec {
                     COMPACT_EXTENDED_IDENTIFIER_FLAG
                 }
                 Self::AA => {
-                    buf.put_u8(crate::transaction::TEMPO_TX_TYPE_ID);
+                    buf.put_u8(crate::transaction::MAGNUS_TX_TYPE_ID);
                     COMPACT_EXTENDED_IDENTIFIER_FLAG
                 }
             }
@@ -157,7 +157,7 @@ mod codec {
                         let extended_identifier = buf.get_u8();
                         match extended_identifier {
                             EIP7702_TX_TYPE_ID => Self::Eip7702,
-                            crate::transaction::TEMPO_TX_TYPE_ID => Self::AA,
+                            crate::transaction::MAGNUS_TX_TYPE_ID => Self::AA,
                             _ => panic!("Unsupported TxType identifier: {extended_identifier}"),
                         }
                     }
@@ -168,7 +168,7 @@ mod codec {
         }
     }
 
-    impl Compact for TempoTxEnvelope {
+    impl Compact for MagnusTxEnvelope {
         fn to_compact<B>(&self, buf: &mut B) -> usize
         where
             B: BufMut + AsMut<[u8]>,
@@ -181,7 +181,7 @@ mod codec {
         }
     }
 
-    impl reth_db_api::table::Compress for TempoTxEnvelope {
+    impl reth_db_api::table::Compress for MagnusTxEnvelope {
         type Compressed = alloc::vec::Vec<u8>;
 
         fn compress_to_buf<B: alloy_primitives::bytes::BufMut + AsMut<[u8]>>(&self, buf: &mut B) {
@@ -189,7 +189,7 @@ mod codec {
         }
     }
 
-    impl reth_db_api::table::Decompress for TempoTxEnvelope {
+    impl reth_db_api::table::Decompress for MagnusTxEnvelope {
         fn decompress(value: &[u8]) -> Result<Self, DecompressError> {
             let (obj, _) = Compact::from_compact(value, value.len());
             Ok(obj)

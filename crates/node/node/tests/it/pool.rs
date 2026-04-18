@@ -25,11 +25,11 @@ use reth_transaction_pool::{
     pool::AddedTransactionState,
 };
 use std::{num::NonZeroU64, sync::Arc};
-use magnus_chainspec::spec::{TEMPO_T1_BASE_FEE, TempoChainSpec};
-use magnus_node::node::TempoNode;
+use magnus_chainspec::spec::{MAGNUS_T1_BASE_FEE, MagnusChainSpec};
+use magnus_node::node::MagnusNode;
 use magnus_precompiles::{DEFAULT_FEE_TOKEN, tip_fee_manager::TipFeeManager};
 use magnus_primitives::{
-    TempoTransaction, TempoTxEnvelope,
+    MagnusTransaction, MagnusTxEnvelope,
     transaction::{calc_gas_balance_spending, magnus_transaction::Call},
 };
 
@@ -37,7 +37,7 @@ use magnus_primitives::{
 async fn submit_pending_tx() -> eyre::Result<()> {
     reth_tracing::init_test_tracing();
     let runtime = Runtime::test();
-    let chain_spec = TempoChainSpec::from_genesis(serde_json::from_str(include_str!(
+    let chain_spec = MagnusChainSpec::from_genesis(serde_json::from_str(include_str!(
         "../assets/test-genesis.json"
     ))?);
 
@@ -51,7 +51,7 @@ async fn submit_pending_tx() -> eyre::Result<()> {
         node_exit_future: _,
     } = NodeBuilder::new(node_config.clone())
         .testing_node(runtime.clone())
-        .node(TempoNode::default())
+        .node(MagnusNode::default())
         .launch()
         .await?;
 
@@ -60,7 +60,7 @@ async fn submit_pending_tx() -> eyre::Result<()> {
         "0x02f8b082053980018628048c5ec000831e84809420c000000000000000000000000000000000000080b844a9059cbb0000000000000000000000003c44cdddb6a900fa2b585dd299e03d12fa4293bc0000000000000000000000000000000000000000000000000000000005f5e100c001a0e7f78bca071cc3f0b41dabdee8b3b97c47ca8bfe3bf86861ba06cd97567d61f6a02ad11d6959be0eba004f1f3336c8b1c90aced228a00cbd5af990b519792e7b87"
     );
 
-    let tx = TempoTxEnvelope::decode_2718_exact(&raw[..])?.try_into_recovered()?;
+    let tx = MagnusTxEnvelope::decode_2718_exact(&raw[..])?.try_into_recovered()?;
     let signer = tx.signer();
     let slot = TipFeeManager::new().user_tokens[signer].slot();
     println!("Submitting tx from {signer} with fee manager token slot 0x{slot:x}");
@@ -84,7 +84,7 @@ async fn submit_pending_tx() -> eyre::Result<()> {
 async fn test_insufficient_funds() -> eyre::Result<()> {
     reth_tracing::init_test_tracing();
     let runtime = Runtime::test();
-    let chain_spec = TempoChainSpec::from_genesis(serde_json::from_str(include_str!(
+    let chain_spec = MagnusChainSpec::from_genesis(serde_json::from_str(include_str!(
         "../assets/test-genesis.json"
     ))?);
 
@@ -98,11 +98,11 @@ async fn test_insufficient_funds() -> eyre::Result<()> {
         node_exit_future: _,
     } = NodeBuilder::new(node_config.clone())
         .testing_node(runtime.clone())
-        .node(TempoNode::default())
+        .node(MagnusNode::default())
         .launch()
         .await?;
 
-    let tx = TempoTransaction {
+    let tx = MagnusTransaction {
         chain_id: chain_spec.chain_id(),
         nonce: U64::random().to(),
         fee_token: Some(DEFAULT_FEE_TOKEN),
@@ -119,7 +119,7 @@ async fn test_insufficient_funds() -> eyre::Result<()> {
     let signer = PrivateKeySigner::random();
 
     let signature = signer.sign_hash_sync(&tx.signature_hash()).unwrap();
-    let tx: TempoTxEnvelope = tx.clone().into_signed(signature.into()).into();
+    let tx: MagnusTxEnvelope = tx.clone().into_signed(signature.into()).into();
 
     let res = node
         .pool
@@ -161,10 +161,10 @@ async fn test_evict_expired_aa_tx() -> eyre::Result<()> {
     let payload = setup.node.advance_block().await?;
     let tip_timestamp = payload.block().header().inner.timestamp;
 
-    let tx_aa = TempoTransaction {
+    let tx_aa = MagnusTransaction {
         chain_id: 1337,
-        max_priority_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
-        max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+        max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
+        max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
         gas_limit: 1_000_000,
         calls: vec![Call {
             to: TxKind::Call(Address::ZERO),
@@ -180,7 +180,7 @@ async fn test_evict_expired_aa_tx() -> eyre::Result<()> {
 
     // Sign the AA transaction
     let signature = signer_wallet.sign_hash_sync(&tx_aa.signature_hash())?;
-    let envelope: TempoTxEnvelope = tx_aa.into_signed(signature.into()).into();
+    let envelope: MagnusTxEnvelope = tx_aa.into_signed(signature.into()).into();
     let recovered = envelope.try_into_recovered()?;
     let tx_hash = *recovered.tx_hash();
     assert_eq!(recovered.signer(), signer_addr);
@@ -256,11 +256,11 @@ async fn test_2d_nonce_tx_reinjected_after_reorg() -> eyre::Result<()> {
     // Step 2: Submit a 2D nonce AA tx to node1 and mine it in block A
     let signer_wallet = MnemonicBuilder::from_phrase(TEST_MNEMONIC).build()?;
 
-    let tx_aa = TempoTransaction {
+    let tx_aa = MagnusTransaction {
         chain_id: 1337,
         nonce_key: U256::from(42),
-        max_priority_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
-        max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+        max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
+        max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
         gas_limit: 1_000_000,
         calls: vec![Call {
             to: TxKind::Call(Address::ZERO),
@@ -272,7 +272,7 @@ async fn test_2d_nonce_tx_reinjected_after_reorg() -> eyre::Result<()> {
     };
 
     let signature = signer_wallet.sign_hash_sync(&tx_aa.signature_hash())?;
-    let envelope: TempoTxEnvelope = tx_aa.into_signed(signature.into()).into();
+    let envelope: MagnusTxEnvelope = tx_aa.into_signed(signature.into()).into();
     let recovered = envelope.try_into_recovered()?;
     let tx_hash = *recovered.tx_hash();
 
@@ -347,10 +347,10 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
     let pool = &setup.node.inner.pool;
 
     // Submit a transaction that uses DEFAULT_FEE_TOKEN (PATH_USD)
-    let tx_default = TempoTransaction {
+    let tx_default = MagnusTransaction {
         chain_id: 1337,
-        max_priority_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
-        max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+        max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
+        max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
         gas_limit: 1_000_000,
         calls: vec![Call {
             to: TxKind::Call(Address::ZERO),
@@ -362,7 +362,7 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
     };
 
     let signature = user_signer.sign_hash_sync(&tx_default.signature_hash())?;
-    let envelope: TempoTxEnvelope = tx_default.into_signed(signature.into()).into();
+    let envelope: MagnusTxEnvelope = tx_default.into_signed(signature.into()).into();
     let recovered = envelope.try_into_recovered()?;
     let tx_hash = *recovered.tx_hash();
 
@@ -383,7 +383,7 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
     //
     // This should NOT evict the transaction because the attacker's token is not
     // used by any active block producers.
-    let updates = magnus_transaction_pool::TempoPoolUpdates {
+    let updates = magnus_transaction_pool::MagnusPoolUpdates {
         validator_token_changes: [(user_addr, attacker_token)].into_iter().collect(),
         ..Default::default()
     };
@@ -410,7 +410,7 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
 /// that fee token — except for transactions from whitelisted senders.
 ///
 /// 1. Two disconnected nodes start at genesis
-/// 2. Node2 mines a single block containing a TempoTransaction that creates a whitelist
+/// 2. Node2 mines a single block containing a MagnusTransaction that creates a whitelist
 ///    policy, whitelists one sender + the fee manager, and applies the policy to
 ///    DEFAULT_FEE_TOKEN
 /// 3. Node1 accumulates 10 AA transactions (indices 1–9 non-whitelisted, index 10
@@ -448,10 +448,10 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
     // The first user-created policy gets ID 2 (0=REJECT_ALL, 1=ALLOW_ALL are reserved)
     let new_policy_id = 2u64;
 
-    let policy_tx = TempoTransaction {
+    let policy_tx = MagnusTransaction {
         chain_id: 1337,
-        max_priority_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
-        max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+        max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
+        max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
         gas_limit: 5_000_000,
         calls: vec![
             // Call 1: create a whitelist policy
@@ -505,7 +505,7 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
     };
 
     let sig = admin_signer.sign_hash_sync(&policy_tx.signature_hash())?;
-    let envelope: TempoTxEnvelope = policy_tx.into_signed(sig.into()).into();
+    let envelope: MagnusTxEnvelope = policy_tx.into_signed(sig.into()).into();
     let mut encoded = Vec::new();
     envelope.encode_2718(&mut encoded);
 
@@ -524,10 +524,10 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
             .index(i)?
             .build()?;
 
-        let tx_aa = TempoTransaction {
+        let tx_aa = MagnusTransaction {
             chain_id: 1337,
-            max_priority_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
-            max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+            max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
+            max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
             gas_limit: 1_000_000,
             calls: vec![Call {
                 to: TxKind::Call(Address::ZERO),
@@ -539,7 +539,7 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
         };
 
         let signature = user_signer.sign_hash_sync(&tx_aa.signature_hash())?;
-        let envelope: TempoTxEnvelope = tx_aa.into_signed(signature.into()).into();
+        let envelope: MagnusTxEnvelope = tx_aa.into_signed(signature.into()).into();
         let recovered = envelope.try_into_recovered()?;
         let tx_hash = *recovered.tx_hash();
 
@@ -553,10 +553,10 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
     }
 
     // Submit the whitelisted sender's transaction
-    let whitelisted_tx = TempoTransaction {
+    let whitelisted_tx = MagnusTransaction {
         chain_id: 1337,
-        max_priority_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
-        max_fee_per_gas: TEMPO_T1_BASE_FEE as u128,
+        max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
+        max_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
         gas_limit: 1_000_000,
         calls: vec![Call {
             to: TxKind::Call(Address::ZERO),
@@ -568,7 +568,7 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
     };
 
     let wl_sig = whitelisted_signer.sign_hash_sync(&whitelisted_tx.signature_hash())?;
-    let wl_envelope: TempoTxEnvelope = whitelisted_tx.into_signed(wl_sig.into()).into();
+    let wl_envelope: MagnusTxEnvelope = whitelisted_tx.into_signed(wl_sig.into()).into();
     let wl_recovered = wl_envelope.try_into_recovered()?;
     let whitelisted_hash = *wl_recovered.tx_hash();
 

@@ -1,4 +1,4 @@
-use crate::TempoTxEnvelope;
+use crate::MagnusTxEnvelope;
 use alloc::vec::Vec;
 use alloy_consensus::transaction::Recovered;
 use alloy_primitives::{Address, B256, Bytes, U256, keccak256, wrap_fixed_bytes};
@@ -8,12 +8,12 @@ use alloy_rlp::{BufMut, Decodable, Encodable, RlpDecodable, RlpEncodable};
 const SUBBLOCK_SIGNATURE_HASH_MAGIC_BYTE: u8 = 0x78;
 
 /// Nonce key prefix marking a subblock transaction.
-pub const TEMPO_SUBBLOCK_NONCE_KEY_PREFIX: u8 = 0x5b;
+pub const MAGNUS_SUBBLOCK_NONCE_KEY_PREFIX: u8 = 0x5b;
 
-/// Returns true if the given nonce key has the [`TEMPO_SUBBLOCK_NONCE_KEY_PREFIX`].
+/// Returns true if the given nonce key has the [`MAGNUS_SUBBLOCK_NONCE_KEY_PREFIX`].
 #[inline]
 pub fn has_sub_block_nonce_key_prefix(nonce_key: &U256) -> bool {
-    nonce_key.byte(31) == TEMPO_SUBBLOCK_NONCE_KEY_PREFIX
+    nonce_key.byte(31) == MAGNUS_SUBBLOCK_NONCE_KEY_PREFIX
 }
 
 wrap_fixed_bytes! {
@@ -81,7 +81,7 @@ pub struct SubBlock {
     /// Recipient of the fees for the subblock.
     pub fee_recipient: Address,
     /// Transactions included in the subblock.
-    pub transactions: Vec<TempoTxEnvelope>,
+    pub transactions: Vec<MagnusTxEnvelope>,
 }
 
 impl SubBlock {
@@ -231,7 +231,7 @@ impl RecoveredSubBlock {
 
     /// Returns an iterator over `Recovered<&Transaction>`
     #[inline]
-    pub fn transactions_recovered(&self) -> impl Iterator<Item = Recovered<&TempoTxEnvelope>> + '_ {
+    pub fn transactions_recovered(&self) -> impl Iterator<Item = Recovered<&MagnusTxEnvelope>> + '_ {
         self.senders
             .iter()
             .zip(self.inner.transactions.iter())
@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn test_has_sub_block_nonce_key_prefix() {
         // Valid prefix in MSB (byte 31)
-        let with_prefix = U256::from(TEMPO_SUBBLOCK_NONCE_KEY_PREFIX) << 248;
+        let with_prefix = U256::from(MAGNUS_SUBBLOCK_NONCE_KEY_PREFIX) << 248;
         assert!(has_sub_block_nonce_key_prefix(&with_prefix));
 
         // Zero has no prefix
@@ -285,7 +285,7 @@ mod tests {
 
         // Prefix in LSB (byte 0), not MSB
         assert!(!has_sub_block_nonce_key_prefix(&U256::from(
-            TEMPO_SUBBLOCK_NONCE_KEY_PREFIX
+            MAGNUS_SUBBLOCK_NONCE_KEY_PREFIX
         )));
     }
 

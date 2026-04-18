@@ -89,7 +89,7 @@ pub fn extract_from_word<T: FromWord + StorableType>(
 
     // Validate that the value doesn't span slot boundaries
     if offset + bytes > 32 {
-        return Err(crate::error::TempoPrecompileError::Fatal(format!(
+        return Err(crate::error::MagnusPrecompileError::Fatal(format!(
             "Value of {} bytes at offset {} would span slot boundary (max offset: {})",
             bytes,
             offset,
@@ -120,7 +120,7 @@ pub fn insert_into_word<T: FromWord + StorableType>(
 
     // Validate that the value doesn't span slot boundaries
     if offset + bytes > 32 {
-        return Err(crate::error::TempoPrecompileError::Fatal(format!(
+        return Err(crate::error::MagnusPrecompileError::Fatal(format!(
             "Value of {} bytes at offset {} would span slot boundary (max offset: {})",
             bytes,
             offset,
@@ -152,7 +152,7 @@ pub fn insert_into_word<T: FromWord + StorableType>(
 pub fn delete_from_word(current: U256, offset: usize, bytes: usize) -> Result<U256> {
     // Validate that the value doesn't span slot boundaries
     if offset + bytes > 32 {
-        return Err(crate::error::TempoPrecompileError::Fatal(format!(
+        return Err(crate::error::MagnusPrecompileError::Fatal(format!(
             "Value of {} bytes at offset {} would span slot boundary (max offset: {})",
             bytes,
             offset,

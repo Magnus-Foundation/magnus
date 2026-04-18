@@ -1,4 +1,4 @@
-use crate::{TempoBlockEnv, TempoTxEnv, instructions};
+use crate::{MagnusBlockEnv, MagnusTxEnv, instructions};
 use alloy_evm::{Database, precompiles::PrecompilesMap};
 use alloy_primitives::{Address, U256};
 use revm::{
@@ -10,22 +10,22 @@ use revm::{
     inspector::InspectorEvmTr,
     interpreter::interpreter::EthInterpreter,
 };
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 
 /// The Tempo EVM context type.
-pub type TempoContext<DB> = Context<TempoBlockEnv, TempoTxEnv, CfgEnv<TempoHardfork>, DB>;
+pub type MagnusContext<DB> = Context<MagnusBlockEnv, MagnusTxEnv, CfgEnv<MagnusHardfork>, DB>;
 
-/// TempoEvm extends the Evm with Tempo specific types and logic.
+/// MagnusEvm extends the Evm with Tempo specific types and logic.
 #[derive(Debug, derive_more::Deref, derive_more::DerefMut)]
 #[expect(clippy::type_complexity)]
-pub struct TempoEvm<DB: Database, I> {
+pub struct MagnusEvm<DB: Database, I> {
     /// Inner EVM type.
     #[deref]
     #[deref_mut]
     pub inner: Evm<
-        TempoContext<DB>,
+        MagnusContext<DB>,
         I,
-        EthInstructions<EthInterpreter, TempoContext<DB>>,
+        EthInstructions<EthInterpreter, MagnusContext<DB>>,
         PrecompilesMap,
         EthFrame<EthInterpreter>,
     >,
@@ -52,9 +52,9 @@ pub struct TempoEvm<DB: Database, I> {
     pub skip_liquidity_check: bool,
 }
 
-impl<DB: Database, I> TempoEvm<DB, I> {
+impl<DB: Database, I> MagnusEvm<DB, I> {
     /// Create a new Tempo EVM.
-    pub fn new(ctx: TempoContext<DB>, inspector: I) -> Self {
+    pub fn new(ctx: MagnusContext<DB>, inspector: I) -> Self {
         let precompiles = magnus_precompiles::magnus_precompiles(&ctx.cfg);
 
         Self::new_inner(Evm {
@@ -71,9 +71,9 @@ impl<DB: Database, I> TempoEvm<DB, I> {
     #[expect(clippy::type_complexity)]
     fn new_inner(
         inner: Evm<
-            TempoContext<DB>,
+            MagnusContext<DB>,
             I,
-            EthInstructions<EthInterpreter, TempoContext<DB>>,
+            EthInstructions<EthInterpreter, MagnusContext<DB>>,
             PrecompilesMap,
             EthFrame<EthInterpreter>,
         >,
@@ -90,10 +90,10 @@ impl<DB: Database, I> TempoEvm<DB, I> {
     }
 }
 
-impl<DB: Database, I> TempoEvm<DB, I> {
+impl<DB: Database, I> MagnusEvm<DB, I> {
     /// Consumed self and returns a new Evm type with given Inspector.
-    pub fn with_inspector<OINSP>(self, inspector: OINSP) -> TempoEvm<DB, OINSP> {
-        TempoEvm::new_inner(self.inner.with_inspector(inspector))
+    pub fn with_inspector<OINSP>(self, inspector: OINSP) -> MagnusEvm<DB, OINSP> {
+        MagnusEvm::new_inner(self.inner.with_inspector(inspector))
     }
 
     /// Consumes self and returns a new Evm type with given Precompiles.
@@ -114,12 +114,12 @@ impl<DB: Database, I> TempoEvm<DB, I> {
     }
 }
 
-impl<DB, I> EvmTr for TempoEvm<DB, I>
+impl<DB, I> EvmTr for MagnusEvm<DB, I>
 where
     DB: Database,
 {
-    type Context = TempoContext<DB>;
-    type Instructions = EthInstructions<EthInterpreter, TempoContext<DB>>;
+    type Context = MagnusContext<DB>;
+    type Instructions = EthInstructions<EthInterpreter, MagnusContext<DB>>;
     type Precompiles = PrecompilesMap;
     type Frame = EthFrame<EthInterpreter>;
 
@@ -171,10 +171,10 @@ where
     }
 }
 
-impl<DB, I> InspectorEvmTr for TempoEvm<DB, I>
+impl<DB, I> InspectorEvmTr for MagnusEvm<DB, I>
 where
     DB: Database,
-    I: Inspector<TempoContext<DB>>,
+    I: Inspector<MagnusContext<DB>>,
 {
     type Inspector = I;
 
@@ -229,7 +229,7 @@ mod tests {
         state::{AccountInfo, Bytecode},
     };
     use sha2::{Digest, Sha256};
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_precompiles::{
         AuthorizedKey, NONCE_PRECOMPILE_ADDRESS, PATH_USD_ADDRESS,
         nonce::NonceManager,
@@ -238,18 +238,18 @@ mod tests {
         tip20::{ITIP20, TIP20Token},
     };
     use magnus_primitives::{
-        TempoTransaction,
+        MagnusTransaction,
         transaction::{
-            KeyAuthorization, KeychainSignature, SignatureType, TempoSignedAuthorization,
+            KeyAuthorization, KeychainSignature, SignatureType, MagnusSignedAuthorization,
             magnus_transaction::Call,
             tt_signature::{
-                PrimitiveSignature, TempoSignature, WebAuthnSignature, derive_p256_address,
+                PrimitiveSignature, MagnusSignature, WebAuthnSignature, derive_p256_address,
                 normalize_p256_s,
             },
         },
     };
 
-    use crate::{TempoBlockEnv, TempoEvm, TempoHaltReason, TempoInvalidTransaction, TempoTxEnv};
+    use crate::{MagnusBlockEnv, MagnusEvm, MagnusHaltReason, MagnusInvalidTransaction, MagnusTxEnv};
     use revm::context::result::InvalidTransaction;
 
     // ==================== Test Constants ====================
@@ -265,20 +265,20 @@ mod tests {
     // ==================== Test Utility Functions ====================
 
     /// Create an empty EVM instance with default settings and no inspector.
-    fn create_evm() -> TempoEvm<CacheDB<EmptyDB>, ()> {
+    fn create_evm() -> MagnusEvm<CacheDB<EmptyDB>, ()> {
         let db = CacheDB::new(EmptyDB::new());
         let ctx = Context::mainnet()
             .with_db(db)
             .with_block(Default::default())
             .with_cfg(Default::default())
             .with_tx(Default::default());
-        TempoEvm::new(ctx, ())
+        MagnusEvm::new(ctx, ())
     }
 
     /// Create an EVM instance with a specific block timestamp.
-    fn create_evm_with_timestamp(timestamp: u64) -> TempoEvm<CacheDB<EmptyDB>, ()> {
+    fn create_evm_with_timestamp(timestamp: u64) -> MagnusEvm<CacheDB<EmptyDB>, ()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut block = TempoBlockEnv::default();
+        let mut block = MagnusBlockEnv::default();
         block.inner.timestamp = U256::from(timestamp);
 
         let ctx = Context::mainnet()
@@ -287,11 +287,11 @@ mod tests {
             .with_cfg(Default::default())
             .with_tx(Default::default());
 
-        TempoEvm::new(ctx, ())
+        MagnusEvm::new(ctx, ())
     }
 
     /// Fund an account with the default balance (1 ETH).
-    fn fund_account(evm: &mut TempoEvm<CacheDB<EmptyDB>, ()>, address: Address) {
+    fn fund_account(evm: &mut MagnusEvm<CacheDB<EmptyDB>, ()>, address: Address) {
         evm.ctx.db_mut().insert_account_info(
             address,
             AccountInfo {
@@ -302,7 +302,7 @@ mod tests {
     }
 
     /// Create an EVM with a funded account at the given address.
-    fn create_funded_evm(address: Address) -> TempoEvm<CacheDB<EmptyDB>, ()> {
+    fn create_funded_evm(address: Address) -> MagnusEvm<CacheDB<EmptyDB>, ()> {
         let mut evm = create_evm();
         fund_account(&mut evm, address);
         evm
@@ -310,12 +310,12 @@ mod tests {
 
     /// Create an EVM with T1C hardfork enabled and a funded account.
     /// This applies TIP-1000 gas params via `magnus_gas_params()`.
-    fn create_funded_evm_t1(address: Address) -> TempoEvm<CacheDB<EmptyDB>, ()> {
+    fn create_funded_evm_t1(address: Address) -> MagnusEvm<CacheDB<EmptyDB>, ()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut cfg = CfgEnv::<TempoHardfork>::default();
-        cfg.spec = TempoHardfork::T1C;
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
+        cfg.spec = MagnusHardfork::T1C;
         // Apply TIP-1000 gas params for T1C hardfork
-        cfg.gas_params = magnus_gas_params(TempoHardfork::T1C);
+        cfg.gas_params = magnus_gas_params(MagnusHardfork::T1C);
 
         let ctx = Context::mainnet()
             .with_db(db)
@@ -323,17 +323,17 @@ mod tests {
             .with_cfg(cfg)
             .with_tx(Default::default());
 
-        let mut evm = TempoEvm::new(ctx, ());
+        let mut evm = MagnusEvm::new(ctx, ());
         fund_account(&mut evm, address);
         evm
     }
 
     /// Create an EVM with T3 hardfork enabled and a funded account.
-    fn create_funded_evm_t3(address: Address) -> TempoEvm<CacheDB<EmptyDB>, ()> {
+    fn create_funded_evm_t3(address: Address) -> MagnusEvm<CacheDB<EmptyDB>, ()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut cfg = CfgEnv::<TempoHardfork>::default();
-        cfg.spec = TempoHardfork::T3;
-        cfg.gas_params = magnus_gas_params(TempoHardfork::T3);
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
+        cfg.spec = MagnusHardfork::T3;
+        cfg.gas_params = magnus_gas_params(MagnusHardfork::T3);
 
         let ctx = Context::mainnet()
             .with_db(db)
@@ -341,7 +341,7 @@ mod tests {
             .with_cfg(cfg)
             .with_tx(Default::default());
 
-        let mut evm = TempoEvm::new(ctx, ());
+        let mut evm = MagnusEvm::new(ctx, ());
         fund_account(&mut evm, address);
         evm
     }
@@ -350,7 +350,7 @@ mod tests {
     fn create_funded_evm_with_timestamp(
         address: Address,
         timestamp: u64,
-    ) -> TempoEvm<CacheDB<EmptyDB>, ()> {
+    ) -> MagnusEvm<CacheDB<EmptyDB>, ()> {
         let mut evm = create_evm_with_timestamp(timestamp);
         fund_account(&mut evm, address);
         evm
@@ -360,13 +360,13 @@ mod tests {
     fn create_funded_evm_t1_with_timestamp(
         address: Address,
         timestamp: u64,
-    ) -> TempoEvm<CacheDB<EmptyDB>, ()> {
+    ) -> MagnusEvm<CacheDB<EmptyDB>, ()> {
         let db = CacheDB::new(EmptyDB::new());
-        let mut cfg = CfgEnv::<TempoHardfork>::default();
-        cfg.spec = TempoHardfork::T1;
-        cfg.gas_params = magnus_gas_params(TempoHardfork::T1);
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
+        cfg.spec = MagnusHardfork::T1;
+        cfg.gas_params = magnus_gas_params(MagnusHardfork::T1);
 
-        let mut block = TempoBlockEnv::default();
+        let mut block = MagnusBlockEnv::default();
         block.inner.timestamp = U256::from(timestamp);
 
         let ctx = Context::mainnet()
@@ -375,20 +375,20 @@ mod tests {
             .with_cfg(cfg)
             .with_tx(Default::default());
 
-        let mut evm = TempoEvm::new(ctx, ());
+        let mut evm = MagnusEvm::new(ctx, ());
         fund_account(&mut evm, address);
         evm
     }
 
     /// Create an EVM instance with a custom inspector.
-    fn create_evm_with_inspector<I>(inspector: I) -> TempoEvm<CacheDB<EmptyDB>, I> {
+    fn create_evm_with_inspector<I>(inspector: I) -> MagnusEvm<CacheDB<EmptyDB>, I> {
         let db = CacheDB::new(EmptyDB::new());
         let ctx = Context::mainnet()
             .with_db(db)
             .with_block(Default::default())
             .with_cfg(Default::default())
             .with_tx(Default::default());
-        TempoEvm::new(ctx, inspector)
+        MagnusEvm::new(ctx, inspector)
     }
 
     /// Helper struct for managing P256 key pairs in tests.
@@ -460,7 +460,7 @@ mod tests {
         fn create_signed_authorization(
             &self,
             delegate_address: Address,
-        ) -> eyre::Result<TempoSignedAuthorization> {
+        ) -> eyre::Result<MagnusSignedAuthorization> {
             let auth = Authorization {
                 chain_id: U256::from(1),
                 address: delegate_address,
@@ -473,16 +473,16 @@ mod tests {
             let auth_sig_hash = alloy_primitives::keccak256(&sig_buf);
 
             let webauthn_sig = self.sign_webauthn(auth_sig_hash.as_slice())?;
-            let aa_sig = TempoSignature::Primitive(PrimitiveSignature::WebAuthn(webauthn_sig));
+            let aa_sig = MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(webauthn_sig));
 
-            Ok(TempoSignedAuthorization::new_unchecked(auth, aa_sig))
+            Ok(MagnusSignedAuthorization::new_unchecked(auth, aa_sig))
         }
 
         /// Sign a transaction and return it ready for execution.
-        fn sign_tx(&self, tx: TempoTransaction) -> eyre::Result<magnus_primitives::AASigned> {
+        fn sign_tx(&self, tx: MagnusTransaction) -> eyre::Result<magnus_primitives::AASigned> {
             let webauthn_sig = self.sign_webauthn(tx.signature_hash().as_slice())?;
             Ok(
-                tx.into_signed(TempoSignature::Primitive(PrimitiveSignature::WebAuthn(
+                tx.into_signed(MagnusSignature::Primitive(PrimitiveSignature::WebAuthn(
                     webauthn_sig,
                 ))),
             )
@@ -491,7 +491,7 @@ mod tests {
         /// Sign a transaction with KeychainSignature wrapper (V2).
         fn sign_tx_keychain(
             &self,
-            tx: TempoTransaction,
+            tx: MagnusTransaction,
         ) -> eyre::Result<magnus_primitives::AASigned> {
             // V2: sign keccak256(0x04 || sig_hash || user_address)
             let sig_hash = tx.signature_hash();
@@ -501,7 +501,7 @@ mod tests {
             let webauthn_sig = self.sign_webauthn(effective_hash.as_slice())?;
             let keychain_sig =
                 KeychainSignature::new(self.address, PrimitiveSignature::WebAuthn(webauthn_sig));
-            Ok(tx.into_signed(TempoSignature::Keychain(keychain_sig)))
+            Ok(tx.into_signed(MagnusSignature::Keychain(keychain_sig)))
         }
     }
 
@@ -515,7 +515,7 @@ mod tests {
         max_priority_fee_per_gas: u128,
         valid_before: Option<u64>,
         valid_after: Option<u64>,
-        authorization_list: Vec<TempoSignedAuthorization>,
+        authorization_list: Vec<MagnusSignedAuthorization>,
         key_authorization: Option<magnus_primitives::transaction::SignedKeyAuthorization>,
     }
 
@@ -616,7 +616,7 @@ mod tests {
             self
         }
 
-        fn authorization(mut self, auth: TempoSignedAuthorization) -> Self {
+        fn authorization(mut self, auth: MagnusSignedAuthorization) -> Self {
             self.authorization_list.push(auth);
             self
         }
@@ -629,8 +629,8 @@ mod tests {
             self
         }
 
-        fn build(self) -> TempoTransaction {
-            TempoTransaction {
+        fn build(self) -> MagnusTransaction {
+            MagnusTransaction {
                 chain_id: 1,
                 fee_token: None,
                 max_priority_fee_per_gas: self.max_priority_fee_per_gas,
@@ -651,22 +651,22 @@ mod tests {
 
     // ==================== End Test Utility Functions ====================
 
-    #[test_case::test_case(TempoHardfork::T1)]
-    #[test_case::test_case(TempoHardfork::T1C)]
-    fn test_access_millis_timestamp(spec: TempoHardfork) -> eyre::Result<()> {
+    #[test_case::test_case(MagnusHardfork::T1)]
+    #[test_case::test_case(MagnusHardfork::T1C)]
+    fn test_access_millis_timestamp(spec: MagnusHardfork) -> eyre::Result<()> {
         let db = CacheDB::new(EmptyDB::new());
 
         let mut ctx = Context::mainnet()
             .with_db(db)
-            .with_block(TempoBlockEnv::default())
-            .with_cfg(CfgEnv::<TempoHardfork>::default())
+            .with_block(MagnusBlockEnv::default())
+            .with_cfg(CfgEnv::<MagnusHardfork>::default())
             .with_tx(Default::default());
 
         ctx.cfg.spec = spec;
         ctx.block.timestamp = U256::from(1000);
         ctx.block.timestamp_millis_part = 100;
 
-        let mut magnus_evm = TempoEvm::new(ctx, ());
+        let mut magnus_evm = MagnusEvm::new(ctx, ());
         let ctx = &mut magnus_evm.ctx;
 
         let internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
@@ -703,7 +703,7 @@ mod tests {
             assert!(matches!(
                 result,
                 ExecutionResult::Halt {
-                    reason: TempoHaltReason::Ethereum(HaltReason::OpcodeNotFound),
+                    reason: MagnusHaltReason::Ethereum(HaltReason::OpcodeNotFound),
                     ..
                 }
             ));
@@ -846,7 +846,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, magnus_caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, magnus_caller);
 
         // Create a new EVM with fresh inspector for multi-call test
         let mut multi_evm = create_evm_with_inspector(CountInspector::new());
@@ -883,7 +883,7 @@ mod tests {
         evm.block.basefee = 100_000_000_000;
 
         // Set up TIP20 first (required for fee token validation)
-        let block = TempoBlockEnv::default();
+        let block = MagnusBlockEnv::default();
         let ctx = &mut evm.ctx;
         let internals = EvmInternals::new(&mut ctx.journaled_state, &block, &ctx.cfg, &ctx.tx);
         let mut provider =
@@ -907,7 +907,7 @@ mod tests {
             .build();
 
         let signed_tx1 = key_pair.sign_tx(tx1)?;
-        let tx_env1 = TempoTxEnv::from_recovered_tx(&signed_tx1, caller);
+        let tx_env1 = MagnusTxEnv::from_recovered_tx(&signed_tx1, caller);
 
         let ctx = &mut evm.ctx;
         let internals = EvmInternals::new(&mut ctx.journaled_state, &block, &ctx.cfg, &ctx.tx);
@@ -948,7 +948,7 @@ mod tests {
             .build();
 
         let signed_tx2 = key_pair.sign_tx(tx2)?;
-        let tx_env2 = TempoTxEnv::from_recovered_tx(&signed_tx2, caller);
+        let tx_env2 = MagnusTxEnv::from_recovered_tx(&signed_tx2, caller);
 
         let result2 = evm.transact_commit(tx_env2)?;
         assert!(result2.is_success());
@@ -989,7 +989,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         // Verify transaction has AA auth list
         assert!(tx_env.magnus_tx_env.is_some(),);
@@ -1021,7 +1021,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx_keychain(tx2)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         // Explicitly test magnus_tx_env.signature.as_keychain()
         let magnus_env_keychain = tx_env
@@ -1060,7 +1060,7 @@ mod tests {
             .build();
 
         let signed_tx_fail = key_pair.sign_tx_keychain(tx_fail)?;
-        let tx_env_fail = TempoTxEnv::from_recovered_tx(&signed_tx_fail, caller);
+        let tx_env_fail = MagnusTxEnv::from_recovered_tx(&signed_tx_fail, caller);
 
         let result_fail = evm.transact(tx_env_fail)?;
         assert!(!result_fail.result.is_success());
@@ -1074,7 +1074,7 @@ mod tests {
             .build();
 
         let signed_tx_2d = key_pair.sign_tx_keychain(tx_2d)?;
-        let tx_env_2d = TempoTxEnv::from_recovered_tx(&signed_tx_2d, caller);
+        let tx_env_2d = MagnusTxEnv::from_recovered_tx(&signed_tx_2d, caller);
 
         assert!(tx_env_2d.magnus_tx_env.is_some());
         assert_eq!(
@@ -1102,7 +1102,7 @@ mod tests {
             .build();
 
         let signed_tx_2d_2 = key_pair.sign_tx_keychain(tx_2d_2)?;
-        let tx_env_2d_2 = TempoTxEnv::from_recovered_tx(&signed_tx_2d_2, caller);
+        let tx_env_2d_2 = MagnusTxEnv::from_recovered_tx(&signed_tx_2d_2, caller);
 
         let result_2d_2 = evm.transact_commit(tx_env_2d_2)?;
         assert!(result_2d_2.is_success());
@@ -1126,7 +1126,7 @@ mod tests {
         let mut evm = create_funded_evm_t3(caller);
 
         // Set up TIP20 for fee payment.
-        let block = TempoBlockEnv::default();
+        let block = MagnusBlockEnv::default();
         {
             let ctx = &mut evm.ctx;
             let internals = EvmInternals::new(&mut ctx.journaled_state, &block, &ctx.cfg, &ctx.tx);
@@ -1154,7 +1154,7 @@ mod tests {
 
         // Use keychain signature so call-scope validation runs in the same tx.
         let signed_tx = key_pair.sign_tx_keychain(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         let result = evm.transact_commit(tx_env)?;
         assert!(
@@ -1177,7 +1177,7 @@ mod tests {
 
         let mut evm = create_funded_evm_t3(caller);
 
-        let block = TempoBlockEnv::default();
+        let block = MagnusBlockEnv::default();
         {
             let ctx = &mut evm.ctx;
             let internals = EvmInternals::new(&mut ctx.journaled_state, &block, &ctx.cfg, &ctx.tx);
@@ -1216,7 +1216,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx_keychain(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         evm.transact_commit(tx_env)
             .expect("empty recipient allowlist should allow the call");
@@ -1242,7 +1242,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx_keychain(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         let err = evm
             .transact_commit(tx_env)
@@ -1252,7 +1252,7 @@ mod tests {
             matches!(
                 err,
                 revm::context::result::EVMError::Transaction(
-                    TempoInvalidTransaction::KeychainValidationFailed { .. }
+                    MagnusInvalidTransaction::KeychainValidationFailed { .. }
                 )
             ),
             "expected KeychainValidationFailed, got: {err:?}"
@@ -1286,7 +1286,7 @@ mod tests {
         {
             let mut evm = create_funded_evm_with_timestamp(caller, 100);
             let signed_tx = create_signed_tx(Some(200), None)?;
-            let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+            let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
             let result = evm.transact(tx_env);
             assert!(result.is_err());
@@ -1295,7 +1295,7 @@ mod tests {
                 matches!(
                     err,
                     revm::context::result::EVMError::Transaction(
-                        TempoInvalidTransaction::ValidAfter {
+                        MagnusInvalidTransaction::ValidAfter {
                             current: 100,
                             valid_after: 200
                         }
@@ -1309,7 +1309,7 @@ mod tests {
         {
             let mut evm = create_funded_evm_with_timestamp(caller, 200);
             let signed_tx = create_signed_tx(None, Some(200))?;
-            let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+            let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
             let result = evm.transact(tx_env);
             assert!(result.is_err());
@@ -1318,7 +1318,7 @@ mod tests {
                 matches!(
                     err,
                     revm::context::result::EVMError::Transaction(
-                        TempoInvalidTransaction::ValidBefore {
+                        MagnusInvalidTransaction::ValidBefore {
                             current: 200,
                             valid_before: 200
                         }
@@ -1332,7 +1332,7 @@ mod tests {
         {
             let mut evm = create_funded_evm_with_timestamp(caller, 300);
             let signed_tx = create_signed_tx(None, Some(200))?;
-            let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+            let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
             let result = evm.transact(tx_env);
             assert!(result.is_err());
@@ -1341,7 +1341,7 @@ mod tests {
                 matches!(
                     err,
                     revm::context::result::EVMError::Transaction(
-                        TempoInvalidTransaction::ValidBefore {
+                        MagnusInvalidTransaction::ValidBefore {
                             current: 300,
                             valid_before: 200
                         }
@@ -1355,7 +1355,7 @@ mod tests {
         {
             let mut evm = create_funded_evm_with_timestamp(caller, 200);
             let signed_tx = create_signed_tx(Some(200), None)?;
-            let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+            let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
             let result = evm.transact(tx_env)?;
             assert!(result.result.is_success());
@@ -1365,7 +1365,7 @@ mod tests {
         {
             let mut evm = create_funded_evm_with_timestamp(caller, 150);
             let signed_tx = create_signed_tx(Some(100), Some(200))?;
-            let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+            let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
             let result = evm.transact(tx_env)?;
             assert!(result.result.is_success());
@@ -1375,7 +1375,7 @@ mod tests {
         {
             let mut evm = create_funded_evm_with_timestamp(caller, 50);
             let signed_tx = create_signed_tx(Some(100), Some(200))?;
-            let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+            let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
             let result = evm.transact(tx_env);
             assert!(result.is_err());
@@ -1384,7 +1384,7 @@ mod tests {
                 matches!(
                     err,
                     revm::context::result::EVMError::Transaction(
-                        TempoInvalidTransaction::ValidAfter {
+                        MagnusInvalidTransaction::ValidAfter {
                             current: 50,
                             valid_after: 100
                         }
@@ -1398,7 +1398,7 @@ mod tests {
         {
             let mut evm = create_funded_evm_with_timestamp(caller, 200);
             let signed_tx = create_signed_tx(Some(100), Some(200))?;
-            let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+            let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
             let result = evm.transact(tx_env);
             assert!(result.is_err());
@@ -1407,7 +1407,7 @@ mod tests {
                 matches!(
                     err,
                     revm::context::result::EVMError::Transaction(
-                        TempoInvalidTransaction::ValidBefore {
+                        MagnusInvalidTransaction::ValidBefore {
                             current: 200,
                             valid_before: 200
                         }
@@ -1438,7 +1438,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         // Create EVM and execute
         let mut evm = create_funded_evm(caller);
@@ -1467,7 +1467,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         // Create EVM and execute - should fail validation
         let mut evm = create_funded_evm(caller);
@@ -1479,7 +1479,7 @@ mod tests {
             matches!(
                 err,
                 revm::context::result::EVMError::Transaction(
-                    TempoInvalidTransaction::CallsValidation(msg)
+                    MagnusInvalidTransaction::CallsValidation(msg)
                 ) if msg.contains("first call")
             ),
             "Expected CallsValidation error about 'first call', got: {err:?}"
@@ -1497,22 +1497,22 @@ mod tests {
     fn test_validate_aa_initial_tx_gas_errors() -> eyre::Result<()> {
         use revm::{context::result::EVMError, handler::Handler};
 
-        use crate::handler::TempoEvmHandler;
+        use crate::handler::MagnusEvmHandler;
 
         let key_pair = P256KeyPair::random();
         let caller = key_pair.address;
 
         // Helper to create EVM with signed transaction
         let create_evm_with_tx =
-            |tx: TempoTransaction| -> eyre::Result<TempoEvm<CacheDB<EmptyDB>, ()>> {
+            |tx: MagnusTransaction| -> eyre::Result<MagnusEvm<CacheDB<EmptyDB>, ()>> {
                 let signed_tx = key_pair.sign_tx(tx)?;
-                let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+                let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
                 let mut evm = create_funded_evm(caller);
                 evm.ctx.tx = tx_env;
                 Ok(evm)
             };
 
-        let handler = TempoEvmHandler::default();
+        let handler = MagnusEvmHandler::default();
 
         // Test 1: CreateInitCodeSizeLimit - initcode exceeds max size
         {
@@ -1531,7 +1531,7 @@ mod tests {
                 matches!(
                     result,
                     Err(EVMError::Transaction(
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             revm::context::result::InvalidTransaction::CreateInitCodeSizeLimit
                         )
                     ))
@@ -1553,7 +1553,7 @@ mod tests {
                 matches!(
                     result,
                     Err(EVMError::Transaction(
-                        TempoInvalidTransaction::ValueTransferNotAllowedInAATx
+                        MagnusInvalidTransaction::ValueTransferNotAllowedInAATx
                     ))
                 ),
                 "Expected ValueTransferNotAllowedInAATx error, got: {result:?}"
@@ -1574,7 +1574,7 @@ mod tests {
                 matches!(
                     result,
                     Err(EVMError::Transaction(
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             InvalidTransaction::CallGasCostMoreThanGasLimit {
                                 gas_limit: 1000,
                                 initial_gas
@@ -1608,7 +1608,7 @@ mod tests {
                 matches!(
                     result,
                     Err(EVMError::Transaction(
-                        TempoInvalidTransaction::EthInvalidTransaction(
+                        MagnusInvalidTransaction::EthInvalidTransaction(
                             InvalidTransaction::CallGasCostMoreThanGasLimit {
                                 gas_limit: 31_000,
                                 initial_gas
@@ -1672,7 +1672,7 @@ mod tests {
 
     // ==================== TIP-1000 EVM Configuration Tests ====================
 
-    /// Test that TempoEvm preserves initial fields when using with_inspector.
+    /// Test that MagnusEvm preserves initial fields when using with_inspector.
     #[test]
     fn test_tempo_evm_with_inspector_preserves_fields() {
         let evm = create_evm();
@@ -1705,7 +1705,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         let result = evm.transact_commit(tx_env)?;
         assert!(result.is_success());
@@ -1750,7 +1750,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         let result = evm.transact_commit(tx_env)?;
         assert!(result.is_success(), "SSTORE transaction should succeed");
@@ -1800,7 +1800,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         let result = evm.transact_commit(tx_env)?;
         assert!(
@@ -1849,7 +1849,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         let result = evm.transact_commit(tx_env)?;
         assert!(
@@ -1884,7 +1884,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         let result = evm.transact_commit(tx_env)?;
         assert!(result.is_success(), "CREATE transaction should succeed");
@@ -1932,7 +1932,7 @@ mod tests {
         );
 
         let signed_tx1 = key_pair.sign_tx(tx1)?;
-        let tx_env1 = TempoTxEnv::from_recovered_tx(&signed_tx1, caller);
+        let tx_env1 = MagnusTxEnv::from_recovered_tx(&signed_tx1, caller);
 
         let result1 = evm.transact_commit(tx_env1)?;
         assert!(result1.is_success(), "CREATE with 2D nonce should succeed");
@@ -1957,7 +1957,7 @@ mod tests {
             .build();
 
         let signed_tx2 = key_pair.sign_tx(tx2)?;
-        let tx_env2 = TempoTxEnv::from_recovered_tx(&signed_tx2, caller);
+        let tx_env2 = MagnusTxEnv::from_recovered_tx(&signed_tx2, caller);
 
         let result2 = evm.transact_commit(tx_env2)?;
         assert!(
@@ -1986,7 +1986,7 @@ mod tests {
     /// This validates the fix for audit issue #182.
     #[test]
     fn test_aa_tx_gas_create_with_expiring_nonce() -> eyre::Result<()> {
-        use magnus_primitives::transaction::TEMPO_EXPIRING_NONCE_KEY;
+        use magnus_primitives::transaction::MAGNUS_EXPIRING_NONCE_KEY;
 
         let key_pair = P256KeyPair::random();
         let caller = key_pair.address;
@@ -1998,11 +1998,11 @@ mod tests {
         let mut evm1 = create_funded_evm_t1_with_timestamp(caller, timestamp);
         let tx1 = TxBuilder::new()
             .create(&initcode)
-            .nonce_key(TEMPO_EXPIRING_NONCE_KEY)
+            .nonce_key(MAGNUS_EXPIRING_NONCE_KEY)
             .valid_before(Some(valid_before))
             .gas_limit(2_000_000)
             .build();
-        let result1 = evm1.transact_commit(TempoTxEnv::from_recovered_tx(
+        let result1 = evm1.transact_commit(MagnusTxEnv::from_recovered_tx(
             &key_pair.sign_tx(tx1)?,
             caller,
         ))?;
@@ -2021,11 +2021,11 @@ mod tests {
         );
         let tx2 = TxBuilder::new()
             .create(&initcode)
-            .nonce_key(TEMPO_EXPIRING_NONCE_KEY)
+            .nonce_key(MAGNUS_EXPIRING_NONCE_KEY)
             .valid_before(Some(valid_before))
             .gas_limit(2_000_000)
             .build();
-        let result2 = evm2.transact_commit(TempoTxEnv::from_recovered_tx(
+        let result2 = evm2.transact_commit(MagnusTxEnv::from_recovered_tx(
             &key_pair.sign_tx(tx2)?,
             caller,
         ))?;
@@ -2058,7 +2058,7 @@ mod tests {
             .build();
 
         let signed_tx1 = key_pair.sign_tx(tx1)?;
-        let tx_env1 = TempoTxEnv::from_recovered_tx(&signed_tx1, caller);
+        let tx_env1 = MagnusTxEnv::from_recovered_tx(&signed_tx1, caller);
         let result1 = evm1.transact_commit(tx_env1)?;
         assert!(result1.is_success());
         let gas_single = result1.tx_gas_used();
@@ -2074,7 +2074,7 @@ mod tests {
             .build();
 
         let signed_tx2 = key_pair.sign_tx(tx2)?;
-        let tx_env2 = TempoTxEnv::from_recovered_tx(&signed_tx2, caller);
+        let tx_env2 = MagnusTxEnv::from_recovered_tx(&signed_tx2, caller);
         let result2 = evm2.transact_commit(tx_env2)?;
         assert!(result2.is_success());
         let gas_triple = result2.tx_gas_used();
@@ -2130,7 +2130,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         let result = evm.transact_commit(tx_env)?;
         assert!(result.is_success(), "SLOAD transaction should succeed");
@@ -2223,7 +2223,7 @@ mod tests {
         let mut evm = create_funded_evm_t1(caller);
 
         // Set up TIP20 for fee payment
-        let block = TempoBlockEnv::default();
+        let block = MagnusBlockEnv::default();
         {
             let ctx = &mut evm.ctx;
             let internals = EvmInternals::new(&mut ctx.journaled_state, &block, &ctx.cfg, &ctx.tx);
@@ -2273,7 +2273,7 @@ mod tests {
             .build();
 
         let signed_tx_low = key_pair.sign_tx(tx_low_gas)?;
-        let tx_env_low = TempoTxEnv::from_recovered_tx(&signed_tx_low, caller);
+        let tx_env_low = MagnusTxEnv::from_recovered_tx(&signed_tx_low, caller);
 
         // Execute the transaction - it should fail due to insufficient gas
         let result_low = evm.transact_commit(tx_env_low);
@@ -2299,7 +2299,7 @@ mod tests {
                     matches!(
                         e,
                         revm::context::result::EVMError::Transaction(
-                            TempoInvalidTransaction::EthInvalidTransaction(
+                            MagnusInvalidTransaction::EthInvalidTransaction(
                                 revm::context::result::InvalidTransaction::CallGasCostMoreThanGasLimit { .. }
                             )
                         )
@@ -2351,7 +2351,7 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+        let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
 
         let result = evm.transact_commit(tx_env)?;
         assert!(result.is_success(), "Transaction should succeed");
@@ -2398,14 +2398,14 @@ mod tests {
         /// Run a CREATE+KeyAuth transaction on the given hardfork and return
         /// (caller_nonce_after, key_expiry).
         fn run_create_with_key_auth(
-            spec: TempoHardfork,
+            spec: MagnusHardfork,
             gas_limit: u64,
         ) -> eyre::Result<(u64, u64)> {
             let key_pair = P256KeyPair::random();
             let caller = key_pair.address;
 
             let db = CacheDB::new(EmptyDB::new());
-            let mut cfg = CfgEnv::<TempoHardfork>::default();
+            let mut cfg = CfgEnv::<MagnusHardfork>::default();
             cfg.spec = spec;
             cfg.gas_params = magnus_gas_params(spec);
 
@@ -2415,10 +2415,10 @@ mod tests {
                 .with_cfg(cfg)
                 .with_tx(Default::default());
 
-            let mut evm = TempoEvm::new(ctx, ());
+            let mut evm = MagnusEvm::new(ctx, ());
             fund_account(&mut evm, caller);
 
-            let block = TempoBlockEnv::default();
+            let block = MagnusBlockEnv::default();
             {
                 let ctx = &mut evm.ctx;
                 let internals =
@@ -2449,7 +2449,7 @@ mod tests {
                 .build();
 
             let signed_tx = key_pair.sign_tx(tx)?;
-            let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+            let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
             let _result = evm.transact_commit(tx_env);
 
             let nonce = evm
@@ -2480,7 +2480,7 @@ mod tests {
         // T1 intrinsic gas for this tx is ~560k (21k base + 500k CREATE + 35k
         // KeyAuth heuristic). Gas limit 780k leaves ~220k for the precompile,
         // which is below the 250k SSTORE cost → OOG → nonce NOT bumped.
-        let (t1_nonce, t1_key_expiry) = run_create_with_key_auth(TempoHardfork::T1, 780_000)?;
+        let (t1_nonce, t1_key_expiry) = run_create_with_key_auth(MagnusHardfork::T1, 780_000)?;
         assert_eq!(
             t1_nonce, 0,
             "T1 bug: nonce must NOT be bumped when keychain OOGs"
@@ -2495,7 +2495,7 @@ mod tests {
         // + calldata + sig). Gas limit 1.05M is just enough to pass intrinsic
         // validation. The precompile runs with unlimited gas, so the nonce is
         // always bumped.
-        let (t1b_nonce, t1b_key_expiry) = run_create_with_key_auth(TempoHardfork::T1B, 1_050_000)?;
+        let (t1b_nonce, t1b_key_expiry) = run_create_with_key_auth(MagnusHardfork::T1B, 1_050_000)?;
         assert_eq!(
             t1b_nonce, 1,
             "T1B fix: nonce must be bumped after CREATE+KeyAuth"
@@ -2518,12 +2518,12 @@ mod tests {
     #[test]
     fn test_double_charge_key_authorization_regression() -> eyre::Result<()> {
         /// Run a CALL+KeyAuth transaction and return gas_used.
-        fn run_call_with_key_auth(spec: TempoHardfork) -> eyre::Result<u64> {
+        fn run_call_with_key_auth(spec: MagnusHardfork) -> eyre::Result<u64> {
             let key_pair = P256KeyPair::random();
             let caller = key_pair.address;
 
             let db = CacheDB::new(EmptyDB::new());
-            let mut cfg = CfgEnv::<TempoHardfork>::default();
+            let mut cfg = CfgEnv::<MagnusHardfork>::default();
             cfg.spec = spec;
             cfg.gas_params = magnus_gas_params(spec);
 
@@ -2533,10 +2533,10 @@ mod tests {
                 .with_cfg(cfg)
                 .with_tx(Default::default());
 
-            let mut evm = TempoEvm::new(ctx, ());
+            let mut evm = MagnusEvm::new(ctx, ());
             fund_account(&mut evm, caller);
 
-            let block = TempoBlockEnv::default();
+            let block = MagnusBlockEnv::default();
             {
                 let ctx = &mut evm.ctx;
                 let internals =
@@ -2564,14 +2564,14 @@ mod tests {
                 .build();
 
             let signed_tx = key_pair.sign_tx(tx)?;
-            let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
+            let tx_env = MagnusTxEnv::from_recovered_tx(&signed_tx, caller);
             let result = evm.transact_commit(tx_env)?;
             assert!(result.is_success());
             Ok(result.tx_gas_used())
         }
 
-        let t1_gas = run_call_with_key_auth(TempoHardfork::T1)?;
-        let t1b_gas = run_call_with_key_auth(TempoHardfork::T1B)?;
+        let t1_gas = run_call_with_key_auth(MagnusHardfork::T1)?;
+        let t1b_gas = run_call_with_key_auth(MagnusHardfork::T1B)?;
 
         // T1 double-charges: intrinsic heuristic (~35k) + metered precompile
         // (~250k SSTORE) on top of base tx gas, resulting in >500k.
@@ -2618,7 +2618,7 @@ mod tests {
             .nonce(0)
             .gas_limit(500_000)
             .build();
-        let result_baseline = evm_baseline.transact_commit(TempoTxEnv::from_recovered_tx(
+        let result_baseline = evm_baseline.transact_commit(MagnusTxEnv::from_recovered_tx(
             &key_pair.sign_tx(tx_baseline)?,
             caller,
         ))?;
@@ -2640,7 +2640,7 @@ mod tests {
             .nonce(0)
             .gas_limit(500_000)
             .build();
-        let result_2d = evm_2d.transact_commit(TempoTxEnv::from_recovered_tx(
+        let result_2d = evm_2d.transact_commit(MagnusTxEnv::from_recovered_tx(
             &key_pair.sign_tx(tx_2d)?,
             caller,
         ))?;

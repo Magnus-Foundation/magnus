@@ -13,14 +13,14 @@ use alloy_eips::{BlockId, Encodable2718};
 use alloy_network::{AnyReceiptEnvelope, EthereumWallet};
 use alloy_primitives::{Address, Signature, U256, address};
 use alloy_rpc_types_eth::TransactionRequest;
-use magnus_alloy::rpc::TempoTransactionReceipt;
+use magnus_alloy::rpc::MagnusTransactionReceipt;
 use magnus_contracts::precompiles::{
     IFeeManager, ITIP20, ITIP403Registry,
     ITIPFeeAMM::{self},
 };
 use magnus_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, TIP403_REGISTRY_ADDRESS};
 use magnus_primitives::{
-    TempoTransaction, TempoTxEnvelope,
+    MagnusTransaction, MagnusTxEnvelope,
     transaction::{calc_gas_balance_spending, magnus_transaction::Call},
 };
 
@@ -247,7 +247,7 @@ async fn test_fee_token_tx() -> eyre::Result<()> {
     let fees = provider.estimate_eip1559_fees().await?;
 
     let send_fee_token_tx = || async {
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: provider.get_chain_id().await?,
             nonce: provider.get_transaction_count(user_address).await?,
             fee_token: Some(*user_token.address()),
@@ -263,7 +263,7 @@ async fn test_fee_token_tx() -> eyre::Result<()> {
         };
 
         let signature = signers[0].sign_hash_sync(&tx.signature_hash()).unwrap();
-        let envelope: TempoTxEnvelope = tx.into_signed(signature.into()).into();
+        let envelope: MagnusTxEnvelope = tx.into_signed(signature.into()).into();
         provider
             .send_raw_transaction(&envelope.encoded_2718())
             .await
@@ -327,7 +327,7 @@ async fn test_fee_payer_tx() -> eyre::Result<()> {
     let provider = ProviderBuilder::new().connect_http(http_url);
     let fees = provider.estimate_eip1559_fees().await?;
 
-    let mut tx = TempoTransaction {
+    let mut tx = MagnusTransaction {
         chain_id: provider.get_chain_id().await?,
         nonce: provider.get_transaction_count(user.address()).await?,
         max_priority_fee_per_gas: fees.max_fee_per_gas,
@@ -361,7 +361,7 @@ async fn test_fee_payer_tx() -> eyre::Result<()> {
 
     tx.fee_payer_signature = Some(fee_payer_signature);
 
-    let tx: TempoTxEnvelope = tx.into_signed(user_signature.into()).into();
+    let tx: MagnusTxEnvelope = tx.into_signed(user_signature.into()).into();
 
     // Query the fee payer's actual fee token from the FeeManager
     let fee_manager = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, &provider);
@@ -387,7 +387,7 @@ async fn test_fee_payer_tx() -> eyre::Result<()> {
         .await?;
 
     let receipt = provider
-        .raw_request::<_, TempoTransactionReceipt>("eth_getTransactionReceipt".into(), (tx_hash,))
+        .raw_request::<_, MagnusTransactionReceipt>("eth_getTransactionReceipt".into(), (tx_hash,))
         .await?;
 
     assert!(receipt.status());

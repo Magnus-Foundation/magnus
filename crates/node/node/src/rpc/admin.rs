@@ -2,7 +2,7 @@ use alloy_primitives::B256;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc};
 
 #[rpc(server, namespace = "admin")]
-pub trait TempoAdminApi {
+pub trait MagnusAdminApi {
     /// Returns the validator public key if configured.
     ///
     /// This method exposes the ed25519 public key used by this node
@@ -15,11 +15,11 @@ pub trait TempoAdminApi {
 
 /// Tempo-specific `admin_` namespace extensions.
 #[derive(Debug, Clone)]
-pub struct TempoAdminApi {
+pub struct MagnusAdminApi {
     validator_key: Option<B256>,
 }
 
-impl TempoAdminApi {
+impl MagnusAdminApi {
     /// Create a new admin API handler.
     pub fn new(validator_key: Option<B256>) -> Self {
         Self { validator_key }
@@ -27,7 +27,7 @@ impl TempoAdminApi {
 }
 
 #[async_trait::async_trait]
-impl TempoAdminApiServer for TempoAdminApi {
+impl MagnusAdminApiServer for MagnusAdminApi {
     async fn validator_key(&self) -> RpcResult<Option<B256>> {
         Ok(self.validator_key)
     }

@@ -160,11 +160,11 @@ fn now_secs() -> u64 {
 
 /// Resolves the path to the registry file.
 ///
-/// Uses `TEMPO_HOME/extensions.json` if set, otherwise the platform data
+/// Uses `MAGNUS_HOME/extensions.json` if set, otherwise the platform data
 /// directory via `dirs_next` (e.g. `~/Library/Application Support/tempo` on
 /// macOS, `$XDG_DATA_HOME/tempo` on Linux).
 fn state_path() -> Option<PathBuf> {
-    if let Some(home) = env::var_os("TEMPO_HOME") {
+    if let Some(home) = env::var_os("MAGNUS_HOME") {
         Some(PathBuf::from(home).join("extensions.json"))
     } else {
         dirs_next::data_dir().map(|data| data.join("tempo").join("extensions.json"))
@@ -176,7 +176,7 @@ mod tests {
     use super::*;
     use crate::test_util::ENV_MUTEX;
 
-    /// RAII guard that sets `TEMPO_HOME` to a temp directory and restores it
+    /// RAII guard that sets `MAGNUS_HOME` to a temp directory and restores it
     /// on drop. Must be held alongside `ENV_MUTEX`.
     struct TempHome {
         prev: Option<String>,
@@ -186,8 +186,8 @@ mod tests {
     impl TempHome {
         fn new() -> Self {
             let tmp = tempfile::TempDir::new().unwrap();
-            let prev = std::env::var("TEMPO_HOME").ok();
-            unsafe { std::env::set_var("TEMPO_HOME", tmp.path()) };
+            let prev = std::env::var("MAGNUS_HOME").ok();
+            unsafe { std::env::set_var("MAGNUS_HOME", tmp.path()) };
             Self { prev, _tmp: tmp }
         }
 
@@ -199,8 +199,8 @@ mod tests {
     impl Drop for TempHome {
         fn drop(&mut self) {
             match &self.prev {
-                Some(v) => unsafe { std::env::set_var("TEMPO_HOME", v) },
-                None => unsafe { std::env::remove_var("TEMPO_HOME") },
+                Some(v) => unsafe { std::env::set_var("MAGNUS_HOME", v) },
+                None => unsafe { std::env::remove_var("MAGNUS_HOME") },
             }
         }
     }

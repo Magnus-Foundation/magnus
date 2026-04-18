@@ -1,10 +1,10 @@
 //! Transaction pool maintenance tasks.
 
 use crate::{
-    RevokedKeys, SpendingLimitUpdates, TempoTransactionPool,
-    metrics::TempoPoolMaintenanceMetrics,
+    RevokedKeys, SpendingLimitUpdates, MagnusTransactionPool,
+    metrics::MagnusPoolMaintenanceMetrics,
     paused::{PausedEntry, PausedFeeTokenPool},
-    transaction::TempoPooledTransaction,
+    transaction::MagnusPooledTransaction,
 };
 use alloy_consensus::transaction::TxHashRef;
 use alloy_primitives::{
@@ -22,12 +22,12 @@ use std::{
     collections::{BTreeMap, btree_map::Entry},
     time::Instant,
 };
-use magnus_chainspec::TempoChainSpec;
+use magnus_chainspec::MagnusChainSpec;
 use magnus_contracts::precompiles::{IAccountKeychain, IFeeManager, ITIP20, ITIP403Registry};
 use magnus_precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS, TIP_FEE_MANAGER_ADDRESS, TIP403_REGISTRY_ADDRESS,
 };
-use magnus_primitives::{TempoAddressExt, TempoHeader, TempoPrimitives};
+use magnus_primitives::{MagnusAddressExt, MagnusHeader, MagnusPrimitives};
 use tracing::{debug, error};
 
 /// Evict transactions this many seconds before they expire to reduce propagation
@@ -39,7 +39,7 @@ const EVICTION_BUFFER_SECS: u64 = 3;
 /// Collects all invalidation events from a block into a single structure,
 /// allowing efficient batch processing of pool updates.
 #[derive(Debug, Default)]
-pub struct TempoPoolUpdates {
+pub struct MagnusPoolUpdates {
     /// Transaction hashes that have expired (valid_before <= tip_timestamp).
     pub expired_txs: Vec<TxHash>,
     /// Revoked keychain keys.
@@ -86,8 +86,8 @@ pub struct TempoPoolUpdates {
     pub spending_limit_spends: SpendingLimitUpdates,
 }
 
-impl TempoPoolUpdates {
-    /// Creates a new empty `TempoPoolUpdates`.
+impl MagnusPoolUpdates {
+    /// Creates a new empty `MagnusPoolUpdates`.
     pub fn new() -> Self {
         Self::default()
     }
@@ -111,7 +111,7 @@ impl TempoPoolUpdates {
     ///
     /// Parses receipts for relevant events (key revocations, validator token changes,
     /// blacklist additions, pause events).
-    pub fn from_chain(chain: &Chain<TempoPrimitives>) -> Self {
+    pub fn from_chain(chain: &Chain<MagnusPrimitives>) -> Self {
         let mut updates = Self::new();
 
         // Parse events from receipts
@@ -232,7 +232,7 @@ impl TempoPoolUpdates {
 /// when we check `pool.contains()` before eviction. This avoids the overhead of
 /// subscribing to all transaction lifecycle events.
 #[derive(Default)]
-struct TempoPoolState {
+struct MagnusPoolState {
     /// Maps timestamp to transactions that are going to be invalidated at that time (due to `valid_after` or keychain-related expiry).
     expiry_map: BTreeMap<u64, Vec<TxHash>>,
     /// Reverse mapping: tx_hash -> valid_before timestamp (for cleanup during drain).
@@ -243,9 +243,9 @@ struct TempoPoolState {
     pending_staleness: PendingStalenessTracker,
 }
 
-impl TempoPoolState {
+impl MagnusPoolState {
     /// Tracks an AA transaction with a `valid_before` timestamp.
-    fn track(&mut self, tx: &TempoPooledTransaction) {
+    fn track(&mut self, tx: &MagnusPooledTransaction) {
         let valid_before = tx
             .inner()
             .as_aa()
@@ -368,16 +368,16 @@ impl Default for PendingStalenessTracker {
 ///
 /// Consolidates these operations into a single event loop to avoid multiple tasks
 /// competing for canonical state updates and to minimize contention on pool locks.
-pub async fn maintain_tempo_pool<Client>(pool: TempoTransactionPool<Client>)
+pub async fn maintain_tempo_pool<Client>(pool: MagnusTransactionPool<Client>)
 where
     Client: StateProviderFactory
-        + HeaderProvider<Header = TempoHeader>
-        + ChainSpecProvider<ChainSpec = TempoChainSpec>
-        + CanonStateSubscriptions<Primitives = TempoPrimitives>
+        + HeaderProvider<Header = MagnusHeader>
+        + ChainSpecProvider<ChainSpec = MagnusChainSpec>
+        + CanonStateSubscriptions<Primitives = MagnusPrimitives>
         + 'static,
 {
-    let mut state = TempoPoolState::default();
-    let metrics = TempoPoolMaintenanceMetrics::default();
+    let mut state = MagnusPoolState::default();
+    let metrics = MagnusPoolMaintenanceMetrics::default();
 
     // Subscribe to new transactions and chain events
     let mut new_txs = pool.new_transactions_listener();
@@ -424,7 +424,7 @@ where
                 let tip_timestamp = tip.tip().header().timestamp();
 
                 // 1. Collect all block-level invalidation events
-                let mut updates = TempoPoolUpdates::from_chain(tip);
+                let mut updates = MagnusPoolUpdates::from_chain(tip);
 
                 // Remove expiry tracking for mined transactions.
                 tip.blocks_iter()
@@ -722,7 +722,7 @@ mod tests {
     use alloy_primitives::{Address, TxHash};
     use reth_primitives_traits::RecoveredBlock;
     use std::sync::Arc;
-    use magnus_primitives::{Block, BlockBody, TempoHeader, TempoTxEnvelope};
+    use magnus_primitives::{Block, BlockBody, MagnusHeader, MagnusTxEnvelope};
 
     mod pending_staleness_tracker_tests {
         use super::*;
@@ -800,7 +800,7 @@ mod tests {
 
     #[test]
     fn test_remove_mined() {
-        let mut state = TempoPoolState::default();
+        let mut state = MagnusPoolState::default();
         let hash_a = TxHash::random();
         let hash_b = TxHash::random();
         let hash_unknown = TxHash::random();
@@ -827,7 +827,7 @@ mod tests {
 
     fn create_test_chain(
         blocks: Vec<reth_primitives_traits::RecoveredBlock<Block>>,
-    ) -> Arc<Chain<TempoPrimitives>> {
+    ) -> Arc<Chain<MagnusPrimitives>> {
         use reth_provider::{Chain, ExecutionOutcome};
 
         Arc::new(Chain::new(
@@ -839,8 +839,8 @@ mod tests {
 
     fn create_test_chain_with_receipts(
         blocks: Vec<reth_primitives_traits::RecoveredBlock<Block>>,
-        receipts: Vec<Vec<magnus_primitives::TempoReceipt>>,
-    ) -> Arc<Chain<TempoPrimitives>> {
+        receipts: Vec<Vec<magnus_primitives::MagnusReceipt>>,
+    ) -> Arc<Chain<MagnusPrimitives>> {
         use reth_provider::{Chain, ExecutionOutcome};
 
         Arc::new(Chain::new(
@@ -856,10 +856,10 @@ mod tests {
     /// Helper to create a recovered block containing the given transactions.
     fn create_block_with_txs(
         block_number: u64,
-        transactions: Vec<TempoTxEnvelope>,
+        transactions: Vec<MagnusTxEnvelope>,
         senders: Vec<Address>,
     ) -> RecoveredBlock<Block> {
-        let header = TempoHeader {
+        let header = MagnusHeader {
             inner: alloy_consensus::Header {
                 number: block_number,
                 ..Default::default()
@@ -874,8 +874,8 @@ mod tests {
         RecoveredBlock::new_unhashed(block, senders)
     }
 
-    /// Helper to extract a TempoTxEnvelope from a TempoPooledTransaction.
-    fn extract_envelope(tx: &crate::transaction::TempoPooledTransaction) -> TempoTxEnvelope {
+    /// Helper to extract a MagnusTxEnvelope from a MagnusPooledTransaction.
+    fn extract_envelope(tx: &crate::transaction::MagnusPooledTransaction) -> MagnusTxEnvelope {
         tx.inner().clone().into_inner()
     }
 
@@ -883,7 +883,7 @@ mod tests {
         use super::*;
         use alloy_primitives::{IntoLogData, Log, U256};
         use alloy_signer_local::PrivateKeySigner;
-        use magnus_primitives::{TempoReceipt, TempoTxType};
+        use magnus_primitives::{MagnusReceipt, MagnusTxType};
 
         /// Verify from_chain extracts (account, key_id) with wildcard token from included
         /// keychain txs, so all pending txs for that key are rechecked regardless of fee token.
@@ -902,7 +902,7 @@ mod tests {
             let block = create_block_with_txs(1, vec![envelope], vec![user_address]);
             let chain = create_test_chain(vec![block]);
 
-            let updates = TempoPoolUpdates::from_chain(&chain);
+            let updates = MagnusPoolUpdates::from_chain(&chain);
 
             // Wildcard: matches both the original fee token and any other token
             assert!(
@@ -930,7 +930,7 @@ mod tests {
             let block = create_block_with_txs(1, vec![envelope], vec![sender]);
             let chain = create_test_chain(vec![block]);
 
-            let updates = TempoPoolUpdates::from_chain(&chain);
+            let updates = MagnusPoolUpdates::from_chain(&chain);
             assert!(updates.spending_limit_spends.is_empty());
         }
 
@@ -944,7 +944,7 @@ mod tests {
             let block = create_block_with_txs(1, vec![envelope], vec![sender]);
             let chain = create_test_chain(vec![block]);
 
-            let updates = TempoPoolUpdates::from_chain(&chain);
+            let updates = MagnusPoolUpdates::from_chain(&chain);
             assert!(updates.spending_limit_spends.is_empty());
         }
 
@@ -963,7 +963,7 @@ mod tests {
             let block = create_block_with_txs(1, vec![envelope], vec![user_address]);
             let chain = create_test_chain(vec![block]);
 
-            let updates = TempoPoolUpdates::from_chain(&chain);
+            let updates = MagnusPoolUpdates::from_chain(&chain);
 
             // Wildcard should match any token
             assert!(updates.spending_limit_spends.contains(
@@ -994,7 +994,7 @@ mod tests {
             let block = create_block_with_txs(1, vec![envelope], vec![user_address]);
             let chain = create_test_chain(vec![block]);
 
-            let updates = TempoPoolUpdates::from_chain(&chain);
+            let updates = MagnusPoolUpdates::from_chain(&chain);
 
             // Must match ANY fee token (wildcard), not just the included tx's fee token
             assert!(
@@ -1014,7 +1014,7 @@ mod tests {
         /// has_invalidation_events returns true when spending_limit_spends is non-empty.
         #[test]
         fn has_invalidation_events_includes_spending_limit_spends() {
-            let mut updates = TempoPoolUpdates::new();
+            let mut updates = MagnusPoolUpdates::new();
             assert!(!updates.has_invalidation_events());
 
             updates.spending_limit_spends.insert(
@@ -1034,8 +1034,8 @@ mod tests {
             let log_data = ITIP20::Transfer { from, to, amount }.into_log_data();
             let log =
                 Log::new_unchecked(fee_token, log_data.topics().to_vec(), log_data.data.clone());
-            let receipt = TempoReceipt {
-                tx_type: TempoTxType::Legacy,
+            let receipt = MagnusReceipt {
+                tx_type: MagnusTxType::Legacy,
                 success: true,
                 cumulative_gas_used: 21_000,
                 logs: vec![log],
@@ -1043,7 +1043,7 @@ mod tests {
 
             let block = create_block_with_txs(1, vec![], vec![]);
             let chain = create_test_chain_with_receipts(vec![block], vec![vec![receipt]]);
-            let updates = TempoPoolUpdates::from_chain(&chain);
+            let updates = MagnusPoolUpdates::from_chain(&chain);
 
             assert!(
                 updates
@@ -1068,8 +1068,8 @@ mod tests {
             .into_log_data();
             let log =
                 Log::new_unchecked(fee_token, log_data.topics().to_vec(), log_data.data.clone());
-            let receipt = TempoReceipt {
-                tx_type: TempoTxType::Legacy,
+            let receipt = MagnusReceipt {
+                tx_type: MagnusTxType::Legacy,
                 success: true,
                 cumulative_gas_used: 21_000,
                 logs: vec![log],
@@ -1077,7 +1077,7 @@ mod tests {
 
             let block = create_block_with_txs(1, vec![], vec![]);
             let chain = create_test_chain_with_receipts(vec![block], vec![vec![receipt]]);
-            let updates = TempoPoolUpdates::from_chain(&chain);
+            let updates = MagnusPoolUpdates::from_chain(&chain);
 
             assert!(
                 updates.transfer_policy_updates.contains(&fee_token),
@@ -1110,8 +1110,8 @@ mod tests {
                 log_data_2.topics().to_vec(),
                 log_data_2.data.clone(),
             );
-            let receipt = TempoReceipt {
-                tx_type: TempoTxType::Legacy,
+            let receipt = MagnusReceipt {
+                tx_type: MagnusTxType::Legacy,
                 success: true,
                 cumulative_gas_used: 21_000,
                 logs: vec![log1, log2],
@@ -1119,7 +1119,7 @@ mod tests {
 
             let block = create_block_with_txs(1, vec![], vec![]);
             let chain = create_test_chain_with_receipts(vec![block], vec![vec![receipt]]);
-            let updates = TempoPoolUpdates::from_chain(&chain);
+            let updates = MagnusPoolUpdates::from_chain(&chain);
 
             assert_eq!(
                 updates.transfer_policy_updates.len(),
@@ -1135,7 +1135,7 @@ mod tests {
             let token_a = Address::random();
             let token_b = Address::random();
 
-            let mut updates = TempoPoolUpdates::new();
+            let mut updates = MagnusPoolUpdates::new();
             updates.validator_token_changes.insert(validator, token_a);
             updates.validator_token_changes.insert(validator, token_b);
 

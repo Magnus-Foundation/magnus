@@ -12,7 +12,7 @@
 //! - Data slots: stored at `keccak256(main_slot) + i` for each 32-byte chunk
 
 use crate::{
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     storage::{StorageOps, types::*},
 };
 use alloy::primitives::{Address, Bytes, U256, keccak256};
@@ -140,7 +140,7 @@ impl Storable for String {
         debug_assert_eq!(ctx, LayoutCtx::FULL, "String cannot be packed");
         load_bytes_like(storage, slot, |data| {
             Self::from_utf8(data).map_err(|e| {
-                TempoPrecompileError::Fatal(format!("Invalid UTF-8 in stored string: {e}"))
+                MagnusPrecompileError::Fatal(format!("Invalid UTF-8 in stored string: {e}"))
             })
         })
     }
@@ -285,7 +285,7 @@ fn calc_string_length(slot_value: U256, is_long: bool) -> Result<usize> {
         let length_times_two: U256 = length_times_two_plus_one - U256::ONE;
         let length_u256: U256 = length_times_two >> 1;
         if length_u256 > U256::from(u32::MAX) {
-            return Err(TempoPrecompileError::under_overflow());
+            return Err(MagnusPrecompileError::under_overflow());
         }
         Ok(length_u256.to::<usize>())
     } else {
@@ -295,7 +295,7 @@ fn calc_string_length(slot_value: U256, is_long: bool) -> Result<usize> {
         let length = (bytes[31] / 2) as usize;
         if length > 31 {
             // Unreachable unless the state has been tampered
-            return Err(TempoPrecompileError::Fatal(format!(
+            return Err(MagnusPrecompileError::Fatal(format!(
                 "short string length {length} exceeds maximum of 31 bytes"
             )));
         }
@@ -553,7 +553,7 @@ mod tests {
         assert!(is_long_string(malicious_slot));
         assert_eq!(
             calc_string_length(malicious_slot, true),
-            Err(TempoPrecompileError::under_overflow())
+            Err(MagnusPrecompileError::under_overflow())
         );
 
         // Boundary: u32::MAX is accepted
@@ -564,7 +564,7 @@ mod tests {
         let above_max = U256::from((u32::MAX as u64 + 1) * 2 + 1);
         assert_eq!(
             calc_string_length(above_max, true),
-            Err(TempoPrecompileError::under_overflow())
+            Err(MagnusPrecompileError::under_overflow())
         );
 
         // -- short-string tamper ------------------------------------------------

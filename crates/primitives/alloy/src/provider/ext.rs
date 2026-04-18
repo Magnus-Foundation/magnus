@@ -4,7 +4,7 @@ use alloy_provider::{
     Identity, Provider, ProviderBuilder,
     fillers::{JoinFill, RecommendedFillers},
 };
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_contracts::precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS,
     IAccountKeychain::{IAccountKeychainInstance, KeyInfo},
@@ -13,16 +13,16 @@ use magnus_contracts::precompiles::{
 use magnus_primitives::transaction::CallScope;
 
 use crate::{
-    TempoFillers, TempoNetwork,
+    MagnusFillers, MagnusNetwork,
     fillers::{ExpiringNonceFiller, NonceKeyFiller, Random2DNonceFiller},
 };
 
 /// Extension trait for [`Provider`] with Tempo-specific functionality.
 #[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
-pub trait TempoProviderExt: Provider<TempoNetwork> {
+pub trait MagnusProviderExt: Provider<MagnusNetwork> {
     /// Returns a typed instance for the Account Keychain precompile.
-    fn account_keychain(&self) -> IAccountKeychainInstance<&Self, TempoNetwork>
+    fn account_keychain(&self) -> IAccountKeychainInstance<&Self, MagnusNetwork>
     where
         Self: Sized,
     {
@@ -101,7 +101,7 @@ pub trait TempoProviderExt: Provider<TempoNetwork> {
     /// Queries the node's `magnus_forkSchedule` RPC to determine the currently active hardfork.
     async fn is_hardfork_active(
         &self,
-        hardfork: TempoHardfork,
+        hardfork: MagnusHardfork,
     ) -> Result<bool, alloy_transport::TransportError>
     where
         Self: Sized,
@@ -115,17 +115,17 @@ pub trait TempoProviderExt: Provider<TempoNetwork> {
 
         Ok(resp
             .active
-            .parse::<TempoHardfork>()
+            .parse::<MagnusHardfork>()
             .is_ok_and(|h| h >= hardfork))
     }
 }
 
 #[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
-impl<P> TempoProviderExt for P where P: Provider<TempoNetwork> {}
+impl<P> MagnusProviderExt for P where P: Provider<MagnusNetwork> {}
 
 /// Extension trait for [`ProviderBuilder`] with Tempo-specific functionality.
-pub trait TempoProviderBuilderExt {
+pub trait MagnusProviderBuilderExt {
     /// Returns a provider builder with the recommended Tempo fillers and the random 2D nonce filler.
     ///
     /// See [`Random2DNonceFiller`] for more information on random 2D nonces.
@@ -133,8 +133,8 @@ pub trait TempoProviderBuilderExt {
         self,
     ) -> ProviderBuilder<
         Identity,
-        JoinFill<Identity, TempoFillers<Random2DNonceFiller>>,
-        TempoNetwork,
+        JoinFill<Identity, MagnusFillers<Random2DNonceFiller>>,
+        MagnusNetwork,
     >;
 
     /// Returns a provider builder with the recommended Tempo fillers and the expiring nonce filler.
@@ -146,8 +146,8 @@ pub trait TempoProviderBuilderExt {
         self,
     ) -> ProviderBuilder<
         Identity,
-        JoinFill<Identity, TempoFillers<ExpiringNonceFiller>>,
-        TempoNetwork,
+        JoinFill<Identity, MagnusFillers<ExpiringNonceFiller>>,
+        MagnusNetwork,
     >;
 
     /// Returns a provider builder with the recommended Tempo fillers and the nonce key filler.
@@ -158,41 +158,41 @@ pub trait TempoProviderBuilderExt {
     /// See [`NonceKeyFiller`] for more information.
     fn with_nonce_key_filler(
         self,
-    ) -> ProviderBuilder<Identity, JoinFill<Identity, TempoFillers<NonceKeyFiller>>, TempoNetwork>;
+    ) -> ProviderBuilder<Identity, JoinFill<Identity, MagnusFillers<NonceKeyFiller>>, MagnusNetwork>;
 }
 
-impl TempoProviderBuilderExt
+impl MagnusProviderBuilderExt
     for ProviderBuilder<
         Identity,
-        JoinFill<Identity, <TempoNetwork as RecommendedFillers>::RecommendedFillers>,
-        TempoNetwork,
+        JoinFill<Identity, <MagnusNetwork as RecommendedFillers>::RecommendedFillers>,
+        MagnusNetwork,
     >
 {
     fn with_random_2d_nonces(
         self,
     ) -> ProviderBuilder<
         Identity,
-        JoinFill<Identity, TempoFillers<Random2DNonceFiller>>,
-        TempoNetwork,
+        JoinFill<Identity, MagnusFillers<Random2DNonceFiller>>,
+        MagnusNetwork,
     > {
-        ProviderBuilder::default().filler(TempoFillers::default())
+        ProviderBuilder::default().filler(MagnusFillers::default())
     }
 
     fn with_expiring_nonces(
         self,
     ) -> ProviderBuilder<
         Identity,
-        JoinFill<Identity, TempoFillers<ExpiringNonceFiller>>,
-        TempoNetwork,
+        JoinFill<Identity, MagnusFillers<ExpiringNonceFiller>>,
+        MagnusNetwork,
     > {
-        ProviderBuilder::default().filler(TempoFillers::default())
+        ProviderBuilder::default().filler(MagnusFillers::default())
     }
 
     fn with_nonce_key_filler(
         self,
-    ) -> ProviderBuilder<Identity, JoinFill<Identity, TempoFillers<NonceKeyFiller>>, TempoNetwork>
+    ) -> ProviderBuilder<Identity, JoinFill<Identity, MagnusFillers<NonceKeyFiller>>, MagnusNetwork>
     {
-        ProviderBuilder::default().filler(TempoFillers::default())
+        ProviderBuilder::default().filler(MagnusFillers::default())
     }
 }
 
@@ -212,31 +212,31 @@ mod tests {
     use magnus_primitives::transaction::{CallScope, SelectorRule};
 
     use crate::{
-        TempoFillers, TempoNetwork,
+        MagnusFillers, MagnusNetwork,
         fillers::{ExpiringNonceFiller, NonceKeyFiller, Random2DNonceFiller},
-        provider::ext::{TempoProviderBuilderExt, TempoProviderExt},
+        provider::ext::{MagnusProviderBuilderExt, MagnusProviderExt},
     };
 
-    fn mock_provider(asserter: Asserter) -> impl alloy_provider::Provider<TempoNetwork> {
-        ProviderBuilder::<_, _, TempoNetwork>::default().connect_mocked_client(asserter)
+    fn mock_provider(asserter: Asserter) -> impl alloy_provider::Provider<MagnusNetwork> {
+        ProviderBuilder::<_, _, MagnusNetwork>::default().connect_mocked_client(asserter)
     }
 
     #[test]
     fn test_with_random_nonces() {
-        let _: ProviderBuilder<_, JoinFill<Identity, TempoFillers<Random2DNonceFiller>>, _> =
-            ProviderBuilder::new_with_network::<TempoNetwork>().with_random_2d_nonces();
+        let _: ProviderBuilder<_, JoinFill<Identity, MagnusFillers<Random2DNonceFiller>>, _> =
+            ProviderBuilder::new_with_network::<MagnusNetwork>().with_random_2d_nonces();
     }
 
     #[test]
     fn test_with_expiring_nonces() {
-        let _: ProviderBuilder<_, JoinFill<Identity, TempoFillers<ExpiringNonceFiller>>, _> =
-            ProviderBuilder::new_with_network::<TempoNetwork>().with_expiring_nonces();
+        let _: ProviderBuilder<_, JoinFill<Identity, MagnusFillers<ExpiringNonceFiller>>, _> =
+            ProviderBuilder::new_with_network::<MagnusNetwork>().with_expiring_nonces();
     }
 
     #[test]
     fn test_with_nonce_key_filler() {
-        let _: ProviderBuilder<_, JoinFill<Identity, TempoFillers<NonceKeyFiller>>, _> =
-            ProviderBuilder::new_with_network::<TempoNetwork>().with_nonce_key_filler();
+        let _: ProviderBuilder<_, JoinFill<Identity, MagnusFillers<NonceKeyFiller>>, _> =
+            ProviderBuilder::new_with_network::<MagnusNetwork>().with_nonce_key_filler();
     }
 
     #[tokio::test]

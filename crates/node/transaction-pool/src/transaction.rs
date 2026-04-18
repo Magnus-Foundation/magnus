@@ -21,16 +21,16 @@ use std::{
     sync::{Arc, OnceLock},
 };
 use magnus_precompiles::{DEFAULT_FEE_TOKEN, nonce::NonceManager};
-use magnus_primitives::{TempoTxEnvelope, transaction::calc_gas_balance_spending};
-use magnus_revm::{TempoInvalidTransaction, TempoTxEnv};
+use magnus_primitives::{MagnusTxEnvelope, transaction::calc_gas_balance_spending};
+use magnus_revm::{MagnusInvalidTransaction, MagnusTxEnv};
 use thiserror::Error;
 
 /// Tempo pooled transaction representation.
 ///
 /// This is a wrapper around the regular ethereum [`EthPooledTransaction`], but with tempo specific implementations.
 #[derive(Debug, Clone)]
-pub struct TempoPooledTransaction {
-    inner: EthPooledTransaction<TempoTxEnvelope>,
+pub struct MagnusPooledTransaction {
+    inner: EthPooledTransaction<MagnusTxEnvelope>,
     /// Cached payment classification for efficient block building
     is_payment: bool,
     /// Cached expiring nonce classification
@@ -39,8 +39,8 @@ pub struct TempoPooledTransaction {
     nonce_key_slot: OnceLock<Option<U256>>,
     /// Cached `expiring_nonce_seen` storage slot for expiring nonce transactions.
     expiring_nonce_slot: OnceLock<Option<U256>>,
-    /// Cached prepared [`TempoTxEnv`] for payload building.
-    tx_env: OnceLock<TempoTxEnv>,
+    /// Cached prepared [`MagnusTxEnv`] for payload building.
+    tx_env: OnceLock<MagnusTxEnv>,
     /// Keychain key expiry timestamp (set during validation for keychain-signed txs).
     ///
     /// `Some(expiry)` for keychain transactions where expiry < u64::MAX (finite expiry).
@@ -53,9 +53,9 @@ pub struct TempoPooledTransaction {
     resolved_fee_token: OnceLock<Address>,
 }
 
-impl TempoPooledTransaction {
+impl MagnusPooledTransaction {
     /// Create new instance of [Self] from the given consensus transactions and the encoded size.
-    pub fn new(transaction: Recovered<TempoTxEnvelope>) -> Self {
+    pub fn new(transaction: Recovered<MagnusTxEnvelope>) -> Self {
         let is_payment = transaction.is_payment_v2();
         let is_expiring_nonce = transaction
             .as_aa()
@@ -87,8 +87,8 @@ impl TempoPooledTransaction {
         self.inner.cost - self.inner.value()
     }
 
-    /// Returns a reference to inner [`TempoTxEnvelope`].
-    pub fn inner(&self) -> &Recovered<TempoTxEnvelope> {
+    /// Returns a reference to inner [`MagnusTxEnvelope`].
+    pub fn inner(&self) -> &Recovered<MagnusTxEnvelope> {
         &self.inner.transaction
     }
 
@@ -171,24 +171,24 @@ impl TempoPooledTransaction {
         })
     }
 
-    /// Computes the [`TempoTxEnv`] for this transaction.
-    fn tx_env_slow(&self) -> TempoTxEnv {
-        TempoTxEnv::from_recovered_tx(self.inner().inner(), self.sender())
+    /// Computes the [`MagnusTxEnv`] for this transaction.
+    fn tx_env_slow(&self) -> MagnusTxEnv {
+        MagnusTxEnv::from_recovered_tx(self.inner().inner(), self.sender())
     }
 
-    /// Pre-computes and caches the [`TempoTxEnv`].
+    /// Pre-computes and caches the [`MagnusTxEnv`].
     ///
     /// This should be called during validation to prepare the transaction environment
     /// ahead of time, avoiding it during payload building.
-    pub fn tx_env(&self) -> &TempoTxEnv {
+    pub fn tx_env(&self) -> &MagnusTxEnv {
         self.tx_env.get_or_init(|| self.tx_env_slow())
     }
 
-    /// Returns a [`WithTxEnv`] wrapper containing the cached [`TempoTxEnv`].
+    /// Returns a [`WithTxEnv`] wrapper containing the cached [`MagnusTxEnv`].
     ///
-    /// If the [`TempoTxEnv`] was pre-computed via [`Self::tx_env`], the cached
+    /// If the [`MagnusTxEnv`] was pre-computed via [`Self::tx_env`], the cached
     /// value is used. Otherwise, it is computed on-demand.
-    pub fn into_with_tx_env(mut self) -> WithTxEnv<TempoTxEnv, Recovered<TempoTxEnvelope>> {
+    pub fn into_with_tx_env(mut self) -> WithTxEnv<MagnusTxEnv, Recovered<MagnusTxEnvelope>> {
         let tx_env = self.tx_env.take().unwrap_or_else(|| self.tx_env_slow());
         WithTxEnv {
             tx_env,
@@ -239,7 +239,7 @@ impl TempoPooledTransaction {
 }
 
 #[derive(Debug, Error)]
-pub enum TempoPoolTransactionError {
+pub enum MagnusPoolTransactionError {
     #[error(
         "Transaction exceeds non payment gas limit, please see https://docs.tempo.xyz/errors/tx/ExceedsNonPaymentLimit for more"
     )]
@@ -318,10 +318,10 @@ pub enum TempoPoolTransactionError {
 
     /// EVM validation pipeline error.
     #[error(transparent)]
-    Evm(TempoInvalidTransaction),
+    Evm(MagnusInvalidTransaction),
 }
 
-impl PoolTransactionError for TempoPoolTransactionError {
+impl PoolTransactionError for MagnusPoolTransactionError {
     fn is_bad_transaction(&self) -> bool {
         match self {
             Self::Evm(err) => err.is_bad_transaction(),
@@ -347,19 +347,19 @@ impl PoolTransactionError for TempoPoolTransactionError {
     }
 }
 
-impl InMemorySize for TempoPooledTransaction {
+impl InMemorySize for MagnusPooledTransaction {
     fn size(&self) -> usize {
         self.inner.size()
     }
 }
 
-impl Typed2718 for TempoPooledTransaction {
+impl Typed2718 for MagnusPooledTransaction {
     fn ty(&self) -> u8 {
         self.inner.transaction.ty()
     }
 }
 
-impl Encodable2718 for TempoPooledTransaction {
+impl Encodable2718 for MagnusPooledTransaction {
     fn type_flag(&self) -> Option<u8> {
         self.inner.transaction.type_flag()
     }
@@ -373,10 +373,10 @@ impl Encodable2718 for TempoPooledTransaction {
     }
 }
 
-impl PoolTransaction for TempoPooledTransaction {
+impl PoolTransaction for MagnusPooledTransaction {
     type TryFromConsensusError = Infallible;
-    type Consensus = TempoTxEnvelope;
-    type Pooled = TempoTxEnvelope;
+    type Consensus = MagnusTxEnvelope;
+    type Pooled = MagnusTxEnvelope;
 
     fn clone_into_consensus(&self) -> Recovered<Self::Consensus> {
         self.inner.transaction.clone()
@@ -426,7 +426,7 @@ impl PoolTransaction for TempoPooledTransaction {
     }
 }
 
-impl alloy_consensus::Transaction for TempoPooledTransaction {
+impl alloy_consensus::Transaction for MagnusPooledTransaction {
     fn chain_id(&self) -> Option<u64> {
         self.inner.chain_id()
     }
@@ -496,7 +496,7 @@ impl alloy_consensus::Transaction for TempoPooledTransaction {
     }
 }
 
-impl EthPoolTransaction for TempoPooledTransaction {
+impl EthPoolTransaction for MagnusPooledTransaction {
     fn take_blob(&mut self) -> EthBlobTransactionSidecar {
         EthBlobTransactionSidecar::None
     }
@@ -536,9 +536,9 @@ mod tests {
     use magnus_contracts::precompiles::ITIP20;
     use magnus_precompiles::{PATH_USD_ADDRESS, nonce::NonceManager};
     use magnus_primitives::transaction::{
-        TempoTransaction,
+        MagnusTransaction,
         magnus_transaction::Call,
-        tt_signature::{PrimitiveSignature, TempoSignature},
+        tt_signature::{PrimitiveSignature, MagnusSignature},
         tt_signed::AASigned,
     };
 
@@ -558,7 +558,7 @@ mod tests {
             ..Default::default()
         };
 
-        let envelope = TempoTxEnvelope::Eip1559(alloy_consensus::Signed::new_unchecked(
+        let envelope = MagnusTxEnvelope::Eip1559(alloy_consensus::Signed::new_unchecked(
             tx,
             Signature::test_signature(),
             B256::ZERO,
@@ -569,7 +569,7 @@ mod tests {
             address!("0000000000000000000000000000000000000001"),
         );
 
-        let pooled_tx = TempoPooledTransaction::new(recovered);
+        let pooled_tx = MagnusPooledTransaction::new(recovered);
         assert!(pooled_tx.is_payment());
     }
 
@@ -583,7 +583,7 @@ mod tests {
             ..Default::default()
         };
 
-        let envelope = TempoTxEnvelope::Eip1559(alloy_consensus::Signed::new_unchecked(
+        let envelope = MagnusTxEnvelope::Eip1559(alloy_consensus::Signed::new_unchecked(
             tx,
             Signature::test_signature(),
             B256::ZERO,
@@ -594,7 +594,7 @@ mod tests {
             address!("0000000000000000000000000000000000000001"),
         );
 
-        let pooled_tx = TempoPooledTransaction::new(recovered);
+        let pooled_tx = MagnusPooledTransaction::new(recovered);
         assert!(!pooled_tx.is_payment());
     }
 
@@ -719,46 +719,46 @@ mod tests {
 
     #[test]
     fn test_is_bad_transaction() {
-        let cases: &[(TempoPoolTransactionError, bool)] = &[
-            (TempoPoolTransactionError::ExceedsNonPaymentLimit, false),
+        let cases: &[(MagnusPoolTransactionError, bool)] = &[
+            (MagnusPoolTransactionError::ExceedsNonPaymentLimit, false),
             (
-                TempoPoolTransactionError::InvalidValidBefore {
+                MagnusPoolTransactionError::InvalidValidBefore {
                     valid_before: 100,
                     min_allowed: 200,
                 },
                 false,
             ),
             (
-                TempoPoolTransactionError::InvalidValidAfter {
+                MagnusPoolTransactionError::InvalidValidAfter {
                     valid_after: 200,
                     max_allowed: 100,
                 },
                 false,
             ),
-            (TempoPoolTransactionError::Keychain("test error"), false),
+            (MagnusPoolTransactionError::Keychain("test error"), false),
             (
-                TempoPoolTransactionError::Evm(TempoInvalidTransaction::NonceManagerError(
+                MagnusPoolTransactionError::Evm(MagnusInvalidTransaction::NonceManagerError(
                     "nonce error".to_string(),
                 )),
                 false,
             ),
             (
-                TempoPoolTransactionError::AccessKeyExpired {
+                MagnusPoolTransactionError::AccessKeyExpired {
                     expiry: 100,
                     min_allowed: 200,
                 },
                 false,
             ),
             (
-                TempoPoolTransactionError::KeyAuthorizationExpired {
+                MagnusPoolTransactionError::KeyAuthorizationExpired {
                     expiry: 100,
                     min_allowed: 200,
                 },
                 false,
             ),
-            (TempoPoolTransactionError::SubblockNonceKey, true),
+            (MagnusPoolTransactionError::SubblockNonceKey, true),
             (
-                TempoPoolTransactionError::Evm(TempoInvalidTransaction::CallsValidation(
+                MagnusPoolTransactionError::Evm(MagnusInvalidTransaction::CallsValidation(
                     "calls error",
                 )),
                 true,
@@ -776,7 +776,7 @@ mod tests {
 
     #[test]
     fn test_requires_nonce_check() {
-        let cases: &[(TempoPooledTransaction, bool, &str)] = &[
+        let cases: &[(MagnusPooledTransaction, bool, &str)] = &[
             (
                 TxBuilder::eip1559(Address::random())
                     .gas_limit(21000)
@@ -869,7 +869,7 @@ mod tests {
     fn test_pool_transaction_from_pooled() {
         let sender = Address::random();
         let nonce = 42u64;
-        let aa_tx = TempoTransaction {
+        let aa_tx = MagnusTransaction {
             chain_id: 1,
             max_priority_fee_per_gas: 1_000_000_000,
             max_fee_per_gas: 20_000_000_000,
@@ -885,12 +885,12 @@ mod tests {
         };
 
         let signature =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
         let aa_signed = AASigned::new_unhashed(aa_tx, signature);
-        let envelope: TempoTxEnvelope = aa_signed.into();
+        let envelope: MagnusTxEnvelope = aa_signed.into();
         let recovered = Recovered::new_unchecked(envelope, sender);
 
-        let pooled = TempoPooledTransaction::from_pooled(recovered);
+        let pooled = MagnusPooledTransaction::from_pooled(recovered);
         assert_eq!(pooled.sender(), sender);
         assert_eq!(pooled.nonce(), nonce);
     }

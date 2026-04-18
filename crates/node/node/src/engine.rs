@@ -1,30 +1,30 @@
-use crate::{TempoExecutionData, TempoPayloadTypes};
+use crate::{MagnusExecutionData, MagnusPayloadTypes};
 use reth_node_api::{InvalidPayloadAttributesError, NewPayloadError, PayloadValidator};
 use reth_primitives_traits::{AlloyBlockHeader as _, SealedBlock};
 use std::sync::Arc;
-use magnus_payload_types::TempoPayloadAttributes;
-use magnus_primitives::{Block, TempoHeader};
+use magnus_payload_types::MagnusPayloadAttributes;
+use magnus_primitives::{Block, MagnusHeader};
 
 /// Type encapsulating Tempo engine validation logic.
 #[derive(Debug, Default, Clone, Copy)]
 #[non_exhaustive]
-pub struct TempoEngineValidator;
+pub struct MagnusEngineValidator;
 
-impl TempoEngineValidator {
-    /// Creates a new [`TempoEngineValidator`] with the given chain spec.
+impl MagnusEngineValidator {
+    /// Creates a new [`MagnusEngineValidator`] with the given chain spec.
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl PayloadValidator<TempoPayloadTypes> for TempoEngineValidator {
+impl PayloadValidator<MagnusPayloadTypes> for MagnusEngineValidator {
     type Block = Block;
 
     fn convert_payload_to_block(
         &self,
-        payload: TempoExecutionData,
+        payload: MagnusExecutionData,
     ) -> Result<SealedBlock<Self::Block>, NewPayloadError> {
-        let TempoExecutionData {
+        let MagnusExecutionData {
             block,
             validator_set: _,
         } = payload;
@@ -33,8 +33,8 @@ impl PayloadValidator<TempoPayloadTypes> for TempoEngineValidator {
 
     fn validate_payload_attributes_against_header(
         &self,
-        attr: &TempoPayloadAttributes,
-        header: &TempoHeader,
+        attr: &MagnusPayloadAttributes,
+        header: &MagnusHeader,
     ) -> Result<(), InvalidPayloadAttributesError> {
         // Ensure that payload attributes timestamp is not in the past
         if attr.timestamp < header.timestamp() {

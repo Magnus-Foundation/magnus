@@ -1,6 +1,6 @@
 use super::{
-    magnus_transaction::{TEMPO_TX_TYPE_ID, TempoTransaction},
-    tt_signature::TempoSignature,
+    magnus_transaction::{MAGNUS_TX_TYPE_ID, MagnusTransaction},
+    tt_signature::MagnusSignature,
 };
 use alloc::vec::Vec;
 use alloy_consensus::{SignableTransaction, Transaction, transaction::TxHashRef};
@@ -24,14 +24,14 @@ use std::sync::OnceLock;
 
 /// A transaction with an AA signature and hash seal.
 ///
-/// This wraps a TempoTransaction transaction with its multi-signature-type signature
+/// This wraps a MagnusTransaction transaction with its multi-signature-type signature
 /// (secp256k1, P256, Webauthn, Keychain) and provides cached hashes.
 #[derive(Clone, Debug)]
 pub struct AASigned {
     /// The inner Tempo transaction
-    tx: TempoTransaction,
+    tx: MagnusTransaction,
     /// The signature (can be secp256k1, P256, Webauthn, Keychain)
-    signature: TempoSignature,
+    signature: MagnusSignature,
     /// Cached transaction hash
     #[doc(alias = "tx_hash", alias = "transaction_hash")]
     hash: OnceLock<B256>,
@@ -40,7 +40,7 @@ pub struct AASigned {
 impl AASigned {
     /// Instantiate from a transaction and signature with a known hash.
     /// Does not verify the signature.
-    pub fn new_unchecked(tx: TempoTransaction, signature: TempoSignature, hash: B256) -> Self {
+    pub fn new_unchecked(tx: MagnusTransaction, signature: MagnusSignature, hash: B256) -> Self {
         let value = OnceLock::new();
         #[allow(clippy::useless_conversion)]
         value.get_or_init(|| hash.into());
@@ -53,7 +53,7 @@ impl AASigned {
 
     /// Instantiate from a transaction and signature without computing the hash.
     /// Does not verify the signature.
-    pub const fn new_unhashed(tx: TempoTransaction, signature: TempoSignature) -> Self {
+    pub const fn new_unhashed(tx: MagnusTransaction, signature: MagnusSignature) -> Self {
         Self {
             tx,
             signature,
@@ -63,22 +63,22 @@ impl AASigned {
 
     /// Returns a reference to the transaction.
     #[doc(alias = "transaction")]
-    pub const fn tx(&self) -> &TempoTransaction {
+    pub const fn tx(&self) -> &MagnusTransaction {
         &self.tx
     }
 
     /// Returns a mutable reference to the transaction.
-    pub const fn tx_mut(&mut self) -> &mut TempoTransaction {
+    pub const fn tx_mut(&mut self) -> &mut MagnusTransaction {
         &mut self.tx
     }
 
     /// Returns a reference to the signature.
-    pub const fn signature(&self) -> &TempoSignature {
+    pub const fn signature(&self) -> &MagnusSignature {
         &self.signature
     }
 
     /// Returns the transaction without signature.
-    pub fn strip_signature(self) -> TempoTransaction {
+    pub fn strip_signature(self) -> MagnusTransaction {
         self.tx
     }
 
@@ -144,7 +144,7 @@ impl AASigned {
     }
 
     /// Splits the transaction into parts.
-    pub fn into_parts(self) -> (TempoTransaction, TempoSignature, B256) {
+    pub fn into_parts(self) -> (MagnusTransaction, MagnusSignature, B256) {
         let hash = *self.hash();
         (self.tx, self.signature, hash)
     }
@@ -162,7 +162,7 @@ impl AASigned {
     /// EIP-2718 encode the signed transaction.
     pub fn eip2718_encode(&self, out: &mut dyn BufMut) {
         // Type byte
-        out.put_u8(TEMPO_TX_TYPE_ID);
+        out.put_u8(MAGNUS_TX_TYPE_ID);
         // RLP fields
         self.rlp_encode(out);
     }
@@ -180,7 +180,7 @@ impl AASigned {
         }
 
         // Decode transaction fields directly from the buffer
-        let tx = TempoTransaction::rlp_decode_fields(buf)?;
+        let tx = MagnusTransaction::rlp_decode_fields(buf)?;
 
         // Decode signature bytes
         let sig_bytes: Bytes = Decodable::decode(buf)?;
@@ -192,7 +192,7 @@ impl AASigned {
         }
 
         // Parse signature
-        let signature = TempoSignature::from_bytes(&sig_bytes).map_err(alloy_rlp::Error::Custom)?;
+        let signature = MagnusSignature::from_bytes(&sig_bytes).map_err(alloy_rlp::Error::Custom)?;
 
         Ok(Self::new_unhashed(tx, signature))
     }
@@ -206,7 +206,7 @@ impl TxHashRef for AASigned {
 
 impl Typed2718 for AASigned {
     fn ty(&self) -> u8 {
-        TEMPO_TX_TYPE_ID
+        MAGNUS_TX_TYPE_ID
     }
 }
 
@@ -360,7 +360,7 @@ impl Encodable2718 for AASigned {
 
 impl Decodable2718 for AASigned {
     fn typed_decode(ty: u8, buf: &mut &[u8]) -> Eip2718Result<Self> {
-        if ty != TEMPO_TX_TYPE_ID {
+        if ty != MAGNUS_TX_TYPE_ID {
             return Err(Eip2718Error::UnexpectedType(ty));
         }
         Self::rlp_decode(buf).map_err(Into::into)
@@ -374,8 +374,8 @@ impl Decodable2718 for AASigned {
 #[cfg(any(test, feature = "arbitrary"))]
 impl<'a> arbitrary::Arbitrary<'a> for AASigned {
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
-        let tx = TempoTransaction::arbitrary(u)?;
-        let signature = TempoSignature::arbitrary(u)?;
+        let tx = MagnusTransaction::arbitrary(u)?;
+        let signature = MagnusSignature::arbitrary(u)?;
         Ok(Self::new_unhashed(tx, signature))
     }
 }
@@ -389,8 +389,8 @@ mod serde_impl {
     #[derive(Serialize, Deserialize)]
     struct AASignedHelper<'a> {
         #[serde(flatten)]
-        tx: Cow<'a, TempoTransaction>,
-        signature: Cow<'a, TempoSignature>,
+        tx: Cow<'a, MagnusTransaction>,
+        signature: Cow<'a, MagnusSignature>,
         hash: Cow<'a, B256>,
     }
 
@@ -399,7 +399,7 @@ mod serde_impl {
         where
             S: Serializer,
         {
-            if let TempoSignature::Keychain(keychain_sig) = &self.signature {
+            if let MagnusSignature::Keychain(keychain_sig) = &self.signature {
                 // Initialize the `key_id` field for keychain signatures so that it's serialized.
                 let _ = keychain_sig.key_id(&self.signature_hash());
             }
@@ -430,15 +430,15 @@ mod serde_impl {
     #[cfg(test)]
     mod tests {
         use crate::transaction::{
-            magnus_transaction::{Call, TempoTransaction},
-            tt_signature::{PrimitiveSignature, TempoSignature},
+            magnus_transaction::{Call, MagnusTransaction},
+            tt_signature::{PrimitiveSignature, MagnusSignature},
         };
         use alloy_primitives::{Address, Bytes, Signature, TxKind, U256};
 
         #[test]
         fn test_serde_output() {
             // Create a simple Tempo transaction
-            let tx = TempoTransaction {
+            let tx = MagnusTransaction {
                 chain_id: 1337,
                 fee_token: None,
                 max_priority_fee_per_gas: 1000000000,
@@ -455,7 +455,7 @@ mod serde_impl {
             };
 
             // Create a secp256k1 signature
-            let signature = TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+            let signature = MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
                 Signature::test_signature(),
             ));
 
@@ -486,8 +486,8 @@ mod tests {
     use alloy_consensus::transaction::SignerRecoverable;
     use alloy_primitives::{Address, Bytes, Signature, TxKind, U256};
 
-    fn make_tx() -> TempoTransaction {
-        TempoTransaction {
+    fn make_tx() -> MagnusTransaction {
+        MagnusTransaction {
             chain_id: 1,
             gas_limit: 21000,
             calls: vec![Call {
@@ -503,7 +503,7 @@ mod tests {
     fn test_hash_and_transaction_trait() {
         let tx = make_tx();
         let sig =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
 
         // new_unhashed: hash not computed yet
         let signed = AASigned::new_unhashed(tx.clone(), sig.clone());
@@ -538,7 +538,7 @@ mod tests {
 
         let tx = make_tx();
         let sig =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
         let signed = AASigned::new_unhashed(tx, sig);
 
         // Encode
@@ -553,10 +553,10 @@ mod tests {
         // EIP-2718 encode/decode
         let mut eip_buf = Vec::new();
         signed.eip2718_encode(&mut eip_buf);
-        assert_eq!(eip_buf[0], TEMPO_TX_TYPE_ID);
+        assert_eq!(eip_buf[0], MAGNUS_TX_TYPE_ID);
 
         let decoded_2718 =
-            AASigned::typed_decode(TEMPO_TX_TYPE_ID, &mut eip_buf[1..].as_ref()).unwrap();
+            AASigned::typed_decode(MAGNUS_TX_TYPE_ID, &mut eip_buf[1..].as_ref()).unwrap();
         assert_eq!(decoded_2718.tx(), signed.tx());
 
         // trie_hash equals hash
@@ -593,11 +593,11 @@ mod tests {
     fn test_expiring_nonce_hash_invariant_to_fee_payer() {
         let sender = Address::repeat_byte(0x01);
 
-        let make_sponsored_tx = |fee_payer_sig: Signature| -> TempoTransaction {
-            TempoTransaction {
+        let make_sponsored_tx = |fee_payer_sig: Signature| -> MagnusTransaction {
+            MagnusTransaction {
                 chain_id: 1,
                 gas_limit: 1_000_000,
-                nonce_key: U256::MAX, // TEMPO_EXPIRING_NONCE_KEY
+                nonce_key: U256::MAX, // MAGNUS_EXPIRING_NONCE_KEY
                 nonce: 0,
                 fee_token: Some(Address::repeat_byte(0xFE)),
                 fee_payer_signature: Some(fee_payer_sig),
@@ -612,7 +612,7 @@ mod tests {
         };
 
         let sig =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
 
         // Two txs identical except for fee_payer_signature
         let tx1 = make_sponsored_tx(Signature::new(U256::from(1), U256::from(2), false));
@@ -636,7 +636,7 @@ mod tests {
 
     #[test]
     fn test_expiring_nonce_hash_unique_per_sender() {
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 1,
             gas_limit: 1_000_000,
             nonce_key: U256::MAX,
@@ -650,7 +650,7 @@ mod tests {
             ..Default::default()
         };
         let sig =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
         let signed = AASigned::new_unhashed(tx, sig);
 
         let sender_a = Address::repeat_byte(0x01);
@@ -667,7 +667,7 @@ mod tests {
     fn test_expiring_nonce_hash_deterministic() {
         let tx = make_tx();
         let sig =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
         let signed = AASigned::new_unhashed(tx, sig);
         let sender = Address::repeat_byte(0xAB);
 
@@ -684,7 +684,7 @@ mod tests {
 
         // Create signed transaction with placeholder sig to get sig_hash
         let placeholder =
-            TempoSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
         let temp_signed = AASigned::new_unhashed(tx.clone(), placeholder);
         let sig_hash = temp_signed.signature_hash();
 

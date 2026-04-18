@@ -10,7 +10,7 @@ use alloy::{
     sol_types::{SolCall, SolInterface},
 };
 use revm::precompile::PrecompileResult;
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_contracts::precompiles::ITIP403Registry::{self, ITIP403RegistryCalls};
 
 const T2_ADDED: &[[u8; 4]] = &[
@@ -29,7 +29,7 @@ impl Precompile for TIP403Registry {
 
         dispatch_call(
             calldata,
-            &[SelectorSchedule::new(TempoHardfork::T2).with_added(T2_ADDED)],
+            &[SelectorSchedule::new(MagnusHardfork::T2).with_added(T2_ADDED)],
             ITIP403RegistryCalls::abi_decode,
             |call| match call {
                 ITIP403RegistryCalls::policyIdCounter(call) => {
@@ -88,7 +88,7 @@ mod tests {
         tip403_registry::ITIP403Registry,
     };
     use alloy::sol_types::{SolCall, SolValue};
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::ITIP403Registry::ITIP403RegistryCalls;
 
     #[test]
@@ -460,7 +460,7 @@ mod tests {
         let sender = Address::random();
 
         // T1: invalid selector returns reverted output
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         StorageCtx::enter(&mut storage, || -> eyre::Result<()> {
             let mut registry = TIP403Registry::new();
 
@@ -477,7 +477,7 @@ mod tests {
         })?;
 
         // Pre-T1 (T0): insufficient data returns error
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
 
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn test_selector_coverage() -> eyre::Result<()> {
         // Use T2 to test all selectors including TIP-1015 compound policy functions
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let mut registry = TIP403Registry::new();
 

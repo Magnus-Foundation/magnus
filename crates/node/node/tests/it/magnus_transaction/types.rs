@@ -8,8 +8,8 @@ use alloy::{
     providers::Provider,
     signers::local::PrivateKeySigner,
 };
-use magnus_chainspec::hardfork::TempoHardfork;
-use magnus_node::rpc::TempoTransactionRequest;
+use magnus_chainspec::hardfork::MagnusHardfork;
+use magnus_node::rpc::MagnusTransactionRequest;
 use magnus_primitives::{SignatureType, transaction::SignedKeyAuthorization};
 
 /// Test environment abstraction for matrix tests and scenario runners.
@@ -24,7 +24,7 @@ pub(crate) trait TestEnv: Sized {
     fn chain_id(&self) -> u64;
 
     /// Currently active hardfork
-    fn hardfork(&self) -> TempoHardfork;
+    fn hardfork(&self) -> MagnusHardfork;
 
     /// Whether this environment should run selector-scoped key auth RPC cases.
     ///
@@ -723,7 +723,7 @@ impl FillTestCase {
 }
 
 pub(crate) struct FillRequestContext {
-    pub request: TempoTransactionRequest,
+    pub request: MagnusTransactionRequest,
     pub expected_nonce: Option<u64>,
     pub expected_nonce_key: U256,
     pub expected_key_authorization: Option<SignedKeyAuthorization>,

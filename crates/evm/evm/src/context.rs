@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use alloy_evm::eth::EthBlockExecutionCtx;
 use alloy_primitives::{Address, B256};
 use reth_evm::NextBlockEnvAttributes;
-use magnus_primitives::{TempoConsensusContext, subblock::PartialValidatorKey};
+use magnus_primitives::{MagnusConsensusContext, subblock::PartialValidatorKey};
 
 /// Execution context for Tempo block.
 #[derive(Debug, Clone, derive_more::Deref)]
-pub struct TempoBlockExecutionCtx<'a> {
+pub struct MagnusBlockExecutionCtx<'a> {
     /// Inner [`EthBlockExecutionCtx`].
     #[deref]
     pub inner: EthBlockExecutionCtx<'a>,
@@ -23,7 +23,7 @@ pub struct TempoBlockExecutionCtx<'a> {
     /// Make sure to always set this field when executing blocks from untrusted sources
     pub validator_set: Option<Vec<B256>>,
     /// Consensus metadata for the block. `None` for pre-fork blocks.
-    pub consensus_context: Option<TempoConsensusContext>,
+    pub consensus_context: Option<MagnusConsensusContext>,
     /// Mapping from a subblock validator public key to the fee recipient configured.
     ///
     /// Used to provide EVM with the fee recipient context when executing subblock transactions.
@@ -32,7 +32,7 @@ pub struct TempoBlockExecutionCtx<'a> {
 
 /// Context required for next block environment.
 #[derive(Debug, Clone, derive_more::Deref)]
-pub struct TempoNextBlockEnvAttributes {
+pub struct MagnusNextBlockEnvAttributes {
     /// Inner [`NextBlockEnvAttributes`].
     #[deref]
     pub inner: NextBlockEnvAttributes,
@@ -43,16 +43,16 @@ pub struct TempoNextBlockEnvAttributes {
     /// Milliseconds portion of the timestamp.
     pub timestamp_millis_part: u64,
     /// Consensus context
-    pub consensus_context: Option<TempoConsensusContext>,
+    pub consensus_context: Option<MagnusConsensusContext>,
     /// Mapping from a subblock validator public key to the fee recipient configured.
     pub subblock_fee_recipients: HashMap<PartialValidatorKey, Address>,
 }
 
 #[cfg(feature = "rpc")]
-impl reth_rpc_eth_api::helpers::pending_block::BuildPendingEnv<magnus_primitives::TempoHeader>
-    for TempoNextBlockEnvAttributes
+impl reth_rpc_eth_api::helpers::pending_block::BuildPendingEnv<magnus_primitives::MagnusHeader>
+    for MagnusNextBlockEnvAttributes
 {
-    fn build_pending_env(parent: &crate::SealedHeader<magnus_primitives::TempoHeader>) -> Self {
+    fn build_pending_env(parent: &crate::SealedHeader<magnus_primitives::MagnusHeader>) -> Self {
         Self {
             inner: NextBlockEnvAttributes::build_pending_env(parent),
             general_gas_limit: parent.general_gas_limit,
@@ -69,7 +69,7 @@ mod tests {
     use super::*;
     use reth_primitives_traits::SealedHeader;
     use reth_rpc_eth_api::helpers::pending_block::BuildPendingEnv;
-    use magnus_primitives::TempoHeader;
+    use magnus_primitives::MagnusHeader;
 
     #[test]
     fn test_build_pending_env_uses_parent_values() {
@@ -78,7 +78,7 @@ mod tests {
         let timestamp_millis_part = 500u64;
         let general_gas_limit = 30_000_000u64;
         let shared_gas_limit = 250_000_000u64;
-        let parent_header = TempoHeader {
+        let parent_header = MagnusHeader {
             inner: alloy_consensus::Header {
                 number: 10,
                 timestamp: 1000,
@@ -91,7 +91,7 @@ mod tests {
             ..Default::default()
         };
         let parent = SealedHeader::seal_slow(parent_header);
-        let pending_env = TempoNextBlockEnvAttributes::build_pending_env(&parent);
+        let pending_env = MagnusNextBlockEnvAttributes::build_pending_env(&parent);
 
         // Verify values are copied directly from parent
         assert_eq!(pending_env.general_gas_limit, general_gas_limit);

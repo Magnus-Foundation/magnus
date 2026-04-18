@@ -170,7 +170,7 @@ mod tests {
 
             // Should dispatch to place function (may fail due to business logic, but dispatch works)
             let result = exchange.call(&calldata, sender);
-            // Ok indicates successful dispatch (either success or TempoPrecompileError)
+            // Ok indicates successful dispatch (either success or MagnusPrecompileError)
             assert!(result.is_ok());
 
             Ok(())
@@ -198,7 +198,7 @@ mod tests {
 
             // Should dispatch to place_flip function
             let result = exchange.call(&calldata, sender);
-            // Ok indicates successful dispatch (either success or TempoPrecompileError)
+            // Ok indicates successful dispatch (either success or MagnusPrecompileError)
             assert!(result.is_ok());
 
             Ok(())
@@ -312,7 +312,7 @@ mod tests {
 
             // Should dispatch to create_pair function
             let result = exchange.call(&calldata, sender);
-            // Ok indicates successful dispatch (either success or TempoPrecompileError)
+            // Ok indicates successful dispatch (either success or MagnusPrecompileError)
             assert!(result.is_ok());
             Ok(())
         })
@@ -336,7 +336,7 @@ mod tests {
 
             // Should dispatch to withdraw function
             let result = exchange.call(&calldata, sender);
-            // Ok indicates successful dispatch (either success or TempoPrecompileError)
+            // Ok indicates successful dispatch (either success or MagnusPrecompileError)
             assert!(result.is_ok());
 
             Ok(())
@@ -357,7 +357,7 @@ mod tests {
 
             // Should dispatch to cancel function
             let result = exchange.call(&calldata, sender);
-            // Ok indicates successful dispatch (either success or TempoPrecompileError)
+            // Ok indicates successful dispatch (either success or MagnusPrecompileError)
             assert!(result.is_ok());
             Ok(())
         })

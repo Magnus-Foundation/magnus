@@ -25,7 +25,7 @@ use commonware_runtime::{
 use futures::{channel::oneshot, future::join_all};
 use jsonrpsee::{http_client::HttpClientBuilder, ws_client::WsClientBuilder};
 use magnus_commonware_node::consensus::Digest;
-use magnus_node::rpc::consensus::{Event, Query, TempoConsensusApiClient};
+use magnus_node::rpc::consensus::{Event, Query, MagnusConsensusApiClient};
 
 /// Test that subscribing to consensus events works and that finalization
 /// can be queried via HTTP after receiving a finalization event.

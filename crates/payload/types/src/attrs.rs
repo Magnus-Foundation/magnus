@@ -5,7 +5,7 @@ use reth_ethereum_engine_primitives::EthPayloadAttributes;
 use reth_node_api::PayloadAttributes;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, atomic, atomic::Ordering};
-use magnus_primitives::{RecoveredSubBlock, TempoConsensusContext};
+use magnus_primitives::{RecoveredSubBlock, MagnusConsensusContext};
 
 /// A handle for a payload interrupt flag.
 ///
@@ -27,14 +27,14 @@ impl InterruptHandle {
 
 /// Container type for all components required to build a payload.
 ///
-/// The `TempoPayloadAttributes` has an additional feature of interrupting payload.
+/// The `MagnusPayloadAttributes` has an additional feature of interrupting payload.
 ///
 /// It also carries DKG data to be included in the block's extra_data field.
 #[derive(
     derive_more::Debug, Clone, Serialize, Deserialize, derive_more::Deref, derive_more::DerefMut,
 )]
 #[serde(rename_all = "camelCase")]
-pub struct TempoPayloadAttributes {
+pub struct MagnusPayloadAttributes {
     /// Inner [`EthPayloadAttributes`].
     #[deref]
     #[deref_mut]
@@ -55,28 +55,28 @@ pub struct TempoPayloadAttributes {
     /// the inner attributes is used as-is.
     proposer_public_key: Option<B256>,
     /// Consensus view for this block
-    consensus_context: Option<TempoConsensusContext>,
+    consensus_context: Option<MagnusConsensusContext>,
     /// Subblocks closure.
     #[debug(skip)]
     #[serde(skip, default = "default_subblocks")]
     subblocks: Arc<dyn Fn() -> Vec<RecoveredSubBlock> + Send + Sync + 'static>,
 }
 
-impl Default for TempoPayloadAttributes {
+impl Default for MagnusPayloadAttributes {
     fn default() -> Self {
         Self::from(EthPayloadAttributes::default())
     }
 }
 
-impl TempoPayloadAttributes {
-    /// Creates new `TempoPayloadAttributes` with `inner` attributes.
+impl MagnusPayloadAttributes {
+    /// Creates new `MagnusPayloadAttributes` with `inner` attributes.
     pub fn new(
         suggested_fee_recipient: Address,
         proposer_public_key: Option<B256>,
         timestamp: u64,
         timestamp_millis_part: u64,
         extra_data: Bytes,
-        consensus_context: Option<TempoConsensusContext>,
+        consensus_context: Option<MagnusConsensusContext>,
         subblocks: impl Fn() -> Vec<RecoveredSubBlock> + Send + Sync + 'static,
     ) -> Self {
         Self {
@@ -132,7 +132,7 @@ impl TempoPayloadAttributes {
     }
 
     /// Returns the consensus context
-    pub fn consensus_context(&self) -> Option<TempoConsensusContext> {
+    pub fn consensus_context(&self) -> Option<MagnusConsensusContext> {
         self.consensus_context
     }
 
@@ -145,7 +145,7 @@ impl TempoPayloadAttributes {
 // Required by reth's e2e-test-utils for integration tests.
 // The test utilities need to convert from standard Ethereum payload attributes
 // to custom chain-specific attributes.
-impl From<EthPayloadAttributes> for TempoPayloadAttributes {
+impl From<EthPayloadAttributes> for MagnusPayloadAttributes {
     fn from(inner: EthPayloadAttributes) -> Self {
         Self {
             inner,
@@ -159,7 +159,7 @@ impl From<EthPayloadAttributes> for TempoPayloadAttributes {
     }
 }
 
-impl PayloadAttributes for TempoPayloadAttributes {
+impl PayloadAttributes for MagnusPayloadAttributes {
     fn payload_id(&self, parent_hash: &B256) -> PayloadId {
         // XXX: derives the payload ID from the parent so that
         // overlong payload builds will eventually succeed on the
@@ -213,7 +213,7 @@ mod tests {
         ) -> Self;
     }
 
-    impl TestExt for TempoPayloadAttributes {
+    impl TestExt for MagnusPayloadAttributes {
         fn random() -> Self {
             Self::new(
                 Address::random(),
@@ -275,7 +275,7 @@ mod tests {
         let extra_data = Bytes::from(vec![1, 2, 3, 4, 5]);
 
         // With extra_data
-        let attrs = TempoPayloadAttributes::new(
+        let attrs = MagnusPayloadAttributes::new(
             recipient,
             None,
             1,
@@ -299,7 +299,7 @@ mod tests {
         assert!(attrs.withdrawals().is_some_and(|w| w.is_empty()));
 
         // Without extra_data
-        let attrs2 = TempoPayloadAttributes::new(
+        let attrs2 = MagnusPayloadAttributes::new(
             recipient,
             None,
             2, // +500ms
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_builder_attributes_interrupt_integration() {
-        let attrs = TempoPayloadAttributes::random();
+        let attrs = MagnusPayloadAttributes::random();
 
         // Initially not interrupted
         assert!(!attrs.is_interrupted());
@@ -336,26 +336,26 @@ mod tests {
     #[test]
     fn test_builder_attributes_timestamp_handling() {
         // Exact second boundary
-        let attrs = TempoPayloadAttributes::random().with_timestamp(3000);
+        let attrs = MagnusPayloadAttributes::random().with_timestamp(3000);
         assert_eq!(attrs.timestamp(), 3);
         assert_eq!(attrs.timestamp_millis_part(), 0);
         assert_eq!(attrs.timestamp_millis(), 3000);
 
         // With milliseconds remainder
-        let attrs = TempoPayloadAttributes::random().with_timestamp(3999);
+        let attrs = MagnusPayloadAttributes::random().with_timestamp(3999);
         assert_eq!(attrs.timestamp(), 3);
         assert_eq!(attrs.timestamp_millis_part(), 999);
         assert_eq!(attrs.timestamp_millis(), 3999);
 
         // Zero timestamp
-        let attrs = TempoPayloadAttributes::random().with_timestamp(0);
+        let attrs = MagnusPayloadAttributes::random().with_timestamp(0);
         assert_eq!(attrs.timestamp(), 0);
         assert_eq!(attrs.timestamp_millis_part(), 0);
         assert_eq!(attrs.timestamp_millis(), 0);
 
         // Large timestamp (no overflow due to saturating ops)
         let large_ts = u64::MAX / 1000 * 1000;
-        let attrs = TempoPayloadAttributes::random().with_timestamp(large_ts + 500);
+        let attrs = MagnusPayloadAttributes::random().with_timestamp(large_ts + 500);
         assert_eq!(attrs.timestamp_millis_part(), 500);
         assert!(attrs.timestamp_millis() >= large_ts);
     }
@@ -367,7 +367,7 @@ mod tests {
         let call_count = Arc::new(AtomicUsize::new(0));
         let count_clone = call_count.clone();
 
-        let attrs = TempoPayloadAttributes::random().with_subblocks(move || {
+        let attrs = MagnusPayloadAttributes::random().with_subblocks(move || {
             count_clone.fetch_add(1, Ordering::SeqCst);
             Vec::new()
         });
@@ -391,7 +391,7 @@ mod tests {
             slot_number: None,
         };
 
-        let magnus_attrs: TempoPayloadAttributes = eth_attrs.clone().into();
+        let magnus_attrs: MagnusPayloadAttributes = eth_attrs.clone().into();
 
         // Inner fields preserved
         let parent = B256::random();
@@ -422,7 +422,7 @@ mod tests {
     fn test_tempo_payload_attributes_serde() {
         let timestamp = 1234567890;
         let timestamp_millis_part = 999;
-        let attrs = TempoPayloadAttributes {
+        let attrs = MagnusPayloadAttributes {
             inner: EthPayloadAttributes {
                 timestamp,
                 prev_randao: B256::ZERO,
@@ -439,7 +439,7 @@ mod tests {
         let json = serde_json::to_string(&attrs).unwrap();
         assert!(json.contains("timestampMillisPart"));
 
-        let deserialized: TempoPayloadAttributes = serde_json::from_str(&json).unwrap();
+        let deserialized: MagnusPayloadAttributes = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.inner.timestamp, timestamp);
         assert_eq!(deserialized.timestamp_millis_part, timestamp_millis_part);
 
@@ -457,7 +457,7 @@ mod tests {
         let withdrawal_addr = Address::random();
         let beacon_root = B256::random();
 
-        let attrs = TempoPayloadAttributes {
+        let attrs = MagnusPayloadAttributes {
             inner: EthPayloadAttributes {
                 timestamp: 9999,
                 prev_randao: B256::ZERO,
@@ -482,7 +482,7 @@ mod tests {
         assert_eq!(attrs.parent_beacon_block_root(), Some(beacon_root));
 
         // None cases
-        let attrs_none = TempoPayloadAttributes {
+        let attrs_none = MagnusPayloadAttributes {
             inner: EthPayloadAttributes {
                 timestamp: 1,
                 prev_randao: B256::ZERO,

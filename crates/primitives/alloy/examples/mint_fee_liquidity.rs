@@ -7,13 +7,13 @@ use alloy::{
     providers::ProviderBuilder,
 };
 use magnus_alloy::{
-    TempoNetwork,
+    MagnusNetwork,
     contracts::precompiles::{ITIPFeeAMM, TIP_FEE_MANAGER_ADDRESS},
 };
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+    let provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
         .connect(&std::env::var("RPC_URL").expect("No RPC URL set"))
         .await?;
 

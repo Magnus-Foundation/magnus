@@ -184,7 +184,7 @@ mod tests {
     use alloy::primitives::keccak256;
 
     use super::*;
-    use crate::{error::TempoPrecompileError, storage::StorageCtx, test_util::TIP20Setup};
+    use crate::{error::MagnusPrecompileError, storage::StorageCtx, test_util::TIP20Setup};
 
     #[test]
     fn test_role_contract_grant_and_check() -> eyre::Result<()> {
@@ -312,7 +312,7 @@ mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::RolesAuthError(
+                Err(MagnusPrecompileError::RolesAuthError(
                     RolesAuthError::Unauthorized(IRolesAuth::Unauthorized {})
                 ))
             ));

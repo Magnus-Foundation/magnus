@@ -9,14 +9,14 @@ use magnus_precompiles_macros::contract;
 
 use crate::{
     PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS,
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     tip20::{TIP20Error, TIP20Token, USD_CURRENCY},
 };
 use alloy::{
     primitives::{Address, B256, keccak256},
     sol_types::SolValue,
 };
-use magnus_primitives::TempoAddressExt;
+use magnus_primitives::MagnusAddressExt;
 use tracing::trace;
 
 /// Number of reserved addresses (0 to RESERVED_SIZE-1) that cannot be deployed via factory
@@ -73,7 +73,7 @@ impl TIP20Factory {
 
         // Check if address would be in reserved range
         if lower_bytes < RESERVED_SIZE {
-            return Err(TempoPrecompileError::TIP20Factory(
+            return Err(MagnusPrecompileError::TIP20Factory(
                 TIP20FactoryError::address_reserved(),
             ));
         }
@@ -112,7 +112,7 @@ impl TIP20Factory {
         let (token_address, lower_bytes) = compute_tip20_address(sender, call.salt);
 
         if self.is_tip20(token_address)? {
-            return Err(TempoPrecompileError::TIP20Factory(
+            return Err(MagnusPrecompileError::TIP20Factory(
                 TIP20FactoryError::token_already_exists(token_address),
             ));
         }
@@ -131,7 +131,7 @@ impl TIP20Factory {
 
         // Check if address is in reserved range
         if lower_bytes < RESERVED_SIZE {
-            return Err(TempoPrecompileError::TIP20Factory(
+            return Err(MagnusPrecompileError::TIP20Factory(
                 TIP20FactoryError::address_reserved(),
             ));
         }
@@ -185,7 +185,7 @@ impl TIP20Factory {
 
         // Validate that the address is not already deployed
         if self.is_tip20(address)? {
-            return Err(TempoPrecompileError::TIP20Factory(
+            return Err(MagnusPrecompileError::TIP20Factory(
                 TIP20FactoryError::token_already_exists(address),
             ));
         }
@@ -211,7 +211,7 @@ impl TIP20Factory {
         padded.copy_from_slice(&address.as_slice()[12..]);
         let lower_bytes = u64::from_be_bytes(padded);
         if lower_bytes >= RESERVED_SIZE {
-            return Err(TempoPrecompileError::TIP20Factory(
+            return Err(MagnusPrecompileError::TIP20Factory(
                 TIP20FactoryError::address_not_reserved(),
             ));
         }
@@ -240,7 +240,7 @@ mod tests {
     use super::*;
     use crate::{
         PATH_USD_ADDRESS,
-        error::TempoPrecompileError,
+        error::MagnusPrecompileError,
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
         test_util::TIP20Setup,
     };
@@ -440,7 +440,7 @@ mod tests {
             let result = factory.create_token(sender, invalid_call);
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20(TIP20Error::invalid_quote_token())
+                MagnusPrecompileError::TIP20(TIP20Error::invalid_quote_token())
             );
             Ok(())
         })
@@ -469,7 +469,7 @@ mod tests {
             let result = factory.create_token(sender, invalid_call);
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20(TIP20Error::invalid_quote_token())
+                MagnusPrecompileError::TIP20(TIP20Error::invalid_quote_token())
             );
             Ok(())
         })
@@ -498,7 +498,7 @@ mod tests {
             let result = factory.create_token(sender, invalid_call);
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20(TIP20Error::invalid_quote_token())
+                MagnusPrecompileError::TIP20(TIP20Error::invalid_quote_token())
             );
             Ok(())
         })
@@ -526,7 +526,7 @@ mod tests {
             let result = factory.create_token(sender, create_token_call);
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20Factory(TIP20FactoryError::TokenAlreadyExists(
+                MagnusPrecompileError::TIP20Factory(TIP20FactoryError::TokenAlreadyExists(
                     ITIP20Factory::TokenAlreadyExists { token }
                 ))
             );
@@ -555,7 +555,7 @@ mod tests {
 
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20(TIP20Error::invalid_token())
+                MagnusPrecompileError::TIP20(TIP20Error::invalid_token())
             );
 
             Ok(())
@@ -591,7 +591,7 @@ mod tests {
 
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20Factory(TIP20FactoryError::token_already_exists(
+                MagnusPrecompileError::TIP20Factory(TIP20FactoryError::token_already_exists(
                     PATH_USD_ADDRESS
                 ))
             );
@@ -624,7 +624,7 @@ mod tests {
 
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20(TIP20Error::invalid_quote_token())
+                MagnusPrecompileError::TIP20(TIP20Error::invalid_quote_token())
             );
 
             Ok(())
@@ -654,7 +654,7 @@ mod tests {
 
             assert_eq!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20Factory(TIP20FactoryError::address_not_reserved())
+                MagnusPrecompileError::TIP20Factory(TIP20FactoryError::address_not_reserved())
             );
 
             Ok(())
@@ -681,7 +681,7 @@ mod tests {
             );
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
                     _
                 )))
             ));
@@ -728,7 +728,7 @@ mod tests {
             );
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
                     _
                 )))
             ));

@@ -15,11 +15,11 @@ use reth_ethereum_consensus::EthBeaconConsensus;
 use reth_primitives_traits::{RecoveredBlock, SealedBlock, SealedHeader};
 use std::sync::Arc;
 use magnus_chainspec::{
-    hardfork::TempoHardforks,
-    spec::{SYSTEM_TX_ADDRESSES, SYSTEM_TX_COUNT, TempoChainSpec},
+    hardfork::MagnusHardforks,
+    spec::{SYSTEM_TX_ADDRESSES, SYSTEM_TX_COUNT, MagnusChainSpec},
 };
 use magnus_primitives::{
-    Block, BlockBody, TempoHeader, TempoPrimitives, TempoReceipt, TempoTxEnvelope,
+    Block, BlockBody, MagnusHeader, MagnusPrimitives, MagnusReceipt, MagnusTxEnvelope,
 };
 
 /// How far in the future the block timestamp can be.
@@ -31,32 +31,32 @@ use magnus_primitives::{
 pub const ALLOWED_FUTURE_BLOCK_TIME_MILLIS: u64 = 0;
 
 /// Divisor for calculating shared gas limit (payment lane capacity).
-/// shared_gas_limit = block_gas_limit / TEMPO_SHARED_GAS_DIVISOR
-pub const TEMPO_SHARED_GAS_DIVISOR: u64 = 10;
+/// shared_gas_limit = block_gas_limit / MAGNUS_SHARED_GAS_DIVISOR
+pub const MAGNUS_SHARED_GAS_DIVISOR: u64 = 10;
 
 /// Maximum extra data size for Tempo blocks.
-pub const TEMPO_MAXIMUM_EXTRA_DATA_SIZE: usize = 10 * 1_024; // 10KiB
+pub const MAGNUS_MAXIMUM_EXTRA_DATA_SIZE: usize = 10 * 1_024; // 10KiB
 
 /// Tempo consensus implementation.
 #[derive(Debug, Clone)]
-pub struct TempoConsensus {
+pub struct MagnusConsensus {
     /// Inner Ethereum consensus.
-    inner: EthBeaconConsensus<TempoChainSpec>,
+    inner: EthBeaconConsensus<MagnusChainSpec>,
 }
 
-impl TempoConsensus {
-    /// Creates a new [`TempoConsensus`] with the given chain spec.
-    pub fn new(chain_spec: Arc<TempoChainSpec>) -> Self {
+impl MagnusConsensus {
+    /// Creates a new [`MagnusConsensus`] with the given chain spec.
+    pub fn new(chain_spec: Arc<MagnusChainSpec>) -> Self {
         Self {
             inner: EthBeaconConsensus::new(chain_spec)
-                .with_max_extra_data_size(TEMPO_MAXIMUM_EXTRA_DATA_SIZE),
+                .with_max_extra_data_size(MAGNUS_MAXIMUM_EXTRA_DATA_SIZE),
         }
     }
 
     /// Validates the given header against common consensus rules and the given millisecond timestamp.
     fn validate_header_with_timestamp_millis(
         &self,
-        header: &SealedHeader<TempoHeader>,
+        header: &SealedHeader<MagnusHeader>,
         present_timestamp_millis: u64,
     ) -> Result<(), ConsensusError> {
         self.inner.validate_header(header)?;
@@ -75,7 +75,7 @@ impl TempoConsensus {
             });
         }
 
-        if header.shared_gas_limit != header.gas_limit() / TEMPO_SHARED_GAS_DIVISOR {
+        if header.shared_gas_limit != header.gas_limit() / MAGNUS_SHARED_GAS_DIVISOR {
             return Err(ConsensusError::Other(
                 "Shared gas limit does not match header gas limit".to_string(),
             ));
@@ -99,8 +99,8 @@ impl TempoConsensus {
     }
 }
 
-impl HeaderValidator<TempoHeader> for TempoConsensus {
-    fn validate_header(&self, header: &SealedHeader<TempoHeader>) -> Result<(), ConsensusError> {
+impl HeaderValidator<MagnusHeader> for MagnusConsensus {
+    fn validate_header(&self, header: &SealedHeader<MagnusHeader>) -> Result<(), ConsensusError> {
         let current_timestamp_millis = std::time::SystemTime::now()
             .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .expect("system time should never be before UNIX EPOCH")
@@ -110,8 +110,8 @@ impl HeaderValidator<TempoHeader> for TempoConsensus {
 
     fn validate_header_against_parent(
         &self,
-        header: &SealedHeader<TempoHeader>,
-        parent: &SealedHeader<TempoHeader>,
+        header: &SealedHeader<MagnusHeader>,
+        parent: &SealedHeader<MagnusHeader>,
     ) -> Result<(), ConsensusError> {
         validate_against_parent_hash_number(header.header(), parent)?;
 
@@ -142,11 +142,11 @@ impl HeaderValidator<TempoHeader> for TempoConsensus {
     }
 }
 
-impl Consensus<Block> for TempoConsensus {
+impl Consensus<Block> for MagnusConsensus {
     fn validate_body_against_header(
         &self,
         body: &BlockBody,
-        header: &SealedHeader<TempoHeader>,
+        header: &SealedHeader<MagnusHeader>,
     ) -> Result<(), ConsensusError> {
         Consensus::<Block>::validate_body_against_header(&self.inner, body, header)
     }
@@ -173,7 +173,7 @@ impl Consensus<Block> for TempoConsensus {
                 slice
                     .iter()
                     .filter(|tx| tx.is_system_tx())
-                    .collect::<Vec<&TempoTxEnvelope>>()
+                    .collect::<Vec<&MagnusTxEnvelope>>()
             })
             .unwrap_or_default();
 
@@ -196,14 +196,14 @@ impl Consensus<Block> for TempoConsensus {
     }
 }
 
-impl FullConsensus<TempoPrimitives> for TempoConsensus {
+impl FullConsensus<MagnusPrimitives> for MagnusConsensus {
     fn validate_block_post_execution(
         &self,
         block: &RecoveredBlock<Block>,
-        result: &BlockExecutionResult<TempoReceipt>,
+        result: &BlockExecutionResult<MagnusReceipt>,
         receipt_root_bloom: Option<ReceiptRootBloom>,
     ) -> Result<(), ConsensusError> {
-        FullConsensus::<TempoPrimitives>::validate_block_post_execution(
+        FullConsensus::<MagnusPrimitives>::validate_block_post_execution(
             &self.inner,
             block,
             result,
@@ -224,8 +224,8 @@ mod tests {
     use reth_primitives_traits::SealedHeader;
     use std::time::{SystemTime, UNIX_EPOCH};
     use magnus_chainspec::{
-        hardfork::TempoHardfork,
-        spec::{MODERATO, TempoChainSpec},
+        hardfork::MagnusHardfork,
+        spec::{MODERATO, MagnusChainSpec},
     };
 
     fn current_timestamp_millis() -> u64 {
@@ -294,16 +294,16 @@ mod tests {
             self
         }
 
-        fn build(self) -> TempoHeader {
+        fn build(self) -> MagnusHeader {
             let shared_gas_limit = self
                 .shared_gas_limit
-                .unwrap_or(self.gas_limit / TEMPO_SHARED_GAS_DIVISOR);
+                .unwrap_or(self.gas_limit / MAGNUS_SHARED_GAS_DIVISOR);
             // Default to T1 fixed general gas limit
             let general_gas_limit = self
                 .general_gas_limit
-                .unwrap_or(magnus_chainspec::spec::TEMPO_T1_GENERAL_GAS_LIMIT);
+                .unwrap_or(magnus_chainspec::spec::MAGNUS_T1_GENERAL_GAS_LIMIT);
 
-            TempoHeader {
+            MagnusHeader {
                 inner: Header {
                     gas_limit: self.gas_limit,
                     timestamp: self.timestamp,
@@ -311,7 +311,7 @@ mod tests {
                     parent_hash: self.parent_hash,
                     base_fee_per_gas: Some(
                         self.base_fee
-                            .unwrap_or(magnus_chainspec::spec::TEMPO_T0_BASE_FEE),
+                            .unwrap_or(magnus_chainspec::spec::MAGNUS_T0_BASE_FEE),
                     ),
                     withdrawals_root: Some(EMPTY_ROOT_HASH),
                     blob_gas_used: Some(0),
@@ -328,7 +328,7 @@ mod tests {
         }
     }
 
-    fn create_valid_block(header: TempoHeader, transactions: Vec<TempoTxEnvelope>) -> Block {
+    fn create_valid_block(header: MagnusHeader, transactions: Vec<MagnusTxEnvelope>) -> Block {
         let transactions_root = calculate_transaction_root(&transactions);
         let mut header = header;
         header.inner.transactions_root = transactions_root;
@@ -343,7 +343,7 @@ mod tests {
         }
     }
 
-    fn create_system_tx(chain_id: u64, to: Address) -> TempoTxEnvelope {
+    fn create_system_tx(chain_id: u64, to: Address) -> MagnusTxEnvelope {
         let tx = TxLegacy {
             chain_id: Some(chain_id),
             nonce: 0,
@@ -354,10 +354,10 @@ mod tests {
             input: Default::default(),
         };
         let signature = Signature::new(U256::ZERO, U256::ZERO, false);
-        TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, signature))
+        MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, signature))
     }
 
-    fn create_tx(chain_id: u64) -> TempoTxEnvelope {
+    fn create_tx(chain_id: u64) -> MagnusTxEnvelope {
         let tx = TxLegacy {
             chain_id: Some(chain_id),
             nonce: 1,
@@ -367,12 +367,12 @@ mod tests {
             value: U256::from(100),
             input: Default::default(),
         };
-        TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, Signature::test_signature()))
+        MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, Signature::test_signature()))
     }
 
     #[test]
     fn test_validate_header() {
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let header = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
             .timestamp_millis(current_timestamp_millis())
@@ -384,7 +384,7 @@ mod tests {
 
     #[test]
     fn test_validate_header_shared_gas_mismatch() {
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let header = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
             .timestamp_millis(current_timestamp_millis())
@@ -404,9 +404,9 @@ mod tests {
     #[test]
     fn test_validate_header_general_gas_mismatch_pre_t1() {
         // Pre-T1 chainspec uses the divisor-based calculation
-        let consensus = TempoConsensus::new(create_pre_t1_chainspec());
+        let consensus = MagnusConsensus::new(create_pre_t1_chainspec());
         let gas_limit = 500_000_000u64;
-        let shared_gas_limit = gas_limit / TEMPO_SHARED_GAS_DIVISOR;
+        let shared_gas_limit = gas_limit / MAGNUS_SHARED_GAS_DIVISOR;
         // Pre-T1: expected = (gas_limit - shared_gas_limit) / 2
         let header = TestHeaderBuilder::default()
             .gas_limit(gas_limit)
@@ -435,7 +435,7 @@ mod tests {
     }
 
     /// Creates a chainspec with only T0 active (no T1).
-    fn create_pre_t1_chainspec() -> Arc<TempoChainSpec> {
+    fn create_pre_t1_chainspec() -> Arc<MagnusChainSpec> {
         let genesis_json = r#"{
             "config": {
                 "chainId": 99998,
@@ -470,11 +470,11 @@ mod tests {
             "alloc": {}
         }"#;
         let genesis: Genesis = serde_json::from_str(genesis_json).unwrap();
-        Arc::new(TempoChainSpec::from_genesis(genesis))
+        Arc::new(MagnusChainSpec::from_genesis(genesis))
     }
 
     /// Creates a chainspec with T1 active at timestamp 0.
-    fn create_t1_chainspec() -> Arc<TempoChainSpec> {
+    fn create_t1_chainspec() -> Arc<MagnusChainSpec> {
         let genesis_json = r#"{
             "config": {
                 "chainId": 99999,
@@ -510,14 +510,14 @@ mod tests {
             "alloc": {}
         }"#;
         let genesis: Genesis = serde_json::from_str(genesis_json).unwrap();
-        Arc::new(TempoChainSpec::from_genesis(genesis))
+        Arc::new(MagnusChainSpec::from_genesis(genesis))
     }
 
     #[test]
     fn test_validate_header_general_gas_limit_t1() {
         // Create a chainspec with T1 active at timestamp 0
         let chainspec = create_t1_chainspec();
-        let consensus = TempoConsensus::new(chainspec);
+        let consensus = MagnusConsensus::new(chainspec);
         let gas_limit = 500_000_000u64;
 
         // T1+: general gas limit must be fixed at 30M
@@ -541,7 +541,7 @@ mod tests {
         let header = TestHeaderBuilder::default()
             .gas_limit(gas_limit)
             .timestamp_millis(current_timestamp_millis())
-            .general_gas_limit(TempoHardfork::T1.general_gas_limit().unwrap())
+            .general_gas_limit(MagnusHardfork::T1.general_gas_limit().unwrap())
             .build();
         let sealed = SealedHeader::seal_slow(header);
         consensus.validate_header(&sealed).expect("should be valid");
@@ -549,7 +549,7 @@ mod tests {
 
     #[test]
     fn test_validate_header_timestamp_milli_gte_1000() {
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
 
         let current_timestamp_millis = 1000000999;
 
@@ -589,16 +589,16 @@ mod tests {
 
     #[test]
     fn test_validate_header_against_parent() {
-        use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+        use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let parent_ts = current_timestamp_millis() - 1;
         let parent = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
             .timestamp(parent_ts)
             .number(1)
             .timestamp_millis_part(500)
-            .base_fee(TEMPO_T1_BASE_FEE)
+            .base_fee(MAGNUS_T1_BASE_FEE)
             .build();
         let parent_sealed = SealedHeader::seal_slow(parent);
 
@@ -607,7 +607,7 @@ mod tests {
             .timestamp(parent_ts + 1)
             .timestamp_millis_part(600)
             .number(2)
-            .base_fee(TEMPO_T1_BASE_FEE)
+            .base_fee(MAGNUS_T1_BASE_FEE)
             .parent_hash(parent_sealed.hash())
             .build();
         let child_sealed = SealedHeader::seal_slow(child);
@@ -618,15 +618,15 @@ mod tests {
 
     #[test]
     fn test_validate_header_against_parent_timestamp_not_increasing() {
-        use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+        use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let parent_ts = current_timestamp_millis();
         let parent = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
             .timestamp(parent_ts)
             .timestamp_millis_part(500)
-            .base_fee(TEMPO_T1_BASE_FEE)
+            .base_fee(MAGNUS_T1_BASE_FEE)
             .build();
         let parent_sealed = SealedHeader::seal_slow(parent);
 
@@ -635,7 +635,7 @@ mod tests {
             .timestamp(parent_ts)
             .timestamp_millis_part(400)
             .number(1)
-            .base_fee(TEMPO_T1_BASE_FEE)
+            .base_fee(MAGNUS_T1_BASE_FEE)
             .parent_hash(parent_sealed.hash())
             .build();
         let child_sealed = SealedHeader::seal_slow(child);
@@ -649,10 +649,10 @@ mod tests {
 
     #[test]
     fn test_validate_header_against_parent_t1() {
-        use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+        use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 
         let chainspec = create_t1_chainspec();
-        let consensus = TempoConsensus::new(chainspec);
+        let consensus = MagnusConsensus::new(chainspec);
 
         let parent_ts = current_timestamp_millis() - 1;
         let parent = TestHeaderBuilder::default()
@@ -660,8 +660,8 @@ mod tests {
             .timestamp(parent_ts)
             .number(1)
             .timestamp_millis_part(500)
-            .general_gas_limit(TempoHardfork::T1.general_gas_limit().unwrap())
-            .base_fee(TEMPO_T1_BASE_FEE)
+            .general_gas_limit(MagnusHardfork::T1.general_gas_limit().unwrap())
+            .base_fee(MAGNUS_T1_BASE_FEE)
             .build();
         let parent_sealed = SealedHeader::seal_slow(parent);
 
@@ -671,8 +671,8 @@ mod tests {
             .timestamp_millis_part(600)
             .number(2)
             .parent_hash(parent_sealed.hash())
-            .general_gas_limit(TempoHardfork::T1.general_gas_limit().unwrap())
-            .base_fee(TEMPO_T1_BASE_FEE)
+            .general_gas_limit(MagnusHardfork::T1.general_gas_limit().unwrap())
+            .base_fee(MAGNUS_T1_BASE_FEE)
             .build();
         let child_sealed = SealedHeader::seal_slow(child);
 
@@ -682,10 +682,10 @@ mod tests {
 
     #[test]
     fn test_validate_header_against_parent_t1_wrong_base_fee() {
-        use magnus_chainspec::spec::{TEMPO_T0_BASE_FEE, TEMPO_T1_BASE_FEE};
+        use magnus_chainspec::spec::{MAGNUS_T0_BASE_FEE, MAGNUS_T1_BASE_FEE};
 
         let chainspec = create_t1_chainspec();
-        let consensus = TempoConsensus::new(chainspec);
+        let consensus = MagnusConsensus::new(chainspec);
 
         let parent_ts = current_timestamp_millis() - 1;
         let parent = TestHeaderBuilder::default()
@@ -693,8 +693,8 @@ mod tests {
             .timestamp(parent_ts)
             .number(1)
             .timestamp_millis_part(500)
-            .general_gas_limit(TempoHardfork::T1.general_gas_limit().unwrap())
-            .base_fee(TEMPO_T1_BASE_FEE)
+            .general_gas_limit(MagnusHardfork::T1.general_gas_limit().unwrap())
+            .base_fee(MAGNUS_T1_BASE_FEE)
             .build();
         let parent_sealed = SealedHeader::seal_slow(parent);
 
@@ -705,8 +705,8 @@ mod tests {
             .timestamp_millis_part(600)
             .number(2)
             .parent_hash(parent_sealed.hash())
-            .general_gas_limit(TempoHardfork::T1.general_gas_limit().unwrap())
-            .base_fee(TEMPO_T0_BASE_FEE)
+            .general_gas_limit(MagnusHardfork::T1.general_gas_limit().unwrap())
+            .base_fee(MAGNUS_T0_BASE_FEE)
             .build();
         let child_sealed = SealedHeader::seal_slow(child);
 
@@ -719,7 +719,7 @@ mod tests {
 
     #[test]
     fn test_validate_body_against_header() {
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let header = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
             .timestamp(current_timestamp_millis())
@@ -739,7 +739,7 @@ mod tests {
 
     #[test]
     fn test_validate_block_pre_execution() {
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let chain_id = MODERATO.chain().id();
 
         let system_tx = create_system_tx(chain_id, SYSTEM_TX_ADDRESSES[0]);
@@ -757,7 +757,7 @@ mod tests {
 
     #[test]
     fn test_validate_block_pre_execution_invalid_system_tx() {
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let chain_id = MODERATO.chain().id();
 
         let tx = TxLegacy {
@@ -770,7 +770,7 @@ mod tests {
             input: Default::default(),
         };
         let signature = Signature::new(U256::ZERO, U256::ZERO, false);
-        let invalid_system_tx = TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, signature));
+        let invalid_system_tx = MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, signature));
         let tx_hash = *invalid_system_tx.tx_hash();
 
         let header = TestHeaderBuilder::default()
@@ -788,7 +788,7 @@ mod tests {
 
     #[test]
     fn test_validate_block_pre_execution_no_system_tx() {
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let chain_id = MODERATO.chain().id();
 
         let user_tx = create_tx(chain_id);
@@ -811,7 +811,7 @@ mod tests {
 
     #[test]
     fn test_validate_body_against_header_bad_tx_root() {
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let header = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
             .timestamp(current_timestamp_millis())
@@ -835,7 +835,7 @@ mod tests {
 
     #[test]
     fn test_validate_block_post_execution_bad_receipts() {
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let chain_id = MODERATO.chain().id();
 
         let system_tx = create_system_tx(chain_id, SYSTEM_TX_ADDRESSES[0]);
@@ -848,8 +848,8 @@ mod tests {
         let block = create_valid_block(header, vec![user_tx, system_tx]);
         let recovered = RecoveredBlock::new_unhashed(block, vec![Address::ZERO, Address::ZERO]);
 
-        let receipt = TempoReceipt {
-            tx_type: magnus_primitives::TempoTxType::Legacy,
+        let receipt = MagnusReceipt {
+            tx_type: magnus_primitives::MagnusTxType::Legacy,
             success: true,
             cumulative_gas_used: 0,
             logs: vec![],
@@ -872,7 +872,7 @@ mod tests {
 
     #[test]
     fn test_validate_header_timestamp_exactly_at_boundary() {
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let boundary_timestamp = current_timestamp_millis() + ALLOWED_FUTURE_BLOCK_TIME_MILLIS;
         let header = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
@@ -889,7 +889,7 @@ mod tests {
 
     #[test]
     fn test_validate_block_pre_execution_system_tx_out_of_order() {
-        let consensus = TempoConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(MODERATO.clone());
         let chain_id = MODERATO.chain().id();
 
         let wrong_addr = Address::repeat_byte(0xFF);

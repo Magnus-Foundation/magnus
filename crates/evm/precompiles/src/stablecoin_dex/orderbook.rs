@@ -467,7 +467,7 @@ pub fn validate_tick_spacing(tick: i16) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::TempoPrecompileError;
+    use crate::error::MagnusPrecompileError;
     use rand_08::Rng;
 
     use alloy::primitives::address;
@@ -519,7 +519,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            TempoPrecompileError::StablecoinDEX(StablecoinDEXError::TickOutOfBounds(_))
+            MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::TickOutOfBounds(_))
         ));
     }
 
@@ -530,7 +530,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            TempoPrecompileError::StablecoinDEX(StablecoinDEXError::TickOutOfBounds(_))
+            MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::TickOutOfBounds(_))
         ));
     }
 
@@ -803,7 +803,7 @@ mod tests {
                 assert!(result.is_err());
                 assert!(matches!(
                     result.unwrap_err(),
-                    TempoPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
+                    MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
                 ));
 
                 // Test tick below MIN_TICK
@@ -811,7 +811,7 @@ mod tests {
                 assert!(result.is_err());
                 assert!(matches!(
                     result.unwrap_err(),
-                    TempoPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
+                    MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
                 ));
                 Ok(())
             })
@@ -830,7 +830,7 @@ mod tests {
                 assert!(result.is_err());
                 assert!(matches!(
                     result.unwrap_err(),
-                    TempoPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
+                    MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
                 ));
 
                 // Test tick below MIN_TICK
@@ -838,7 +838,7 @@ mod tests {
                 assert!(result.is_err());
                 assert!(matches!(
                     result.unwrap_err(),
-                    TempoPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
+                    MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
                 ));
                 Ok(())
             })
@@ -856,7 +856,7 @@ mod tests {
                 assert!(result.is_err());
                 assert!(matches!(
                     result.unwrap_err(),
-                    TempoPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
+                    MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
                 ));
 
                 // Test tick below MIN_TICK
@@ -864,7 +864,7 @@ mod tests {
                 assert!(result.is_err());
                 assert!(matches!(
                     result.unwrap_err(),
-                    TempoPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
+                    MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::InvalidTick(_))
                 ));
                 Ok(())
             })

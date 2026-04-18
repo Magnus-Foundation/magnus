@@ -19,7 +19,7 @@ pub type MasterId = FixedBytes<4>;
 pub type UserTag = FixedBytes<6>;
 
 /// Extension trait with helper functions for Tempo addresses.
-pub trait TempoAddressExt {
+pub trait MagnusAddressExt {
     /// 12-byte prefix shared by all TIP-20 token addresses.
     ///
     /// NOTE: prefix alone does not prove a token exists — use `TIP20Factory::is_tip20()` for that.
@@ -58,7 +58,7 @@ pub trait TempoAddressExt {
     fn new_virtual(master_id: MasterId, user_tag: UserTag) -> Self;
 }
 
-impl TempoAddressExt for Address {
+impl MagnusAddressExt for Address {
     const TIP20_PREFIX: [u8; 12] = TIP20_TOKEN_PREFIX;
     const VIRTUAL_MAGIC: [u8; 10] = [0xFD; 10];
 

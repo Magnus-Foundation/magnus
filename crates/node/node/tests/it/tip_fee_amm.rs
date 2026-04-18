@@ -6,7 +6,7 @@ use alloy::{
 };
 use alloy_eips::BlockId;
 use alloy_primitives::{Address, uint};
-use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 use magnus_contracts::precompiles::{
     IFeeManager,
     ITIP20::{self, ITIP20Instance},
@@ -635,7 +635,7 @@ async fn test_cant_burn_required_liquidity() -> eyre::Result<()> {
             liquidity,
             alice,
         )
-        .max_fee_per_gas(TEMPO_T1_BASE_FEE as u128 * 100)
+        .max_fee_per_gas(MAGNUS_T1_BASE_FEE as u128 * 100)
         .gas(1000000)
         .send()
         .await?

@@ -23,7 +23,7 @@ use commonware_p2p::authenticated::lookup;
 use commonware_runtime::Metrics as _;
 use eyre::{OptionExt, WrapErr as _, eyre};
 use magnus_commonware_node_config::SigningShare;
-use magnus_node::TempoFullNode;
+use magnus_node::MagnusFullNode;
 
 pub use crate::config::{
     BROADCASTER_CHANNEL_IDENT, BROADCASTER_LIMIT, CERTIFICATES_CHANNEL_IDENT, CERTIFICATES_LIMIT,
@@ -37,7 +37,7 @@ pub use args::{Args, PositiveDuration};
 pub async fn run_consensus_stack(
     context: &commonware_runtime::tokio::Context,
     config: Args,
-    execution_node: TempoFullNode,
+    execution_node: MagnusFullNode,
     feed_state: feed::FeedStateHandle,
 ) -> eyre::Result<()> {
     let share = config

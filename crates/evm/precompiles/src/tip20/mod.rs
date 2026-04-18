@@ -24,7 +24,7 @@ use crate::{
     PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS,
     account_keychain::AccountKeychain,
     address_registry::AddressRegistry,
-    error::{Result, TempoPrecompileError},
+    error::{Result, MagnusPrecompileError},
     storage::{Handler, Mapping},
     tip20::{rewards::UserRewardInfo, roles::DEFAULT_ADMIN_ROLE},
     tip20_factory::TIP20Factory,
@@ -36,7 +36,7 @@ use alloy::{
 };
 use std::sync::LazyLock;
 use magnus_precompiles_macros::contract;
-use magnus_primitives::TempoAddressExt;
+use magnus_primitives::MagnusAddressExt;
 pub use magnus_primitives::is_tip20_prefix;
 use tracing::trace;
 
@@ -442,7 +442,7 @@ impl TIP20Token {
 
         let new_supply = total_supply
             .checked_add(amount)
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
 
         let supply_cap = self.supply_cap()?;
         if new_supply > supply_cap {
@@ -455,7 +455,7 @@ impl TIP20Token {
         let to_balance = self.get_balance(to.target)?;
         let new_to_balance: alloy::primitives::Uint<256, 4> = to_balance
             .checked_add(amount)
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
         self.set_balance(to.target, new_to_balance)?;
 
         self.emit_event(to.build_transfer_event(Address::ZERO, amount))
@@ -670,7 +670,7 @@ impl TIP20Token {
         self.permit_nonces[call.owner].write(
             nonce
                 .checked_add(U256::from(1))
-                .ok_or(TempoPrecompileError::under_overflow())?,
+                .ok_or(MagnusPrecompileError::under_overflow())?,
         )?;
 
         // 6. Set allowance
@@ -993,7 +993,7 @@ impl TIP20Token {
         // Adjust balances
         let new_from_balance = from_balance
             .checked_sub(amount)
-            .ok_or(TempoPrecompileError::under_overflow())?;
+            .ok_or(MagnusPrecompileError::under_overflow())?;
 
         self.set_balance(from, new_from_balance)?;
 
@@ -1001,7 +1001,7 @@ impl TIP20Token {
             let to_balance = self.get_balance(to.target)?;
             let new_to_balance = to_balance
                 .checked_add(amount)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
 
             self.set_balance(to.target, new_to_balance)?;
         }
@@ -1038,11 +1038,11 @@ impl TIP20Token {
         if from_reward_recipient != Address::ZERO {
             let opted_in_supply = U256::from(self.get_opted_in_supply()?)
                 .checked_sub(amount)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
             self.set_opted_in_supply(
                 opted_in_supply
                     .try_into()
-                    .map_err(|_| TempoPrecompileError::under_overflow())?,
+                    .map_err(|_| MagnusPrecompileError::under_overflow())?,
             )?;
         }
 
@@ -1096,11 +1096,11 @@ impl TIP20Token {
         if to_reward_recipient != Address::ZERO {
             let opted_in_supply = U256::from(self.get_opted_in_supply()?)
                 .checked_add(refund)
-                .ok_or(TempoPrecompileError::under_overflow())?;
+                .ok_or(MagnusPrecompileError::under_overflow())?;
             self.set_opted_in_supply(
                 opted_in_supply
                     .try_into()
-                    .map_err(|_| TempoPrecompileError::under_overflow())?,
+                    .map_err(|_| MagnusPrecompileError::under_overflow())?,
             )?;
         }
 
@@ -1204,12 +1204,12 @@ mod recipient_tests {
     use super::*;
     use crate::{
         address_registry::{AddressRegistry, MasterId, UserTag},
-        error::TempoPrecompileError,
+        error::MagnusPrecompileError,
         storage::{StorageCtx, hashmap::HashMapStorageProvider},
         test_util::{VIRTUAL_MASTER, register_virtual_master},
     };
     use alloy::primitives::{Address, U256};
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
 
     #[test]
     fn test_resolve() -> eyre::Result<()> {
@@ -1224,7 +1224,7 @@ mod recipient_tests {
         );
 
         // T3: non-virtual → direct
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         StorageCtx::enter(&mut storage, || {
             let r = Recipient::resolve(addr)?;
             assert_eq!(
@@ -1251,11 +1251,11 @@ mod recipient_tests {
             let unregistered = Address::new_virtual(MasterId::ZERO, UserTag::ZERO);
             assert!(Recipient::resolve(unregistered).is_err());
 
-            Ok::<_, TempoPrecompileError>(())
+            Ok::<_, MagnusPrecompileError>(())
         })?;
 
         // Pre-T3: virtual address passed through as literal
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
         StorageCtx::enter(&mut storage, || {
             let virtual_addr = Address::new_virtual(MasterId::ZERO, UserTag::ZERO);
             let r = Recipient::resolve(virtual_addr)?;
@@ -1266,7 +1266,7 @@ mod recipient_tests {
                     virtual_addr: None
                 }
             );
-            Ok::<_, TempoPrecompileError>(())
+            Ok::<_, MagnusPrecompileError>(())
         })?;
         Ok(())
     }
@@ -1327,12 +1327,12 @@ pub(crate) mod tests {
             getRemainingLimitCall,
         },
         address_registry::{AddressRegistry, MasterId, UserTag},
-        error::TempoPrecompileError,
+        error::MagnusPrecompileError,
         storage::{StorageCtx, hashmap::HashMapStorageProvider},
         test_util::{TIP20Setup, VIRTUAL_MASTER, register_virtual_master, setup_storage},
     };
     use rand_08::{Rng, distributions::Alphanumeric, thread_rng};
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
 
     #[test]
     fn test_mint_increases_balance_and_supply() -> eyre::Result<()> {
@@ -1407,7 +1407,7 @@ pub(crate) mod tests {
             let result = token.transfer(from, ITIP20::transferCall { to, amount });
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(
+                Err(MagnusPrecompileError::TIP20(
                     TIP20Error::InsufficientBalance(_)
                 ))
             ));
@@ -1574,7 +1574,7 @@ pub(crate) mod tests {
 
             assert_eq!(
                 token.transfer_fee_pre_tx(user, fee_amount),
-                Err(TempoPrecompileError::TIP20(
+                Err(MagnusPrecompileError::TIP20(
                     TIP20Error::insufficient_balance(U256::ZERO, fee_amount, token.address)
                 ))
             );
@@ -1603,7 +1603,7 @@ pub(crate) mod tests {
             // transfer_fee_pre_tx should fail when paused
             assert_eq!(
                 token.transfer_fee_pre_tx(user, fee_amount),
-                Err(TempoPrecompileError::TIP20(TIP20Error::contract_paused()))
+                Err(MagnusPrecompileError::TIP20(TIP20Error::contract_paused()))
             );
             Ok(())
         })
@@ -1647,7 +1647,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_transfer_fee_post_tx_refunds_spending_limit() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1C);
         let admin = Address::random();
         let user = Address::random();
         let access_key = Address::random();
@@ -1721,7 +1721,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_transfer_fee_post_tx_pre_t1c() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1B);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1B);
         let admin = Address::random();
         let user = Address::random();
         let access_key = Address::random();
@@ -1804,7 +1804,7 @@ pub(crate) mod tests {
 
             assert!(matches!(
                 token.transfer_from(spender, ITIP20::transferFromCall { from, to, amount }),
-                Err(TempoPrecompileError::TIP20(
+                Err(MagnusPrecompileError::TIP20(
                     TIP20Error::InsufficientAllowance(_)
                 ))
             ));
@@ -1915,7 +1915,7 @@ pub(crate) mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::RolesAuthError(
+                Err(MagnusPrecompileError::RolesAuthError(
                     RolesAuthError::Unauthorized(_)
                 ))
             ));
@@ -1943,7 +1943,7 @@ pub(crate) mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
                     _
                 )))
             ));
@@ -1973,7 +1973,7 @@ pub(crate) mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
                     _
                 )))
             ));
@@ -2046,7 +2046,7 @@ pub(crate) mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
                     _
                 )))
             ));
@@ -2079,7 +2079,7 @@ pub(crate) mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::RolesAuthError(
+                Err(MagnusPrecompileError::RolesAuthError(
                     RolesAuthError::Unauthorized(_)
                 ))
             ));
@@ -2239,7 +2239,7 @@ pub(crate) mod tests {
             );
 
             assert!(result.is_err_and(
-                |err| err == TempoPrecompileError::TIP20(TIP20Error::invalid_quote_token())
+                |err| err == MagnusPrecompileError::TIP20(TIP20Error::invalid_quote_token())
             ));
 
             Ok(())
@@ -2318,7 +2318,7 @@ pub(crate) mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::ProtectedAddress(_)))
+                Err(MagnusPrecompileError::TIP20(TIP20Error::ProtectedAddress(_)))
             ));
 
             // Verify FeeManager balance is unchanged
@@ -2338,7 +2338,7 @@ pub(crate) mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::ProtectedAddress(_)))
+                Err(MagnusPrecompileError::TIP20(TIP20Error::ProtectedAddress(_)))
             ));
 
             // Verify StablecoinDEX balance is unchanged
@@ -2397,7 +2397,7 @@ pub(crate) mod tests {
 
             assert!(matches!(
                 result.unwrap_err(),
-                TempoPrecompileError::TIP20(TIP20Error::InvalidTransferPolicyId(_))
+                MagnusPrecompileError::TIP20(TIP20Error::InvalidTransferPolicyId(_))
             ));
 
             Ok(())
@@ -2478,7 +2478,7 @@ pub(crate) mod tests {
                 );
                 assert!(matches!(
                     result.unwrap_err(),
-                    TempoPrecompileError::TIP20(TIP20Error::InvalidTransferPolicyId(_))
+                    MagnusPrecompileError::TIP20(TIP20Error::InvalidTransferPolicyId(_))
                 ));
             }
 
@@ -2517,13 +2517,13 @@ pub(crate) mod tests {
 
     #[test]
     fn test_is_transfer_authorized() -> eyre::Result<()> {
-        use magnus_chainspec::hardfork::TempoHardfork;
+        use magnus_chainspec::hardfork::MagnusHardfork;
 
         let admin = Address::random();
         let sender = Address::random();
         let recipient = Address::random();
 
-        for hardfork in [TempoHardfork::T0, TempoHardfork::T1] {
+        for hardfork in [MagnusHardfork::T0, MagnusHardfork::T1] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
 
             StorageCtx::enter(&mut storage, || {
@@ -2591,7 +2591,7 @@ pub(crate) mod tests {
                 )?;
                 assert!(token.is_transfer_authorized(sender, recipient)?);
 
-                Ok::<_, TempoPrecompileError>(())
+                Ok::<_, MagnusPrecompileError>(())
             })?;
         }
 
@@ -2616,7 +2616,7 @@ pub(crate) mod tests {
             );
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
                     _
                 )))
             ));
@@ -2655,7 +2655,7 @@ pub(crate) mod tests {
 
             assert!(matches!(
                 result,
-                Err(TempoPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
+                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidQuoteToken(
                     _
                 )))
             ));
@@ -2676,7 +2676,7 @@ pub(crate) mod tests {
     fn test_mint_to_virtual_address_credits_master() -> eyre::Result<()> {
         let amount = U256::from(1000);
 
-        for hardfork in [TempoHardfork::T2, TempoHardfork::T3] {
+        for hardfork in [MagnusHardfork::T2, MagnusHardfork::T3] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
             let admin = Address::random();
 
@@ -2744,7 +2744,7 @@ pub(crate) mod tests {
                 )?;
                 assert_eq!(token.get_balance(credited)? - pre, amount);
 
-                Ok::<_, TempoPrecompileError>(())
+                Ok::<_, MagnusPrecompileError>(())
             })?;
         }
         Ok(())
@@ -2754,7 +2754,7 @@ pub(crate) mod tests {
     fn test_transfer_to_virtual_address_credits_master() -> eyre::Result<()> {
         let amount = U256::from(500);
 
-        for hardfork in [TempoHardfork::T2, TempoHardfork::T3] {
+        for hardfork in [MagnusHardfork::T2, MagnusHardfork::T3] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
             let admin = Address::random();
             let sender = Address::random();
@@ -2817,7 +2817,7 @@ pub(crate) mod tests {
                 )?;
                 assert_eq!(token.get_balance(credited)? - pre, amount);
 
-                Ok::<_, TempoPrecompileError>(())
+                Ok::<_, MagnusPrecompileError>(())
             })?;
         }
         Ok(())
@@ -2827,7 +2827,7 @@ pub(crate) mod tests {
     fn test_transfer_from_to_virtual_address_credits_master() -> eyre::Result<()> {
         let amount = U256::from(300);
 
-        for hardfork in [TempoHardfork::T2, TempoHardfork::T3] {
+        for hardfork in [MagnusHardfork::T2, MagnusHardfork::T3] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
             let admin = Address::random();
             let owner = Address::random();
@@ -2881,7 +2881,7 @@ pub(crate) mod tests {
                 )?;
                 assert_eq!(token.get_balance(credited)? - pre, amount);
 
-                Ok::<_, TempoPrecompileError>(())
+                Ok::<_, MagnusPrecompileError>(())
             })?;
         }
         Ok(())
@@ -2890,7 +2890,7 @@ pub(crate) mod tests {
     #[test]
     #[rustfmt::skip]
     fn test_unregistered_virtual_reverts_on_t3() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let admin = Address::random();
         let sender = Address::random();
         let spender = Address::random();
@@ -2926,13 +2926,13 @@ pub(crate) mod tests {
         use alloy::sol_types::SolValue;
         use alloy_signer::SignerSync;
         use alloy_signer_local::PrivateKeySigner;
-        use magnus_chainspec::hardfork::TempoHardfork;
+        use magnus_chainspec::hardfork::MagnusHardfork;
 
         const CHAIN_ID: u64 = 42;
 
         /// Create a T2 storage provider for permit tests
         fn setup_t2_storage() -> HashMapStorageProvider {
-            HashMapStorageProvider::new_with_spec(CHAIN_ID, TempoHardfork::T2)
+            HashMapStorageProvider::new_with_spec(CHAIN_ID, MagnusHardfork::T2)
         }
 
         /// Helper to create a valid permit signature
@@ -3082,7 +3082,7 @@ pub(crate) mod tests {
 
                 assert!(matches!(
                     result,
-                    Err(TempoPrecompileError::TIP20(TIP20Error::PermitExpired(_)))
+                    Err(MagnusPrecompileError::TIP20(TIP20Error::PermitExpired(_)))
                 ));
 
                 Ok(())
@@ -3114,7 +3114,7 @@ pub(crate) mod tests {
 
                 assert!(matches!(
                     result,
-                    Err(TempoPrecompileError::TIP20(TIP20Error::InvalidSignature(_)))
+                    Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidSignature(_)))
                 ));
 
                 Ok(())
@@ -3159,7 +3159,7 @@ pub(crate) mod tests {
 
                 assert!(matches!(
                     result,
-                    Err(TempoPrecompileError::TIP20(TIP20Error::InvalidSignature(_)))
+                    Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidSignature(_)))
                 ));
 
                 Ok(())
@@ -3189,7 +3189,7 @@ pub(crate) mod tests {
 
                 assert!(matches!(
                     result,
-                    Err(TempoPrecompileError::TIP20(TIP20Error::InvalidSignature(_)))
+                    Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidSignature(_)))
                 ));
 
                 Ok(())
@@ -3386,7 +3386,7 @@ pub(crate) mod tests {
                     assert!(
                         matches!(
                             result,
-                            Err(TempoPrecompileError::TIP20(TIP20Error::InvalidSignature(_)))
+                            Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidSignature(_)))
                         ),
                         "v={v} should revert with InvalidSignature"
                     );
@@ -3420,7 +3420,7 @@ pub(crate) mod tests {
 
                 assert!(matches!(
                     result,
-                    Err(TempoPrecompileError::TIP20(TIP20Error::InvalidSignature(_)))
+                    Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidSignature(_)))
                 ));
 
                 Ok(())
@@ -3433,7 +3433,7 @@ pub(crate) mod tests {
 
             let mut storage_a = setup_t2_storage();
             let mut storage_b =
-                HashMapStorageProvider::new_with_spec(CHAIN_ID + 1, TempoHardfork::T2);
+                HashMapStorageProvider::new_with_spec(CHAIN_ID + 1, MagnusHardfork::T2);
 
             let ds_a = StorageCtx::enter(&mut storage_a, || {
                 TIP20Setup::create("Test", "TST", admin)
@@ -3462,7 +3462,7 @@ pub(crate) mod tests {
         let amount = U256::from(1000);
         let memo = FixedBytes::random();
 
-        for hardfork in [TempoHardfork::T2, TempoHardfork::T3] {
+        for hardfork in [MagnusHardfork::T2, MagnusHardfork::T3] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
             let admin = Address::random();
 
@@ -3479,7 +3479,7 @@ pub(crate) mod tests {
                     token.mint_with_memo(admin, ITIP20::mintWithMemoCall { to, amount, memo });
 
                 if hardfork.is_t3() {
-                    let expected = TempoPrecompileError::TIP20(TIP20Error::contract_paused());
+                    let expected = MagnusPrecompileError::TIP20(TIP20Error::contract_paused());
                     assert_eq!(mint_result, Err(expected.clone()));
                     assert_eq!(mint_memo_result, Err(expected));
                 } else {
@@ -3487,7 +3487,7 @@ pub(crate) mod tests {
                     assert!(mint_memo_result.is_ok());
                 }
 
-                Ok::<_, TempoPrecompileError>(())
+                Ok::<_, MagnusPrecompileError>(())
             })?;
         }
         Ok(())
@@ -3498,7 +3498,7 @@ pub(crate) mod tests {
         let amount = U256::from(500);
         let memo = FixedBytes::random();
 
-        for hardfork in [TempoHardfork::T2, TempoHardfork::T3] {
+        for hardfork in [MagnusHardfork::T2, MagnusHardfork::T3] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
             let admin = Address::random();
 
@@ -3516,7 +3516,7 @@ pub(crate) mod tests {
                     token.burn_with_memo(admin, ITIP20::burnWithMemoCall { amount, memo });
 
                 if hardfork.is_t3() {
-                    let expected = TempoPrecompileError::TIP20(TIP20Error::contract_paused());
+                    let expected = MagnusPrecompileError::TIP20(TIP20Error::contract_paused());
                     assert_eq!(burn_result, Err(expected.clone()));
                     assert_eq!(burn_memo_result, Err(expected));
                 } else {
@@ -3524,7 +3524,7 @@ pub(crate) mod tests {
                     assert!(burn_memo_result.is_ok());
                 }
 
-                Ok::<_, TempoPrecompileError>(())
+                Ok::<_, MagnusPrecompileError>(())
             })?;
         }
         Ok(())
@@ -3535,7 +3535,7 @@ pub(crate) mod tests {
         let amount = U256::from(500);
         let blocked = Address::random();
 
-        for hardfork in [TempoHardfork::T2, TempoHardfork::T3] {
+        for hardfork in [MagnusHardfork::T2, MagnusHardfork::T3] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
             let admin = Address::random();
 
@@ -3588,7 +3588,7 @@ pub(crate) mod tests {
                 if hardfork.is_t3() {
                     assert_eq!(
                         result,
-                        Err(TempoPrecompileError::TIP20(TIP20Error::contract_paused()))
+                        Err(MagnusPrecompileError::TIP20(TIP20Error::contract_paused()))
                     );
                 } else {
                     // T2: pause not enforced, burn succeeds
@@ -3596,7 +3596,7 @@ pub(crate) mod tests {
                     assert_eq!(token.get_balance(blocked)?, U256::ZERO);
                 }
 
-                Ok::<_, TempoPrecompileError>(())
+                Ok::<_, MagnusPrecompileError>(())
             })?;
         }
         Ok(())

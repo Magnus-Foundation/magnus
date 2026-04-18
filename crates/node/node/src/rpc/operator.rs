@@ -7,7 +7,7 @@ use reth_rpc_api::servers::AdminApiServer as _;
 use reth_transaction_pool::TransactionPool;
 
 #[rpc(server, namespace = "operator")]
-pub trait TempoOperatorApi {
+pub trait MagnusOperatorApi {
     /// Returns the node's connected execution peers.
     #[method(name = "peers")]
     async fn peers(&self) -> RpcResult<Vec<PeerInfo>>;
@@ -15,18 +15,18 @@ pub trait TempoOperatorApi {
 
 /// Tempo-specific operator RPCs that can be enabled without exposing the full `admin_` namespace.
 #[derive(Debug)]
-pub struct TempoOperatorRpc<N, ChainSpec, Pool> {
+pub struct MagnusOperatorRpc<N, ChainSpec, Pool> {
     admin_api: AdminApi<N, ChainSpec, Pool>,
 }
 
-impl<N, ChainSpec, Pool> TempoOperatorRpc<N, ChainSpec, Pool> {
+impl<N, ChainSpec, Pool> MagnusOperatorRpc<N, ChainSpec, Pool> {
     pub const fn new(admin_api: AdminApi<N, ChainSpec, Pool>) -> Self {
         Self { admin_api }
     }
 }
 
 #[async_trait::async_trait]
-impl<N, ChainSpec, Pool> TempoOperatorApiServer for TempoOperatorRpc<N, ChainSpec, Pool>
+impl<N, ChainSpec, Pool> MagnusOperatorApiServer for MagnusOperatorRpc<N, ChainSpec, Pool>
 where
     N: NetworkInfo + Peers + 'static,
     ChainSpec: EthChainSpec + EthereumHardforks + Send + Sync + 'static,

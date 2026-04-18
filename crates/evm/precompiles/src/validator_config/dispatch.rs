@@ -2,7 +2,7 @@
 
 use super::ValidatorConfig;
 use crate::{
-    Precompile, SelectorSchedule, charge_input_cost, dispatch_call, error::TempoPrecompileError,
+    Precompile, SelectorSchedule, charge_input_cost, dispatch_call, error::MagnusPrecompileError,
     mutate_void, view,
 };
 use alloy::{
@@ -10,7 +10,7 @@ use alloy::{
     sol_types::{SolCall, SolInterface},
 };
 use revm::precompile::PrecompileResult;
-use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_contracts::precompiles::IValidatorConfig::{self, IValidatorConfigCalls};
 
 const T1_ADDED: &[[u8; 4]] = &[IValidatorConfig::changeValidatorStatusByIndexCall::SELECTOR];
@@ -23,7 +23,7 @@ impl Precompile for ValidatorConfig {
 
         dispatch_call(
             calldata,
-            &[SelectorSchedule::new(TempoHardfork::T1).with_added(T1_ADDED)],
+            &[SelectorSchedule::new(MagnusHardfork::T1).with_added(T1_ADDED)],
             IValidatorConfigCalls::abi_decode,
             |call| match call {
                 // View functions
@@ -34,7 +34,7 @@ impl Precompile for ValidatorConfig {
                 }
                 IValidatorConfigCalls::validatorsArray(call) => view(call, |c| {
                     let index =
-                        u64::try_from(c.index).map_err(|_| TempoPrecompileError::array_oob())?;
+                        u64::try_from(c.index).map_err(|_| MagnusPrecompileError::array_oob())?;
                     self.validators_array(index)
                 }),
                 IValidatorConfigCalls::validators(call) => {
@@ -85,7 +85,7 @@ mod tests {
         sol_types::{SolCall, SolValue},
     };
 
-    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_contracts::precompiles::{
         IValidatorConfig, IValidatorConfig::IValidatorConfigCalls, ValidatorConfigError,
     };
@@ -96,7 +96,7 @@ mod tests {
         let owner = Address::random();
 
         // T1: invalid selector returns reverted output
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         StorageCtx::enter(&mut storage, || -> eyre::Result<()> {
             let mut validator_config = ValidatorConfig::new();
             validator_config.initialize(owner)?;
@@ -112,7 +112,7 @@ mod tests {
         })?;
 
         // Pre-T1 (T0): insufficient calldata returns error
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         StorageCtx::enter(&mut storage, || {
             let mut validator_config = ValidatorConfig::new();
             validator_config.initialize(owner)?;
@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_selector_coverage() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         StorageCtx::enter(&mut storage, || {
             let mut validator_config = ValidatorConfig::new();
 
@@ -251,7 +251,7 @@ mod tests {
         let public_key = FixedBytes::<32>::from([0x42; 32]);
 
         // T0: changeValidatorStatusByIndex returns UnknownFunctionSelector
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T0);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
         StorageCtx::enter(&mut storage, || -> eyre::Result<()> {
             let mut validator_config = ValidatorConfig::new();
             validator_config.initialize(owner)?;
@@ -287,7 +287,7 @@ mod tests {
         })?;
 
         // T1: changeValidatorStatusByIndex works
-        let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1);
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T1);
         StorageCtx::enter(&mut storage, || -> eyre::Result<()> {
             let mut validator_config = ValidatorConfig::new();
             validator_config.initialize(owner)?;

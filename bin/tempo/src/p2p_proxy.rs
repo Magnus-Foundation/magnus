@@ -30,15 +30,15 @@ use std::{
     },
     time::Duration,
 };
-use magnus_alloy::TempoNetwork;
-use magnus_chainspec::spec::{TempoChainSpec, chain_value_parser};
-use magnus_primitives::{TempoHeader, TempoPrimitives, TempoTxEnvelope};
+use magnus_alloy::MagnusNetwork;
+use magnus_chainspec::spec::{MagnusChainSpec, chain_value_parser};
+use magnus_primitives::{MagnusHeader, MagnusPrimitives, MagnusTxEnvelope};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info};
 
 /// Tempo-specific network primitives for the proxy node.
-type TempoNetPrimitives = BasicNetworkPrimitives<TempoPrimitives, TempoTxEnvelope>;
-type TempoRpcBlock = <TempoNetwork as Network>::BlockResponse;
+type MagnusNetPrimitives = BasicNetworkPrimitives<MagnusPrimitives, MagnusTxEnvelope>;
+type MagnusRpcBlock = <MagnusNetwork as Network>::BlockResponse;
 
 /// 3 hrs of blocks at 500ms block time.
 const CACHE_CAPACITY: u64 = 60 * 60 * 6; // 21600
@@ -88,7 +88,7 @@ impl P2pProxyArgs {
         let chain_spec = chain_value_parser(&self.chain)?;
 
         // Fetch latest head from RPC for the network status handshake
-        let provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+        let provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
             .connect(&self.rpc_url)
             .await
             .context("failed to connect to RPC")?;
@@ -155,7 +155,7 @@ struct RequestStats {
 enum FetchRequest {
     GetHeaders {
         request: reth_eth_wire_types::GetBlockHeaders,
-        response: oneshot::Sender<Vec<TempoHeader>>,
+        response: oneshot::Sender<Vec<MagnusHeader>>,
     },
     GetBodies {
         hashes: Vec<B256>,
@@ -181,7 +181,7 @@ impl BlockCache {
         }
     }
 
-    fn insert_header(&mut self, number: u64, hash: B256, header: TempoHeader) {
+    fn insert_header(&mut self, number: u64, hash: B256, header: MagnusHeader) {
         self.upsert(number, hash, header, None);
     }
 
@@ -189,7 +189,7 @@ impl BlockCache {
         &mut self,
         number: u64,
         hash: B256,
-        header: TempoHeader,
+        header: MagnusHeader,
         body: magnus_primitives::BlockBody,
     ) {
         self.upsert(number, hash, header, Some(body));
@@ -199,7 +199,7 @@ impl BlockCache {
         &mut self,
         number: u64,
         hash: B256,
-        header: TempoHeader,
+        header: MagnusHeader,
         body: Option<magnus_primitives::BlockBody>,
     ) {
         if let Some(old_hash) = self.by_number.get(&number).map(|block| block.hash)
@@ -242,7 +242,7 @@ impl BlockCache {
 
 #[derive(Clone)]
 struct CachedBlock {
-    header: TempoHeader,
+    header: MagnusHeader,
     body: Option<magnus_primitives::BlockBody>,
     hash: B256,
 }
@@ -253,7 +253,7 @@ async fn run_fetcher_service(
     mut fetch_rx: mpsc::Receiver<FetchRequest>,
     cache_blocks: u64,
 ) -> Result<()> {
-    let provider = ProviderBuilder::new_with_network::<TempoNetwork>()
+    let provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
         .connect(&rpc_url)
         .await
         .context("failed to connect to RPC")?;
@@ -279,7 +279,7 @@ async fn run_fetcher_service(
 
 /// Launch the P2P network and handle incoming eth requests.
 async fn run_p2p_network(
-    chain_spec: Arc<TempoChainSpec>,
+    chain_spec: Arc<MagnusChainSpec>,
     cfg: NetConfig,
     fetch_tx: mpsc::Sender<FetchRequest>,
     secret_key: secp256k1::SecretKey,
@@ -288,7 +288,7 @@ async fn run_p2p_network(
         .with_max_inbound(cfg.max_inbound)
         .with_max_outbound(0);
 
-    let mut builder = NetworkConfig::<_, TempoNetPrimitives>::builder(secret_key, Runtime::test())
+    let mut builder = NetworkConfig::<_, MagnusNetPrimitives>::builder(secret_key, Runtime::test())
         .listener_port(cfg.port)
         .disable_dns_discovery()
         .disable_tx_gossip(true)
@@ -442,7 +442,7 @@ async fn run_p2p_network(
 /// Fetch a single block by number and insert it into the cache.
 #[cfg(test)]
 async fn fetch_and_cache_block(
-    provider: &impl Provider<TempoNetwork>,
+    provider: &impl Provider<MagnusNetwork>,
     cache: &mut BlockCache,
     number: u64,
 ) -> Result<()> {
@@ -454,7 +454,7 @@ async fn fetch_and_cache_block(
         .ok_or_else(|| eyre::eyre!("block {number} not found"))?;
 
     let hash = block.header.hash();
-    let header: TempoHeader = block.header.inner.inner.clone();
+    let header: MagnusHeader = block.header.inner.inner.clone();
     let body = magnus_primitives::BlockBody {
         transactions: block
             .transactions
@@ -470,7 +470,7 @@ async fn fetch_and_cache_block(
 }
 
 async fn fetch_and_cache_header_by_hash(
-    provider: &impl Provider<TempoNetwork>,
+    provider: &impl Provider<MagnusNetwork>,
     cache: &mut BlockCache,
     hash: B256,
 ) -> Result<u64> {
@@ -481,13 +481,13 @@ async fn fetch_and_cache_header_by_hash(
         .ok_or_else(|| eyre::eyre!("block {hash} not found"))?;
 
     let number = block.header.number();
-    let header: TempoHeader = block.header.inner.inner.clone();
+    let header: MagnusHeader = block.header.inner.inner.clone();
     cache.insert_header(number, block.header.hash(), header);
     Ok(number)
 }
 
 async fn fetch_and_cache_header_by_number(
-    provider: &impl Provider<TempoNetwork>,
+    provider: &impl Provider<MagnusNetwork>,
     cache: &mut BlockCache,
     number: u64,
 ) -> Result<()> {
@@ -497,13 +497,13 @@ async fn fetch_and_cache_header_by_number(
         .context("rpc request failed")?
         .ok_or_else(|| eyre::eyre!("block {number} not found"))?;
 
-    let header: TempoHeader = block.header.inner.inner.clone();
+    let header: MagnusHeader = block.header.inner.inner.clone();
     cache.insert_header(block.header.number(), block.header.hash(), header);
     Ok(())
 }
 
 async fn fetch_and_cache_header_batch(
-    provider: &impl Provider<TempoNetwork>,
+    provider: &impl Provider<MagnusNetwork>,
     cache: &mut BlockCache,
     numbers: &[u64],
 ) -> Result<()> {
@@ -511,7 +511,7 @@ async fn fetch_and_cache_header_batch(
     let mut waiters = Vec::with_capacity(numbers.len());
 
     for &number in numbers {
-        let waiter = batch.add_call::<_, Option<TempoRpcBlock>>(
+        let waiter = batch.add_call::<_, Option<MagnusRpcBlock>>(
             "eth_getBlockByNumber",
             &(BlockNumberOrTag::Number(number), false),
         )?;
@@ -523,7 +523,7 @@ async fn fetch_and_cache_header_batch(
     for (number, waiter) in waiters {
         match waiter.await {
             Ok(Some(block)) => {
-                let header: TempoHeader = block.header.inner.inner.clone();
+                let header: MagnusHeader = block.header.inner.inner.clone();
                 cache.insert_header(block.header.number(), block.header.hash(), header);
             }
             Ok(None) => {
@@ -540,7 +540,7 @@ async fn fetch_and_cache_header_batch(
 }
 
 async fn fetch_and_cache_headers(
-    provider: &impl Provider<TempoNetwork>,
+    provider: &impl Provider<MagnusNetwork>,
     cache: &mut BlockCache,
     numbers: &[u64],
 ) {
@@ -563,7 +563,7 @@ async fn fetch_and_cache_headers(
 }
 
 async fn resolve_start_block_number(
-    provider: &impl Provider<TempoNetwork>,
+    provider: &impl Provider<MagnusNetwork>,
     cache: &mut BlockCache,
     start_block: BlockHashOrNumber,
 ) -> Option<u64> {
@@ -608,10 +608,10 @@ fn requested_header_numbers(
 
 /// Resolve a GetBlockHeaders request from cache, fetching missing blocks from RPC as needed.
 async fn resolve_headers(
-    provider: &impl Provider<TempoNetwork>,
+    provider: &impl Provider<MagnusNetwork>,
     cache: &mut BlockCache,
     request: &reth_eth_wire_types::GetBlockHeaders,
-) -> Vec<TempoHeader> {
+) -> Vec<MagnusHeader> {
     let Some(start_num) = resolve_start_block_number(provider, cache, request.start_block).await
     else {
         return Vec::new();
@@ -632,7 +632,7 @@ async fn resolve_headers(
 }
 
 async fn fetch_body_by_hash(
-    provider: &impl Provider<TempoNetwork>,
+    provider: &impl Provider<MagnusNetwork>,
     cache: &mut BlockCache,
     hash: B256,
 ) -> Option<magnus_primitives::BlockBody> {
@@ -643,7 +643,7 @@ async fn fetch_body_by_hash(
         .ok()
         .flatten()?;
     let number = block.header.number();
-    let header: TempoHeader = block.header.inner.inner.clone();
+    let header: MagnusHeader = block.header.inner.inner.clone();
     let body = magnus_primitives::BlockBody {
         transactions: block
             .transactions
@@ -660,7 +660,7 @@ async fn fetch_body_by_hash(
 
 /// Resolve a GetBlockBodies request from cache, fetching missing blocks from RPC as needed.
 async fn resolve_bodies(
-    provider: &impl Provider<TempoNetwork>,
+    provider: &impl Provider<MagnusNetwork>,
     cache: &mut BlockCache,
     hashes: &[B256],
 ) -> Vec<magnus_primitives::BlockBody> {
@@ -691,8 +691,8 @@ mod tests {
 
     const MODERATO_RPC: &str = "https://rpc.moderato.tempo.xyz";
 
-    fn moderato_provider() -> impl Provider<TempoNetwork> {
-        ProviderBuilder::new_with_network::<TempoNetwork>()
+    fn moderato_provider() -> impl Provider<MagnusNetwork> {
+        ProviderBuilder::new_with_network::<MagnusNetwork>()
             .connect_http(MODERATO_RPC.parse().unwrap())
     }
 

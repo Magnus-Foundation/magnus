@@ -1,4 +1,4 @@
-use crate::{TempoBlockExecutionCtx, evm::TempoEvm};
+use crate::{MagnusBlockExecutionCtx, evm::MagnusEvm};
 use alloy_consensus::{Transaction, transaction::TxHashRef};
 use alloy_evm::{
     Database, Evm, RecoveredTx,
@@ -26,15 +26,15 @@ use reth_revm::{
     state::{Account, Bytecode, EvmState},
 };
 use std::collections::{HashMap, HashSet};
-use magnus_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
+use magnus_chainspec::{MagnusChainSpec, hardfork::MagnusHardforks};
 use magnus_contracts::precompiles::{
     ADDRESS_REGISTRY_ADDRESS, SIGNATURE_VERIFIER_ADDRESS, VALIDATOR_CONFIG_V2_ADDRESS,
 };
 use magnus_primitives::{
-    SubBlock, SubBlockMetadata, TempoReceipt, TempoTxEnvelope, TempoTxType,
+    SubBlock, SubBlockMetadata, MagnusReceipt, MagnusTxEnvelope, MagnusTxType,
     subblock::PartialValidatorKey,
 };
-use magnus_revm::{TempoHaltReason, evm::TempoContext};
+use magnus_revm::{MagnusHaltReason, evm::MagnusContext};
 use tracing::trace;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -53,23 +53,23 @@ pub(crate) enum BlockSection {
     System { seen_subblocks_signatures: bool },
 }
 
-/// Builder for [`TempoReceipt`].
+/// Builder for [`MagnusReceipt`].
 #[derive(Debug, Clone, Copy, Default)]
 #[non_exhaustive]
-pub struct TempoReceiptBuilder;
+pub struct MagnusReceiptBuilder;
 
-impl ReceiptBuilder for TempoReceiptBuilder {
-    type Transaction = TempoTxEnvelope;
-    type Receipt = TempoReceipt;
+impl ReceiptBuilder for MagnusReceiptBuilder {
+    type Transaction = MagnusTxEnvelope;
+    type Receipt = MagnusReceipt;
 
-    fn build_receipt<E: Evm>(&self, ctx: ReceiptBuilderCtx<'_, TempoTxType, E>) -> Self::Receipt {
+    fn build_receipt<E: Evm>(&self, ctx: ReceiptBuilderCtx<'_, MagnusTxType, E>) -> Self::Receipt {
         let ReceiptBuilderCtx {
             tx_type,
             result,
             cumulative_gas_used,
             ..
         } = ctx;
-        TempoReceipt {
+        MagnusReceipt {
             tx_type,
             // Success flag was added in `EIP-658: Embedding transaction status code in
             // receipts`.
@@ -84,9 +84,9 @@ impl ReceiptBuilder for TempoReceiptBuilder {
 ///
 /// This is an extension of [`EthTxResult`] with context necessary for committing a Tempo transaction.
 #[derive(Debug)]
-pub(crate) struct TempoTxResult<H> {
+pub(crate) struct MagnusTxResult<H> {
     /// Inner transaction execution result.
-    inner: EthTxResult<H, TempoTxType>,
+    inner: EthTxResult<H, MagnusTxType>,
     /// Next section of the block.
     next_section: BlockSection,
     /// Whether the transaction is a payment transaction.
@@ -95,10 +95,10 @@ pub(crate) struct TempoTxResult<H> {
     ///
     /// This is only populated for subblock transactions for which we need to store
     /// the full transaction encoding for later validation of subblock hash.
-    tx: Option<TempoTxEnvelope>,
+    tx: Option<MagnusTxEnvelope>,
 }
 
-impl<H> TxResult for TempoTxResult<H> {
+impl<H> TxResult for MagnusTxResult<H> {
     type HaltReason = H;
 
     fn result(&self) -> &ResultAndState<Self::HaltReason> {
@@ -115,12 +115,12 @@ impl<H> TxResult for TempoTxResult<H> {
 /// Wraps an inner [`EthBlockExecutor`] and layers Tempo-specific block execution
 /// logic on top: section-based transaction ordering ([`BlockSection`]), subblock
 /// validation, shared/non-shared gas accounting, and gas incentive tracking.
-pub(crate) struct TempoBlockExecutor<'a, DB: Database, I> {
+pub(crate) struct MagnusBlockExecutor<'a, DB: Database, I> {
     pub(crate) inner:
-        EthBlockExecutor<'a, TempoEvm<DB, I>, &'a TempoChainSpec, TempoReceiptBuilder>,
+        EthBlockExecutor<'a, MagnusEvm<DB, I>, &'a MagnusChainSpec, MagnusReceiptBuilder>,
 
     section: BlockSection,
-    seen_subblocks: Vec<(PartialValidatorKey, Vec<TempoTxEnvelope>)>,
+    seen_subblocks: Vec<(PartialValidatorKey, Vec<MagnusTxEnvelope>)>,
     validator_set: Option<Vec<B256>>,
     shared_gas_limit: u64,
     subblock_fee_recipients: HashMap<PartialValidatorKey, Address>,
@@ -130,15 +130,15 @@ pub(crate) struct TempoBlockExecutor<'a, DB: Database, I> {
     incentive_gas_used: u64,
 }
 
-impl<'a, DB, I> TempoBlockExecutor<'a, DB, I>
+impl<'a, DB, I> MagnusBlockExecutor<'a, DB, I>
 where
     DB: StateDB,
-    I: Inspector<TempoContext<DB>>,
+    I: Inspector<MagnusContext<DB>>,
 {
     pub(crate) fn new(
-        evm: TempoEvm<DB, I>,
-        ctx: TempoBlockExecutionCtx<'a>,
-        chain_spec: &'a TempoChainSpec,
+        evm: MagnusEvm<DB, I>,
+        ctx: MagnusBlockExecutionCtx<'a>,
+        chain_spec: &'a MagnusChainSpec,
     ) -> Self {
         Self {
             incentive_gas_used: 0,
@@ -150,7 +150,7 @@ where
                 evm,
                 ctx.inner,
                 chain_spec,
-                TempoReceiptBuilder::default(),
+                MagnusReceiptBuilder::default(),
             ),
             section: BlockSection::StartOfBlock,
             seen_subblocks: Vec::new(),
@@ -193,7 +193,7 @@ where
     /// Validates a system transaction.
     pub(crate) fn validate_system_tx(
         &self,
-        tx: &TempoTxEnvelope,
+        tx: &MagnusTxEnvelope,
     ) -> Result<BlockSection, BlockValidationError> {
         let block = self.evm().block();
         let block_number = block.number.to_be_bytes_vec();
@@ -338,7 +338,7 @@ where
     /// only perform explicitly allowed actions.
     pub(crate) fn validate_tx_pre_execution(
         &self,
-        tx: &TempoTxEnvelope,
+        tx: &MagnusTxEnvelope,
     ) -> Result<Option<BlockSection>, BlockValidationError> {
         if tx.is_system_tx() {
             self.validate_system_tx(tx).map(Some)
@@ -349,7 +349,7 @@ where
 
     pub(crate) fn validate_tx(
         &self,
-        tx: &TempoTxEnvelope,
+        tx: &MagnusTxEnvelope,
         gas_used: u64,
     ) -> Result<BlockSection, BlockValidationError> {
         // Start with processing of transaction kinds that require specific sections.
@@ -410,15 +410,15 @@ where
     }
 }
 
-impl<'a, DB, I> BlockExecutor for TempoBlockExecutor<'a, DB, I>
+impl<'a, DB, I> BlockExecutor for MagnusBlockExecutor<'a, DB, I>
 where
     DB: StateDB,
-    I: Inspector<TempoContext<DB>>,
+    I: Inspector<MagnusContext<DB>>,
 {
-    type Transaction = TempoTxEnvelope;
-    type Receipt = TempoReceipt;
-    type Evm = TempoEvm<DB, I>;
-    type Result = TempoTxResult<TempoHaltReason>;
+    type Transaction = MagnusTxEnvelope;
+    type Receipt = MagnusReceipt;
+    type Evm = MagnusEvm<DB, I>;
+    type Result = MagnusTxResult<MagnusHaltReason>;
 
     fn apply_pre_execution_changes(&mut self) -> Result<(), alloy_evm::block::BlockExecutionError> {
         self.inner.apply_pre_execution_changes()?;
@@ -476,7 +476,7 @@ where
             // Otherwise, rely on post-execution validation to determine the next section.
             self.validate_tx(recovered.tx(), inner.result.result.tx_gas_used())?
         };
-        Ok(TempoTxResult {
+        Ok(MagnusTxResult {
             inner,
             next_section,
             is_payment: recovered.tx().is_payment_v1(),
@@ -489,7 +489,7 @@ where
         &mut self,
         output: Self::Result,
     ) -> Result<GasOutput, BlockExecutionError> {
-        let TempoTxResult {
+        let MagnusTxResult {
             inner,
             next_section,
             is_payment,
@@ -559,10 +559,10 @@ where
 
 // Test-only methods to set internal state without exposing fields as pub(crate)
 #[cfg(test)]
-impl<'a, DB, I> TempoBlockExecutor<'a, DB, I>
+impl<'a, DB, I> MagnusBlockExecutor<'a, DB, I>
 where
     DB: Database,
-    I: Inspector<TempoContext<DB>>,
+    I: Inspector<MagnusContext<DB>>,
 {
     /// Set the block section for testing section transition logic.
     pub(crate) fn set_section_for_test(&mut self, section: BlockSection) {
@@ -573,7 +573,7 @@ where
     pub(crate) fn add_seen_subblock_for_test(
         &mut self,
         proposer: PartialValidatorKey,
-        txs: Vec<TempoTxEnvelope>,
+        txs: Vec<MagnusTxEnvelope>,
     ) {
         self.seen_subblocks.push((proposer, txs));
     }
@@ -605,13 +605,13 @@ mod tests {
         database::EmptyDB,
     };
     use magnus_primitives::{
-        SubBlockMetadata, TempoSignature, TempoTransaction, TempoTxType,
-        subblock::{SubBlockVersion, TEMPO_SUBBLOCK_NONCE_KEY_PREFIX},
-        transaction::{Call, envelope::TEMPO_SYSTEM_TX_SIGNATURE},
+        SubBlockMetadata, MagnusSignature, MagnusTransaction, MagnusTxType,
+        subblock::{SubBlockVersion, MAGNUS_SUBBLOCK_NONCE_KEY_PREFIX},
+        transaction::{Call, envelope::MAGNUS_SYSTEM_TX_SIGNATURE},
     };
-    use magnus_revm::TempoHaltReason;
+    use magnus_revm::MagnusHaltReason;
 
-    fn create_legacy_tx() -> TempoTxEnvelope {
+    fn create_legacy_tx() -> MagnusTxEnvelope {
         let tx = TxLegacy {
             chain_id: Some(1),
             nonce: 0,
@@ -621,12 +621,12 @@ mod tests {
             value: U256::ZERO,
             input: Bytes::new(),
         };
-        TempoTxEnvelope::Legacy(Signed::new_unhashed(tx, Signature::test_signature()))
+        MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, Signature::test_signature()))
     }
 
     #[test]
     fn test_build_receipt() {
-        let builder = TempoReceiptBuilder;
+        let builder = MagnusReceiptBuilder;
         let tx = create_legacy_tx();
         let evm = test_evm(EmptyDB::default());
 
@@ -635,7 +635,7 @@ mod tests {
             vec![B256::ZERO],
             Bytes::new(),
         )];
-        let result: ExecutionResult<TempoHaltReason> = ExecutionResult::Success {
+        let result: ExecutionResult<MagnusHaltReason> = ExecutionResult::Success {
             reason: revm::context::result::SuccessReason::Return,
             gas: ResultGas::default().with_total_gas_spent(21000),
             logs,
@@ -652,7 +652,7 @@ mod tests {
             cumulative_gas_used,
         });
 
-        assert_eq!(receipt.tx_type, TempoTxType::Legacy);
+        assert_eq!(receipt.tx_type, MagnusTxType::Legacy);
         assert!(receipt.success);
         assert_eq!(receipt.cumulative_gas_used, 21000);
         assert_eq!(receipt.logs.len(), 1);
@@ -691,8 +691,8 @@ mod tests {
         input.freeze().into()
     }
 
-    fn create_system_tx(chain_id: u64, input: Bytes) -> TempoTxEnvelope {
-        TempoTxEnvelope::Legacy(Signed::new_unhashed(
+    fn create_system_tx(chain_id: u64, input: Bytes) -> MagnusTxEnvelope {
+        MagnusTxEnvelope::Legacy(Signed::new_unhashed(
             TxLegacy {
                 chain_id: Some(chain_id),
                 nonce: 0,
@@ -702,7 +702,7 @@ mod tests {
                 value: U256::ZERO,
                 input,
             },
-            TEMPO_SYSTEM_TX_SIGNATURE,
+            MAGNUS_SYSTEM_TX_SIGNATURE,
         ))
     }
 
@@ -774,7 +774,7 @@ mod tests {
         let executor = TestExecutorBuilder::default().build(&mut db, &chainspec);
 
         // Create system tx with non-zero `to` address
-        let system_tx = TempoTxEnvelope::Legacy(Signed::new_unhashed(
+        let system_tx = MagnusTxEnvelope::Legacy(Signed::new_unhashed(
             TxLegacy {
                 chain_id: Some(chainspec.chain().id()),
                 nonce: 0,
@@ -784,7 +784,7 @@ mod tests {
                 value: U256::ZERO,
                 input: Bytes::new(),
             },
-            TEMPO_SYSTEM_TX_SIGNATURE,
+            MAGNUS_SYSTEM_TX_SIGNATURE,
         ));
 
         let result = executor.validate_system_tx(&system_tx);
@@ -1016,12 +1016,12 @@ mod tests {
         assert_eq!(result.unwrap(), BlockSection::NonShared);
     }
 
-    fn create_subblock_tx(proposer: &PartialValidatorKey) -> TempoTxEnvelope {
+    fn create_subblock_tx(proposer: &PartialValidatorKey) -> MagnusTxEnvelope {
         let mut nonce_bytes = [0u8; 32];
-        nonce_bytes[0] = TEMPO_SUBBLOCK_NONCE_KEY_PREFIX;
+        nonce_bytes[0] = MAGNUS_SUBBLOCK_NONCE_KEY_PREFIX;
         nonce_bytes[1..16].copy_from_slice(proposer.as_slice());
 
-        let tx = TempoTransaction {
+        let tx = MagnusTransaction {
             chain_id: 1,
             calls: vec![Call {
                 to: Address::ZERO.into(),
@@ -1035,8 +1035,8 @@ mod tests {
             ..Default::default()
         };
 
-        let signature = TempoSignature::from(Signature::test_signature());
-        TempoTxEnvelope::AA(tx.into_signed(signature))
+        let signature = MagnusSignature::from(Signature::test_signature());
+        MagnusTxEnvelope::AA(tx.into_signed(signature))
     }
 
     #[test]
@@ -1141,7 +1141,7 @@ mod tests {
         executor.apply_pre_execution_changes().unwrap();
 
         let tx = create_legacy_tx();
-        let output = TempoTxResult {
+        let output = MagnusTxResult {
             inner: EthTxResult {
                 result: ResultAndState {
                     result: revm::context::result::ExecutionResult::Success {
@@ -1182,7 +1182,7 @@ mod tests {
         use magnus_chainspec::spec::DEV;
 
         // Dev chainspec has t2Time: 0, so T2 is active at any timestamp.
-        let chainspec = Arc::new(TempoChainSpec::from_genesis(DEV.genesis().clone()));
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(DEV.genesis().clone()));
         let mut db = State::builder().with_bundle_update().build();
         let mut executor = TestExecutorBuilder::default()
             .with_parent_beacon_block_root(B256::ZERO)
@@ -1201,7 +1201,7 @@ mod tests {
         use magnus_chainspec::spec::DEV;
 
         // Dev chainspec has t3Time: 0, so T3 is active at any timestamp.
-        let chainspec = Arc::new(TempoChainSpec::from_genesis(DEV.genesis().clone()));
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(DEV.genesis().clone()));
         let mut db = State::builder().with_bundle_update().build();
         let mut executor = TestExecutorBuilder::default()
             .with_parent_beacon_block_root(B256::ZERO)

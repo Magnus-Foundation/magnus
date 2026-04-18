@@ -6,14 +6,14 @@ use alloy::{
 };
 use alloy_eips::Encodable2718;
 use alloy_primitives::TxKind;
-use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 use magnus_contracts::precompiles::{DEFAULT_FEE_TOKEN, ITIP20};
 use magnus_primitives::{
-    TempoTransaction, TempoTxEnvelope,
+    MagnusTransaction, MagnusTxEnvelope,
     transaction::{
         KeyAuthorization,
         magnus_transaction::Call,
-        tt_signature::{PrimitiveSignature, TempoSignature},
+        tt_signature::{PrimitiveSignature, MagnusSignature},
     },
 };
 
@@ -36,10 +36,10 @@ fn build_create_key_auth_tx(
     let sig = signer.sign_hash_sync(&key_auth.signature_hash())?;
     let signed_key_auth = key_auth.into_signed(PrimitiveSignature::Secp256k1(sig));
 
-    let tx = TempoTransaction {
+    let tx = MagnusTransaction {
         chain_id,
         max_priority_fee_per_gas,
-        max_fee_per_gas: core::cmp::max(max_priority_fee_per_gas, TEMPO_T1_BASE_FEE as u128),
+        max_fee_per_gas: core::cmp::max(max_priority_fee_per_gas, MAGNUS_T1_BASE_FEE as u128),
         gas_limit,
         calls: vec![Call {
             to: TxKind::Create,
@@ -57,8 +57,8 @@ fn build_create_key_auth_tx(
     };
 
     let tx_sig = signer.sign_hash_sync(&tx.signature_hash())?;
-    let envelope: TempoTxEnvelope = tx
-        .into_signed(TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+    let envelope: MagnusTxEnvelope = tx
+        .into_signed(MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
             tx_sig,
         )))
         .into();
@@ -74,10 +74,10 @@ fn build_2d_nonce_transfer_tx(
     nonce: u64,
     max_priority_fee_per_gas: u128,
 ) -> eyre::Result<Vec<u8>> {
-    let tx = TempoTransaction {
+    let tx = MagnusTransaction {
         chain_id,
         max_priority_fee_per_gas,
-        max_fee_per_gas: core::cmp::max(max_priority_fee_per_gas, TEMPO_T1_BASE_FEE as u128),
+        max_fee_per_gas: core::cmp::max(max_priority_fee_per_gas, MAGNUS_T1_BASE_FEE as u128),
         // 21k base + 250k new_account_cost (2D nonce with nonce=0 creates account) + margin
         gas_limit: 300_000,
         calls: vec![Call {
@@ -93,8 +93,8 @@ fn build_2d_nonce_transfer_tx(
     };
 
     let tx_sig = signer.sign_hash_sync(&tx.signature_hash())?;
-    let envelope: TempoTxEnvelope = tx
-        .into_signed(TempoSignature::Primitive(PrimitiveSignature::Secp256k1(
+    let envelope: MagnusTxEnvelope = tx
+        .into_signed(MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(
             tx_sig,
         )))
         .into();
@@ -103,7 +103,7 @@ fn build_2d_nonce_transfer_tx(
 }
 
 fn make_pre_t1b_genesis() -> String {
-    make_genesis_at(magnus_chainspec::hardfork::TempoHardfork::T1A)
+    make_genesis_at(magnus_chainspec::hardfork::MagnusHardfork::T1A)
 }
 
 /// Pre-T1B fee-drain replay: the poisoned KeyAuth CREATE tx is followed by a
@@ -146,7 +146,7 @@ async fn test_pre_t1b_keyauth_oog_replay() -> eyre::Result<()> {
         chain_id,
         nonce,
         1_050_000,
-        (TEMPO_T1_BASE_FEE * 2) as u128,
+        (MAGNUS_T1_BASE_FEE * 2) as u128,
     )?;
 
     // ── Block 1 ──────────────────────────────────────────────────────────
@@ -156,7 +156,7 @@ async fn test_pre_t1b_keyauth_oog_replay() -> eyre::Result<()> {
         chain_id,
         1, // nonce_key=1
         0, // first tx on this 2D nonce
-        TEMPO_T1_BASE_FEE as u128,
+        MAGNUS_T1_BASE_FEE as u128,
     )?;
 
     let _ = provider.send_raw_transaction(&poisoned_tx).await?;
@@ -188,7 +188,7 @@ async fn test_pre_t1b_keyauth_oog_replay() -> eyre::Result<()> {
         chain_id,
         2, // different nonce_key to avoid replay on the 2D nonce
         0,
-        TEMPO_T1_BASE_FEE as u128,
+        MAGNUS_T1_BASE_FEE as u128,
     )?;
 
     let _ = provider.send_raw_transaction(&poisoned_tx).await?;
@@ -242,7 +242,7 @@ async fn test_pre_t1b_keyauth_oog_single_tx_nonce_not_bumped() -> eyre::Result<(
         chain_id,
         nonce,
         1_050_000,
-        TEMPO_T1_BASE_FEE as u128,
+        MAGNUS_T1_BASE_FEE as u128,
     )?;
 
     let _ = provider.send_raw_transaction(&encoded).await?;
@@ -289,7 +289,7 @@ async fn test_post_t1b_keyauth_oog_fixed() -> eyre::Result<()> {
         chain_id,
         nonce,
         1_050_000,
-        TEMPO_T1_BASE_FEE as u128,
+        MAGNUS_T1_BASE_FEE as u128,
     )?;
 
     let _ = provider.send_raw_transaction(&encoded).await?;

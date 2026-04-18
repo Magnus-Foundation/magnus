@@ -3,11 +3,11 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub use magnus_payload_types::{TempoExecutionData, TempoPayloadTypes};
+pub use magnus_payload_types::{MagnusExecutionData, MagnusPayloadTypes};
 pub use version::{init_version_metadata, version_metadata};
 
-use crate::node::{TempoAddOns, TempoNode};
-pub use crate::node::{TempoNodeArgs, TempoPoolBuilder};
+use crate::node::{MagnusAddOns, MagnusNode};
+pub use crate::node::{MagnusNodeArgs, MagnusPoolBuilder};
 use reth_ethereum::provider::db::DatabaseEnv;
 use reth_node_builder::{FullNode, NodeAdapter, RethFullAdapter};
 pub use magnus_transaction_pool::validator::DEFAULT_AA_VALID_AFTER_MAX_SECS;
@@ -22,8 +22,8 @@ pub use magnus_primitives as primitives;
 
 mod version;
 
-type TempoFullNodeTypes = RethFullAdapter<DatabaseEnv, TempoNode>;
-type TempoNodeAdapter = NodeAdapter<TempoFullNodeTypes>;
+type MagnusFullNodeTypes = RethFullAdapter<DatabaseEnv, MagnusNode>;
+type MagnusNodeAdapter = NodeAdapter<MagnusFullNodeTypes>;
 
 /// Type alias for a launched tempo node.
-pub type TempoFullNode = FullNode<TempoNodeAdapter, TempoAddOns<TempoFullNodeTypes>>;
+pub type MagnusFullNode = FullNode<MagnusNodeAdapter, MagnusAddOns<MagnusFullNodeTypes>>;
