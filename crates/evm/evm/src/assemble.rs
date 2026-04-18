@@ -1,0 +1,315 @@
+use crate::{
+    MagnusEvmConfig, MagnusEvmFactory, block::MagnusReceiptBuilder, context::MagnusBlockExecutionCtx,
+};
+use alloy_evm::{block::BlockExecutionError, eth::EthBlockExecutorFactory};
+use reth_evm::execute::{BlockAssembler, BlockAssemblerInput};
+use reth_evm_ethereum::EthBlockAssembler;
+use reth_primitives_traits::SealedHeader;
+use std::sync::Arc;
+use magnus_chainspec::MagnusChainSpec;
+use magnus_primitives::MagnusHeader;
+
+/// Assembler for Magnus blocks.
+#[derive(Debug, Clone)]
+pub struct MagnusBlockAssembler {
+    pub(crate) inner: EthBlockAssembler<MagnusChainSpec>,
+}
+
+impl MagnusBlockAssembler {
+    pub fn new(chain_spec: Arc<MagnusChainSpec>) -> Self {
+        Self {
+            inner: EthBlockAssembler::new(chain_spec),
+        }
+    }
+}
+
+impl BlockAssembler<MagnusEvmConfig> for MagnusBlockAssembler {
+    type Block = magnus_primitives::Block;
+
+    fn assemble_block(
+        &self,
+        input: BlockAssemblerInput<'_, '_, MagnusEvmConfig, MagnusHeader>,
+    ) -> Result<Self::Block, BlockExecutionError> {
+        let BlockAssemblerInput {
+            evm_env,
+            execution_ctx:
+                MagnusBlockExecutionCtx {
+                    inner,
+                    general_gas_limit,
+                    shared_gas_limit,
+                    validator_set: _,
+                    consensus_context,
+                    subblock_fee_recipients: _,
+                },
+            parent,
+            transactions,
+            output,
+            bundle_state,
+            state_provider,
+            state_root,
+            ..
+        } = input;
+
+        let parent = SealedHeader::new_unhashed(parent.clone().into_header().inner);
+
+        let timestamp_millis_part = evm_env.block_env.timestamp_millis_part;
+
+        // Delegate block building to the inner assembler
+        let block = self.inner.assemble_block(BlockAssemblerInput::<
+            EthBlockExecutorFactory<MagnusReceiptBuilder, MagnusChainSpec, MagnusEvmFactory>,
+        >::new(
+            evm_env,
+            inner,
+            &parent,
+            transactions,
+            output,
+            bundle_state,
+            state_provider,
+            state_root,
+        ))?;
+
+        Ok(block.map_header(|inner| MagnusHeader {
+            inner,
+            general_gas_limit,
+            timestamp_millis_part,
+            shared_gas_limit,
+            consensus_context,
+        }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_consensus::{Signed, TxLegacy};
+    use alloy_evm::{EvmEnv, block::BlockExecutionResult, eth::EthBlockExecutionCtx};
+    use alloy_primitives::{Address, B256, Bytes, Signature, TxKind, U256};
+    use reth_chainspec::EthChainSpec;
+    use reth_evm::execute::BlockAssembler;
+    use reth_primitives_traits::SealedHeader;
+    use reth_storage_api::noop::NoopProvider;
+    use revm::{context::BlockEnv, database::BundleState};
+    use std::collections::HashMap;
+    use magnus_chainspec::spec::MODERATO;
+    use magnus_primitives::{
+        MagnusHeader, MagnusPrimitives, MagnusReceipt, MagnusTxEnvelope, MagnusTxType,
+    };
+    use magnus_revm::MagnusBlockEnv;
+
+    fn create_legacy_tx() -> MagnusTxEnvelope {
+        let tx = TxLegacy {
+            chain_id: Some(1),
+            nonce: 0,
+            gas_price: 1,
+            gas_limit: 21000,
+            to: TxKind::Call(Address::ZERO),
+            value: U256::ZERO,
+            input: Bytes::new(),
+        };
+        MagnusTxEnvelope::Legacy(Signed::new_unhashed(tx, Signature::test_signature()))
+    }
+
+    fn create_test_receipt(gas_used: u64) -> MagnusReceipt {
+        MagnusReceipt {
+            tx_type: MagnusTxType::Legacy,
+            success: true,
+            cumulative_gas_used: gas_used,
+            logs: vec![],
+        }
+    }
+
+    #[test]
+    fn test_assemble_block() {
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let assembler = MagnusBlockAssembler::new(chainspec.clone());
+
+        let block_number = 1u64;
+        let timestamp = 1000u64;
+        let timestamp_millis_part = 500u64;
+        let gas_limit = 30_000_000u64;
+        let general_gas_limit = 10_000_000u64;
+        let shared_gas_limit = 10_000_000u64;
+
+        let evm_env = EvmEnv {
+            block_env: MagnusBlockEnv {
+                inner: BlockEnv {
+                    number: U256::from(block_number),
+                    timestamp: U256::from(timestamp),
+                    beneficiary: Address::repeat_byte(0x01),
+                    basefee: 1,
+                    gas_limit,
+                    ..Default::default()
+                },
+                timestamp_millis_part,
+            },
+            ..Default::default()
+        };
+
+        let parent_header = MagnusHeader {
+            inner: alloy_consensus::Header {
+                number: 0,
+                timestamp: 0,
+                gas_limit,
+                ..Default::default()
+            },
+            general_gas_limit,
+            timestamp_millis_part: 0,
+            shared_gas_limit,
+            ..Default::default()
+        };
+        let parent = SealedHeader::seal_slow(parent_header);
+
+        let execution_ctx = MagnusBlockExecutionCtx {
+            inner: EthBlockExecutionCtx {
+                parent_hash: parent.hash(),
+                parent_beacon_block_root: Some(B256::ZERO),
+                ommers: &[],
+                withdrawals: None,
+                extra_data: Bytes::new(),
+                tx_count_hint: None,
+            },
+            general_gas_limit,
+            shared_gas_limit,
+            validator_set: None,
+            consensus_context: None,
+            subblock_fee_recipients: HashMap::new(),
+        };
+
+        let tx = create_legacy_tx();
+        let transactions = vec![tx];
+
+        let receipt = create_test_receipt(21000);
+        let output = BlockExecutionResult {
+            receipts: vec![receipt],
+            requests: Default::default(),
+            gas_used: 21000,
+            blob_gas_used: 0,
+        };
+
+        let bundle_state = BundleState::default();
+        let state_provider = NoopProvider::<MagnusChainSpec, MagnusPrimitives>::new(chainspec);
+        let state_root = B256::ZERO;
+
+        let input = BlockAssemblerInput::<MagnusEvmConfig, MagnusHeader>::new(
+            evm_env,
+            execution_ctx,
+            &parent,
+            transactions,
+            &output,
+            &bundle_state,
+            &state_provider,
+            state_root,
+        );
+
+        let block = assembler
+            .assemble_block(input)
+            .expect("should assemble block");
+
+        // Verify block header fields
+        assert_eq!(block.header.inner.number, block_number);
+        assert_eq!(block.header.inner.timestamp, timestamp);
+        assert_eq!(block.header.inner.gas_used, 21000);
+        assert_eq!(block.header.inner.gas_limit, gas_limit);
+        assert_eq!(block.header.inner.parent_hash, parent.hash());
+        assert_eq!(block.header.inner.beneficiary, Address::repeat_byte(0x01));
+        assert_eq!(block.header.inner.state_root, state_root);
+
+        // Verify Magnus-specific header fields
+        assert_eq!(block.header.general_gas_limit, general_gas_limit);
+        assert_eq!(block.header.shared_gas_limit, shared_gas_limit);
+        assert_eq!(block.header.timestamp_millis_part, timestamp_millis_part);
+
+        // Verify body
+        assert_eq!(block.body.transactions.len(), 1);
+
+        // Verify consensus context is None when not provided
+        assert!(block.header.consensus_context.is_none());
+    }
+
+    #[test]
+    fn test_assemble_block_with_consensus_context() {
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let assembler = MagnusBlockAssembler::new(chainspec.clone());
+
+        let gas_limit = 30_000_000u64;
+        let general_gas_limit = 10_000_000u64;
+        let shared_gas_limit = 10_000_000u64;
+
+        let ctx = magnus_primitives::MagnusConsensusContext {
+            epoch: 1,
+            view: 5,
+            proposer: magnus_primitives::ed25519::PublicKey::from_seed([0xab; 32]),
+            parent_view: 4,
+        };
+
+        let evm_env = EvmEnv {
+            block_env: MagnusBlockEnv {
+                inner: BlockEnv {
+                    number: U256::from(1),
+                    timestamp: U256::from(1000),
+                    beneficiary: Address::repeat_byte(0x01),
+                    basefee: 1,
+                    gas_limit,
+                    ..Default::default()
+                },
+                timestamp_millis_part: 0,
+            },
+            ..Default::default()
+        };
+
+        let parent_header = MagnusHeader {
+            inner: alloy_consensus::Header {
+                gas_limit,
+                ..Default::default()
+            },
+            general_gas_limit,
+            shared_gas_limit,
+            ..Default::default()
+        };
+        let parent = SealedHeader::seal_slow(parent_header);
+
+        let execution_ctx = MagnusBlockExecutionCtx {
+            inner: EthBlockExecutionCtx {
+                parent_hash: parent.hash(),
+                parent_beacon_block_root: Some(B256::ZERO),
+                ommers: &[],
+                withdrawals: None,
+                extra_data: Bytes::new(),
+                tx_count_hint: None,
+            },
+            general_gas_limit,
+            shared_gas_limit,
+            validator_set: None,
+            consensus_context: Some(ctx),
+            subblock_fee_recipients: HashMap::new(),
+        };
+
+        let transactions = vec![create_legacy_tx()];
+        let output = BlockExecutionResult {
+            receipts: vec![create_test_receipt(21000)],
+            requests: Default::default(),
+            gas_used: 21000,
+            blob_gas_used: 0,
+        };
+
+        let bundle_state = BundleState::default();
+        let state_provider = NoopProvider::<MagnusChainSpec, MagnusPrimitives>::new(chainspec);
+
+        let input = BlockAssemblerInput::<MagnusEvmConfig, MagnusHeader>::new(
+            evm_env,
+            execution_ctx,
+            &parent,
+            transactions,
+            &output,
+            &bundle_state,
+            &state_provider,
+            B256::ZERO,
+        );
+
+        let block = assembler
+            .assemble_block(input)
+            .expect("should assemble block");
+
+        assert_eq!(block.header.consensus_context, Some(ctx));
+    }
+}

@@ -1,0 +1,1054 @@
+use crate::tt_2d_pool::{AA2dTransactionId, AASequenceId};
+use alloy_consensus::{BlobTransactionValidationError, Transaction, transaction::TxHashRef};
+use alloy_eips::{
+    eip2718::{Encodable2718, Typed2718},
+    eip2930::AccessList,
+    eip4844::env_settings::KzgSettings,
+    eip7594::BlobTransactionSidecarVariant,
+    eip7702::SignedAuthorization,
+};
+use alloy_evm::FromRecoveredTx;
+use alloy_primitives::{Address, B256, Bytes, TxHash, TxKind, U256, bytes, map::AddressMap};
+use reth_evm::execute::WithTxEnv;
+use reth_primitives_traits::{InMemorySize, Recovered};
+use reth_transaction_pool::{
+    EthBlobTransactionSidecar, EthPoolTransaction, EthPooledTransaction, PoolTransaction,
+    error::PoolTransactionError,
+};
+use std::{
+    convert::Infallible,
+    fmt::Debug,
+    sync::{Arc, OnceLock},
+};
+use magnus_precompiles::{DEFAULT_FEE_TOKEN, nonce::NonceManager};
+use magnus_primitives::{MagnusTxEnvelope, transaction::calc_gas_balance_spending};
+use magnus_revm::{MagnusInvalidTransaction, MagnusTxEnv};
+use thiserror::Error;
+
+/// Magnus pooled transaction representation.
+///
+/// This is a wrapper around the regular ethereum [`EthPooledTransaction`], but with magnus specific implementations.
+#[derive(Debug, Clone)]
+pub struct MagnusPooledTransaction {
+    inner: EthPooledTransaction<MagnusTxEnvelope>,
+    /// Cached payment classification for efficient block building
+    is_payment: bool,
+    /// Cached expiring nonce classification
+    is_expiring_nonce: bool,
+    /// Cached slot of the 2D nonce, if any.
+    nonce_key_slot: OnceLock<Option<U256>>,
+    /// Cached `expiring_nonce_seen` storage slot for expiring nonce transactions.
+    expiring_nonce_slot: OnceLock<Option<U256>>,
+    /// Cached prepared [`MagnusTxEnv`] for payload building.
+    tx_env: OnceLock<MagnusTxEnv>,
+    /// Keychain key expiry timestamp (set during validation for keychain-signed txs).
+    ///
+    /// `Some(expiry)` for keychain transactions where expiry < u64::MAX (finite expiry).
+    /// `None` for non-keychain transactions or keys that never expire.
+    key_expiry: OnceLock<Option<u64>>,
+    /// Resolved fee token cached at validation time.
+    ///
+    /// Used by `keychain_subject()` so pool maintenance matches against the same token
+    /// that was validated without requiring state access.
+    resolved_fee_token: OnceLock<Address>,
+}
+
+impl MagnusPooledTransaction {
+    /// Create new instance of [Self] from the given consensus transactions and the encoded size.
+    pub fn new(transaction: Recovered<MagnusTxEnvelope>) -> Self {
+        let is_payment = transaction.is_payment_v2();
+        let is_expiring_nonce = transaction
+            .as_aa()
+            .map(|tx| tx.tx().is_expiring_nonce_tx())
+            .unwrap_or(false);
+        Self {
+            inner: EthPooledTransaction {
+                cost: calc_gas_balance_spending(
+                    transaction.gas_limit(),
+                    transaction.max_fee_per_gas(),
+                )
+                .saturating_add(transaction.value()),
+                encoded_length: transaction.encode_2718_len(),
+                blob_sidecar: EthBlobTransactionSidecar::None,
+                transaction,
+            },
+            is_payment,
+            is_expiring_nonce,
+            nonce_key_slot: OnceLock::new(),
+            expiring_nonce_slot: OnceLock::new(),
+            tx_env: OnceLock::new(),
+            key_expiry: OnceLock::new(),
+            resolved_fee_token: OnceLock::new(),
+        }
+    }
+
+    /// Get the cost of the transaction in the fee token.
+    pub fn fee_token_cost(&self) -> U256 {
+        self.inner.cost - self.inner.value()
+    }
+
+    /// Returns a reference to inner [`MagnusTxEnvelope`].
+    pub fn inner(&self) -> &Recovered<MagnusTxEnvelope> {
+        &self.inner.transaction
+    }
+
+    /// Returns true if this is an AA transaction
+    pub fn is_aa(&self) -> bool {
+        self.inner().is_aa()
+    }
+
+    /// Returns the nonce key of this transaction if it's an [`AASigned`](magnus_primitives::AASigned) transaction.
+    pub fn nonce_key(&self) -> Option<U256> {
+        self.inner.transaction.nonce_key()
+    }
+
+    /// Returns the storage slot for the nonce key of this transaction.
+    pub fn nonce_key_slot(&self) -> Option<U256> {
+        *self.nonce_key_slot.get_or_init(|| {
+            let nonce_key = self.nonce_key()?;
+            let sender = self.sender();
+            let slot = NonceManager::new().nonces[sender][nonce_key].slot();
+            Some(slot)
+        })
+    }
+
+    /// Returns whether this is a payment transaction.
+    ///
+    /// Uses strict classification: MIP-20 prefix AND recognized calldata.
+    pub fn is_payment(&self) -> bool {
+        self.is_payment
+    }
+
+    /// Returns true if this transaction belongs into the 2D nonce pool:
+    /// - AA transaction with a `nonce key != 0` (includes expiring nonce txs)
+    pub(crate) fn is_aa_2d(&self) -> bool {
+        self.inner
+            .transaction
+            .as_aa()
+            .map(|tx| !tx.tx().nonce_key.is_zero())
+            .unwrap_or(false)
+    }
+
+    /// Returns true if this is an expiring nonce transaction.
+    pub(crate) fn is_expiring_nonce(&self) -> bool {
+        self.is_expiring_nonce
+    }
+
+    /// Extracts the keychain subject (account, key_id, fee_token) from this transaction.
+    ///
+    /// Returns `None` if:
+    /// - This is not an AA transaction
+    /// - The signature is not a keychain signature
+    /// - The key_id cannot be recovered from the signature
+    ///
+    /// Used for matching transactions against revocation and spending limit events.
+    pub fn keychain_subject(&self) -> Option<KeychainSubject> {
+        let aa_tx = self.inner().as_aa()?;
+        let keychain_sig = aa_tx.signature().as_keychain()?;
+        let key_id = keychain_sig.key_id(&aa_tx.signature_hash()).ok()?;
+        let fee_token = self
+            .resolved_fee_token
+            .get()
+            .copied()
+            .unwrap_or_else(|| self.inner().fee_token().unwrap_or(DEFAULT_FEE_TOKEN));
+        Some(KeychainSubject {
+            account: keychain_sig.user_address,
+            key_id,
+            fee_token,
+        })
+    }
+
+    /// Returns the unique identifier for this AA transaction.
+    pub(crate) fn aa_transaction_id(&self) -> Option<AA2dTransactionId> {
+        let nonce_key = self.nonce_key()?;
+        let sender = AASequenceId {
+            address: self.sender(),
+            nonce_key,
+        };
+        Some(AA2dTransactionId {
+            seq_id: sender,
+            nonce: self.nonce(),
+        })
+    }
+
+    /// Computes the [`MagnusTxEnv`] for this transaction.
+    fn tx_env_slow(&self) -> MagnusTxEnv {
+        MagnusTxEnv::from_recovered_tx(self.inner().inner(), self.sender())
+    }
+
+    /// Pre-computes and caches the [`MagnusTxEnv`].
+    ///
+    /// This should be called during validation to prepare the transaction environment
+    /// ahead of time, avoiding it during payload building.
+    pub fn tx_env(&self) -> &MagnusTxEnv {
+        self.tx_env.get_or_init(|| self.tx_env_slow())
+    }
+
+    /// Returns a [`WithTxEnv`] wrapper containing the cached [`MagnusTxEnv`].
+    ///
+    /// If the [`MagnusTxEnv`] was pre-computed via [`Self::tx_env`], the cached
+    /// value is used. Otherwise, it is computed on-demand.
+    pub fn into_with_tx_env(mut self) -> WithTxEnv<MagnusTxEnv, Recovered<MagnusTxEnvelope>> {
+        let tx_env = self.tx_env.take().unwrap_or_else(|| self.tx_env_slow());
+        WithTxEnv {
+            tx_env,
+            tx: Arc::new(self.inner.transaction),
+        }
+    }
+
+    /// Sets the keychain key expiry timestamp for this transaction.
+    ///
+    /// Called during validation when we read the AuthorizedKey from state.
+    /// Pass `Some(expiry)` for keys with finite expiry, `None` for non-keychain txs
+    /// or keys that never expire.
+    pub fn set_key_expiry(&self, expiry: Option<u64>) {
+        let _ = self.key_expiry.set(expiry);
+    }
+
+    /// Returns the keychain key expiry timestamp, if set during validation.
+    ///
+    /// Returns `Some(expiry)` for keychain transactions with finite expiry.
+    /// Returns `None` if not a keychain tx, key never expires, or not yet validated.
+    pub fn key_expiry(&self) -> Option<u64> {
+        self.key_expiry.get().copied().flatten()
+    }
+
+    /// Caches the resolved fee token determined during validation.
+    pub fn set_resolved_fee_token(&self, fee_token: Address) {
+        let _ = self.resolved_fee_token.set(fee_token);
+    }
+
+    /// Returns the resolved fee token cached during validation, if available.
+    pub fn resolved_fee_token(&self) -> Option<Address> {
+        self.resolved_fee_token.get().copied()
+    }
+
+    /// Returns the expiring nonce hash for AA expiring nonce transactions.
+    pub fn expiring_nonce_hash(&self) -> Option<B256> {
+        let aa_tx = self.inner().as_aa()?;
+        Some(aa_tx.expiring_nonce_hash(self.sender()))
+    }
+
+    /// Returns the cached `expiring_nonce_seen` storage slot for this transaction.
+    pub fn expiring_nonce_slot(&self) -> Option<U256> {
+        *self.expiring_nonce_slot.get_or_init(|| {
+            let hash = self.expiring_nonce_hash()?;
+            Some(NonceManager::new().expiring_nonce_seen[hash].slot())
+        })
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum MagnusPoolTransactionError {
+    #[error(
+        "Transaction exceeds non payment gas limit, please see https://docs.magnus.xyz/errors/tx/ExceedsNonPaymentLimit for more"
+    )]
+    ExceedsNonPaymentLimit,
+
+    #[error(
+        "'valid_before' {valid_before} is too close to current time (min allowed: {min_allowed})"
+    )]
+    InvalidValidBefore { valid_before: u64, min_allowed: u64 },
+
+    #[error("'valid_after' {valid_after} is too far in the future (max allowed: {max_allowed})")]
+    InvalidValidAfter { valid_after: u64, max_allowed: u64 },
+
+    #[error(
+        "Keychain signature validation failed: {0}, please see https://docs.magnus.xyz/errors/tx/Keychain for more"
+    )]
+    Keychain(&'static str),
+
+    /// Thrown if a Magnus Transaction with a nonce key prefixed with the sub-block prefix marker added to the pool
+    #[error("Magnus Transaction with subblock nonce key prefix aren't supported in the pool")]
+    SubblockNonceKey,
+
+    /// Thrown when an AA transaction has too many authorizations in its authorization list.
+    #[error(
+        "Too many authorizations in AA transaction: {count} exceeds maximum allowed {max_allowed}"
+    )]
+    TooManyAuthorizations { count: usize, max_allowed: usize },
+
+    /// Thrown when an AA transaction has too many calls.
+    #[error("Too many calls in AA transaction: {count} exceeds maximum allowed {max_allowed}")]
+    TooManyCalls { count: usize, max_allowed: usize },
+
+    /// Thrown when a call in an AA transaction has input data exceeding the maximum allowed size.
+    #[error(
+        "Call input size {size} exceeds maximum allowed {max_allowed} bytes (call index: {call_index})"
+    )]
+    CallInputTooLarge {
+        call_index: usize,
+        size: usize,
+        max_allowed: usize,
+    },
+
+    /// Thrown when an AA transaction has too many accounts in its access list.
+    #[error("Too many access list accounts: {count} exceeds maximum allowed {max_allowed}")]
+    TooManyAccessListAccounts { count: usize, max_allowed: usize },
+
+    /// Thrown when an access list entry has too many storage keys.
+    #[error(
+        "Too many storage keys in access list entry {account_index}: {count} exceeds maximum allowed {max_allowed}"
+    )]
+    TooManyStorageKeysPerAccount {
+        account_index: usize,
+        count: usize,
+        max_allowed: usize,
+    },
+
+    /// Thrown when the total number of storage keys across all access list entries is too large.
+    #[error(
+        "Too many total storage keys in access list: {count} exceeds maximum allowed {max_allowed}"
+    )]
+    TooManyTotalStorageKeys { count: usize, max_allowed: usize },
+
+    /// Thrown when a key authorization has too many token limits.
+    #[error(
+        "Too many token limits in key authorization: {count} exceeds maximum allowed {max_allowed}"
+    )]
+    TooManyTokenLimits { count: usize, max_allowed: usize },
+
+    /// Thrown when an access key has expired or is expiring within the propagation buffer.
+    #[error("Access key expired: expiry {expiry} <= min allowed {min_allowed}")]
+    AccessKeyExpired { expiry: u64, min_allowed: u64 },
+
+    /// Thrown when a KeyAuthorization has expired or is expiring within the propagation buffer.
+    #[error("KeyAuthorization expired: expiry {expiry} <= min allowed {min_allowed}")]
+    KeyAuthorizationExpired { expiry: u64, min_allowed: u64 },
+
+    /// EVM validation pipeline error.
+    #[error(transparent)]
+    Evm(MagnusInvalidTransaction),
+}
+
+impl PoolTransactionError for MagnusPoolTransactionError {
+    fn is_bad_transaction(&self) -> bool {
+        match self {
+            Self::Evm(err) => err.is_bad_transaction(),
+            Self::ExceedsNonPaymentLimit
+            | Self::InvalidValidBefore { .. }
+            | Self::InvalidValidAfter { .. }
+            | Self::AccessKeyExpired { .. }
+            | Self::KeyAuthorizationExpired { .. }
+            | Self::Keychain(_) => false,
+            Self::SubblockNonceKey
+            | Self::TooManyAuthorizations { .. }
+            | Self::TooManyCalls { .. }
+            | Self::CallInputTooLarge { .. }
+            | Self::TooManyAccessListAccounts { .. }
+            | Self::TooManyStorageKeysPerAccount { .. }
+            | Self::TooManyTotalStorageKeys { .. }
+            | Self::TooManyTokenLimits { .. } => true,
+        }
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl InMemorySize for MagnusPooledTransaction {
+    fn size(&self) -> usize {
+        self.inner.size()
+    }
+}
+
+impl Typed2718 for MagnusPooledTransaction {
+    fn ty(&self) -> u8 {
+        self.inner.transaction.ty()
+    }
+}
+
+impl Encodable2718 for MagnusPooledTransaction {
+    fn type_flag(&self) -> Option<u8> {
+        self.inner.transaction.type_flag()
+    }
+
+    fn encode_2718_len(&self) -> usize {
+        self.inner.transaction.encode_2718_len()
+    }
+
+    fn encode_2718(&self, out: &mut dyn bytes::BufMut) {
+        self.inner.transaction.encode_2718(out)
+    }
+}
+
+impl PoolTransaction for MagnusPooledTransaction {
+    type TryFromConsensusError = Infallible;
+    type Consensus = MagnusTxEnvelope;
+    type Pooled = MagnusTxEnvelope;
+
+    fn clone_into_consensus(&self) -> Recovered<Self::Consensus> {
+        self.inner.transaction.clone()
+    }
+
+    fn consensus_ref(&self) -> Recovered<&Self::Consensus> {
+        self.inner.transaction.as_recovered_ref()
+    }
+
+    fn into_consensus(self) -> Recovered<Self::Consensus> {
+        self.inner.transaction
+    }
+
+    fn from_pooled(tx: Recovered<Self::Pooled>) -> Self {
+        Self::new(tx)
+    }
+
+    fn hash(&self) -> &TxHash {
+        self.inner.transaction.tx_hash()
+    }
+
+    fn sender(&self) -> Address {
+        self.inner.transaction.signer()
+    }
+
+    fn sender_ref(&self) -> &Address {
+        self.inner.transaction.signer_ref()
+    }
+
+    fn cost(&self) -> &U256 {
+        &U256::ZERO
+    }
+
+    fn encoded_length(&self) -> usize {
+        self.inner.encoded_length
+    }
+
+    fn requires_nonce_check(&self) -> bool {
+        self.inner
+            .transaction()
+            .as_aa()
+            .map(|tx| {
+                // for AA transaction with a custom nonce key we can skip the nonce validation
+                tx.tx().nonce_key.is_zero()
+            })
+            .unwrap_or(true)
+    }
+}
+
+impl alloy_consensus::Transaction for MagnusPooledTransaction {
+    fn chain_id(&self) -> Option<u64> {
+        self.inner.chain_id()
+    }
+
+    fn nonce(&self) -> u64 {
+        self.inner.nonce()
+    }
+
+    fn gas_limit(&self) -> u64 {
+        self.inner.gas_limit()
+    }
+
+    fn gas_price(&self) -> Option<u128> {
+        self.inner.gas_price()
+    }
+
+    fn max_fee_per_gas(&self) -> u128 {
+        self.inner.max_fee_per_gas()
+    }
+
+    fn max_priority_fee_per_gas(&self) -> Option<u128> {
+        self.inner.max_priority_fee_per_gas()
+    }
+
+    fn max_fee_per_blob_gas(&self) -> Option<u128> {
+        self.inner.max_fee_per_blob_gas()
+    }
+
+    fn priority_fee_or_price(&self) -> u128 {
+        self.inner.priority_fee_or_price()
+    }
+
+    fn effective_gas_price(&self, base_fee: Option<u64>) -> u128 {
+        self.inner.effective_gas_price(base_fee)
+    }
+
+    fn is_dynamic_fee(&self) -> bool {
+        self.inner.is_dynamic_fee()
+    }
+
+    fn kind(&self) -> TxKind {
+        self.inner.kind()
+    }
+
+    fn is_create(&self) -> bool {
+        self.inner.is_create()
+    }
+
+    fn value(&self) -> U256 {
+        self.inner.value()
+    }
+
+    fn input(&self) -> &Bytes {
+        self.inner.input()
+    }
+
+    fn access_list(&self) -> Option<&AccessList> {
+        self.inner.access_list()
+    }
+
+    fn blob_versioned_hashes(&self) -> Option<&[B256]> {
+        self.inner.blob_versioned_hashes()
+    }
+
+    fn authorization_list(&self) -> Option<&[SignedAuthorization]> {
+        self.inner.authorization_list()
+    }
+}
+
+impl EthPoolTransaction for MagnusPooledTransaction {
+    fn take_blob(&mut self) -> EthBlobTransactionSidecar {
+        EthBlobTransactionSidecar::None
+    }
+
+    fn try_into_pooled_eip4844(
+        self,
+        _sidecar: Arc<BlobTransactionSidecarVariant>,
+    ) -> Option<Recovered<Self::Pooled>> {
+        None
+    }
+
+    fn try_from_eip4844(
+        _tx: Recovered<Self::Consensus>,
+        _sidecar: BlobTransactionSidecarVariant,
+    ) -> Option<Self> {
+        None
+    }
+
+    fn validate_blob(
+        &self,
+        _sidecar: &BlobTransactionSidecarVariant,
+        _settings: &KzgSettings,
+    ) -> Result<(), BlobTransactionValidationError> {
+        Err(BlobTransactionValidationError::NotBlobTransaction(
+            self.ty(),
+        ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::TxBuilder;
+    use alloy_consensus::TxEip1559;
+    use alloy_primitives::{Address, Signature, TxKind, address};
+    use alloy_sol_types::SolCall;
+    use magnus_contracts::precompiles::IMIP20;
+    use magnus_precompiles::{PATH_USD_ADDRESS, nonce::NonceManager};
+    use magnus_primitives::transaction::{
+        MagnusTransaction,
+        magnus_transaction::Call,
+        tt_signature::{PrimitiveSignature, MagnusSignature},
+        tt_signed::AASigned,
+    };
+
+    #[test]
+    fn test_payment_classification_positive() {
+        // Test that MIP20 address prefix with valid calldata is classified as payment
+        let calldata = IMIP20::transferCall {
+            to: Address::random(),
+            amount: U256::random(),
+        }
+        .abi_encode();
+
+        let tx = TxEip1559 {
+            to: TxKind::Call(PATH_USD_ADDRESS),
+            gas_limit: 21000,
+            input: Bytes::from(calldata),
+            ..Default::default()
+        };
+
+        let envelope = MagnusTxEnvelope::Eip1559(alloy_consensus::Signed::new_unchecked(
+            tx,
+            Signature::test_signature(),
+            B256::ZERO,
+        ));
+
+        let recovered = Recovered::new_unchecked(
+            envelope,
+            address!("0000000000000000000000000000000000000001"),
+        );
+
+        let pooled_tx = MagnusPooledTransaction::new(recovered);
+        assert!(pooled_tx.is_payment());
+    }
+
+    #[test]
+    fn test_payment_classification_tip20_prefix_without_valid_calldata() {
+        // MIP20 prefix but no valid calldata should NOT be classified as payment in the pool
+        let payment_addr = address!("20c0000000000000000000000000000000000001");
+        let tx = TxEip1559 {
+            to: TxKind::Call(payment_addr),
+            gas_limit: 21000,
+            ..Default::default()
+        };
+
+        let envelope = MagnusTxEnvelope::Eip1559(alloy_consensus::Signed::new_unchecked(
+            tx,
+            Signature::test_signature(),
+            B256::ZERO,
+        ));
+
+        let recovered = Recovered::new_unchecked(
+            envelope,
+            address!("0000000000000000000000000000000000000001"),
+        );
+
+        let pooled_tx = MagnusPooledTransaction::new(recovered);
+        assert!(!pooled_tx.is_payment());
+    }
+
+    #[test]
+    fn test_payment_classification_negative() {
+        // Test that non-MIP20 address is NOT classified as payment
+        let non_payment_addr = Address::random();
+        let pooled_tx = TxBuilder::eip1559(non_payment_addr)
+            .gas_limit(21000)
+            .build_eip1559();
+        assert!(!pooled_tx.is_payment());
+    }
+
+    #[test]
+    fn test_fee_token_cost() {
+        let sender = Address::random();
+        let value = U256::from(1000);
+        let tx = TxBuilder::aa(sender)
+            .gas_limit(1_000_000)
+            .value(value)
+            .build();
+
+        // fee_token_cost = cost - value = gas spending
+        // gas spending = calc_gas_balance_spending(1_000_000, 20_000_000_000)
+        //              = (1_000_000 * 20_000_000_000) / 1_000_000_000_000 = 20000
+        let expected_fee_cost = U256::from(20000);
+        assert_eq!(tx.fee_token_cost(), expected_fee_cost);
+        assert_eq!(tx.inner.cost, expected_fee_cost + value);
+    }
+
+    #[test]
+    fn test_non_aa_transaction_helpers() {
+        let tx = TxBuilder::eip1559(Address::random())
+            .gas_limit(21000)
+            .build_eip1559();
+
+        // Non-AA transactions should return None/false for AA-specific helpers
+        assert!(!tx.is_aa(), "Non-AA tx should not be AA");
+        assert!(
+            tx.nonce_key().is_none(),
+            "Non-AA tx should have no nonce key"
+        );
+        assert!(
+            tx.nonce_key_slot().is_none(),
+            "Non-AA tx should have no nonce key slot"
+        );
+        assert!(!tx.is_aa_2d(), "Non-AA tx should not be AA 2D");
+        assert!(
+            tx.aa_transaction_id().is_none(),
+            "Non-AA tx should have no AA transaction ID"
+        );
+    }
+
+    #[test]
+    fn test_aa_transaction_with_zero_nonce_key() {
+        let sender = Address::random();
+        let nonce = 5u64;
+        let tx = TxBuilder::aa(sender).nonce(nonce).build();
+
+        assert!(tx.is_aa(), "AA tx should be AA");
+        assert_eq!(
+            tx.nonce_key(),
+            Some(U256::ZERO),
+            "Should have nonce_key = 0"
+        );
+        assert!(!tx.is_aa_2d(), "AA tx with nonce_key=0 should NOT be 2D");
+
+        // Check aa_transaction_id
+        let aa_id = tx
+            .aa_transaction_id()
+            .expect("Should have AA transaction ID");
+        assert_eq!(aa_id.seq_id.address, sender);
+        assert_eq!(aa_id.seq_id.nonce_key, U256::ZERO);
+        assert_eq!(aa_id.nonce, nonce);
+    }
+
+    #[test]
+    fn test_aa_transaction_with_nonzero_nonce_key() {
+        let sender = Address::random();
+        let nonce_key = U256::from(42);
+        let nonce = 10u64;
+        let tx = TxBuilder::aa(sender)
+            .nonce_key(nonce_key)
+            .nonce(nonce)
+            .build();
+
+        assert!(tx.is_aa(), "AA tx should be AA");
+        assert_eq!(
+            tx.nonce_key(),
+            Some(nonce_key),
+            "Should have correct nonce_key"
+        );
+        assert!(tx.is_aa_2d(), "AA tx with nonce_key > 0 should be 2D");
+
+        // Check aa_transaction_id
+        let aa_id = tx
+            .aa_transaction_id()
+            .expect("Should have AA transaction ID");
+        assert_eq!(aa_id.seq_id.address, sender);
+        assert_eq!(aa_id.seq_id.nonce_key, nonce_key);
+        assert_eq!(aa_id.nonce, nonce);
+    }
+
+    #[test]
+    fn test_nonce_key_slot_caching_for_2d_tx() {
+        let sender = Address::random();
+        let nonce_key = U256::from(123);
+        let tx = TxBuilder::aa(sender).nonce_key(nonce_key).build();
+
+        // Compute expected slot
+        let expected_slot = NonceManager::new().nonces[sender][nonce_key].slot();
+
+        // First call should compute and cache
+        let slot1 = tx.nonce_key_slot();
+        assert_eq!(slot1, Some(expected_slot));
+
+        // Second call should return cached value (same result)
+        let slot2 = tx.nonce_key_slot();
+        assert_eq!(slot2, Some(expected_slot));
+        assert_eq!(slot1, slot2);
+    }
+
+    #[test]
+    fn test_is_bad_transaction() {
+        let cases: &[(MagnusPoolTransactionError, bool)] = &[
+            (MagnusPoolTransactionError::ExceedsNonPaymentLimit, false),
+            (
+                MagnusPoolTransactionError::InvalidValidBefore {
+                    valid_before: 100,
+                    min_allowed: 200,
+                },
+                false,
+            ),
+            (
+                MagnusPoolTransactionError::InvalidValidAfter {
+                    valid_after: 200,
+                    max_allowed: 100,
+                },
+                false,
+            ),
+            (MagnusPoolTransactionError::Keychain("test error"), false),
+            (
+                MagnusPoolTransactionError::Evm(MagnusInvalidTransaction::NonceManagerError(
+                    "nonce error".to_string(),
+                )),
+                false,
+            ),
+            (
+                MagnusPoolTransactionError::AccessKeyExpired {
+                    expiry: 100,
+                    min_allowed: 200,
+                },
+                false,
+            ),
+            (
+                MagnusPoolTransactionError::KeyAuthorizationExpired {
+                    expiry: 100,
+                    min_allowed: 200,
+                },
+                false,
+            ),
+            (MagnusPoolTransactionError::SubblockNonceKey, true),
+            (
+                MagnusPoolTransactionError::Evm(MagnusInvalidTransaction::CallsValidation(
+                    "calls error",
+                )),
+                true,
+            ),
+        ];
+
+        for (err, expected) in cases {
+            assert_eq!(
+                err.is_bad_transaction(),
+                *expected,
+                "Unexpected is_bad_transaction() for: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_requires_nonce_check() {
+        let cases: &[(MagnusPooledTransaction, bool, &str)] = &[
+            (
+                TxBuilder::eip1559(Address::random())
+                    .gas_limit(21000)
+                    .build_eip1559(),
+                true,
+                "Non-AA should require nonce check",
+            ),
+            (
+                TxBuilder::aa(Address::random()).build(),
+                true,
+                "AA with nonce_key=0 should require nonce check",
+            ),
+            (
+                TxBuilder::aa(Address::random())
+                    .nonce_key(U256::from(1))
+                    .build(),
+                false,
+                "AA with nonce_key > 0 should NOT require nonce check",
+            ),
+        ];
+
+        for (tx, expected, msg) in cases {
+            assert_eq!(tx.requires_nonce_check(), *expected, "{msg}");
+        }
+    }
+
+    #[test]
+    fn test_validate_blob_returns_not_blob_transaction() {
+        use alloy_eips::eip7594::BlobTransactionSidecarVariant;
+
+        let tx = TxBuilder::eip1559(Address::random())
+            .gas_limit(21000)
+            .build_eip1559();
+
+        // Create a minimal sidecar (empty blobs)
+        let sidecar = BlobTransactionSidecarVariant::Eip4844(Default::default());
+        // Use a static reference to avoid needing KzgSettings::default()
+        let settings = alloy_eips::eip4844::env_settings::EnvKzgSettings::Default.get();
+
+        let result = tx.validate_blob(&sidecar, settings);
+
+        assert!(matches!(
+            result,
+            Err(BlobTransactionValidationError::NotBlobTransaction(ty)) if ty == tx.ty()
+        ));
+    }
+
+    #[test]
+    fn test_take_blob_returns_none() {
+        let mut tx = TxBuilder::eip1559(Address::random())
+            .gas_limit(21000)
+            .build_eip1559();
+        let blob = tx.take_blob();
+        assert!(matches!(blob, EthBlobTransactionSidecar::None));
+    }
+
+    #[test]
+    fn test_pool_transaction_hash_and_sender() {
+        let sender = Address::random();
+        let tx = TxBuilder::aa(sender).build();
+
+        assert!(!tx.hash().is_zero(), "Hash should not be zero");
+        assert_eq!(tx.sender(), sender);
+        assert_eq!(tx.sender_ref(), &sender);
+    }
+
+    #[test]
+    fn test_pool_transaction_clone_into_consensus() {
+        let sender = Address::random();
+        let tx = TxBuilder::aa(sender).build();
+        let hash = *tx.hash();
+
+        let cloned = tx.clone_into_consensus();
+        assert_eq!(cloned.tx_hash(), &hash);
+        assert_eq!(cloned.signer(), sender);
+    }
+
+    #[test]
+    fn test_pool_transaction_into_consensus() {
+        let sender = Address::random();
+        let tx = TxBuilder::aa(sender).build();
+        let hash = *tx.hash();
+
+        let consensus = tx.into_consensus();
+        assert_eq!(consensus.tx_hash(), &hash);
+        assert_eq!(consensus.signer(), sender);
+    }
+
+    #[test]
+    fn test_pool_transaction_from_pooled() {
+        let sender = Address::random();
+        let nonce = 42u64;
+        let aa_tx = MagnusTransaction {
+            chain_id: 1,
+            max_priority_fee_per_gas: 1_000_000_000,
+            max_fee_per_gas: 20_000_000_000,
+            gas_limit: 1_000_000,
+            calls: vec![Call {
+                to: TxKind::Call(Address::random()),
+                value: U256::ZERO,
+                input: Default::default(),
+            }],
+            nonce_key: U256::ZERO,
+            nonce,
+            ..Default::default()
+        };
+
+        let signature =
+            MagnusSignature::Primitive(PrimitiveSignature::Secp256k1(Signature::test_signature()));
+        let aa_signed = AASigned::new_unhashed(aa_tx, signature);
+        let envelope: MagnusTxEnvelope = aa_signed.into();
+        let recovered = Recovered::new_unchecked(envelope, sender);
+
+        let pooled = MagnusPooledTransaction::from_pooled(recovered);
+        assert_eq!(pooled.sender(), sender);
+        assert_eq!(pooled.nonce(), nonce);
+    }
+
+    #[test]
+    fn test_transaction_trait_forwarding() {
+        let sender = Address::random();
+        let tx = TxBuilder::aa(sender)
+            .gas_limit(1_000_000)
+            .value(U256::from(500))
+            .build();
+
+        // Test various Transaction trait methods
+        assert_eq!(tx.chain_id(), Some(42431));
+        assert_eq!(tx.nonce(), 0);
+        assert_eq!(tx.gas_limit(), 1_000_000);
+        assert_eq!(tx.max_fee_per_gas(), 20_000_000_000);
+        assert_eq!(tx.max_priority_fee_per_gas(), Some(1_000_000_000));
+        assert!(tx.is_dynamic_fee());
+        assert!(!tx.is_create());
+    }
+
+    #[test]
+    fn test_cost_returns_zero() {
+        let tx = TxBuilder::aa(Address::random())
+            .gas_limit(1_000_000)
+            .value(U256::from(1000))
+            .build();
+
+        // PoolTransaction::cost() returns &U256::ZERO for Magnus
+        assert_eq!(*tx.cost(), U256::ZERO);
+    }
+}
+
+// ========================================
+// Keychain invalidation types
+// ========================================
+
+/// Index of revoked keychain keys, keyed by account for efficient lookup.
+///
+/// Uses account as the primary key with a list of revoked key_ids,
+/// avoiding the need to construct full keys during lookup.
+#[derive(Debug, Clone, Default)]
+pub struct RevokedKeys {
+    /// Map from account to list of revoked key_ids.
+    by_account: AddressMap<Vec<Address>>,
+}
+
+impl RevokedKeys {
+    /// Creates a new empty index.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Inserts a revoked key.
+    pub fn insert(&mut self, account: Address, key_id: Address) {
+        self.by_account.entry(account).or_default().push(key_id);
+    }
+
+    /// Returns true if the index is empty.
+    pub fn is_empty(&self) -> bool {
+        self.by_account.is_empty()
+    }
+
+    /// Returns the total number of revoked keys.
+    pub fn len(&self) -> usize {
+        self.by_account.values().map(Vec::len).sum()
+    }
+
+    /// Returns true if the given (account, key_id) combination is in the index.
+    pub fn contains(&self, account: Address, key_id: Address) -> bool {
+        self.by_account
+            .get(&account)
+            .is_some_and(|key_ids| key_ids.contains(&key_id))
+    }
+}
+
+/// Index of spending limit updates, keyed by account for efficient lookup.
+///
+/// Uses account as the primary key with a list of (key_id, token) pairs,
+/// avoiding the need to construct full keys during lookup.
+#[derive(Debug, Clone, Default)]
+pub struct SpendingLimitUpdates {
+    /// Map from account to list of (key_id, token) pairs that had limit changes.
+    /// `None` token acts as a wildcard matching any fee token for that key_id.
+    by_account: AddressMap<Vec<(Address, Option<Address>)>>,
+}
+
+impl SpendingLimitUpdates {
+    /// Creates a new empty index.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Inserts a spending limit update. `None` token matches any fee token.
+    pub fn insert(&mut self, account: Address, key_id: Address, token: Option<Address>) {
+        self.by_account
+            .entry(account)
+            .or_default()
+            .push((key_id, token));
+    }
+
+    /// Returns true if the index is empty.
+    pub fn is_empty(&self) -> bool {
+        self.by_account.is_empty()
+    }
+
+    /// Returns the total number of spending limit updates.
+    pub fn len(&self) -> usize {
+        self.by_account.values().map(Vec::len).sum()
+    }
+
+    /// Returns true if the given (account, key_id, token) combination is in the index.
+    ///
+    /// A `None` entry matches any token for that key_id. This is used for included
+    /// block txs whose fee token could not be resolved without state access.
+    pub fn contains(&self, account: Address, key_id: Address, token: Address) -> bool {
+        self.by_account
+            .get(&account)
+            .is_some_and(|pairs: &Vec<(Address, Option<Address>)>| {
+                pairs
+                    .iter()
+                    .any(|&(k, t)| k == key_id && t.is_none_or(|t| t == token))
+            })
+    }
+}
+
+/// Keychain identity extracted from a transaction.
+///
+/// Contains the account (user_address), key_id, and fee_token for matching against
+/// revocation and spending limit events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeychainSubject {
+    /// The account that owns the keychain key (from `user_address` in the signature).
+    pub account: Address,
+    /// The key ID recovered from the keychain signature.
+    pub key_id: Address,
+    /// The fee token used by this transaction.
+    pub fee_token: Address,
+}
+
+impl KeychainSubject {
+    /// Returns true if this subject matches any of the revoked keys.
+    ///
+    /// Uses account-keyed index for O(1) account lookup, then linear scan over
+    /// the typically small list of key_ids for that account.
+    pub fn matches_revoked(&self, revoked_keys: &RevokedKeys) -> bool {
+        revoked_keys.contains(self.account, self.key_id)
+    }
+
+    /// Returns true if this subject is affected by any of the spending limit updates.
+    ///
+    /// Uses account-keyed index for O(1) account lookup, then linear scan over
+    /// the typically small list of (key_id, token) pairs for that account.
+    pub fn matches_spending_limit_update(
+        &self,
+        spending_limit_updates: &SpendingLimitUpdates,
+    ) -> bool {
+        spending_limit_updates.contains(self.account, self.key_id, self.fee_token)
+    }
+}

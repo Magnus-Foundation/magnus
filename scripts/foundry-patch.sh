@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+#
+# Patches a Foundry checkout to resolve magnus-* crates from a local Magnus
+# checkout instead of git/crates-io. Used by both GitHub Actions (specs.yml)
+# and the Argo invariant-tests workflow.
+#
+# Usage:
+#   scripts/patch-foundry-cargo.sh <tempo_root> <foundry_root>
+#
+# Example (GHA – repos side-by-side):
+#   scripts/patch-foundry-cargo.sh "$GITHUB_WORKSPACE/magnus" "$GITHUB_WORKSPACE/foundry"
+#
+# Example (Argo – /workspace layout):
+#   /workspace/scripts/patch-foundry-cargo.sh /workspace /workspace/foundry
+
+set -euo pipefail
+
+MAGNUS_ROOT="${1:?Usage: $0 <tempo_root> <foundry_root>}"
+FOUNDRY_ROOT="${2:?Usage: $0 <tempo_root> <foundry_root>}"
+
+MAGNUS_CARGO="$MAGNUS_ROOT/Cargo.toml"
+FOUNDRY_CARGO="$FOUNDRY_ROOT/Cargo.toml"
+
+if [[ ! -f "$MAGNUS_CARGO" ]]; then
+  echo "ERROR: Magnus Cargo.toml not found at $MAGNUS_CARGO" >&2
+  exit 1
+fi
+if [[ ! -f "$FOUNDRY_CARGO" ]]; then
+  echo "ERROR: Foundry Cargo.toml not found at $FOUNDRY_CARGO" >&2
+  exit 1
+fi
+
+# Already patched – nothing to do
+if grep -q '^\[patch\."https://github.com/Magnus-Foundation/magnus"\]' "$FOUNDRY_CARGO"; then
+  echo "Foundry Cargo.toml already contains magnus git patch section – skipping."
+  exit 0
+fi
+
+# ── 1. Discover magnus-* workspace crates that have local paths ──────────────
+PATCHES="$({
+  awk '
+    /^\[workspace.dependencies\]/ { in_section = 1; next }
+    in_section && /^\[/ { exit }
+    in_section && $1 ~ /^magnus-/ && index($0, "path = \"") {
+      split($0, path_parts, /path = "/)
+      split(path_parts[2], rest, /"/)
+      print $1 "\t" rest[1]
+    }
+  ' "$MAGNUS_CARGO" | sort
+})"
+
+if [[ -z "$PATCHES" ]]; then
+  echo "ERROR: No path-based magnus-* workspace dependencies found in $MAGNUS_CARGO" >&2
+  exit 1
+fi
+
+# ── 2. Patch [patch."https://github.com/Magnus-Foundation/magnus"] ────────────────────
+{
+  printf '\n[patch."https://github.com/Magnus-Foundation/magnus"]\n'
+  while IFS=$'\t' read -r crate path; do
+    [[ -n "$crate" ]] || continue
+    printf '%s = { path = "%s/%s" }\n' "$crate" "$MAGNUS_ROOT" "$path"
+  done <<< "$PATCHES"
+} >> "$FOUNDRY_CARGO"
+
+# ── 3. Patch [patch.crates-io] ──────────────────────────────────────────────
+# Upstream foundry pins some magnus crates to git revisions in [patch.crates-io].
+# Replace those with local paths so Cargo doesn't conflict.
+while IFS=$'\t' read -r crate path; do
+  [[ -n "$crate" ]] || continue
+  local_path="${MAGNUS_ROOT}/${path}"
+  if sed -n '/^\[patch\.crates-io\]/,/^\[/{/^'"${crate}"' = /p}' "$FOUNDRY_CARGO" | grep -q .; then
+    sed -i'' '/^\[patch\.crates-io\]/,/^\[/{s|^'"${crate}"' = .*|'"${crate}"' = { path = "'"${local_path}"'" }|}' "$FOUNDRY_CARGO"
+  else
+    sed -i'' "/^\[patch\.crates-io\]/a ${crate} = { path = \"${local_path}\" }" "$FOUNDRY_CARGO"
+  fi
+done <<< "$PATCHES"
+
+echo "Updated Cargo.toml patch sections:"
+sed -n '/^\[patch\./,$p' "$FOUNDRY_CARGO"
+
+# ── 4. Re-resolve the lockfile ──────────────────────────────────────────────
+(cd "$FOUNDRY_ROOT" && cargo update)
+
+if grep -q '^source = "git+https://github.com/Magnus-Foundation/magnus?rev=' "$FOUNDRY_ROOT/Cargo.lock"; then
+  echo "ERROR: Magnus git sources still present in Cargo.lock after patching:" >&2
+  grep '^source = "git+https://github.com/Magnus-Foundation/magnus?rev=' "$FOUNDRY_ROOT/Cargo.lock" >&2
+  echo "Expected all Magnus crates to resolve locally after patching" >&2
+  exit 1
+fi
+
+echo "Foundry patched successfully – all magnus crates resolve from $MAGNUS_ROOT"

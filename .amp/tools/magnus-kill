@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Amp toolbox tool: Kill running magnus processes and cleanup
+
+if [ "$TOOLBOX_ACTION" = "describe" ]; then
+    cat <<'EOF'
+name: magnus-kill
+description: Kill any running magnus processes and cleanup stale IPC sockets. Use this instead of manually running nu magnus.nu kill.
+EOF
+    exit 0
+fi
+
+if [ "$TOOLBOX_ACTION" = "execute" ]; then
+    echo "Running: nu magnus.nu kill"
+    nu magnus.nu kill
+fi

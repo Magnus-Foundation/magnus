@@ -1,0 +1,61 @@
+[package]
+name = "magnus-chainspec"
+description = "Magnus hardfork configuration and chain specification helpers"
+
+version = "1.5.3"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = true
+
+[lints]
+workspace = true
+
+[dependencies]
+magnus-primitives.workspace = true
+
+reth-cli = { workspace = true, optional = true }
+reth-chainspec = { workspace = true, optional = true }
+reth-network-peers = { workspace = true, optional = true }
+
+alloy-evm.workspace = true
+alloy-genesis.workspace = true
+once_cell.workspace = true
+alloy-primitives.workspace = true
+alloy-eips.workspace = true
+alloy-hardforks.workspace = true
+
+eyre = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+paste.workspace = true
+
+[dev-dependencies]
+
+[features]
+default = ["std", "serde", "reth", "cli"]
+std = [
+    "alloy-eips/std",
+    "alloy-evm/std",
+    "alloy-genesis/std",
+    "alloy-primitives/std",
+    "once_cell/std",
+    "reth-chainspec?/std",
+    "reth-network-peers?/std",
+    "serde/std",
+    "serde_json/std",
+    "magnus-primitives/std",
+]
+serde = [
+    "alloy-eips/serde",
+    "alloy-hardforks/serde",
+    "alloy-primitives/serde",
+    "magnus-primitives/serde"
+]
+reth = [
+    "std",
+    "dep:reth-chainspec",
+    "dep:reth-network-peers",
+    "magnus-primitives/reth",
+]
+cli = ["reth", "dep:reth-cli", "dep:eyre", "magnus-primitives/reth-codec"]

@@ -1,0 +1,51 @@
+[package]
+name = "magnus-evm"
+description = "TODO:"
+
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+magnus-chainspec = { workspace = true, features = ["reth"] }
+magnus-consensus.workspace = true
+magnus-contracts.workspace = true
+magnus-payload-types = { workspace = true, optional = true }
+magnus-primitives = { workspace = true, features = ["reth"] }
+magnus-revm.workspace = true
+
+commonware-cryptography.workspace = true
+commonware-codec.workspace = true
+
+reth-consensus.workspace = true
+reth-chainspec.workspace = true
+reth-evm.workspace = true
+reth-evm-ethereum.workspace = true
+reth-revm.workspace = true
+reth-primitives-traits.workspace = true
+reth-rpc-eth-api = { workspace = true, optional = true }
+
+rayon = { workspace = true, optional = true }
+alloy-rlp.workspace = true
+alloy-evm.workspace = true
+alloy-consensus.workspace = true
+alloy-primitives.workspace = true
+
+derive_more.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+revm.workspace = true
+reth-storage-api.workspace = true
+magnus-primitives = { workspace = true, features = ["arbitrary"] }
+
+[features]
+default = ["rpc", "engine"]
+rpc = ["dep:reth-rpc-eth-api", "magnus-revm/rpc", "magnus-primitives/serde", "magnus-primitives/reth-codec"]
+engine = ["dep:magnus-payload-types", "dep:rayon"]

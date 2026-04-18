@@ -1,0 +1,73 @@
+[package]
+name = "magnus-e2e"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+alloy = { workspace = true, features = [
+  "genesis",
+  "rpc-types",
+  "signers",
+  "signer-local",
+  "signer-mnemonic",
+  "rlp",
+  "providers",
+] }
+alloy-evm = { workspace = true, features = ["std"] }
+alloy-genesis = { workspace = true, features = ["std"] }
+alloy-primitives.workspace = true
+
+commonware-codec.workspace = true
+commonware-consensus.workspace = true
+commonware-cryptography.workspace = true
+commonware-math.workspace = true
+commonware-p2p.workspace = true
+commonware-runtime = { workspace = true, features = ["external"] }
+commonware-utils.workspace = true
+
+itertools.workspace = true
+
+eyre.workspace = true
+reth-chainspec.workspace = true
+reth-db.workspace = true
+reth-ethereum = { workspace = true, features = [
+  "node",
+  "rpc",
+  "test-utils",
+  "pool",
+] }
+reth-node-builder.workspace = true
+reth-node-core.workspace = true
+reth-node-metrics.workspace = true
+reth-rpc-builder.workspace = true
+
+magnus-chainspec = { workspace = true, features = ["reth"] }
+magnus-dkg-onchain-artifacts.workspace = true
+magnus-commonware-node.workspace = true
+magnus-node.workspace = true
+magnus-precompiles = { workspace = true, features = ["rpc"] }
+
+futures.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+commonware-consensus.workspace = true
+commonware-macros.workspace = true
+commonware-parallel.workspace = true
+jsonrpsee = { workspace = true, features = ["ws-client", "http-client"] }
+magnus-eyre.workspace = true
+magnus-primitives.workspace = true
+tracing-subscriber.workspace = true
+
+alloy-network.workspace = true
+
+rand_08.workspace = true
+
+[lints]
+workspace = true

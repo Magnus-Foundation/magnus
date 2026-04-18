@@ -1,0 +1,41 @@
+target
+
+scripts/logs
+scripts/data
+
+# Coverage
+coverage/
+
+# Benchmarking artifacts
+contrib/bench/logs/
+report.json
+profile.json.gz
+
+.DS_Store
+.idea
+.vscode
+**/.env
+**/.envrc
+!.envrc
+localnet/**
+
+.claude/
+!docs/.claude/
+CLAUDE.local.md
+research.md
+plan.md
+
+# Docs
+tips/ref-impls/cache/
+tips/ref-impls/out/
+tips/ref-impls/*.log
+tips/ref-impls/soljson-latest.js
+
+_
+.vercel
+.env*.local
+.worktrees/
+
+# LLVM coverage profraw files
+*.profraw
+__pycache__/
