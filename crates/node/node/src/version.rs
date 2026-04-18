@@ -13,7 +13,7 @@ pub fn init_version_metadata() {
 /// The version information for Tempo.
 pub fn version_metadata() -> RethCliVersionConsts {
     RethCliVersionConsts {
-        name_client: Cow::Borrowed("Tempo"),
+        name_client: Cow::Borrowed("Magnus"),
         cargo_pkg_version: Cow::Borrowed(env!("CARGO_PKG_VERSION")),
         vergen_git_sha_long: Cow::Borrowed(env!("VERGEN_GIT_SHA")),
         vergen_git_sha: Cow::Borrowed(env!("VERGEN_GIT_SHA_SHORT")),

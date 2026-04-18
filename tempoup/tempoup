@@ -12,7 +12,7 @@ REPO="tempoxyz/tempo"
 # GPG key fingerprint for release signing verification
 GPG_KEY_FINGERPRINT="EE3C5D41EA963E896F310EC3CBBFA54B20D33446"
 GPG_KEYSERVER="keyserver.ubuntu.com"
-BIN_DIR="${TEMPO_BIN_DIR:-$HOME/.tempo/bin}"
+BIN_DIR="${MAGNUS_BIN_DIR:-$HOME/.tempo/bin}"
 TEMPOUP_BIN_URL="https://raw.githubusercontent.com/tempoxyz/tempo/main/tempoup/tempoup"
 TEMPOUP_BIN_PATH="$BIN_DIR/tempoup"
 

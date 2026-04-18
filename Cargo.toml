@@ -7,9 +7,9 @@ publish = false
 
 [workspace]
 members = [
-  "bin/tempo",
-  "bin/tempo-bench",
-  "bin/tempo-sidecar",
+  "bin/magnus",
+  "bin/magnus-bench",
+  "bin/magnus-sidecar",
   "crates/consensus/consensus",
   "crates/consensus/commonware-node",
   "crates/consensus/commonware-node-config",

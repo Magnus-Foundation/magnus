@@ -8,14 +8,14 @@ cd infrastructure/ansible
 
 echo "[$(date)] setting up testnet with Ansible"
 
-ansible-playbook --vault-password-file ./vault.key --extra-vars "tempo_download_url='https://api.github.com/repos/tempoxyz/tempo/actions/artifacts/$TEMPO_DOWNLOAD_ID/zip' tempo_sidecar_download_url='https://api.github.com/repos/tempoxyz/tempo/actions/artifacts/$TEMPO_SIDECAR_DOWNLOAD_ID/zip' tempo_force_reset=True tempo_relative_path='../../' tempo_commonware=False tempo_proposer='true'" -i benchmark-1 --limit lento-node-1-1 --tags devnet devnet.yml
+ansible-playbook --vault-password-file ./vault.key --extra-vars "tempo_download_url='https://api.github.com/repos/tempoxyz/tempo/actions/artifacts/$MAGNUS_DOWNLOAD_ID/zip' tempo_sidecar_download_url='https://api.github.com/repos/tempoxyz/tempo/actions/artifacts/$MAGNUS_SIDECAR_DOWNLOAD_ID/zip' tempo_force_reset=True tempo_relative_path='../../' tempo_commonware=False tempo_proposer='true'" -i benchmark-1 --limit lento-node-1-1 --tags devnet devnet.yml
 
 sleep 1
 
 echo "[$(date)] running benchmark"
 
 ansible-playbook --vault-password-file ./vault.key \
-    --extra-vars "{\"tempo_bench_download_url\": \"https://api.github.com/repos/tempoxyz/tempo/actions/artifacts/$TEMPO_BENCH_DOWNLOAD_ID/zip\", \"tempo_bench_node_sha\": \"$TEMPO_BENCH_NODE_SHA\", \"tempo_bench_build_profile\": \"$TEMPO_BENCH_BUILD_PROFILE\", \"tempo_bench_target_urls\": [\"http://lento-node-1-1:8545\"], \"tempo_bench_benchmark_mode\": \"$TEMPO_BENCH_BENCHMARK_MODE\"}" \
+    --extra-vars "{\"tempo_bench_download_url\": \"https://api.github.com/repos/tempoxyz/tempo/actions/artifacts/$MAGNUS_BENCH_DOWNLOAD_ID/zip\", \"tempo_bench_node_sha\": \"$MAGNUS_BENCH_NODE_SHA\", \"tempo_bench_build_profile\": \"$MAGNUS_BENCH_BUILD_PROFILE\", \"tempo_bench_target_urls\": [\"http://lento-node-1-1:8545\"], \"tempo_bench_benchmark_mode\": \"$MAGNUS_BENCH_BENCHMARK_MODE\"}" \
     -i benchmark-1 --limit benchmark-1-bench --tags benchmark benchmark.yml
 
 echo "[$(date)] benchmark done"

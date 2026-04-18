@@ -17,7 +17,7 @@ tempo remove <extension>        →  delete binary and skill files
 
 - `launcher` — CLI entry point (clap). Routes to extension dispatch or management commands.
 - `installer` — Download, verify, and install extension binaries and skill files.
-- `registry` — Persistent registry at `$TEMPO_HOME/extensions.json` (installed versions, update check timestamps).
+- `registry` — Persistent registry at `$MAGNUS_HOME/extensions.json` (installed versions, update check timestamps).
 
 ## Release Manifest
 
@@ -52,7 +52,7 @@ Binary keys follow the `tempo-{name}-{os}-{arch}` convention (`darwin`/`linux`/`
 
 ### Signature verification
 
-Every binary and skill file must have a valid [minisign](https://jedisct1.github.io/minisign/) signature. The release public key is compiled into the binary and can only be overridden via `TEMPO_EXT_PUBLIC_KEY` in debug/test builds (`#[cfg(debug_assertions)]`).
+Every binary and skill file must have a valid [minisign](https://jedisct1.github.io/minisign/) signature. The release public key is compiled into the binary and can only be overridden via `MAGNUS_EXT_PUBLIC_KEY` in debug/test builds (`#[cfg(debug_assertions)]`).
 
 ### Trusted comment anti-substitution
 
@@ -75,8 +75,8 @@ Binary and manifest download URLs must use `https://` or `file://`. Any other sc
 
 | Variable | Description |
 |---|---|
-| `TEMPO_EXT_BASE_URL` | Override the release manifest base URL. |
-| `TEMPO_EXT_PUBLIC_KEY` | Override the release public key (debug/test builds only). |
+| `MAGNUS_EXT_BASE_URL` | Override the release manifest base URL. |
+| `MAGNUS_EXT_PUBLIC_KEY` | Override the release public key (debug/test builds only). |
 
 ## Testing
 

@@ -28,9 +28,9 @@ tempoup --help           # Show help
 
 Default: `~/.tempo/bin/`
 
-Customize with `TEMPO_DIR` environment variable:
+Customize with `MAGNUS_DIR` environment variable:
 ```bash
-TEMPO_DIR=/custom/path tempoup
+MAGNUS_DIR=/custom/path tempoup
 ```
 
 ## Updating

@@ -15,14 +15,14 @@
 
 set -euo pipefail
 
-TEMPO_ROOT="${1:?Usage: $0 <tempo_root> <foundry_root>}"
+MAGNUS_ROOT="${1:?Usage: $0 <tempo_root> <foundry_root>}"
 FOUNDRY_ROOT="${2:?Usage: $0 <tempo_root> <foundry_root>}"
 
-TEMPO_CARGO="$TEMPO_ROOT/Cargo.toml"
+MAGNUS_CARGO="$MAGNUS_ROOT/Cargo.toml"
 FOUNDRY_CARGO="$FOUNDRY_ROOT/Cargo.toml"
 
-if [[ ! -f "$TEMPO_CARGO" ]]; then
-  echo "ERROR: Tempo Cargo.toml not found at $TEMPO_CARGO" >&2
+if [[ ! -f "$MAGNUS_CARGO" ]]; then
+  echo "ERROR: Tempo Cargo.toml not found at $MAGNUS_CARGO" >&2
   exit 1
 fi
 if [[ ! -f "$FOUNDRY_CARGO" ]]; then
@@ -46,11 +46,11 @@ PATCHES="$({
       split(path_parts[2], rest, /"/)
       print $1 "\t" rest[1]
     }
-  ' "$TEMPO_CARGO" | sort
+  ' "$MAGNUS_CARGO" | sort
 })"
 
 if [[ -z "$PATCHES" ]]; then
-  echo "ERROR: No path-based tempo-* workspace dependencies found in $TEMPO_CARGO" >&2
+  echo "ERROR: No path-based tempo-* workspace dependencies found in $MAGNUS_CARGO" >&2
   exit 1
 fi
 
@@ -59,7 +59,7 @@ fi
   printf '\n[patch."https://github.com/tempoxyz/tempo"]\n'
   while IFS=$'\t' read -r crate path; do
     [[ -n "$crate" ]] || continue
-    printf '%s = { path = "%s/%s" }\n' "$crate" "$TEMPO_ROOT" "$path"
+    printf '%s = { path = "%s/%s" }\n' "$crate" "$MAGNUS_ROOT" "$path"
   done <<< "$PATCHES"
 } >> "$FOUNDRY_CARGO"
 
@@ -68,7 +68,7 @@ fi
 # Replace those with local paths so Cargo doesn't conflict.
 while IFS=$'\t' read -r crate path; do
   [[ -n "$crate" ]] || continue
-  local_path="${TEMPO_ROOT}/${path}"
+  local_path="${MAGNUS_ROOT}/${path}"
   if sed -n '/^\[patch\.crates-io\]/,/^\[/{/^'"${crate}"' = /p}' "$FOUNDRY_CARGO" | grep -q .; then
     sed -i'' '/^\[patch\.crates-io\]/,/^\[/{s|^'"${crate}"' = .*|'"${crate}"' = { path = "'"${local_path}"'" }|}' "$FOUNDRY_CARGO"
   else
@@ -89,4 +89,4 @@ if grep -q '^source = "git+https://github.com/tempoxyz/tempo?rev=' "$FOUNDRY_ROO
   exit 1
 fi
 
-echo "Foundry patched successfully – all tempo crates resolve from $TEMPO_ROOT"
+echo "Foundry patched successfully – all tempo crates resolve from $MAGNUS_ROOT"

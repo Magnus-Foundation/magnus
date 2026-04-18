@@ -153,7 +153,7 @@ struct PyroscopeArgs {
     pub server_url: String,
 
     /// Application name for Pyroscope
-    #[arg(long = "pyroscope.application-name", default_value = "tempo")]
+    #[arg(long = "pyroscope.application-name", default_value = "magnus")]
     pub application_name: String,
 
     /// Sample rate for profiling (default: 100 Hz)
@@ -285,7 +285,7 @@ fn main() -> eyre::Result<()> {
     defaults::init_defaults();
 
     let mut cli = match MagnusCli::command()
-        .about("Tempo")
+        .about("Magnus")
         .try_get_matches_from(std::env::args_os())
         .and_then(|matches| MagnusCli::from_arg_matches(&matches))
     {

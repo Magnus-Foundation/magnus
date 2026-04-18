@@ -4,9 +4,9 @@ set -e
 # Tempoup bootstrap installer
 # Downloads tempoup and tempo to ~/.tempo/bin
 
-TEMPO_DIR="${TEMPO_DIR:-$HOME/.tempo}"
-BIN_DIR="${TEMPO_BIN_DIR:-$TEMPO_DIR/bin}"
-ENV_FILE="$TEMPO_DIR/env"
+MAGNUS_DIR="${MAGNUS_DIR:-$HOME/.tempo}"
+BIN_DIR="${MAGNUS_BIN_DIR:-$MAGNUS_DIR/bin}"
+ENV_FILE="$MAGNUS_DIR/env"
 TEMPOUP_URL="https://raw.githubusercontent.com/tempoxyz/tempo/main/tempoup/tempoup"
 
 # Color output
@@ -43,7 +43,7 @@ main() {
     echo ""
 
     # Ensure BIN_DIR exists
-    mkdir -p "$TEMPO_DIR"
+    mkdir -p "$MAGNUS_DIR"
     mkdir -p "$BIN_DIR"
 
     # Download tempoup script to a temp file
@@ -87,7 +87,7 @@ ENVEOF
     info "Running tempoup to install tempo..."
     echo ""
 
-    TEMPO_BIN_DIR="$BIN_DIR" "$BIN_DIR/tempoup"
+    MAGNUS_BIN_DIR="$BIN_DIR" "$BIN_DIR/tempoup"
 
     echo ""
     local user_shell

@@ -1,6 +1,6 @@
 #!/usr/bin/env nu
 
-# Tempo local utilities
+# Magnus local utilities
 
 const BENCH_DIR = "contrib/bench"
 const LOCALNET_DIR = "localnet"
@@ -13,7 +13,7 @@ const BENCH_RESULTS_DIR = "bench-results"
 const BLOAT_MNEMONIC = "test test test test test test test test test test test junk"
 const METRICS_PROXY_SCRIPT = "contrib/bench/bench-metrics-proxy.py"
 const METRICS_LABELS_FILE = "/tmp/bench-metrics-labels.json"
-const MINIO_BUCKET = "minio/tempo-binaries"
+const MINIO_BUCKET = "minio/magnus-binaries"
 const BENCH_META_SUBDIR = ".bench-meta"
 
 # Preset weight configurations: [tip20, erc20, swap, order]
@@ -22,7 +22,7 @@ const PRESETS = {
     erc20: [0.0, 1.0, 0.0, 0.0],
     swap: [0.0, 0.0, 1.0, 0.0],
     order: [0.0, 0.0, 0.0, 1.0],
-    "tempo-mix": [0.8, 0, 0.19, 0.01]
+    "magnus-mix": [0.8, 0, 0.19, 0.01]
 }
 
 # TIP20 token IDs created by localnet genesis (pathUSD, AlphaUSD, BetaUSD, ThetaUSD)
@@ -52,8 +52,8 @@ def wrap-samply [cmd: list<string>, samply: bool, samply_args: list<string>] {
 }
 
 # Compute effective features and RUSTFLAGS for tracy builds.
-# The "tracy" cargo feature on bin/tempo already includes tracy-client/ondemand,
-# so we only need to append "tracy" here. tempo-bench doesn't have a tracy feature,
+# The "tracy" cargo feature on bin/magnus already includes tracy-client/ondemand,
+# so we only need to append "tracy" here. magnus-bench doesn't have a tracy feature,
 # so it must be built separately with the base features.
 def tracy-build-config [features: string, tracy: string] {
     if $tracy == "off" {
@@ -72,8 +72,8 @@ def validate-mode [mode: string] {
     }
 }
 
-# Build tempo binary with cargo
-def build-tempo [bins: list<string>, profile: string, features: string, --extra-rustflags: string = ""] {
+# Build magnus binary with cargo
+def build-magnus [bins: list<string>, profile: string, features: string, --extra-rustflags: string = ""] {
     let bin_args = ($bins | each { |bin| ["--bin" $bin] } | flatten)
     let build_cmd = ["cargo" "build" "--profile" $profile "--features" $features]
         | append $bin_args
@@ -84,15 +84,15 @@ def build-tempo [bins: list<string>, profile: string, features: string, --extra-
     }
 }
 
-# Find tempo process PIDs (excluding tempo-bench)
-def find-tempo-pids [] {
-    ps | where name =~ "tempo" | where name !~ "tempo-bench" | get pid
+# Find magnus process PIDs (excluding magnus-bench)
+def find-magnus-pids [] {
+    ps | where name =~ "magnus" | where name !~ "magnus-bench" | get pid
 }
 
 # Initialize node with state bloat
-# 1. Run `tempo init` to create the database
+# 1. Run `magnus init` to create the database
 # 2. Generate state bloat binary file
-# 3. Run `tempo init-from-binary-dump` to load the bloat
+# 3. Run `magnus init-from-binary-dump` to load the bloat
 # Generate the bloat binary file once (skips if already exists)
 def generate-bloat-file [bloat_size: int, profile: string] {
     let bloat_file = $"($LOCALNET_DIR)/state_bloat.bin"
@@ -102,7 +102,7 @@ def generate-bloat-file [bloat_size: int, profile: string] {
     }
     print $"Generating state bloat \(($bloat_size) MiB\)..."
     let token_args = ($TIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
-    cargo run -p tempo-xtask --profile $profile -- generate-state-bloat --size $bloat_size --out $bloat_file ...$token_args
+    cargo run -p magnus-xtask --profile $profile -- generate-state-bloat --size $bloat_size --out $bloat_file ...$token_args
 }
 
 # Load the bloat file into a single node's database
@@ -169,7 +169,7 @@ def bench-clean-datadir [datadir: string] {
     }
 }
 
-# Initialize a database: run `tempo init`, optionally load state bloat
+# Initialize a database: run `magnus init`, optionally load state bloat
 def bench-init-db [tempo_bin: string, genesis: string, datadir: string, bloat: int, bloat_file: string] {
     print $"Initializing database at ($datadir)..."
     run-external $tempo_bin "init" "--chain" $genesis "--datadir" $datadir
@@ -279,8 +279,8 @@ def read-bench-marker [datadir: string] {
 # Comparison mode helpers
 # ============================================================================
 
-# Ordered list of all Tempo hardforks (must match TempoHardfork enum in crates/chainspec)
-const TEMPO_HARDFORKS = ["T0" "T1" "T1A" "T1B" "T1C" "T2" "T3" "T4"]
+# Ordered list of all Magnus hardforks (must match TempoHardfork enum in crates/chainspec)
+const MAGNUS_HARDFORKS = ["T0" "T1" "T1A" "T1B" "T1C" "T2" "T3" "T4"]
 
 # Map a hardfork name to generate-genesis CLI args.
 # Forks up to and including the given fork are active at genesis (time=0).
@@ -288,13 +288,13 @@ const TEMPO_HARDFORKS = ["T0" "T1" "T1A" "T1B" "T1C" "T2" "T3" "T4"]
 # Returns a list of CLI flag strings, e.g. ["--t0-time" "0" "--t1-time" "0" "--t1a-time" "9223372036854775807" ...]
 def hardfork-to-genesis-args [fork: string] {
     let fork_upper = ($fork | str upcase)
-    let idx = ($TEMPO_HARDFORKS | enumerate | where item == $fork_upper)
+    let idx = ($MAGNUS_HARDFORKS | enumerate | where item == $fork_upper)
     if ($idx | length) == 0 {
-        print $"Error: unknown hardfork '($fork)'. Valid: ($TEMPO_HARDFORKS | str join ', ')"
+        print $"Error: unknown hardfork '($fork)'. Valid: ($MAGNUS_HARDFORKS | str join ', ')"
         exit 1
     }
     let cutoff = ($idx | get 0.index)
-    $TEMPO_HARDFORKS | enumerate | each { |it|
+    $MAGNUS_HARDFORKS | enumerate | each { |it|
         let flag = $"--($it.item | str downcase)-time"
         let time = if $it.index <= $cutoff { "0" } else { "9223372036854775807" }
         [$flag $time]
@@ -311,7 +311,7 @@ def resolve-git-ref [ref: string] {
 def try-cache-download [worktree_dir: string, profile: string, commit_sha: string] {
     if not (has-mc) { return false }
 
-    let bins = ["tempo" "tempo-bench"]
+    let bins = ["magnus" "magnus-bench"]
     # Check that all binaries exist in the cache
     for bin in $bins {
         let remote = $"($MINIO_BUCKET)/($commit_sha)/($bin)"
@@ -369,7 +369,7 @@ def cache-upload [worktree_dir: string, profile: string, commit_sha: string] {
         $"($worktree_dir)/target/($profile)"
     }
 
-    for bin in ["tempo" "tempo-bench"] {
+    for bin in ["magnus" "magnus-bench"] {
         let local = $"($target_dir)/($bin)"
         let remote = $"($MINIO_BUCKET)/($commit_sha)/($bin)"
         print $"Uploading ($bin) to cache for ($commit_sha | str substring 0..8)..."
@@ -381,26 +381,26 @@ def cache-upload [worktree_dir: string, profile: string, commit_sha: string] {
     }
 }
 
-# Build tempo binaries in a git worktree (with optional MinIO cache)
+# Build magnus binaries in a git worktree (with optional MinIO cache)
 def build-in-worktree [worktree_dir: string, ref: string, profile: string, features: string, commit_sha: string, --no-cache, --extra-rustflags: string = "", --bench-features: string = ""] {
     # Try cache first
     if not $no_cache and (try-cache-download $worktree_dir $profile $commit_sha) {
         return
     }
 
-    # Build from source — when tracy is enabled, tempo and tempo-bench need different features
+    # Build from source — when tracy is enabled, magnus and magnus-bench need different features
     print $"Building binaries for ($ref) in ($worktree_dir)..."
     let rustflags = $"($RUSTFLAGS)($extra_rustflags)"
     if $bench_features != "" and $bench_features != $features {
-        # Build tempo (with tracy features) and tempo-bench (without) separately
-        let tempo_cmd = ["cargo" "build" "--profile" $profile "--features" $features "--bin" "tempo"]
-        let bench_cmd = ["cargo" "build" "--profile" $profile "--features" $bench_features "--bin" "tempo-bench"]
+        # Build magnus (with tracy features) and magnus-bench (without) separately
+        let tempo_cmd = ["cargo" "build" "--profile" $profile "--features" $features "--bin" "magnus"]
+        let bench_cmd = ["cargo" "build" "--profile" $profile "--features" $bench_features "--bin" "magnus-bench"]
         with-env { RUSTFLAGS: $rustflags } {
             do { cd $worktree_dir; run-external ($tempo_cmd | first) ...($tempo_cmd | skip 1) }
             do { cd $worktree_dir; run-external ($bench_cmd | first) ...($bench_cmd | skip 1) }
         }
     } else {
-        let bin_args = ["--bin" "tempo" "--bin" "tempo-bench"]
+        let bin_args = ["--bin" "magnus" "--bin" "magnus-bench"]
         let build_cmd = ["cargo" "build" "--profile" $profile "--features" $features]
             | append $bin_args
         with-env { RUSTFLAGS: $rustflags } {
@@ -456,7 +456,7 @@ def dedup-args [base_args: list<string>, extra_args: list<string>] {
 
 # Run a single benchmark run (start node, run bench, stop node, collect report)
 def run-bench-single [
-    --tempo-bin: string
+    --magnus-bin: string
     --bench-bin: string
     --genesis-path: string
     --datadir: string
@@ -536,7 +536,7 @@ def run-bench-single [
     # OTEL resource attributes for benchmark identification in logs/traces
     let otel_attrs = $"OTEL_RESOURCE_ATTRIBUTES=benchmark_id=($benchmark_id),benchmark_run=($run_label),run_type=($run_type),git_ref=($git_ref) "
 
-    # Start tempo node in background (optionally wrapped with samply)
+    # Start magnus node in background (optionally wrapped with samply)
     let full_samply_args = if $samply {
         $samply_args | append ["--save-only" "--presymbolicate" "--output" $"($results_dir)/profile-($run_label).json.gz"]
     } else { [] }
@@ -553,7 +553,7 @@ def run-bench-single [
     wait-for-rpc "http://localhost:8545" $rpc_timeout
 
     # Start tracy-capture after RPC is ready (node must be running for connection)
-    # If tracy-offset > 0, delay the capture start in a background job so tempo-bench isn't blocked
+    # If tracy-offset > 0, delay the capture start in a background job so magnus-bench isn't blocked
     let tracy_output = $"($results_dir)/tracy-profile-($run_label).tracy"
     let tracy_capture_started = if $tracy != "off" {
         let seconds_flag = if $tracy_seconds > 0 { $"-s ($tracy_seconds)" } else { "" }
@@ -569,7 +569,7 @@ def run-bench-single [
         true
     } else { false }
 
-    # Run tempo-bench
+    # Run magnus-bench
     let bench_cmd = [
         $bench_bin
         "run-max-tps"
@@ -640,11 +640,11 @@ def run-bench-single [
 
     # Stop node
     print "  Stopping node..."
-    let pids = (find-tempo-pids)
+    let pids = (find-magnus-pids)
     for pid in $pids {
         kill -s 2 $pid
     }
-    # Wait for tempo processes to fully exit
+    # Wait for magnus processes to fully exit
     for pid in $pids {
         mut wait = 0
         while $wait < 30 {
@@ -924,7 +924,7 @@ def generate-summary [results_dir: string, baseline_ref: string, feature_ref: st
         $"- Baseline blocks: ($b_lat.n)"
         $"- Feature blocks: ($f_lat.n)"
         ""
-        "## Tempo Metrics"
+        "## Magnus Metrics"
         ""
         "| Metric | Baseline | Feature | Delta |"
         "|--------|----------|---------|-------|"
@@ -1052,20 +1052,20 @@ def "main infra down" [] {
 # Kill command
 # ============================================================================
 
-# Kill any running tempo processes and cleanup
+# Kill any running magnus processes and cleanup
 def "main kill" [
     --prompt    # Prompt before killing (for interactive use)
 ] {
-    let pids = (find-tempo-pids)
+    let pids = (find-magnus-pids)
     let has_stale_ipc = ("/tmp/reth.ipc" | path exists)
 
     if ($pids | length) == 0 and not $has_stale_ipc {
-        print "No tempo processes or stale IPC socket found."
+        print "No magnus processes or stale IPC socket found."
         return
     }
 
     if ($pids | length) > 0 {
-        print $"Found ($pids | length) running tempo process\(es\)."
+        print $"Found ($pids | length) running magnus process\(es\)."
     }
     if $has_stale_ipc {
         print "Found stale /tmp/reth.ipc socket."
@@ -1084,7 +1084,7 @@ def "main kill" [
     }
 
     if ($pids | length) > 0 {
-        print $"Sending SIGINT to ($pids | length) tempo processes..."
+        print $"Sending SIGINT to ($pids | length) magnus processes..."
         for pid in $pids {
             kill -s 2 $pid
         }
@@ -1102,7 +1102,7 @@ def "main kill" [
 # Localnet command
 # ============================================================================
 
-# Run Tempo localnet
+# Run Magnus localnet
 def "main localnet" [
     --mode: string = "dev"      # Mode: "dev" or "consensus"
     --nodes: int = 3            # Number of validators (consensus mode)
@@ -1122,7 +1122,7 @@ def "main localnet" [
     validate-mode $mode
 
     # Check for dangling processes or stale IPC socket
-    let pids = (find-tempo-pids)
+    let pids = (find-magnus-pids)
     let has_stale_ipc = ("/tmp/reth.ipc" | path exists)
     if ($pids | length) > 0 or $has_stale_ipc {
         main kill --prompt=($force | not $in)
@@ -1134,7 +1134,7 @@ def "main localnet" [
 
     # Build first (unless skipped)
     if not $skip_build {
-        build-tempo ["tempo"] $profile $features
+        build-magnus ["magnus"] $profile $features
     }
 
     if $mode == "dev" {
@@ -1154,9 +1154,9 @@ def "main localnet" [
 
 def run-dev-node [accounts: int, genesis: string, samply: bool, samply_args: list<string>, reset: bool, profile: string, loud: bool, extra_args: list<string>, bloat: int] {
     let tempo_bin = if $profile == "dev" {
-        "./target/debug/tempo"
+        "./target/debug/magnus"
     } else {
-        $"./target/($profile)/tempo"
+        $"./target/($profile)/magnus"
     }
     let datadir = $"($LOCALNET_DIR)/reth"
     let log_dir = $"($LOCALNET_DIR)/logs"
@@ -1181,7 +1181,7 @@ def run-dev-node [accounts: int, genesis: string, samply: bool, samply_args: lis
             rm -rf $LOCALNET_DIR
             mkdir $LOCALNET_DIR
             print $"Generating genesis with ($accounts) accounts..."
-            cargo run -p tempo-xtask --profile $profile -- generate-genesis --output $LOCALNET_DIR -a $accounts --no-dkg-in-genesis
+            cargo run -p magnus-xtask --profile $profile -- generate-genesis --output $LOCALNET_DIR -a $accounts --no-dkg-in-genesis
         }
 
         # Apply state bloat if requested (requires fresh init)
@@ -1257,7 +1257,7 @@ def run-consensus-nodes [nodes: int, accounts: int, genesis: string, samply: boo
             let validators = (0..<$nodes | each { |i| $"127.0.0.($i + 1):($i * 100 + 8000)" } | str join ",")
 
             print $"Generating localnet with ($accounts) accounts and ($nodes) validators..."
-            cargo run -p tempo-xtask --profile $profile -- generate-localnet -o $LOCALNET_DIR --accounts $accounts --validators $validators --force | ignore
+            cargo run -p magnus-xtask --profile $profile -- generate-localnet -o $LOCALNET_DIR --accounts $accounts --validators $validators --force | ignore
         }
     }
 
@@ -1277,9 +1277,9 @@ def run-consensus-nodes [nodes: int, accounts: int, genesis: string, samply: boo
     print $"Found ($validator_dirs | length) validator configs"
 
     let tempo_bin = if $profile == "dev" {
-        "./target/debug/tempo"
+        "./target/debug/magnus"
     } else {
-        $"./target/($profile)/tempo"
+        $"./target/($profile)/magnus"
     }
 
     # Ensure loopback aliases exist for distinct validator IPs (macOS only has 127.0.0.1 by default)
@@ -1486,7 +1486,7 @@ def restore-system-tuning [tuning_state: record] {
 
 # Initialize the schelk virgin snapshot with genesis + state bloat.
 # Run once (or when changing bloat size). Subsequent `bench` calls skip init
-# if the marker at $HOME/.tempo-bench-meta.json matches the requested config.
+# if the marker at $HOME/.magnus-bench-meta.json matches the requested config.
 def "main bench-init" [
     --bloat: int = 1024                                 # State bloat size in MiB
     --accounts: int = 1000                              # Number of genesis accounts
@@ -1521,23 +1521,23 @@ def "main bench-init" [
         }
     }
 
-    # Build tempo + xtask
-    build-tempo ["tempo"] $profile $features
-    let tempo_bin = if $profile == "dev" { "./target/debug/tempo" } else { $"./target/($profile)/tempo" }
+    # Build magnus + xtask
+    build-magnus ["magnus"] $profile $features
+    let tempo_bin = if $profile == "dev" { "./target/debug/magnus" } else { $"./target/($profile)/magnus" }
 
     # Generate genesis
     let abs_localnet = ($LOCALNET_DIR | path expand)
     if not ($abs_localnet | path exists) { mkdir $abs_localnet }
     let genesis_path = $"($abs_localnet)/genesis.json"
     print $"Generating genesis with ($genesis_accounts) accounts..."
-    cargo run -p tempo-xtask --profile $profile -- generate-genesis --output $abs_localnet -a $genesis_accounts --no-dkg-in-genesis
+    cargo run -p magnus-xtask --profile $profile -- generate-genesis --output $abs_localnet -a $genesis_accounts --no-dkg-in-genesis
 
     # Generate bloat file
     let bloat_file = $"($abs_localnet)/state_bloat.bin"
     if $bloat > 0 {
         print $"Generating state bloat \(($bloat) MiB\)..."
         let token_args = ($TIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
-        cargo run -p tempo-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
+        cargo run -p magnus-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
     }
 
     bench-clean-datadir $datadir
@@ -1556,10 +1556,10 @@ def "main bench-init" [
 # Bench command
 # ============================================================================
 
-# Run a full benchmark: start infra, localnet, and tempo-bench
+# Run a full benchmark: start infra, localnet, and magnus-bench
 def "main bench" [
     --mode: string = "consensus"                    # Mode: "dev" or "consensus"
-    --preset: string = ""                           # Preset: tip20, erc20, swap, order, tempo-mix
+    --preset: string = ""                           # Preset: tip20, erc20, swap, order, magnus-mix
     --tps: int = 10000                              # Target TPS
     --duration: int = 30                            # Duration in seconds
     --accounts: int = 1000                          # Number of accounts
@@ -1574,10 +1574,10 @@ def "main bench" [
     --node-args: string = ""                        # Additional node arguments (space-separated, applied to all runs)
     --baseline-args: string = ""                    # Additional node arguments for baseline runs only (space-separated)
     --feature-args: string = ""                     # Additional node arguments for feature runs only (space-separated)
-    --bench-args: string = ""                       # Additional tempo-bench arguments (space-separated)
+    --bench-args: string = ""                       # Additional magnus-bench arguments (space-separated)
     --baseline-env: string = ""                     # Environment variables for baseline node runs (KEY=VAL KEY2=VAL2)
     --feature-env: string = ""                      # Environment variables for feature node runs (KEY=VAL KEY2=VAL2)
-    --bench-env: string = ""                        # Environment variables for tempo-bench (KEY=VAL KEY2=VAL2)
+    --bench-env: string = ""                        # Environment variables for magnus-bench (KEY=VAL KEY2=VAL2)
     --bloat: int = 0                                # Generate state bloat (size in MiB) for TIP20 tokens
     --no-infra                                      # Skip starting observability stack (Grafana + Prometheus)
     --baseline: string = ""                         # Git ref for baseline (comparison mode)
@@ -1590,7 +1590,7 @@ def "main bench" [
     --tracy-filter: string = "debug"                # Tracy tracing filter level
     --tracy-seconds: int = 30                       # Tracy capture duration limit in seconds (0 = unlimited)
     --tracy-offset: int = 120                       # Seconds to wait before starting tracy capture (default: 120)
-    --tracing-otlp: string = ""                     # OTLP endpoint for tracing (auto-derived from TEMPO_TELEMETRY_URL if not set)
+    --tracing-otlp: string = ""                     # OTLP endpoint for tracing (auto-derived from MAGNUS_TELEMETRY_URL if not set)
     --baseline-hardfork: string = ""                # Latest active hardfork for baseline (e.g. T1, T1C, T2)
     --feature-hardfork: string = ""                 # Latest active hardfork for feature (e.g. T1, T1C, T2)
     --gas-limit: string = ""                        # Block gas limit for genesis (raw number, e.g. 1000000000)
@@ -1619,12 +1619,12 @@ def "main bench" [
     let weights = if $preset != "" { $PRESETS | get $preset } else { [0.0, 0.0, 0.0, 0.0] }
     let gas_limit_args = if $gas_limit != "" { ["--gas-limit" $gas_limit] } else { [] }
 
-    # Auto-derive tracing OTLP URL: prefer GRAFANA_TEMPO, fall back to TEMPO_TELEMETRY_URL
+    # Auto-derive tracing OTLP URL: prefer GRAFANA_TEMPO, fall back to MAGNUS_TELEMETRY_URL
     let tracing_otlp = if $tracing_otlp == "" and ($env.GRAFANA_TEMPO? | default "" | str length) > 0 {
         let base = ($env.GRAFANA_TEMPO | str trim --right --char '/')
         $"($base)/v1/traces"
-    } else if $tracing_otlp == "" and ($env.TEMPO_TELEMETRY_URL? | default "" | str length) > 0 {
-        let base = ($env.TEMPO_TELEMETRY_URL | str trim --right --char '/')
+    } else if $tracing_otlp == "" and ($env.MAGNUS_TELEMETRY_URL? | default "" | str length) > 0 {
+        let base = ($env.MAGNUS_TELEMETRY_URL | str trim --right --char '/')
         $"($base)/opentelemetry/v1/traces"
     } else {
         $tracing_otlp
@@ -1638,7 +1638,7 @@ def "main bench" [
         }
     }
 
-    # Pre-flight cleanup: kill leftover tempo processes from failed runs
+    # Pre-flight cleanup: kill leftover magnus processes from failed runs
     main kill
 
     # Apply system tuning if requested (before any benchmark work)
@@ -1684,16 +1684,16 @@ def "main bench" [
     }
     # Validate hardfork names
     if $baseline_hardfork != "" {
-        let valid = ($TEMPO_HARDFORKS | any { |f| $f == ($baseline_hardfork | str upcase) })
+        let valid = ($MAGNUS_HARDFORKS | any { |f| $f == ($baseline_hardfork | str upcase) })
         if not $valid {
-            print $"Error: unknown baseline hardfork '($baseline_hardfork)'. Valid: ($TEMPO_HARDFORKS | str join ', ')"
+            print $"Error: unknown baseline hardfork '($baseline_hardfork)'. Valid: ($MAGNUS_HARDFORKS | str join ', ')"
             exit 1
         }
     }
     if $feature_hardfork != "" {
-        let valid = ($TEMPO_HARDFORKS | any { |f| $f == ($feature_hardfork | str upcase) })
+        let valid = ($MAGNUS_HARDFORKS | any { |f| $f == ($feature_hardfork | str upcase) })
         if not $valid {
-            print $"Error: unknown feature hardfork '($feature_hardfork)'. Valid: ($TEMPO_HARDFORKS | str join ', ')"
+            print $"Error: unknown feature hardfork '($feature_hardfork)'. Valid: ($MAGNUS_HARDFORKS | str join ', ')"
             exit 1
         }
     }
@@ -1761,11 +1761,11 @@ def "main bench" [
         if $baseline == "local" or $feature == "local" {
             print "Building local binaries..."
             if $tracy != "off" {
-                # Build tempo (with tracy) and tempo-bench (without) separately
-                build-tempo --extra-rustflags $effective_extra_rustflags ["tempo"] $profile $effective_features
-                build-tempo ["tempo-bench"] $profile $features
+                # Build magnus (with tracy) and magnus-bench (without) separately
+                build-magnus --extra-rustflags $effective_extra_rustflags ["magnus"] $profile $effective_features
+                build-magnus ["magnus-bench"] $profile $features
             } else {
-                build-tempo ["tempo" "tempo-bench"] $profile $effective_features
+                build-magnus ["magnus" "magnus-bench"] $profile $effective_features
             }
         }
         if $baseline != "local" {
@@ -1785,9 +1785,9 @@ def "main bench" [
 
         let local_bin = { |name: string| if $profile == "dev" { $"./target/debug/($name)" } else { $"./target/($profile)/($name)" } }
 
-        let baseline_tempo = if $baseline == "local" { do $local_bin "tempo" } else { worktree-bin $baseline_wt $profile "tempo" }
-        let baseline_bench_bin = if $baseline == "local" { do $local_bin "tempo-bench" } else { worktree-bin $baseline_wt $profile "tempo-bench" }
-        let feature_tempo = if $feature == "local" { do $local_bin "tempo" } else { worktree-bin $feature_wt $profile "tempo" }
+        let baseline_tempo = if $baseline == "local" { do $local_bin "magnus" } else { worktree-bin $baseline_wt $profile "magnus" }
+        let baseline_bench_bin = if $baseline == "local" { do $local_bin "magnus-bench" } else { worktree-bin $baseline_wt $profile "magnus-bench" }
+        let feature_tempo = if $feature == "local" { do $local_bin "magnus" } else { worktree-bin $feature_wt $profile "magnus" }
 
         # Determine paths (absolute for use inside worktree cd blocks)
         let abs_localnet = ($LOCALNET_DIR | path expand)
@@ -1850,11 +1850,11 @@ def "main bench" [
                 if ($baseline_genesis_dir | path exists) { rm -rf $baseline_genesis_dir }
                 mkdir $baseline_genesis_dir
                 if $baseline == "local" {
-                    cargo run -p tempo-xtask --profile $profile -- generate-genesis --output $baseline_genesis_dir -a $genesis_accounts --no-dkg-in-genesis ...$baseline_genesis_args ...$gas_limit_args
+                    cargo run -p magnus-xtask --profile $profile -- generate-genesis --output $baseline_genesis_dir -a $genesis_accounts --no-dkg-in-genesis ...$baseline_genesis_args ...$gas_limit_args
                 } else {
                     do {
                         cd $baseline_wt
-                        cargo run -p tempo-xtask --profile $profile -- generate-genesis --output $baseline_genesis_dir -a $genesis_accounts --no-dkg-in-genesis ...$baseline_genesis_args ...$gas_limit_args
+                        cargo run -p magnus-xtask --profile $profile -- generate-genesis --output $baseline_genesis_dir -a $genesis_accounts --no-dkg-in-genesis ...$baseline_genesis_args ...$gas_limit_args
                     }
                 }
                 cp $"($baseline_genesis_dir)/genesis.json" $baseline_genesis_path
@@ -1865,13 +1865,13 @@ def "main bench" [
                 if ($feature_genesis_dir | path exists) { rm -rf $feature_genesis_dir }
                 mkdir $feature_genesis_dir
                 if $feature == "local" {
-                    cargo run -p tempo-xtask --profile $profile -- generate-genesis --output $feature_genesis_dir -a $genesis_accounts --no-dkg-in-genesis ...$feature_genesis_args ...$gas_limit_args
+                    cargo run -p magnus-xtask --profile $profile -- generate-genesis --output $feature_genesis_dir -a $genesis_accounts --no-dkg-in-genesis ...$feature_genesis_args ...$gas_limit_args
                 } else {
                     # Use feature worktree for feature genesis so it picks up any
                     # new hardfork-related genesis changes from the feature branch
                     do {
                         cd $feature_wt
-                        cargo run -p tempo-xtask --profile $profile -- generate-genesis --output $feature_genesis_dir -a $genesis_accounts --no-dkg-in-genesis ...$feature_genesis_args ...$gas_limit_args
+                        cargo run -p magnus-xtask --profile $profile -- generate-genesis --output $feature_genesis_dir -a $genesis_accounts --no-dkg-in-genesis ...$feature_genesis_args ...$gas_limit_args
                     }
                 }
                 cp $"($feature_genesis_dir)/genesis.json" $feature_genesis_path
@@ -1882,23 +1882,23 @@ def "main bench" [
                     print $"Generating state bloat \(($bloat) MiB\)..."
                     let token_args = ($TIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
                     if $baseline == "local" {
-                        cargo run -p tempo-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
+                        cargo run -p magnus-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
                     } else {
                         do {
                             cd $baseline_wt
-                            cargo run -p tempo-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
+                            cargo run -p magnus-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
                         }
                     }
                 }
 
                 # Initialize both datadirs
                 for side in [
-                    { name: "baseline", genesis: $baseline_genesis_path, dd: $baseline_datadir, tempo: $baseline_tempo }
-                    { name: "feature", genesis: $feature_genesis_path, dd: $feature_datadir, tempo: $feature_tempo }
+                    { name: "baseline", genesis: $baseline_genesis_path, dd: $baseline_datadir, magnus: $baseline_tempo }
+                    { name: "feature", genesis: $feature_genesis_path, dd: $feature_datadir, magnus: $feature_tempo }
                 ] {
                     bench-clean-datadir $side.dd
                     mkdir $side.dd
-                    bench-init-db $side.tempo $side.genesis $side.dd $bloat $bloat_file
+                    bench-init-db $side.magnus $side.genesis $side.dd $bloat $bloat_file
                 }
 
                 bench-save-and-promote $datadir $meta_dir {
@@ -1939,11 +1939,11 @@ def "main bench" [
                     if not ($abs_localnet | path exists) { mkdir $abs_localnet }
                     print $"Generating genesis with ($genesis_accounts) accounts from baseline..."
                     if $baseline == "local" {
-                        cargo run -p tempo-xtask --profile $profile -- generate-genesis --output $abs_localnet -a $genesis_accounts --no-dkg-in-genesis ...$gas_limit_args
+                        cargo run -p magnus-xtask --profile $profile -- generate-genesis --output $abs_localnet -a $genesis_accounts --no-dkg-in-genesis ...$gas_limit_args
                     } else {
                         do {
                             cd $baseline_wt
-                            cargo run -p tempo-xtask --profile $profile -- generate-genesis --output $abs_localnet -a $genesis_accounts --no-dkg-in-genesis ...$gas_limit_args
+                            cargo run -p magnus-xtask --profile $profile -- generate-genesis --output $abs_localnet -a $genesis_accounts --no-dkg-in-genesis ...$gas_limit_args
                         }
                     }
                 }
@@ -1952,11 +1952,11 @@ def "main bench" [
                     print $"Generating state bloat \(($bloat) MiB\) from baseline..."
                     let token_args = ($TIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
                     if $baseline == "local" {
-                        cargo run -p tempo-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
+                        cargo run -p magnus-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
                     } else {
                         do {
                             cd $baseline_wt
-                            cargo run -p tempo-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
+                            cargo run -p magnus-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
                         }
                     }
                 }
@@ -2001,17 +2001,17 @@ def "main bench" [
 
         let runs = if $dual_hardfork {
             [
-                { label: "baseline-1", tempo: $baseline_tempo, git_ref: $baseline_sha, genesis: $"($abs_localnet)/genesis-baseline.json", datadir: $"($datadir)/baseline-db" }
-                { label: "feature-1", tempo: $feature_tempo, git_ref: $feature_sha, genesis: $"($abs_localnet)/genesis-feature.json", datadir: $"($datadir)/feature-db" }
-                { label: "feature-2", tempo: $feature_tempo, git_ref: $feature_sha, genesis: $"($abs_localnet)/genesis-feature.json", datadir: $"($datadir)/feature-db" }
-                { label: "baseline-2", tempo: $baseline_tempo, git_ref: $baseline_sha, genesis: $"($abs_localnet)/genesis-baseline.json", datadir: $"($datadir)/baseline-db" }
+                { label: "baseline-1", magnus: $baseline_tempo, git_ref: $baseline_sha, genesis: $"($abs_localnet)/genesis-baseline.json", datadir: $"($datadir)/baseline-db" }
+                { label: "feature-1", magnus: $feature_tempo, git_ref: $feature_sha, genesis: $"($abs_localnet)/genesis-feature.json", datadir: $"($datadir)/feature-db" }
+                { label: "feature-2", magnus: $feature_tempo, git_ref: $feature_sha, genesis: $"($abs_localnet)/genesis-feature.json", datadir: $"($datadir)/feature-db" }
+                { label: "baseline-2", magnus: $baseline_tempo, git_ref: $baseline_sha, genesis: $"($abs_localnet)/genesis-baseline.json", datadir: $"($datadir)/baseline-db" }
             ]
         } else {
             [
-                { label: "baseline-1", tempo: $baseline_tempo, git_ref: $baseline_sha, genesis: $genesis_path, datadir: $datadir }
-                { label: "feature-1", tempo: $feature_tempo, git_ref: $feature_sha, genesis: $genesis_path, datadir: $datadir }
-                { label: "feature-2", tempo: $feature_tempo, git_ref: $feature_sha, genesis: $genesis_path, datadir: $datadir }
-                { label: "baseline-2", tempo: $baseline_tempo, git_ref: $baseline_sha, genesis: $genesis_path, datadir: $datadir }
+                { label: "baseline-1", magnus: $baseline_tempo, git_ref: $baseline_sha, genesis: $genesis_path, datadir: $datadir }
+                { label: "feature-1", magnus: $feature_tempo, git_ref: $feature_sha, genesis: $genesis_path, datadir: $datadir }
+                { label: "feature-2", magnus: $feature_tempo, git_ref: $feature_sha, genesis: $genesis_path, datadir: $datadir }
+                { label: "baseline-2", magnus: $baseline_tempo, git_ref: $baseline_sha, genesis: $genesis_path, datadir: $datadir }
             ]
         }
 
@@ -2028,7 +2028,7 @@ def "main bench" [
             let effective_node_args = ([$node_args $side_args] | where { |a| $a != "" } | str join " ")
 
             (run-bench-single
-                --tempo-bin $run.tempo --bench-bin $baseline_bench_bin
+                --magnus-bin $run.magnus --bench-bin $baseline_bench_bin
                 --genesis-path $run.genesis --datadir $run.datadir
                 --run-label $run.label --results-dir $results_dir
                 --tps $tps --duration $duration --accounts $accounts
@@ -2100,7 +2100,7 @@ def "main bench" [
     }
 
     # Build both binaries first
-    build-tempo ["tempo" "tempo-bench"] $profile $features
+    build-magnus ["magnus" "magnus-bench"] $profile $features
 
     # Start nodes in background (skip build since we already compiled)
     let num_nodes = if $mode == "dev" { 1 } else { $nodes }
@@ -2110,7 +2110,7 @@ def "main bench" [
     let genesis_accounts = ([$accounts $num_nodes] | math max) + 1
 
     let node_cmd = [
-        "nu" "tempo.nu" "localnet"
+        "nu" "magnus.nu" "localnet"
         "--mode" $mode
         "--accounts" $"($genesis_accounts)"
         "--skip-build"
@@ -2142,11 +2142,11 @@ def "main bench" [
     }
     print "All nodes ready!"
 
-    # Run tempo-bench
+    # Run magnus-bench
     let tempo_bench_bin = if $profile == "dev" {
-        "./target/debug/tempo-bench"
+        "./target/debug/magnus-bench"
     } else {
-        $"./target/($profile)/tempo-bench"
+        $"./target/($profile)/magnus-bench"
     }
     let bench_cmd = [
         $tempo_bench_bin
@@ -2245,17 +2245,17 @@ def wait-for-rpc [url: string, max_attempts: int = 120] {
 const COV_DIR = "coverage"
 const INVARIANT_DIR = "tips/ref-impls"
 
-# Find tempo-foundry checkout (same search as tempo-forge script)
-def find-tempo-foundry [] {
-    let env_path = (if "TEMPO_FOUNDRY_PATH" in $env { $env.TEMPO_FOUNDRY_PATH } else { "" })
+# Find magnus-foundry checkout (same search as magnus-forge script)
+def find-magnus-foundry [] {
+    let env_path = (if "MAGNUS_FOUNDRY_PATH" in $env { $env.MAGNUS_FOUNDRY_PATH } else { "" })
     if $env_path != "" and ($env_path | path exists) {
         return ($env_path | path expand)
     }
-    let sibling = ("../tempo-foundry" | path expand)
+    let sibling = ("../magnus-foundry" | path expand)
     if ($sibling | path exists) and (($sibling | path join "Cargo.toml") | path exists) {
         return $sibling
     }
-    let parent = ("../../tempo-foundry" | path expand)
+    let parent = ("../../magnus-foundry" | path expand)
     if ($parent | path exists) and (($parent | path join "Cargo.toml") | path exists) {
         return $parent
     }
@@ -2276,19 +2276,19 @@ def get-llvm-bin-dir [] {
 # is merged with cargo test coverage via llvm-profdata, matching CI behavior.
 #
 # Examples:
-#   nu tempo.nu coverage --tests                           # unit + integration tests only
-#   nu tempo.nu coverage --invariants                      # forge invariant fuzz (Rust precompile coverage)
-#   nu tempo.nu coverage --tests --invariants              # merged: cargo tests + forge invariants
-#   nu tempo.nu coverage --live --preset tip20             # live node + bench traffic only
-#   nu tempo.nu coverage --tests --live --preset tip20     # all combined
-#   nu tempo.nu coverage --live --script /path/to/test.sh  # live node + external script
+#   nu magnus.nu coverage --tests                           # unit + integration tests only
+#   nu magnus.nu coverage --invariants                      # forge invariant fuzz (Rust precompile coverage)
+#   nu magnus.nu coverage --tests --invariants              # merged: cargo tests + forge invariants
+#   nu magnus.nu coverage --live --preset tip20             # live node + bench traffic only
+#   nu magnus.nu coverage --tests --live --preset tip20     # all combined
+#   nu magnus.nu coverage --live --script /path/to/test.sh  # live node + external script
 def "main coverage" [
     --tests                                # Include unit + integration test coverage
     --invariants                           # Run Solidity invariant fuzz tests (builds instrumented forge)
     --invariant-profile: string = "ci"     # Foundry profile for invariants (ci, fuzz500, default)
     --invariant-contract: string = ""      # Run only a specific invariant contract (e.g. TempoTransactionInvariantTest)
     --live                                 # Include live node coverage (runs localnet + traffic)
-    --preset: string = ""                  # Bench preset for live mode (tip20, erc20, swap, order, tempo-mix)
+    --preset: string = ""                  # Bench preset for live mode (tip20, erc20, swap, order, magnus-mix)
     --script: string = ""                  # External script to run against live node (instead of bench)
     --tps: int = 1000                      # Target TPS for live bench (ignored with --script)
     --duration: int = 10                   # Bench duration in seconds (ignored with --script)
@@ -2324,7 +2324,7 @@ def "main coverage" [
         exit 1
     }
 
-    print "=== Tempo Coverage ==="
+    print "=== Magnus Coverage ==="
     mkdir $COV_DIR
 
     if $invariants {
@@ -2332,16 +2332,16 @@ def "main coverage" [
         # Manual instrumentation path (merges forge + cargo profdata)
         # Matches CI: specs.yml → coverage.yml pipeline
         # =================================================================
-        let foundry_dir = (find-tempo-foundry)
+        let foundry_dir = (find-magnus-foundry)
         if $foundry_dir == "" {
-            print "Error: could not find tempo-foundry repository."
+            print "Error: could not find magnus-foundry repository."
             print ""
             print "Either:"
-            print "  1. Clone as sibling: git clone git@github.com:tempoxyz/tempo-foundry.git ../tempo-foundry"
-            print "  2. Set TEMPO_FOUNDRY_PATH=/path/to/tempo-foundry"
+            print "  1. Clone as sibling: git clone git@github.com:tempoxyz/magnus-foundry.git ../magnus-foundry"
+            print "  2. Set MAGNUS_FOUNDRY_PATH=/path/to/magnus-foundry"
             exit 1
         }
-        print $"Using tempo-foundry at: ($foundry_dir)"
+        print $"Using magnus-foundry at: ($foundry_dir)"
 
         let profraw_dir = ([$env.PWD $COV_DIR "profraw"] | path join)
         rm -rf $profraw_dir
@@ -2356,16 +2356,16 @@ def "main coverage" [
                 LLVM_PROFILE_FILE: $"($profraw_dir)/cargo-%p-%m.profraw"
                 RUSTC_WRAPPER: ""
             } {
-                cargo test --workspace --exclude tempo-e2e
+                cargo test --workspace --exclude magnus-e2e
             }
             print "Tests complete."
         }
 
-        # Step 2: Build tempo-foundry forge with coverage instrumentation
-        # Patch tempo-foundry to use local tempo checkout so source paths match
+        # Step 2: Build magnus-foundry forge with coverage instrumentation
+        # Patch magnus-foundry to use local magnus checkout so source paths match
         # in the merged profdata. Uses .cargo/config.toml patch override.
         print ""
-        print "--- Building tempo-foundry forge (instrumented) ---"
+        print "--- Building magnus-foundry forge (instrumented) ---"
         print "This may take a while on first run..."
         let tempo_root = ($env.PWD | path expand)
         let foundry_cargo_dir = ($foundry_dir | path join ".cargo")
@@ -2375,18 +2375,18 @@ def "main coverage" [
         let foundry_cargo_lock = ($foundry_dir | path join "Cargo.lock")
         let existing_lock = (if ($foundry_cargo_lock | path exists) { open --raw $foundry_cargo_lock } else { "" })
 
-        # Append patch overrides pointing tempo deps at local checkout
+        # Append patch overrides pointing magnus deps at local checkout
         let patch_block = $"
 
-# AUTO-GENERATED by tempo.nu coverage --invariants -- do not commit
-[patch.'https://github.com/tempoxyz/tempo']
-tempo-alloy = { path = '($tempo_root)/crates/alloy' }
-tempo-contracts = { path = '($tempo_root)/crates/contracts' }
-tempo-revm = { path = '($tempo_root)/crates/revm' }
-tempo-evm = { path = '($tempo_root)/crates/evm' }
-tempo-chainspec = { path = '($tempo_root)/crates/chainspec' }
-tempo-primitives = { path = '($tempo_root)/crates/primitives' }
-tempo-precompiles = { path = '($tempo_root)/crates/precompiles' }
+# AUTO-GENERATED by magnus.nu coverage --invariants -- do not commit
+[patch.'https://github.com/tempoxyz/magnus']
+magnus-alloy = { path = '($tempo_root)/crates/alloy' }
+magnus-contracts = { path = '($tempo_root)/crates/contracts' }
+magnus-revm = { path = '($tempo_root)/crates/revm' }
+magnus-evm = { path = '($tempo_root)/crates/evm' }
+magnus-chainspec = { path = '($tempo_root)/crates/chainspec' }
+magnus-primitives = { path = '($tempo_root)/crates/primitives' }
+magnus-precompiles = { path = '($tempo_root)/crates/precompiles' }
 "
         mkdir $foundry_cargo_dir
         $"($existing_config)($patch_block)" | save -f $foundry_cargo_config
@@ -2471,7 +2471,7 @@ tempo-precompiles = { path = '($tempo_root)/crates/precompiles' }
             "--ignore-filename-regex=/rustc/"
             "--ignore-filename-regex=\\.cargo/"
             "--ignore-filename-regex=\\.rustup/"
-            "--ignore-filename-regex=tempo-foundry/"
+            "--ignore-filename-regex=magnus-foundry/"
             "--ignore-filename-regex=library/"
         ]
 
@@ -2483,7 +2483,7 @@ tempo-precompiles = { path = '($tempo_root)/crates/precompiles' }
 
             if $format == "html" {
                 let html_dir = $"($COV_DIR)/html"
-                genhtml $lcov_path --output-directory $html_dir --title "Tempo Precompiles Coverage" --legend
+                genhtml $lcov_path --output-directory $html_dir --title "Magnus Precompiles Coverage" --legend
                 print $"Report saved to ($html_dir)/index.html"
                 if $open {
                     xdg-open $"($html_dir)/index.html"
@@ -2527,7 +2527,7 @@ tempo-precompiles = { path = '($tempo_root)/crates/precompiles' }
                 rm -rf $LOCALNET_DIR
                 mkdir $LOCALNET_DIR
                 print $"Generating genesis with ($accounts) accounts..."
-                cargo run -p tempo-xtask -- generate-genesis --output $LOCALNET_DIR -a $accounts --no-dkg-in-genesis
+                cargo run -p magnus-xtask -- generate-genesis --output $LOCALNET_DIR -a $accounts --no-dkg-in-genesis
             }
 
             # Build node args
@@ -2543,10 +2543,10 @@ tempo-precompiles = { path = '($tempo_root)/crates/precompiles' }
                 ]
 
             # Build + run instrumented binary via cargo llvm-cov run (backgrounds itself)
-            print "Building and starting instrumented tempo node..."
+            print "Building and starting instrumented magnus node..."
             let node_args_str = ($args | str join " ")
             job spawn {
-                bash -c $"cargo llvm-cov run --no-report --bin tempo -- ($node_args_str)"
+                bash -c $"cargo llvm-cov run --no-report --bin magnus -- ($node_args_str)"
             }
 
             # Wait for node (generous timeout since cargo llvm-cov run compiles first)
@@ -2566,11 +2566,11 @@ tempo-precompiles = { path = '($tempo_root)/crates/precompiles' }
                     print "Script finished (or failed)."
                 }
             } else {
-                print "Building tempo-bench..."
-                cargo build --bin tempo-bench
+                print "Building magnus-bench..."
+                cargo build --bin magnus-bench
 
                 let weights = $PRESETS | get $preset
-                let bench_bin = "./target/debug/tempo-bench"
+                let bench_bin = "./target/debug/magnus-bench"
                 let bench_cmd = [
                     $bench_bin
                     "run-max-tps"
@@ -2596,7 +2596,7 @@ tempo-precompiles = { path = '($tempo_root)/crates/precompiles' }
 
             # Graceful shutdown (SIGINT so profraw gets written)
             print "Stopping instrumented node (SIGINT for profraw flush)..."
-            let pids = (find-tempo-pids)
+            let pids = (find-magnus-pids)
             for pid in $pids {
                 kill -s 2 $pid
             }
@@ -2642,19 +2642,19 @@ tempo-precompiles = { path = '($tempo_root)/crates/precompiles' }
 
 # Show help
 def main [] {
-    print "Tempo local utilities"
+    print "Magnus local utilities"
     print ""
     print "Usage:"
-    print "  nu tempo.nu bench [flags]            Run full benchmark (infra + localnet + bench)"
-    print "  nu tempo.nu localnet [flags]         Run Tempo localnet"
-    print "  nu tempo.nu coverage [flags]         Run coverage (tests, live node, or both)"
-    print "  nu tempo.nu infra up                 Start Grafana + Prometheus"
-    print "  nu tempo.nu infra down               Stop the observability stack"
-    print "  nu tempo.nu kill                     Kill any running tempo processes"
+    print "  nu magnus.nu bench [flags]            Run full benchmark (infra + localnet + bench)"
+    print "  nu magnus.nu localnet [flags]         Run Magnus localnet"
+    print "  nu magnus.nu coverage [flags]         Run coverage (tests, live node, or both)"
+    print "  nu magnus.nu infra up                 Start Grafana + Prometheus"
+    print "  nu magnus.nu infra down               Stop the observability stack"
+    print "  nu magnus.nu kill                     Kill any running magnus processes"
     print ""
     print "Bench flags (either --preset or --bench-args required):"
     print "  --mode <M>               Mode: dev or consensus (default: consensus)"
-    print "  --preset <P>             Preset: tip20, erc20, swap, order, tempo-mix"
+    print "  --preset <P>             Preset: tip20, erc20, swap, order, magnus-mix"
     print "  --tps <N>                Target TPS (default: 10000)"
     print "  --duration <N>           Duration in seconds (default: 30)"
     print "  --accounts <N>           Number of accounts (default: 1000)"
@@ -2666,7 +2666,7 @@ def main [] {
     print "  --tracy-filter <FILTER>  Tracy tracing filter level (default: debug)"
     print "  --tracy-seconds <N>      Tracy capture duration limit in seconds (default: 30, 0 = unlimited)"
     print "  --tracy-offset <N>       Seconds to wait before starting tracy capture (default: 120)"
-    print "  --tracing-otlp <URL>     OTLP endpoint for tracing (auto-derived from TEMPO_TELEMETRY_URL if not set)"
+    print "  --tracing-otlp <URL>     OTLP endpoint for tracing (auto-derived from MAGNUS_TELEMETRY_URL if not set)"
     print "  --reset                  Reset localnet before starting"
     print "  --loud                   Show all node logs (WARN/ERROR shown by default)"
     print $"  --profile <P>            Cargo profile \(default: ($DEFAULT_PROFILE)\)"
@@ -2674,7 +2674,7 @@ def main [] {
     print "  --node-args <ARGS>       Additional node arguments (space-separated, all runs)"
     print "  --baseline-args <ARGS>       Additional node arguments for baseline runs only"
     print "  --feature-args <ARGS>        Additional node arguments for feature runs only"
-    print "  --bench-args <ARGS>      Additional tempo-bench arguments (space-separated)"
+    print "  --bench-args <ARGS>      Additional magnus-bench arguments (space-separated)"
     print "  --bloat <N>              Generate TIP20 state bloat (size in MiB)"
     print "  --gas-limit <N>          Block gas limit for genesis (raw number, default: 1000000000000)"
     print ""
@@ -2707,19 +2707,19 @@ def main [] {
     print "  --reset                  Wipe localnet data before live run"
     print ""
     print "Examples:"
-    print "  nu tempo.nu bench --preset tip20 --tps 20000 --duration 60"
-    print "  nu tempo.nu bench --preset tempo-mix --tps 5000 --samply --reset"
-    print "  nu tempo.nu coverage --tests                              # unit + integration tests"
-    print "  nu tempo.nu coverage --invariants                         # forge invariant fuzz (precompile coverage)"
-    print "  nu tempo.nu coverage --tests --invariants                 # merged: cargo + forge coverage"
-    print "  nu tempo.nu coverage --invariants --invariant-profile fuzz500  # deeper fuzz run"
-    print "  nu tempo.nu coverage --live --preset tip20 --open         # live tx coverage"
-    print "  nu tempo.nu coverage --live --script /path/to/test.sh     # live + external script"
-    print "  nu tempo.nu coverage --tests --live --preset tempo-mix    # everything merged"
-    print "  nu tempo.nu infra up"
-    print "  nu tempo.nu localnet --mode dev --samply --accounts 50000 --reset"
-    print "  nu tempo.nu localnet --mode dev --bloat 1024 --reset"
-    print "  nu tempo.nu localnet --mode consensus --nodes 3"
+    print "  nu magnus.nu bench --preset tip20 --tps 20000 --duration 60"
+    print "  nu magnus.nu bench --preset magnus-mix --tps 5000 --samply --reset"
+    print "  nu magnus.nu coverage --tests                              # unit + integration tests"
+    print "  nu magnus.nu coverage --invariants                         # forge invariant fuzz (precompile coverage)"
+    print "  nu magnus.nu coverage --tests --invariants                 # merged: cargo + forge coverage"
+    print "  nu magnus.nu coverage --invariants --invariant-profile fuzz500  # deeper fuzz run"
+    print "  nu magnus.nu coverage --live --preset tip20 --open         # live tx coverage"
+    print "  nu magnus.nu coverage --live --script /path/to/test.sh     # live + external script"
+    print "  nu magnus.nu coverage --tests --live --preset magnus-mix    # everything merged"
+    print "  nu magnus.nu infra up"
+    print "  nu magnus.nu localnet --mode dev --samply --accounts 50000 --reset"
+    print "  nu magnus.nu localnet --mode dev --bloat 1024 --reset"
+    print "  nu magnus.nu localnet --mode consensus --nodes 3"
     print ""
     print "Port assignments (consensus mode, per node N=0,1,2...):"
     print "  Consensus:     8000 + N*100"
