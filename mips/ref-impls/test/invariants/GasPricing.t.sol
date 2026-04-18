@@ -16,11 +16,11 @@ import { LegacyTransaction, LegacyTransactionLib } from "magnus-std/tx/LegacyTra
 /// @dev Tests gas pricing invariants at the EVM opcode level using vmExec.executeTransaction()
 ///
 /// MIP-1000 specifies:
-/// - SSTORE to new slot: 250,000 gas (TEMPO-GAS1)
-/// - CREATE base cost: 500,000 gas (TEMPO-GAS5)
-/// - Code deposit: 1,000 gas per byte (TEMPO-GAS5)
-/// - Account creation: 250,000 gas (part of TEMPO-GAS5)
-/// - Multiple new slots: 250,000 gas each (TEMPO-GAS8)
+/// - SSTORE to new slot: 250,000 gas (MAGNUS-GAS1)
+/// - CREATE base cost: 500,000 gas (MAGNUS-GAS5)
+/// - Code deposit: 1,000 gas per byte (MAGNUS-GAS5)
+/// - Account creation: 250,000 gas (part of MAGNUS-GAS5)
+/// - Multiple new slots: 250,000 gas each (MAGNUS-GAS8)
 ///
 /// Protocol-level invariants (tx gas cap, intrinsic gas) are tested in Rust.
 contract GasPricingInvariantTest is InvariantBase {
@@ -67,19 +67,19 @@ contract GasPricingInvariantTest is InvariantBase {
                             GHOST VARIABLES
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev TEMPO-GAS1: SSTORE new slot tracking
+    /// @dev MAGNUS-GAS1: SSTORE new slot tracking
     uint256 public ghost_sstoreTests;
     uint256 public ghost_sstoreInsufficientGasFailed;
     uint256 public ghost_sstoreSufficientGasSucceeded;
     uint256 public ghost_sstoreViolations; // Succeeded with insufficient gas
 
-    /// @dev TEMPO-GAS5: CREATE tracking
+    /// @dev MAGNUS-GAS5: CREATE tracking
     uint256 public ghost_createTests;
     uint256 public ghost_createInsufficientGasFailed;
     uint256 public ghost_createSufficientGasSucceeded;
     uint256 public ghost_createViolations; // Succeeded with insufficient gas
 
-    /// @dev TEMPO-GAS8: Multi-slot tracking
+    /// @dev MAGNUS-GAS8: Multi-slot tracking
     uint256 public ghost_multiSlotTests;
     uint256 public ghost_multiSlotInsufficientGasFailed;
     uint256 public ghost_multiSlotSufficientGasSucceeded;
@@ -116,29 +116,29 @@ contract GasPricingInvariantTest is InvariantBase {
         _invariantMultiSlotScaling();
     }
 
-    /// @notice TEMPO-GAS1: SSTORE to new slot must cost ~250k gas
+    /// @notice MAGNUS-GAS1: SSTORE to new slot must cost ~250k gas
     /// @dev Violations occur if tx succeeds with gas clearly below threshold
     function _invariantSstoreNewSlotCost() internal view {
         assertEq(
             ghost_sstoreViolations,
             0,
-            "TEMPO-GAS1: SSTORE to new slot succeeded with insufficient gas"
+            "MAGNUS-GAS1: SSTORE to new slot succeeded with insufficient gas"
         );
     }
 
-    /// @notice TEMPO-GAS5: CREATE must cost 500k base + code + account creation
+    /// @notice MAGNUS-GAS5: CREATE must cost 500k base + code + account creation
     /// @dev Violations occur if tx succeeds with gas clearly below threshold
     function _invariantCreateCost() internal view {
-        assertEq(ghost_createViolations, 0, "TEMPO-GAS5: CREATE succeeded with insufficient gas");
+        assertEq(ghost_createViolations, 0, "MAGNUS-GAS5: CREATE succeeded with insufficient gas");
     }
 
-    /// @notice TEMPO-GAS8: Multiple new slots must cost 250k each
+    /// @notice MAGNUS-GAS8: Multiple new slots must cost 250k each
     /// @dev Violations occur if all N slots written with gas for only 1
     function _invariantMultiSlotScaling() internal view {
         assertEq(
             ghost_multiSlotViolations,
             0,
-            "TEMPO-GAS8: Multi-slot write succeeded with insufficient gas"
+            "MAGNUS-GAS8: Multi-slot write succeeded with insufficient gas"
         );
     }
 
@@ -146,7 +146,7 @@ contract GasPricingInvariantTest is InvariantBase {
                             HANDLERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Handler: Test SSTORE to new slot gas requirement (TEMPO-GAS1)
+    /// @notice Handler: Test SSTORE to new slot gas requirement (MAGNUS-GAS1)
     /// @param actorSeed Seed for selecting actor
     /// @param slotSeed Seed for generating unique slot
     function handler_sstoreNewSlot(uint256 actorSeed, uint256 slotSeed) external {
@@ -205,7 +205,7 @@ contract GasPricingInvariantTest is InvariantBase {
         }
     }
 
-    /// @notice Handler: Test CREATE gas requirement (TEMPO-GAS5)
+    /// @notice Handler: Test CREATE gas requirement (MAGNUS-GAS5)
     /// @param actorSeed Seed for selecting actor
     function handler_createContract(uint256 actorSeed) external {
         // Skip when not on Magnus (vmExec.executeTransaction not available)
@@ -262,7 +262,7 @@ contract GasPricingInvariantTest is InvariantBase {
         }
     }
 
-    /// @notice Handler: Test multiple SSTORE scaling (TEMPO-GAS8)
+    /// @notice Handler: Test multiple SSTORE scaling (MAGNUS-GAS8)
     /// @param actorSeed Seed for selecting actor
     /// @param numSlots Number of slots to write (2-5)
     function handler_multipleNewSlots(uint256 actorSeed, uint256 numSlots) external {

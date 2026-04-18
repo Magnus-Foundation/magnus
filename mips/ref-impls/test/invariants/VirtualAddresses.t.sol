@@ -11,7 +11,7 @@ import { Vm } from "forge-std/Vm.sol";
 
 /// @title MIP-1022 Virtual Address Invariant Tests
 /// @notice Stateful invariant coverage for deterministic virtual-address forwarding fixtures
-/// @dev Tests TEMPO-VA1 through TEMPO-VA16 using fixed anvil masters and pre-mined salts
+/// @dev Tests MAGNUS-VA1 through MAGNUS-VA16 using fixed anvil masters and pre-mined salts
 contract VirtualAddressesInvariantTest is InvariantBaseTest {
 
     struct MasterFixture {
@@ -131,11 +131,11 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.prank(sender);
         bool success = token.transfer(virtualAddr, amount);
 
-        assertTrue(success, "TEMPO-VA7: transfer should succeed");
-        assertEq(token.balanceOf(sender), senderBalanceBefore - amount, "TEMPO-VA7: sender debit");
-        assertEq(token.balanceOf(master), masterBalanceBefore + amount, "TEMPO-VA7: master credit");
-        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "TEMPO-VA10: virtual balance");
-        assertEq(token.totalSupply(), supplyBefore, "TEMPO-VA7: transfer supply change");
+        assertTrue(success, "MAGNUS-VA7: transfer should succeed");
+        assertEq(token.balanceOf(sender), senderBalanceBefore - amount, "MAGNUS-VA7: sender debit");
+        assertEq(token.balanceOf(master), masterBalanceBefore + amount, "MAGNUS-VA7: master credit");
+        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "MAGNUS-VA10: virtual balance");
+        assertEq(token.totalSupply(), supplyBefore, "MAGNUS-VA7: transfer supply change");
 
         _assertTransferSequence(token, sender, virtualAddr, master, amount);
     }
@@ -176,27 +176,27 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.prank(spender);
         bool success = token.transferFrom(owner, virtualAddr, amount);
 
-        assertTrue(success, "TEMPO-VA8: transferFrom should succeed");
-        assertEq(token.balanceOf(owner), snapshot.fromBalance - amount, "TEMPO-VA8: owner debit");
+        assertTrue(success, "MAGNUS-VA8: transferFrom should succeed");
+        assertEq(token.balanceOf(owner), snapshot.fromBalance - amount, "MAGNUS-VA8: owner debit");
         assertEq(
-            token.balanceOf(master), snapshot.masterBalance + amount, "TEMPO-VA8: master credit"
+            token.balanceOf(master), snapshot.masterBalance + amount, "MAGNUS-VA8: master credit"
         );
         assertEq(
-            token.balanceOf(virtualAddr), snapshot.virtualBalance, "TEMPO-VA10: virtual balance"
+            token.balanceOf(virtualAddr), snapshot.virtualBalance, "MAGNUS-VA10: virtual balance"
         );
-        assertEq(token.totalSupply(), snapshot.totalSupply, "TEMPO-VA8: transferFrom supply change");
+        assertEq(token.totalSupply(), snapshot.totalSupply, "MAGNUS-VA8: transferFrom supply change");
 
         if (snapshot.allowance == type(uint256).max) {
             assertEq(
                 token.allowance(owner, spender),
                 type(uint256).max,
-                "TEMPO-VA8: infinite allowance changed"
+                "MAGNUS-VA8: infinite allowance changed"
             );
         } else {
             assertEq(
                 token.allowance(owner, spender),
                 snapshot.allowance - amount,
-                "TEMPO-VA8: allowance not reduced"
+                "MAGNUS-VA8: allowance not reduced"
             );
         }
 
@@ -231,10 +231,10 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.prank(sender);
         token.transferWithMemo(virtualAddr, amount, memo);
 
-        assertEq(token.balanceOf(sender), senderBalanceBefore - amount, "TEMPO-VA7: sender debit");
-        assertEq(token.balanceOf(master), masterBalanceBefore + amount, "TEMPO-VA7: master credit");
-        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "TEMPO-VA10: virtual balance");
-        assertEq(token.totalSupply(), supplyBefore, "TEMPO-VA7: transferWithMemo supply change");
+        assertEq(token.balanceOf(sender), senderBalanceBefore - amount, "MAGNUS-VA7: sender debit");
+        assertEq(token.balanceOf(master), masterBalanceBefore + amount, "MAGNUS-VA7: master credit");
+        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "MAGNUS-VA10: virtual balance");
+        assertEq(token.totalSupply(), supplyBefore, "MAGNUS-VA7: transferWithMemo supply change");
 
         _assertTransferWithMemoSequence(token, sender, virtualAddr, master, amount, memo);
     }
@@ -276,29 +276,29 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.prank(spender);
         bool success = token.transferFromWithMemo(owner, virtualAddr, amount, memo);
 
-        assertTrue(success, "TEMPO-VA8: transferFromWithMemo should succeed");
-        assertEq(token.balanceOf(owner), snapshot.fromBalance - amount, "TEMPO-VA8: owner debit");
+        assertTrue(success, "MAGNUS-VA8: transferFromWithMemo should succeed");
+        assertEq(token.balanceOf(owner), snapshot.fromBalance - amount, "MAGNUS-VA8: owner debit");
         assertEq(
-            token.balanceOf(master), snapshot.masterBalance + amount, "TEMPO-VA8: master credit"
+            token.balanceOf(master), snapshot.masterBalance + amount, "MAGNUS-VA8: master credit"
         );
         assertEq(
-            token.balanceOf(virtualAddr), snapshot.virtualBalance, "TEMPO-VA10: virtual balance"
+            token.balanceOf(virtualAddr), snapshot.virtualBalance, "MAGNUS-VA10: virtual balance"
         );
         assertEq(
-            token.totalSupply(), snapshot.totalSupply, "TEMPO-VA8: transferFromWithMemo supply"
+            token.totalSupply(), snapshot.totalSupply, "MAGNUS-VA8: transferFromWithMemo supply"
         );
 
         if (snapshot.allowance == type(uint256).max) {
             assertEq(
                 token.allowance(owner, spender),
                 type(uint256).max,
-                "TEMPO-VA8: infinite allowance changed"
+                "MAGNUS-VA8: infinite allowance changed"
             );
         } else {
             assertEq(
                 token.allowance(owner, spender),
                 snapshot.allowance - amount,
-                "TEMPO-VA8: allowance not reduced"
+                "MAGNUS-VA8: allowance not reduced"
             );
         }
 
@@ -322,9 +322,9 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.prank(admin);
         token.mint(virtualAddr, amount);
 
-        assertEq(token.balanceOf(master), masterBalanceBefore + amount, "TEMPO-VA9: master credit");
-        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "TEMPO-VA10: virtual balance");
-        assertEq(token.totalSupply(), supplyBefore + amount, "TEMPO-VA9: supply increase");
+        assertEq(token.balanceOf(master), masterBalanceBefore + amount, "MAGNUS-VA9: master credit");
+        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "MAGNUS-VA10: virtual balance");
+        assertEq(token.totalSupply(), supplyBefore + amount, "MAGNUS-VA9: supply increase");
 
         _assertMintSequence(token, virtualAddr, master, amount);
     }
@@ -353,9 +353,9 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.prank(admin);
         token.mintWithMemo(virtualAddr, amount, memo);
 
-        assertEq(token.balanceOf(master), masterBalanceBefore + amount, "TEMPO-VA9: master credit");
-        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "TEMPO-VA10: virtual balance");
-        assertEq(token.totalSupply(), supplyBefore + amount, "TEMPO-VA9: supply increase");
+        assertEq(token.balanceOf(master), masterBalanceBefore + amount, "MAGNUS-VA9: master credit");
+        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "MAGNUS-VA10: virtual balance");
+        assertEq(token.totalSupply(), supplyBefore + amount, "MAGNUS-VA9: supply increase");
 
         _assertMintWithMemoSequence(token, virtualAddr, master, amount, memo);
     }
@@ -387,31 +387,31 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.prank(sender);
         if (useMemo) {
             try token.transferWithMemo(virtualAddr, amount, memo) {
-                revert("TEMPO-VA6: unregistered transferWithMemo unexpectedly succeeded");
+                revert("MAGNUS-VA6: unregistered transferWithMemo unexpectedly succeeded");
             } catch (bytes memory reason) {
                 assertEq(
                     bytes4(reason),
                     IAddressRegistry.VirtualAddressUnregistered.selector,
-                    "TEMPO-VA6: wrong unregistered transferWithMemo error"
+                    "MAGNUS-VA6: wrong unregistered transferWithMemo error"
                 );
             }
         } else {
             try token.transfer(virtualAddr, amount) returns (bool) {
-                revert("TEMPO-VA6: unregistered transfer unexpectedly succeeded");
+                revert("MAGNUS-VA6: unregistered transfer unexpectedly succeeded");
             } catch (bytes memory reason) {
                 assertEq(
                     bytes4(reason),
                     IAddressRegistry.VirtualAddressUnregistered.selector,
-                    "TEMPO-VA6: wrong unregistered transfer error"
+                    "MAGNUS-VA6: wrong unregistered transfer error"
                 );
             }
         }
 
-        assertEq(token.balanceOf(sender), senderBalanceBefore, "TEMPO-VA6: sender changed");
-        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "TEMPO-VA6: alias changed");
-        assertEq(token.totalSupply(), supplyBefore, "TEMPO-VA6: supply changed");
+        assertEq(token.balanceOf(sender), senderBalanceBefore, "MAGNUS-VA6: sender changed");
+        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "MAGNUS-VA6: alias changed");
+        assertEq(token.totalSupply(), supplyBefore, "MAGNUS-VA6: supply changed");
 
-        _assertNoRelevantTokenLogs(token, "TEMPO-VA6: transfer emitted token logs");
+        _assertNoRelevantTokenLogs(token, "MAGNUS-VA6: transfer emitted token logs");
     }
 
     function transferFromToUnregisteredVirtual(
@@ -452,34 +452,34 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.prank(spender);
         if (useMemo) {
             try token.transferFromWithMemo(owner, virtualAddr, amount, memo) returns (bool) {
-                revert("TEMPO-VA6: unregistered transferFromWithMemo unexpectedly succeeded");
+                revert("MAGNUS-VA6: unregistered transferFromWithMemo unexpectedly succeeded");
             } catch (bytes memory reason) {
                 assertEq(
                     bytes4(reason),
                     IAddressRegistry.VirtualAddressUnregistered.selector,
-                    "TEMPO-VA6: wrong unregistered transferFromWithMemo error"
+                    "MAGNUS-VA6: wrong unregistered transferFromWithMemo error"
                 );
             }
         } else {
             try token.transferFrom(owner, virtualAddr, amount) returns (bool) {
-                revert("TEMPO-VA6: unregistered transferFrom unexpectedly succeeded");
+                revert("MAGNUS-VA6: unregistered transferFrom unexpectedly succeeded");
             } catch (bytes memory reason) {
                 assertEq(
                     bytes4(reason),
                     IAddressRegistry.VirtualAddressUnregistered.selector,
-                    "TEMPO-VA6: wrong unregistered transferFrom error"
+                    "MAGNUS-VA6: wrong unregistered transferFrom error"
                 );
             }
         }
 
-        assertEq(token.balanceOf(owner), snapshot.fromBalance, "TEMPO-VA6: owner changed");
-        assertEq(token.balanceOf(virtualAddr), snapshot.virtualBalance, "TEMPO-VA6: alias changed");
-        assertEq(token.totalSupply(), snapshot.totalSupply, "TEMPO-VA6: supply changed");
+        assertEq(token.balanceOf(owner), snapshot.fromBalance, "MAGNUS-VA6: owner changed");
+        assertEq(token.balanceOf(virtualAddr), snapshot.virtualBalance, "MAGNUS-VA6: alias changed");
+        assertEq(token.totalSupply(), snapshot.totalSupply, "MAGNUS-VA6: supply changed");
         assertEq(
-            token.allowance(owner, spender), snapshot.allowance, "TEMPO-VA6: allowance changed"
+            token.allowance(owner, spender), snapshot.allowance, "MAGNUS-VA6: allowance changed"
         );
 
-        _assertNoRelevantTokenLogs(token, "TEMPO-VA6: transferFrom emitted token logs");
+        _assertNoRelevantTokenLogs(token, "MAGNUS-VA6: transferFrom emitted token logs");
     }
 
     function mintToUnregisteredVirtual(
@@ -503,30 +503,30 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.prank(admin);
         if (useMemo) {
             try token.mintWithMemo(virtualAddr, amount, memo) {
-                revert("TEMPO-VA6: unregistered mintWithMemo unexpectedly succeeded");
+                revert("MAGNUS-VA6: unregistered mintWithMemo unexpectedly succeeded");
             } catch (bytes memory reason) {
                 assertEq(
                     bytes4(reason),
                     IAddressRegistry.VirtualAddressUnregistered.selector,
-                    "TEMPO-VA6: wrong unregistered mintWithMemo error"
+                    "MAGNUS-VA6: wrong unregistered mintWithMemo error"
                 );
             }
         } else {
             try token.mint(virtualAddr, amount) {
-                revert("TEMPO-VA6: unregistered mint unexpectedly succeeded");
+                revert("MAGNUS-VA6: unregistered mint unexpectedly succeeded");
             } catch (bytes memory reason) {
                 assertEq(
                     bytes4(reason),
                     IAddressRegistry.VirtualAddressUnregistered.selector,
-                    "TEMPO-VA6: wrong unregistered mint error"
+                    "MAGNUS-VA6: wrong unregistered mint error"
                 );
             }
         }
 
-        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "TEMPO-VA6: alias changed");
-        assertEq(token.totalSupply(), supplyBefore, "TEMPO-VA6: supply changed");
+        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "MAGNUS-VA6: alias changed");
+        assertEq(token.totalSupply(), supplyBefore, "MAGNUS-VA6: supply changed");
 
-        _assertNoRelevantTokenLogs(token, "TEMPO-VA6: mint emitted token logs");
+        _assertNoRelevantTokenLogs(token, "MAGNUS-VA6: mint emitted token logs");
     }
 
     function selfForward(
@@ -554,12 +554,12 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.prank(fixture.master);
         bool success = token.transfer(virtualAddr, amount);
 
-        assertTrue(success, "TEMPO-VA13: self-forward should succeed");
+        assertTrue(success, "MAGNUS-VA13: self-forward should succeed");
         assertEq(
-            token.balanceOf(fixture.master), masterBalanceBefore, "TEMPO-VA13: net balance changed"
+            token.balanceOf(fixture.master), masterBalanceBefore, "MAGNUS-VA13: net balance changed"
         );
-        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "TEMPO-VA10: virtual balance");
-        assertEq(token.totalSupply(), supplyBefore, "TEMPO-VA13: supply changed");
+        assertEq(token.balanceOf(virtualAddr), virtualBalanceBefore, "MAGNUS-VA10: virtual balance");
+        assertEq(token.totalSupply(), supplyBefore, "MAGNUS-VA13: supply changed");
 
         _assertTransferSequence(token, fixture.master, virtualAddr, fixture.master, amount);
     }
@@ -591,38 +591,38 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.prank(sender);
         if (allowMaster) {
             bool success = token.transfer(virtualAddr, amount);
-            assertTrue(success, "TEMPO-VA14: transfer should succeed for allowed master");
+            assertTrue(success, "MAGNUS-VA14: transfer should succeed for allowed master");
             assertEq(
-                token.balanceOf(sender), snapshot.fromBalance - amount, "TEMPO-VA14: sender debit"
+                token.balanceOf(sender), snapshot.fromBalance - amount, "MAGNUS-VA14: sender debit"
             );
             assertEq(
                 token.balanceOf(master),
                 snapshot.masterBalance + amount,
-                "TEMPO-VA14: master credit"
+                "MAGNUS-VA14: master credit"
             );
             assertEq(
-                token.balanceOf(virtualAddr), snapshot.virtualBalance, "TEMPO-VA10: virtual balance"
+                token.balanceOf(virtualAddr), snapshot.virtualBalance, "MAGNUS-VA10: virtual balance"
             );
-            assertEq(token.totalSupply(), snapshot.totalSupply, "TEMPO-VA14: supply change");
+            assertEq(token.totalSupply(), snapshot.totalSupply, "MAGNUS-VA14: supply change");
             _assertTransferSequence(token, sender, virtualAddr, master, amount);
         } else {
             try token.transfer(virtualAddr, amount) returns (bool) {
-                revert("TEMPO-VA14: blocked master transfer unexpectedly succeeded");
+                revert("MAGNUS-VA14: blocked master transfer unexpectedly succeeded");
             } catch (bytes memory reason) {
                 assertEq(
                     bytes4(reason),
                     IMIP20.PolicyForbids.selector,
-                    "TEMPO-VA14: blocked transfer wrong error"
+                    "MAGNUS-VA14: blocked transfer wrong error"
                 );
             }
 
-            assertEq(token.balanceOf(sender), snapshot.fromBalance, "TEMPO-VA14: sender changed");
-            assertEq(token.balanceOf(master), snapshot.masterBalance, "TEMPO-VA14: master changed");
+            assertEq(token.balanceOf(sender), snapshot.fromBalance, "MAGNUS-VA14: sender changed");
+            assertEq(token.balanceOf(master), snapshot.masterBalance, "MAGNUS-VA14: master changed");
             assertEq(
-                token.balanceOf(virtualAddr), snapshot.virtualBalance, "TEMPO-VA10: virtual balance"
+                token.balanceOf(virtualAddr), snapshot.virtualBalance, "MAGNUS-VA10: virtual balance"
             );
-            assertEq(token.totalSupply(), snapshot.totalSupply, "TEMPO-VA14: supply changed");
-            _assertNoRelevantTokenLogs(token, "TEMPO-VA14: blocked transfer emitted logs");
+            assertEq(token.totalSupply(), snapshot.totalSupply, "MAGNUS-VA14: supply changed");
+            _assertNoRelevantTokenLogs(token, "MAGNUS-VA14: blocked transfer emitted logs");
         }
     }
 
@@ -653,30 +653,30 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
             token.mint(virtualAddr, amount);
 
             assertEq(
-                token.balanceOf(master), masterBalanceBefore + amount, "TEMPO-VA14: master credit"
+                token.balanceOf(master), masterBalanceBefore + amount, "MAGNUS-VA14: master credit"
             );
             assertEq(
-                token.balanceOf(virtualAddr), virtualBalanceBefore, "TEMPO-VA10: virtual balance"
+                token.balanceOf(virtualAddr), virtualBalanceBefore, "MAGNUS-VA10: virtual balance"
             );
-            assertEq(token.totalSupply(), supplyBefore + amount, "TEMPO-VA14: supply increase");
+            assertEq(token.totalSupply(), supplyBefore + amount, "MAGNUS-VA14: supply increase");
             _assertMintSequence(token, virtualAddr, master, amount);
         } else {
             try token.mint(virtualAddr, amount) {
-                revert("TEMPO-VA14: blocked master mint unexpectedly succeeded");
+                revert("MAGNUS-VA14: blocked master mint unexpectedly succeeded");
             } catch (bytes memory reason) {
                 assertEq(
                     bytes4(reason),
                     IMIP20.PolicyForbids.selector,
-                    "TEMPO-VA14: blocked mint wrong error"
+                    "MAGNUS-VA14: blocked mint wrong error"
                 );
             }
 
-            assertEq(token.balanceOf(master), masterBalanceBefore, "TEMPO-VA14: master changed");
+            assertEq(token.balanceOf(master), masterBalanceBefore, "MAGNUS-VA14: master changed");
             assertEq(
-                token.balanceOf(virtualAddr), virtualBalanceBefore, "TEMPO-VA10: virtual balance"
+                token.balanceOf(virtualAddr), virtualBalanceBefore, "MAGNUS-VA10: virtual balance"
             );
-            assertEq(token.totalSupply(), supplyBefore, "TEMPO-VA14: supply changed");
-            _assertNoRelevantTokenLogs(token, "TEMPO-VA14: blocked mint emitted logs");
+            assertEq(token.totalSupply(), supplyBefore, "MAGNUS-VA14: supply changed");
+            _assertNoRelevantTokenLogs(token, "MAGNUS-VA14: blocked mint emitted logs");
         }
     }
 
@@ -709,49 +709,49 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         ) returns (
             uint64
         ) {
-            revert("TEMPO-VA15: createPolicyWithAccounts unexpectedly succeeded");
+            revert("MAGNUS-VA15: createPolicyWithAccounts unexpectedly succeeded");
         } catch (bytes memory reason) {
             assertEq(
                 bytes4(reason),
                 IMIP403Registry.VirtualAddressNotAllowed.selector,
-                "TEMPO-VA15: wrong createPolicyWithAccounts error"
+                "MAGNUS-VA15: wrong createPolicyWithAccounts error"
             );
         }
 
         try registry.modifyPolicyWhitelist(_policyRejectWhitelistId, virtualAddr, true) {
-            revert("TEMPO-VA15: modifyPolicyWhitelist unexpectedly succeeded");
+            revert("MAGNUS-VA15: modifyPolicyWhitelist unexpectedly succeeded");
         } catch (bytes memory reason) {
             assertEq(
                 bytes4(reason),
                 IMIP403Registry.VirtualAddressNotAllowed.selector,
-                "TEMPO-VA15: wrong whitelist error"
+                "MAGNUS-VA15: wrong whitelist error"
             );
         }
 
         try registry.modifyPolicyBlacklist(_policyRejectBlacklistId, virtualAddr, true) {
-            revert("TEMPO-VA15: modifyPolicyBlacklist unexpectedly succeeded");
+            revert("MAGNUS-VA15: modifyPolicyBlacklist unexpectedly succeeded");
         } catch (bytes memory reason) {
             assertEq(
                 bytes4(reason),
                 IMIP403Registry.VirtualAddressNotAllowed.selector,
-                "TEMPO-VA15: wrong blacklist error"
+                "MAGNUS-VA15: wrong blacklist error"
             );
         }
 
         vm.stopPrank();
 
-        assertEq(registry.policyIdCounter(), counterBefore, "TEMPO-VA15: policy counter changed");
+        assertEq(registry.policyIdCounter(), counterBefore, "MAGNUS-VA15: policy counter changed");
         assertEq(
             registry.isAuthorized(_policyRejectWhitelistId, virtualAddr),
             whitelistAuthBefore,
-            "TEMPO-VA15: whitelist membership changed"
+            "MAGNUS-VA15: whitelist membership changed"
         );
         assertEq(
             registry.isAuthorized(_policyRejectBlacklistId, virtualAddr),
             blacklistAuthBefore,
-            "TEMPO-VA15: blacklist membership changed"
+            "MAGNUS-VA15: blacklist membership changed"
         );
-        assertEq(vm.getRecordedLogs().length, 0, "TEMPO-VA15: policy rejection emitted logs");
+        assertEq(vm.getRecordedLogs().length, 0, "MAGNUS-VA15: policy rejection emitted logs");
     }
 
     function rejectVirtualRewardRecipient(
@@ -771,21 +771,21 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         vm.recordLogs();
         vm.prank(actor);
         try token.setRewardRecipient(virtualAddr) {
-            revert("TEMPO-VA16: setRewardRecipient unexpectedly succeeded");
+            revert("MAGNUS-VA16: setRewardRecipient unexpectedly succeeded");
         } catch (bytes memory reason) {
             assertEq(
                 bytes4(reason),
                 IMIP20.InvalidRecipient.selector,
-                "TEMPO-VA16: wrong reward recipient error"
+                "MAGNUS-VA16: wrong reward recipient error"
             );
         }
 
         (address rewardRecipientAfter,,) = token.userRewardInfo(actor);
         assertEq(
-            rewardRecipientAfter, rewardRecipientBefore, "TEMPO-VA16: reward recipient changed"
+            rewardRecipientAfter, rewardRecipientBefore, "MAGNUS-VA16: reward recipient changed"
         );
-        assertEq(token.optedInSupply(), optedInSupplyBefore, "TEMPO-VA16: optedInSupply changed");
-        assertEq(vm.getRecordedLogs().length, 0, "TEMPO-VA16: reward rejection emitted logs");
+        assertEq(token.optedInSupply(), optedInSupplyBefore, "MAGNUS-VA16: optedInSupply changed");
+        assertEq(vm.getRecordedLogs().length, 0, "MAGNUS-VA16: reward rejection emitted logs");
     }
 
     function registerWithInvalidInputs(uint256 callerTypeSeed, bytes32 salt) external {
@@ -811,7 +811,7 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
             // but if it does and the caller is valid, that's fine — not an error.
             // For invalid callers (type 0/1/2) this should never happen.
             assertTrue(
-                callerType == 3, "TEMPO-VA1: invalid caller registration unexpectedly succeeded"
+                callerType == 3, "MAGNUS-VA1: invalid caller registration unexpectedly succeeded"
             );
         } catch (bytes memory reason) {
             bytes4 selector = bytes4(reason);
@@ -819,13 +819,13 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
                 selector == IAddressRegistry.InvalidMasterAddress.selector
                     || selector == IAddressRegistry.ProofOfWorkFailed.selector
                     || selector == IAddressRegistry.MasterIdCollision.selector,
-                "TEMPO-VA1: unexpected registration error"
+                "MAGNUS-VA1: unexpected registration error"
             );
         }
 
-        assertEq(_masters.length, masterCountBefore, "TEMPO-VA1: fixture array changed");
+        assertEq(_masters.length, masterCountBefore, "MAGNUS-VA1: fixture array changed");
         _assertNoRelevantTokenLogs(
-            _selectBaseToken(0), "TEMPO-VA1: registration failure emitted token logs"
+            _selectBaseToken(0), "MAGNUS-VA1: registration failure emitted token logs"
         );
     }
 
@@ -839,18 +839,18 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
             bytes32 registrationHash = keccak256(abi.encodePacked(fixture.master, fixture.salt));
             bytes4 derivedMasterId = bytes4(uint32(uint256(registrationHash) >> 192));
 
-            assertEq(bytes4(registrationHash), bytes4(0), "TEMPO-VA1: fixture PoW invalid");
-            assertEq(derivedMasterId, fixture.masterId, "TEMPO-VA1: masterId derivation mismatch");
+            assertEq(bytes4(registrationHash), bytes4(0), "MAGNUS-VA1: fixture PoW invalid");
+            assertEq(derivedMasterId, fixture.masterId, "MAGNUS-VA1: masterId derivation mismatch");
             assertEq(
                 tip20Registry.getMaster(fixture.masterId),
                 fixture.master,
-                "TEMPO-VA1: registry mismatch"
+                "MAGNUS-VA1: registry mismatch"
             );
 
             for (uint256 j = i + 1; j < _masters.length; j++) {
                 assertTrue(
                     fixture.masterId != _masters[j].masterId,
-                    "TEMPO-VA2: duplicate masterId detected"
+                    "MAGNUS-VA2: duplicate masterId detected"
                 );
             }
         }
@@ -860,25 +860,25 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
             (bool isVirtual, bytes4 masterId, bytes6 userTag) =
                 tip20Registry.decodeVirtualAddress(virtualAddr);
 
-            assertTrue(isVirtual, "TEMPO-VA3: tracked alias not virtual");
-            assertEq(masterId, _masterIdByVirtual[virtualAddr], "TEMPO-VA3: masterId mismatch");
-            assertEq(userTag, _virtualToTag[virtualAddr], "TEMPO-VA3: userTag mismatch");
+            assertTrue(isVirtual, "MAGNUS-VA3: tracked alias not virtual");
+            assertEq(masterId, _masterIdByVirtual[virtualAddr], "MAGNUS-VA3: masterId mismatch");
+            assertEq(userTag, _virtualToTag[virtualAddr], "MAGNUS-VA3: userTag mismatch");
             assertEq(
                 tip20Registry.resolveRecipient(virtualAddr),
                 _virtualToMaster[virtualAddr],
-                "TEMPO-VA4: resolveRecipient mismatch"
+                "MAGNUS-VA4: resolveRecipient mismatch"
             );
             assertEq(
                 tip20Registry.resolveVirtualAddress(virtualAddr),
                 _virtualToMaster[virtualAddr],
-                "TEMPO-VA4: resolveVirtualAddress mismatch"
+                "MAGNUS-VA4: resolveVirtualAddress mismatch"
             );
 
             for (uint256 j = 0; j < _tokens.length; j++) {
                 assertEq(
                     _tokens[j].balanceOf(virtualAddr),
                     0,
-                    "TEMPO-VA10: virtual alias accumulated balance"
+                    "MAGNUS-VA10: virtual alias accumulated balance"
                 );
             }
         }
@@ -886,12 +886,12 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         for (uint256 i = 0; i < _nonVirtualPool.length; i++) {
             address account = _nonVirtualPool[i];
             assertFalse(
-                tip20Registry.isVirtualAddress(account), "TEMPO-VA5: non-virtual pool polluted"
+                tip20Registry.isVirtualAddress(account), "MAGNUS-VA5: non-virtual pool polluted"
             );
             assertEq(
                 tip20Registry.resolveRecipient(account),
                 account,
-                "TEMPO-VA5: non-virtual address changed"
+                "MAGNUS-VA5: non-virtual address changed"
             );
         }
     }
@@ -933,15 +933,15 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
             bytes32 registrationHash = keccak256(abi.encodePacked(master, salt));
             bytes4 masterId = bytes4(uint32(uint256(registrationHash) >> 192));
 
-            assertEq(bytes4(registrationHash), bytes4(0), "TEMPO-VA1: setup PoW invalid");
-            assertEq(_masterById[masterId], address(0), "TEMPO-VA2: duplicate setup masterId");
+            assertEq(bytes4(registrationHash), bytes4(0), "MAGNUS-VA1: setup PoW invalid");
+            assertEq(_masterById[masterId], address(0), "MAGNUS-VA2: duplicate setup masterId");
 
             vm.prank(master);
             bytes4 registeredId = tip20Registry.registerVirtualMaster(salt);
 
-            assertEq(registeredId, masterId, "TEMPO-VA1: registration returned wrong masterId");
+            assertEq(registeredId, masterId, "MAGNUS-VA1: registration returned wrong masterId");
             assertEq(
-                tip20Registry.getMaster(masterId), master, "TEMPO-VA1: registry stored wrong master"
+                tip20Registry.getMaster(masterId), master, "MAGNUS-VA1: registry stored wrong master"
             );
 
             _masters.push(MasterFixture({ master: master, pk: pk, salt: salt, masterId: masterId }));
@@ -1110,7 +1110,7 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         internal
     {
         Vm.Log[] memory logs = _relevantTokenLogs(token);
-        assertEq(logs.length, 2, "TEMPO-VA11: expected two transfer logs");
+        assertEq(logs.length, 2, "MAGNUS-VA11: expected two transfer logs");
         _assertTransferLog(logs[0], token, from, virtualAddr, amount);
         _assertTransferLog(logs[1], token, virtualAddr, master, amount);
     }
@@ -1126,7 +1126,7 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         internal
     {
         Vm.Log[] memory logs = _relevantTokenLogs(token);
-        assertEq(logs.length, 3, "TEMPO-VA12: expected transfer/memo/forward logs");
+        assertEq(logs.length, 3, "MAGNUS-VA12: expected transfer/memo/forward logs");
         _assertTransferLog(logs[0], token, from, virtualAddr, amount);
         _assertTransferWithMemoLog(logs[1], token, from, virtualAddr, amount, memo);
         _assertTransferLog(logs[2], token, virtualAddr, master, amount);
@@ -1141,7 +1141,7 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         internal
     {
         Vm.Log[] memory logs = _relevantTokenLogs(token);
-        assertEq(logs.length, 3, "TEMPO-VA12: expected transfer/mint/forward logs");
+        assertEq(logs.length, 3, "MAGNUS-VA12: expected transfer/mint/forward logs");
         _assertTransferLog(logs[0], token, address(0), virtualAddr, amount);
         _assertMintLog(logs[1], token, virtualAddr, amount);
         _assertTransferLog(logs[2], token, virtualAddr, master, amount);
@@ -1157,7 +1157,7 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         internal
     {
         Vm.Log[] memory logs = _relevantTokenLogs(token);
-        assertEq(logs.length, 4, "TEMPO-VA12: expected transfer/memo/mint/forward logs");
+        assertEq(logs.length, 4, "MAGNUS-VA12: expected transfer/memo/mint/forward logs");
         _assertTransferLog(logs[0], token, address(0), virtualAddr, amount);
         _assertTransferWithMemoLog(logs[1], token, address(0), virtualAddr, amount, memo);
         _assertMintLog(logs[2], token, virtualAddr, amount);
@@ -1202,12 +1202,12 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         internal
         pure
     {
-        assertEq(log.emitter, address(token), "TEMPO-VA11: wrong transfer emitter");
-        assertEq(log.topics.length, 3, "TEMPO-VA11: wrong transfer topic count");
-        assertEq(log.topics[0], Magnus.TRANSFER_EVENT, "TEMPO-VA11: wrong transfer selector");
-        assertEq(address(uint160(uint256(log.topics[1]))), from, "TEMPO-VA11: wrong transfer from");
-        assertEq(address(uint160(uint256(log.topics[2]))), to, "TEMPO-VA11: wrong transfer to");
-        assertEq(abi.decode(log.data, (uint256)), amount, "TEMPO-VA11: wrong transfer amount");
+        assertEq(log.emitter, address(token), "MAGNUS-VA11: wrong transfer emitter");
+        assertEq(log.topics.length, 3, "MAGNUS-VA11: wrong transfer topic count");
+        assertEq(log.topics[0], Magnus.TRANSFER_EVENT, "MAGNUS-VA11: wrong transfer selector");
+        assertEq(address(uint160(uint256(log.topics[1]))), from, "MAGNUS-VA11: wrong transfer from");
+        assertEq(address(uint160(uint256(log.topics[2]))), to, "MAGNUS-VA11: wrong transfer to");
+        assertEq(abi.decode(log.data, (uint256)), amount, "MAGNUS-VA11: wrong transfer amount");
     }
 
     function _assertTransferWithMemoLog(
@@ -1221,13 +1221,13 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         internal
         pure
     {
-        assertEq(log.emitter, address(token), "TEMPO-VA12: wrong memo emitter");
-        assertEq(log.topics.length, 4, "TEMPO-VA12: wrong memo topic count");
-        assertEq(log.topics[0], Magnus.TRANSFER_WITH_MEMO_EVENT, "TEMPO-VA12: wrong memo selector");
-        assertEq(address(uint160(uint256(log.topics[1]))), from, "TEMPO-VA12: wrong memo from");
-        assertEq(address(uint160(uint256(log.topics[2]))), to, "TEMPO-VA12: wrong memo to");
-        assertEq(log.topics[3], memo, "TEMPO-VA12: wrong memo topic");
-        assertEq(abi.decode(log.data, (uint256)), amount, "TEMPO-VA12: wrong memo amount");
+        assertEq(log.emitter, address(token), "MAGNUS-VA12: wrong memo emitter");
+        assertEq(log.topics.length, 4, "MAGNUS-VA12: wrong memo topic count");
+        assertEq(log.topics[0], Magnus.TRANSFER_WITH_MEMO_EVENT, "MAGNUS-VA12: wrong memo selector");
+        assertEq(address(uint160(uint256(log.topics[1]))), from, "MAGNUS-VA12: wrong memo from");
+        assertEq(address(uint160(uint256(log.topics[2]))), to, "MAGNUS-VA12: wrong memo to");
+        assertEq(log.topics[3], memo, "MAGNUS-VA12: wrong memo topic");
+        assertEq(abi.decode(log.data, (uint256)), amount, "MAGNUS-VA12: wrong memo amount");
     }
 
     function _assertMintLog(
@@ -1239,11 +1239,11 @@ contract VirtualAddressesInvariantTest is InvariantBaseTest {
         internal
         pure
     {
-        assertEq(log.emitter, address(token), "TEMPO-VA12: wrong mint emitter");
-        assertEq(log.topics.length, 2, "TEMPO-VA12: wrong mint topic count");
-        assertEq(log.topics[0], Magnus.MINT_EVENT, "TEMPO-VA12: wrong mint selector");
-        assertEq(address(uint160(uint256(log.topics[1]))), to, "TEMPO-VA12: wrong mint recipient");
-        assertEq(abi.decode(log.data, (uint256)), amount, "TEMPO-VA12: wrong mint amount");
+        assertEq(log.emitter, address(token), "MAGNUS-VA12: wrong mint emitter");
+        assertEq(log.topics.length, 2, "MAGNUS-VA12: wrong mint topic count");
+        assertEq(log.topics[0], Magnus.MINT_EVENT, "MAGNUS-VA12: wrong mint selector");
+        assertEq(address(uint160(uint256(log.topics[1]))), to, "MAGNUS-VA12: wrong mint recipient");
+        assertEq(abi.decode(log.data, (uint256)), amount, "MAGNUS-VA12: wrong mint amount");
     }
 
 }

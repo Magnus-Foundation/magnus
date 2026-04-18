@@ -6,8 +6,8 @@ import { InvariantBaseTest } from "./InvariantBaseTest.t.sol";
 
 /// @title AccountKeychain Invariant Tests
 /// @notice Fuzz-based invariant tests for the AccountKeychain precompile
-/// @dev Tests invariants TEMPO-KEY1 through TEMPO-KEY19 for access key management
-///      Note: TEMPO-KEY20/21 require integration tests (transient storage for transaction_key)
+/// @dev Tests invariants MAGNUS-KEY1 through MAGNUS-KEY19 for access key management
+///      Note: MAGNUS-KEY20/21 require integration tests (transient storage for transaction_key)
 /// forge-config: default.isolate = true
 contract AccountKeychainInvariantTest is InvariantBaseTest {
 
@@ -198,7 +198,7 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
             // Use addmod to avoid overflow when startKeyIdx + i wraps
             uint256 idx = addmod(startKeyIdx, i, _potentialKeyIds.length);
             address candidateKey = _potentialKeyIds[idx];
-            // Can't reauthorize revoked keys (TEMPO-KEY4)
+            // Can't reauthorize revoked keys (MAGNUS-KEY4)
             if (!_ghostKeyRevoked[account][candidateKey]) {
                 _createKeyInternal(account, candidateKey);
                 return (account, candidateKey, false);
@@ -214,7 +214,7 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Handler for authorizing a new key
-    /// @dev Tests TEMPO-KEY1 (key authorization), TEMPO-KEY2 (spending limits)
+    /// @dev Tests MAGNUS-KEY1 (key authorization), MAGNUS-KEY2 (spending limits)
     function authorizeKey(
         uint256 accountSeed,
         uint256 keyIdSeed,
@@ -279,15 +279,15 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
                 _accountKeys[account].push(keyId);
             }
 
-            // TEMPO-KEY1: Verify key was stored correctly
+            // MAGNUS-KEY1: Verify key was stored correctly
             IAccountKeychain.KeyInfo memory info = keychain.getKey(account, keyId);
-            assertEq(info.keyId, keyId, "TEMPO-KEY1: KeyId should match");
-            assertEq(info.expiry, expiry, "TEMPO-KEY1: Expiry should match");
-            assertEq(info.enforceLimits, enforceLimits, "TEMPO-KEY1: EnforceLimits should match");
+            assertEq(info.keyId, keyId, "MAGNUS-KEY1: KeyId should match");
+            assertEq(info.expiry, expiry, "MAGNUS-KEY1: Expiry should match");
+            assertEq(info.enforceLimits, enforceLimits, "MAGNUS-KEY1: EnforceLimits should match");
             assertEq(
-                uint8(info.signatureType), uint8(sigType), "TEMPO-KEY1: SignatureType should match"
+                uint8(info.signatureType), uint8(sigType), "MAGNUS-KEY1: SignatureType should match"
             );
-            assertFalse(info.isRevoked, "TEMPO-KEY1: Should not be revoked");
+            assertFalse(info.isRevoked, "MAGNUS-KEY1: Should not be revoked");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownKeychainError(reason);
@@ -295,7 +295,7 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for revoking a key
-    /// @dev Tests TEMPO-KEY3 (key revocation), TEMPO-KEY4 (revocation prevents reauthorization)
+    /// @dev Tests MAGNUS-KEY3 (key revocation), MAGNUS-KEY4 (revocation prevents reauthorization)
     function revokeKey(uint256 accountSeed, uint256 keyIdSeed) external {
         // Find an actor with an active key, or create one as fallback
         (address account, address keyId, bool skip) =
@@ -321,11 +321,11 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
                 _ghostSpendingLimits[account][keyId][address(_tokens[t])] = 0;
             }
 
-            // TEMPO-KEY3: Verify key is revoked
+            // MAGNUS-KEY3: Verify key is revoked
             IAccountKeychain.KeyInfo memory info = keychain.getKey(account, keyId);
-            assertTrue(info.isRevoked, "TEMPO-KEY3: Key should be marked as revoked");
-            assertEq(info.expiry, 0, "TEMPO-KEY3: Expiry should be cleared");
-            assertEq(info.keyId, address(0), "TEMPO-KEY3: KeyId should return 0 for revoked");
+            assertTrue(info.isRevoked, "MAGNUS-KEY3: Key should be marked as revoked");
+            assertEq(info.expiry, 0, "MAGNUS-KEY3: Expiry should be cleared");
+            assertEq(info.keyId, address(0), "MAGNUS-KEY3: KeyId should return 0 for revoked");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownKeychainError(reason);
@@ -333,7 +333,7 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for attempting to reauthorize a revoked key
-    /// @dev Tests TEMPO-KEY4 (revoked keys cannot be reauthorized)
+    /// @dev Tests MAGNUS-KEY4 (revoked keys cannot be reauthorized)
     function tryReauthorizeRevokedKey(uint256 accountSeed, uint256 keyIdSeed) external {
         address account = _selectActor(accountSeed);
 
@@ -407,19 +407,19 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
             })
         ) {
             vm.stopPrank();
-            revert("TEMPO-KEY4: Reauthorizing revoked key should fail");
+            revert("MAGNUS-KEY4: Reauthorizing revoked key should fail");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IAccountKeychain.KeyAlreadyRevoked.selector,
-                "TEMPO-KEY4: Should revert with KeyAlreadyRevoked"
+                "MAGNUS-KEY4: Should revert with KeyAlreadyRevoked"
             );
         }
     }
 
     /// @notice Handler for updating spending limits
-    /// @dev Tests TEMPO-KEY5 (limit update), TEMPO-KEY6 (enables limits on unlimited key)
+    /// @dev Tests MAGNUS-KEY5 (limit update), MAGNUS-KEY6 (enables limits on unlimited key)
     function updateSpendingLimit(
         uint256 accountSeed,
         uint256 keyIdSeed,
@@ -455,13 +455,13 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
             _ghostSpendingLimits[account][keyId][token] = newLimit;
             _ghostKeyEnforceLimits[account][keyId] = true; // Always enables limits
 
-            // TEMPO-KEY5: Verify limit was updated
+            // MAGNUS-KEY5: Verify limit was updated
             (uint256 storedLimit,) = keychain.getRemainingLimitWithPeriod(account, keyId, token);
-            assertEq(storedLimit, newLimit, "TEMPO-KEY5: Spending limit should be updated");
+            assertEq(storedLimit, newLimit, "MAGNUS-KEY5: Spending limit should be updated");
 
-            // TEMPO-KEY6: Verify enforceLimits is now true
+            // MAGNUS-KEY6: Verify enforceLimits is now true
             IAccountKeychain.KeyInfo memory info = keychain.getKey(account, keyId);
-            assertTrue(info.enforceLimits, "TEMPO-KEY6: EnforceLimits should be true after update");
+            assertTrue(info.enforceLimits, "MAGNUS-KEY6: EnforceLimits should be true after update");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownKeychainError(reason);
@@ -469,7 +469,7 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for authorizing key with zero address (should fail)
-    /// @dev Tests TEMPO-KEY7 (zero public key rejection)
+    /// @dev Tests MAGNUS-KEY7 (zero public key rejection)
     function tryAuthorizeZeroKey(uint256 accountSeed) external {
         address account = _selectActor(accountSeed);
 
@@ -486,19 +486,19 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
             })
         ) {
             vm.stopPrank();
-            revert("TEMPO-KEY7: Zero key ID should fail");
+            revert("MAGNUS-KEY7: Zero key ID should fail");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IAccountKeychain.ZeroPublicKey.selector,
-                "TEMPO-KEY7: Should revert with ZeroPublicKey"
+                "MAGNUS-KEY7: Should revert with ZeroPublicKey"
             );
         }
     }
 
     /// @notice Handler for authorizing duplicate key (should fail)
-    /// @dev Tests TEMPO-KEY8 (duplicate key rejection)
+    /// @dev Tests MAGNUS-KEY8 (duplicate key rejection)
     function tryAuthorizeDuplicateKey(uint256 accountSeed, uint256 keyIdSeed) external {
         // Find an actor with an active key, or create one as fallback (skip if all keys are revoked)
         (address account, address keyId, bool skip) =
@@ -520,19 +520,19 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
             })
         ) {
             vm.stopPrank();
-            revert("TEMPO-KEY8: Duplicate key should fail");
+            revert("MAGNUS-KEY8: Duplicate key should fail");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IAccountKeychain.KeyAlreadyExists.selector,
-                "TEMPO-KEY8: Should revert with KeyAlreadyExists"
+                "MAGNUS-KEY8: Should revert with KeyAlreadyExists"
             );
         }
     }
 
     /// @notice Handler for revoking non-existent key (should fail)
-    /// @dev Tests TEMPO-KEY9 (revoke non-existent key returns KeyNotFound)
+    /// @dev Tests MAGNUS-KEY9 (revoke non-existent key returns KeyNotFound)
     function tryRevokeNonExistentKey(uint256 accountSeed, uint256 keyIdSeed) external {
         address account = _selectActor(accountSeed);
         address keyId = _selectKeyId(keyIdSeed);
@@ -548,19 +548,19 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
         vm.startPrank(account, account);
         try keychain.revokeKey(keyId) {
             vm.stopPrank();
-            revert("TEMPO-KEY9: Revoking non-existent/revoked key should fail");
+            revert("MAGNUS-KEY9: Revoking non-existent/revoked key should fail");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IAccountKeychain.KeyNotFound.selector,
-                "TEMPO-KEY9: Should revert with KeyNotFound"
+                "MAGNUS-KEY9: Should revert with KeyNotFound"
             );
         }
     }
 
     /// @notice Handler for verifying account isolation
-    /// @dev Tests TEMPO-KEY10 (keys are isolated per account)
+    /// @dev Tests MAGNUS-KEY10 (keys are isolated per account)
     function verifyAccountIsolation(
         uint256 account1Seed,
         uint256 account2Seed,
@@ -648,32 +648,32 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
 
         _totalKeysAuthorized += 2;
 
-        // TEMPO-KEY10: Verify keys are isolated
+        // MAGNUS-KEY10: Verify keys are isolated
         IAccountKeychain.KeyInfo memory info1 = keychain.getKey(account1, keyId);
         IAccountKeychain.KeyInfo memory info2 = keychain.getKey(account2, keyId);
 
-        assertEq(uint8(info1.signatureType), 1, "TEMPO-KEY10: Account1 should have P256");
-        assertEq(uint8(info2.signatureType), 0, "TEMPO-KEY10: Account2 should have Secp256k1");
+        assertEq(uint8(info1.signatureType), 1, "MAGNUS-KEY10: Account1 should have P256");
+        assertEq(uint8(info2.signatureType), 0, "MAGNUS-KEY10: Account2 should have Secp256k1");
 
         (uint256 limit1,) =
             keychain.getRemainingLimitWithPeriod(account1, keyId, address(_tokens[0]));
         (uint256 limit2,) =
             keychain.getRemainingLimitWithPeriod(account2, keyId, address(_tokens[0]));
 
-        assertEq(limit1, 1000e6, "TEMPO-KEY10: Account1 limit should be 1000");
-        assertEq(limit2, 2000e6, "TEMPO-KEY10: Account2 limit should be 2000");
+        assertEq(limit1, 1000e6, "MAGNUS-KEY10: Account1 limit should be 1000");
+        assertEq(limit2, 2000e6, "MAGNUS-KEY10: Account2 limit should be 2000");
     }
 
     /// @notice Handler for checking getTransactionKey
-    /// @dev Tests TEMPO-KEY11 (transaction key returns 0 when not in transaction)
+    /// @dev Tests MAGNUS-KEY11 (transaction key returns 0 when not in transaction)
     function checkTransactionKey() external {
-        // TEMPO-KEY11: When called directly, should return address(0)
+        // MAGNUS-KEY11: When called directly, should return address(0)
         address txKey = keychain.getTransactionKey();
-        assertEq(txKey, address(0), "TEMPO-KEY11: Transaction key should be 0 outside tx context");
+        assertEq(txKey, address(0), "MAGNUS-KEY11: Transaction key should be 0 outside tx context");
     }
 
     /// @notice Handler for getting key info on non-existent key
-    /// @dev Tests TEMPO-KEY12 (non-existent key returns defaults)
+    /// @dev Tests MAGNUS-KEY12 (non-existent key returns defaults)
     function checkNonExistentKey(uint256 accountSeed, uint256 keyIdSeed) external {
         address account = _selectActor(accountSeed);
         address keyId = _selectKeyId(keyIdSeed);
@@ -685,19 +685,19 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
 
         IAccountKeychain.KeyInfo memory info = keychain.getKey(account, keyId);
 
-        // TEMPO-KEY12: Non-existent key returns defaults
-        assertEq(info.keyId, address(0), "TEMPO-KEY12: KeyId should be 0");
-        assertEq(info.expiry, 0, "TEMPO-KEY12: Expiry should be 0");
-        assertFalse(info.enforceLimits, "TEMPO-KEY12: EnforceLimits should be false");
+        // MAGNUS-KEY12: Non-existent key returns defaults
+        assertEq(info.keyId, address(0), "MAGNUS-KEY12: KeyId should be 0");
+        assertEq(info.expiry, 0, "MAGNUS-KEY12: Expiry should be 0");
+        assertFalse(info.enforceLimits, "MAGNUS-KEY12: EnforceLimits should be false");
 
         // isRevoked should match ghost state
         assertEq(
-            info.isRevoked, _ghostKeyRevoked[account][keyId], "TEMPO-KEY12: isRevoked should match"
+            info.isRevoked, _ghostKeyRevoked[account][keyId], "MAGNUS-KEY12: isRevoked should match"
         );
     }
 
     /// @notice Handler for testing expiry boundary condition
-    /// @dev Tests TEMPO-KEY17 (expiry == block.timestamp counts as expired)
+    /// @dev Tests MAGNUS-KEY17 (expiry == block.timestamp counts as expired)
     ///      Rust uses timestamp >= expiry, so expiry == now is already expired
     function testExpiryBoundary(uint256 accountSeed, uint256 keyIdSeed) external {
         address account = _selectActor(accountSeed);
@@ -741,19 +741,19 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
             _totalKeysAuthorized++;
 
             // Warp to exactly the expiry timestamp
-            // TEMPO-KEY17: timestamp >= expiry means equality counts as expired
+            // MAGNUS-KEY17: timestamp >= expiry means equality counts as expired
             vm.warp(expiry);
 
             vm.startPrank(account, account);
             try keychain.updateSpendingLimit(keyId, address(_tokens[0]), 1000e6) {
                 vm.stopPrank();
-                revert("TEMPO-KEY17: Operation at expiry timestamp should fail with KeyExpired");
+                revert("MAGNUS-KEY17: Operation at expiry timestamp should fail with KeyExpired");
             } catch (bytes memory reason) {
                 vm.stopPrank();
                 assertEq(
                     bytes4(reason),
                     IAccountKeychain.KeyExpired.selector,
-                    "TEMPO-KEY17: Should revert with KeyExpired when timestamp == expiry"
+                    "MAGNUS-KEY17: Should revert with KeyExpired when timestamp == expiry"
                 );
             }
         } catch (bytes memory reason) {
@@ -764,7 +764,7 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for testing operations on expired keys
-    /// @dev Tests TEMPO-KEY18 (operations on expired keys fail with KeyExpired)
+    /// @dev Tests MAGNUS-KEY18 (operations on expired keys fail with KeyExpired)
     function testExpiredKeyOperations(
         uint256 accountSeed,
         uint256 keyIdSeed,
@@ -794,23 +794,23 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
         uint256 warpTo = expiry + 1 + (warpAmount % 1 days);
         vm.warp(warpTo);
 
-        // TEMPO-KEY18: Operations on expired keys should fail with KeyExpired
+        // MAGNUS-KEY18: Operations on expired keys should fail with KeyExpired
         vm.startPrank(account, account);
         try keychain.updateSpendingLimit(keyId, address(_tokens[0]), 1000e6) {
             vm.stopPrank();
-            revert("TEMPO-KEY18: Operation on expired key should fail");
+            revert("MAGNUS-KEY18: Operation on expired key should fail");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IAccountKeychain.KeyExpired.selector,
-                "TEMPO-KEY18: Should revert with KeyExpired"
+                "MAGNUS-KEY18: Should revert with KeyExpired"
             );
         }
     }
 
     /// @notice Handler for testing invalid signature type
-    /// @dev Tests TEMPO-KEY19 (invalid enum values >= 3 are rejected with InvalidSignatureType)
+    /// @dev Tests MAGNUS-KEY19 (invalid enum values >= 3 are rejected with InvalidSignatureType)
     function testInvalidSignatureType(
         uint256 accountSeed,
         uint256 keyIdSeed,
@@ -851,15 +851,15 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
         (bool success, bytes memory returnData) = address(keychain).call(callData);
         vm.stopPrank();
 
-        // TEMPO-KEY19: Invalid signature type should be rejected
-        assertFalse(success, "TEMPO-KEY19: Invalid signature type should revert");
+        // MAGNUS-KEY19: Invalid signature type should be rejected
+        assertFalse(success, "MAGNUS-KEY19: Invalid signature type should revert");
         // If revert data is provided, verify it's the expected error
         // (Empty revert data is acceptable - ABI-level rejection for invalid enum)
         if (returnData.length >= 4) {
             assertEq(
                 bytes4(returnData),
                 IAccountKeychain.InvalidSignatureType.selector,
-                "TEMPO-KEY19: Should revert with InvalidSignatureType"
+                "MAGNUS-KEY19: Should revert with InvalidSignatureType"
             );
         }
     }
@@ -869,7 +869,7 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Run all invariant checks in a single pass over actors
-    /// @dev Consolidates TEMPO-KEY13, KEY14, KEY15, KEY16 into unified loops
+    /// @dev Consolidates MAGNUS-KEY13, KEY14, KEY15, KEY16 into unified loops
     function invariant_globalInvariants() public view {
         // Single pass over all actors and their keys
         for (uint256 a = 0; a < _actors.length; a++) {
@@ -881,41 +881,41 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
                 IAccountKeychain.KeyInfo memory info = keychain.getKey(account, keyId);
 
                 if (_ghostKeyRevoked[account][keyId]) {
-                    // TEMPO-KEY13: Revoked key should show isRevoked=true and other fields defaulted
-                    assertTrue(info.isRevoked, "TEMPO-KEY13: Revoked key should show isRevoked");
-                    assertEq(info.keyId, address(0), "TEMPO-KEY13: Revoked key keyId should be 0");
-                    assertEq(info.expiry, 0, "TEMPO-KEY13: Revoked key expiry should be 0");
+                    // MAGNUS-KEY13: Revoked key should show isRevoked=true and other fields defaulted
+                    assertTrue(info.isRevoked, "MAGNUS-KEY13: Revoked key should show isRevoked");
+                    assertEq(info.keyId, address(0), "MAGNUS-KEY13: Revoked key keyId should be 0");
+                    assertEq(info.expiry, 0, "MAGNUS-KEY13: Revoked key expiry should be 0");
                     assertFalse(
-                        info.enforceLimits, "TEMPO-KEY13: Revoked key enforceLimits should be false"
+                        info.enforceLimits, "MAGNUS-KEY13: Revoked key enforceLimits should be false"
                     );
                     assertEq(
                         uint8(info.signatureType),
                         0,
-                        "TEMPO-KEY13: Revoked key signatureType should be 0"
+                        "MAGNUS-KEY13: Revoked key signatureType should be 0"
                     );
-                    // TEMPO-KEY15: Revoked keys stay revoked (already checked via isRevoked above)
+                    // MAGNUS-KEY15: Revoked keys stay revoked (already checked via isRevoked above)
                 } else if (_ghostKeyExists[account][keyId]) {
-                    // TEMPO-KEY13: Active key should match ghost state
-                    assertEq(info.keyId, keyId, "TEMPO-KEY13: Active key keyId should match");
+                    // MAGNUS-KEY13: Active key should match ghost state
+                    assertEq(info.keyId, keyId, "MAGNUS-KEY13: Active key keyId should match");
                     assertEq(
                         info.expiry,
                         _ghostKeyExpiry[account][keyId],
-                        "TEMPO-KEY13: Expiry should match"
+                        "MAGNUS-KEY13: Expiry should match"
                     );
                     assertEq(
                         info.enforceLimits,
                         _ghostKeyEnforceLimits[account][keyId],
-                        "TEMPO-KEY13: EnforceLimits should match"
+                        "MAGNUS-KEY13: EnforceLimits should match"
                     );
-                    // TEMPO-KEY16: Signature type must match ghost state for all active keys
+                    // MAGNUS-KEY16: Signature type must match ghost state for all active keys
                     assertEq(
                         uint8(info.signatureType),
                         _ghostKeySignatureType[account][keyId],
-                        "TEMPO-KEY16: SignatureType must match ghost state"
+                        "MAGNUS-KEY16: SignatureType must match ghost state"
                     );
-                    assertFalse(info.isRevoked, "TEMPO-KEY13: Active key should not be revoked");
+                    assertFalse(info.isRevoked, "MAGNUS-KEY13: Active key should not be revoked");
 
-                    // TEMPO-KEY14: Check spending limits for active keys with limits enforced
+                    // MAGNUS-KEY14: Check spending limits for active keys with limits enforced
                     if (_ghostKeyEnforceLimits[account][keyId]) {
                         uint64 expiry = _ghostKeyExpiry[account][keyId];
                         bool isExpired = expiry != type(uint64).max && block.timestamp >= expiry;
@@ -928,7 +928,7 @@ contract AccountKeychainInvariantTest is InvariantBaseTest {
                                 assertEq(
                                     actual,
                                     expected,
-                                    "TEMPO-KEY14: Spending limit should match ghost state"
+                                    "MAGNUS-KEY14: Spending limit should match ghost state"
                                 );
                             }
                         }

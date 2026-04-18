@@ -6,13 +6,13 @@ import { InvariantBaseTest } from "./InvariantBaseTest.t.sol";
 
 /// @title MIP403Registry Invariant Tests
 /// @notice Fuzz-based invariant tests for the MIP403Registry implementation
-/// @dev Tests invariants TEMPO-REG1 through TEMPO-REG19 as documented in README.md
+/// @dev Tests invariants MAGNUS-REG1 through MAGNUS-REG19 as documented in README.md
 contract MIP403RegistryInvariantTest is InvariantBaseTest {
 
     /// @dev Ghost variable for tracking total policies created in handlers
     uint256 private _totalPoliciesCreated;
 
-    /// @dev Ghost variable for counter monotonicity tracking (TEMPO-REG15)
+    /// @dev Ghost variable for counter monotonicity tracking (MAGNUS-REG15)
     uint64 private _lastSeenCounter;
 
     /// @dev Policies created during base setup (derived, not hardcoded)
@@ -139,9 +139,9 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
         (_actors,) = _buildActors(10);
 
         // One-time constant checks (immutable after deployment)
-        // TEMPO-REG13: Special policies 0 and 1 always exist
-        assertTrue(registry.policyExists(0), "TEMPO-REG13: Policy 0 should always exist");
-        assertTrue(registry.policyExists(1), "TEMPO-REG13: Policy 1 should always exist");
+        // MAGNUS-REG13: Special policies 0 and 1 always exist
+        assertTrue(registry.policyExists(0), "MAGNUS-REG13: Policy 0 should always exist");
+        assertTrue(registry.policyExists(1), "MAGNUS-REG13: Policy 1 should always exist");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -149,7 +149,7 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Handler for creating policies
-    /// @dev Tests TEMPO-REG1 (policy ID monotonicity), TEMPO-REG2 (policy creation)
+    /// @dev Tests MAGNUS-REG1 (policy ID monotonicity), MAGNUS-REG2 (policy creation)
     function createPolicy(uint256 actorSeed, bool isWhitelist) external {
         address actor = _selectActor(actorSeed);
         IMIP403Registry.PolicyType policyType = isWhitelist
@@ -160,29 +160,29 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
 
         uint64 policyId = _createPolicyInternal(actor, policyType);
 
-        // TEMPO-REG1: Policy ID should equal counter before creation
+        // MAGNUS-REG1: Policy ID should equal counter before creation
         assertEq(
-            policyId, counterBefore, "TEMPO-REG1: Policy ID should match counter before creation"
+            policyId, counterBefore, "MAGNUS-REG1: Policy ID should match counter before creation"
         );
 
-        // TEMPO-REG2: Counter should increment
+        // MAGNUS-REG2: Counter should increment
         assertEq(
             registry.policyIdCounter(),
             counterBefore + 1,
-            "TEMPO-REG2: Counter should increment after creation"
+            "MAGNUS-REG2: Counter should increment after creation"
         );
 
-        // TEMPO-REG3: Policy should exist
-        assertTrue(registry.policyExists(policyId), "TEMPO-REG3: Created policy should exist");
+        // MAGNUS-REG3: Policy should exist
+        assertTrue(registry.policyExists(policyId), "MAGNUS-REG3: Created policy should exist");
 
-        // TEMPO-REG4: Policy data should be correct
+        // MAGNUS-REG4: Policy data should be correct
         (IMIP403Registry.PolicyType storedType, address storedAdmin) = registry.policyData(policyId);
-        assertEq(uint256(storedType), uint256(policyType), "TEMPO-REG4: Policy type mismatch");
-        assertEq(storedAdmin, actor, "TEMPO-REG4: Policy admin mismatch");
+        assertEq(uint256(storedType), uint256(policyType), "MAGNUS-REG4: Policy type mismatch");
+        assertEq(storedAdmin, actor, "MAGNUS-REG4: Policy admin mismatch");
     }
 
     /// @notice Handler for creating policies with initial accounts
-    /// @dev Tests TEMPO-REG5 (bulk creation)
+    /// @dev Tests MAGNUS-REG5 (bulk creation)
     function createPolicyWithAccounts(
         uint256 actorSeed,
         bool isWhitelist,
@@ -220,16 +220,16 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
                 }
             }
 
-            // TEMPO-REG5: All initial accounts should have correct authorization
+            // MAGNUS-REG5: All initial accounts should have correct authorization
             for (uint256 i = 0; i < accounts.length; i++) {
                 bool isAuthorized = registry.isAuthorized(policyId, accounts[i]);
                 if (isWhitelist) {
                     // Whitelist: accounts in list are authorized
-                    assertTrue(isAuthorized, "TEMPO-REG5: Whitelist account should be authorized");
+                    assertTrue(isAuthorized, "MAGNUS-REG5: Whitelist account should be authorized");
                 } else {
                     // Blacklist: accounts in list are NOT authorized
                     assertFalse(
-                        isAuthorized, "TEMPO-REG5: Blacklist account should not be authorized"
+                        isAuthorized, "MAGNUS-REG5: Blacklist account should not be authorized"
                     );
                 }
             }
@@ -240,7 +240,7 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for setting policy admin
-    /// @dev Tests TEMPO-REG6 (admin transfer)
+    /// @dev Tests MAGNUS-REG6 (admin transfer)
     function setPolicyAdmin(uint256 policySeed, uint256 newAdminSeed) external {
         address actor = _selectActor(policySeed);
         (uint64 policyId, address currentAdmin) = _ensurePolicy(actor, policySeed, ANY_POLICY);
@@ -250,9 +250,9 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
         try registry.setPolicyAdmin(policyId, newAdmin) {
             vm.stopPrank();
 
-            // TEMPO-REG6: Admin should be updated
+            // MAGNUS-REG6: Admin should be updated
             (, address storedAdmin) = registry.policyData(policyId);
-            assertEq(storedAdmin, newAdmin, "TEMPO-REG6: Admin not updated correctly");
+            assertEq(storedAdmin, newAdmin, "MAGNUS-REG6: Admin not updated correctly");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownError(reason);
@@ -260,7 +260,7 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for unauthorized admin change attempts
-    /// @dev Tests TEMPO-REG7 (admin-only enforcement)
+    /// @dev Tests MAGNUS-REG7 (admin-only enforcement)
     function setPolicyAdminUnauthorized(uint256 policySeed, uint256 attackerSeed) external {
         address actor = _selectActor(policySeed);
         (uint64 policyId, address currentAdmin) = _ensurePolicy(actor, policySeed, ANY_POLICY);
@@ -269,19 +269,19 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
         vm.startPrank(attacker);
         try registry.setPolicyAdmin(policyId, attacker) {
             vm.stopPrank();
-            revert("TEMPO-REG7: Non-admin should not be able to set admin");
+            revert("MAGNUS-REG7: Non-admin should not be able to set admin");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IMIP403Registry.Unauthorized.selector,
-                "TEMPO-REG7: Should revert with Unauthorized"
+                "MAGNUS-REG7: Should revert with Unauthorized"
             );
         }
     }
 
     /// @notice Handler for modifying whitelist
-    /// @dev Tests TEMPO-REG8 (whitelist modification)
+    /// @dev Tests MAGNUS-REG8 (whitelist modification)
     function modifyWhitelist(uint256 policySeed, uint256 accountSeed, bool allowed) external {
         address actor = _selectActor(policySeed);
         (uint64 policyId, address policyAdmin) =
@@ -299,9 +299,9 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
                 _policyAccounts[policyId].push(account);
             }
 
-            // TEMPO-REG8: Authorization should reflect whitelist status
+            // MAGNUS-REG8: Authorization should reflect whitelist status
             bool authAfter = registry.isAuthorized(policyId, account);
-            assertEq(authAfter, allowed, "TEMPO-REG8: Whitelist authorization mismatch");
+            assertEq(authAfter, allowed, "MAGNUS-REG8: Whitelist authorization mismatch");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownError(reason);
@@ -309,7 +309,7 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for modifying blacklist
-    /// @dev Tests TEMPO-REG9 (blacklist modification)
+    /// @dev Tests MAGNUS-REG9 (blacklist modification)
     function modifyBlacklist(uint256 policySeed, uint256 accountSeed, bool restricted) external {
         address actor = _selectActor(policySeed);
         (uint64 policyId, address policyAdmin) =
@@ -327,9 +327,9 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
                 _policyAccounts[policyId].push(account);
             }
 
-            // TEMPO-REG9: Authorization should be opposite of blacklist status
+            // MAGNUS-REG9: Authorization should be opposite of blacklist status
             bool authAfter = registry.isAuthorized(policyId, account);
-            assertEq(authAfter, !restricted, "TEMPO-REG9: Blacklist authorization mismatch");
+            assertEq(authAfter, !restricted, "MAGNUS-REG9: Blacklist authorization mismatch");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownError(reason);
@@ -337,7 +337,7 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for modifying wrong policy type
-    /// @dev Tests TEMPO-REG10 (policy type enforcement)
+    /// @dev Tests MAGNUS-REG10 (policy type enforcement)
     function modifyWrongPolicyType(uint256 policySeed, uint256 accountSeed) external {
         address actor = _selectActor(policySeed);
         (uint64 policyId, address policyAdmin) = _ensurePolicy(actor, policySeed, ANY_POLICY);
@@ -349,69 +349,69 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
             // Try to modify as blacklist
             try registry.modifyPolicyBlacklist(policyId, account, true) {
                 vm.stopPrank();
-                revert("TEMPO-REG10: Should revert for incompatible policy type");
+                revert("MAGNUS-REG10: Should revert for incompatible policy type");
             } catch (bytes memory reason) {
                 vm.stopPrank();
                 assertEq(
                     bytes4(reason),
                     IMIP403Registry.IncompatiblePolicyType.selector,
-                    "TEMPO-REG10: Should revert with IncompatiblePolicyType"
+                    "MAGNUS-REG10: Should revert with IncompatiblePolicyType"
                 );
             }
         } else {
             // Try to modify as whitelist
             try registry.modifyPolicyWhitelist(policyId, account, true) {
                 vm.stopPrank();
-                revert("TEMPO-REG10: Should revert for incompatible policy type");
+                revert("MAGNUS-REG10: Should revert for incompatible policy type");
             } catch (bytes memory reason) {
                 vm.stopPrank();
                 assertEq(
                     bytes4(reason),
                     IMIP403Registry.IncompatiblePolicyType.selector,
-                    "TEMPO-REG10: Should revert with IncompatiblePolicyType"
+                    "MAGNUS-REG10: Should revert with IncompatiblePolicyType"
                 );
             }
         }
     }
 
     /// @notice Handler for checking authorization on special policies
-    /// @dev Tests TEMPO-REG11 (special policy behavior)
+    /// @dev Tests MAGNUS-REG11 (special policy behavior)
     function checkSpecialPolicies(uint256 accountSeed) external {
         address account = _selectActor(accountSeed);
 
-        // TEMPO-REG11: Policy 0 is always-reject
-        assertFalse(registry.isAuthorized(0, account), "TEMPO-REG11: Policy 0 should always reject");
+        // MAGNUS-REG11: Policy 0 is always-reject
+        assertFalse(registry.isAuthorized(0, account), "MAGNUS-REG11: Policy 0 should always reject");
 
-        // TEMPO-REG12: Policy 1 is always-allow
-        assertTrue(registry.isAuthorized(1, account), "TEMPO-REG12: Policy 1 should always allow");
+        // MAGNUS-REG12: Policy 1 is always-allow
+        assertTrue(registry.isAuthorized(1, account), "MAGNUS-REG12: Policy 1 should always allow");
 
-        // TEMPO-REG13: Special policies always exist
-        assertTrue(registry.policyExists(0), "TEMPO-REG13: Policy 0 should always exist");
-        assertTrue(registry.policyExists(1), "TEMPO-REG13: Policy 1 should always exist");
+        // MAGNUS-REG13: Special policies always exist
+        assertTrue(registry.policyExists(0), "MAGNUS-REG13: Policy 0 should always exist");
+        assertTrue(registry.policyExists(1), "MAGNUS-REG13: Policy 1 should always exist");
     }
 
     /// @notice Handler for checking non-existent policies
-    /// @dev Tests TEMPO-REG14 (policy existence checks), TEMPO-REG20 (never authorizes)
+    /// @dev Tests MAGNUS-REG14 (policy existence checks), MAGNUS-REG20 (never authorizes)
     function checkNonExistentPolicy(uint64 policyId) external {
         uint64 counter = registry.policyIdCounter();
         uint64 nonExistentId = counter + uint64(bound(policyId, 0, 1000));
 
-        // TEMPO-REG14: Non-existent policy should not exist
+        // MAGNUS-REG14: Non-existent policy should not exist
         assertFalse(
             registry.policyExists(nonExistentId),
-            "TEMPO-REG14: Non-existent policy should not exist"
+            "MAGNUS-REG14: Non-existent policy should not exist"
         );
 
-        // TEMPO-REG20: Non-existent policy must never authorize
+        // MAGNUS-REG20: Non-existent policy must never authorize
         // Pre-T2: returns false; Post-T2: reverts with PolicyNotFound
         address account = _selectActor(uint256(policyId));
         try registry.isAuthorized(nonExistentId, account) returns (bool authorized) {
-            assertFalse(authorized, "TEMPO-REG20: Non-existent policy should not authorize");
+            assertFalse(authorized, "MAGNUS-REG20: Non-existent policy should not authorize");
         } catch (bytes memory reason) {
             assertEq(
                 bytes4(reason),
                 IMIP403Registry.PolicyNotFound.selector,
-                "TEMPO-REG20: Should revert with PolicyNotFound"
+                "MAGNUS-REG20: Should revert with PolicyNotFound"
             );
         }
     }
@@ -436,7 +436,7 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for attempting to modify special policies (0 and 1)
-    /// @dev Tests TEMPO-REG17 (special policies cannot be modified) and TEMPO-REG18 (admin cannot change)
+    /// @dev Tests MAGNUS-REG17 (special policies cannot be modified) and MAGNUS-REG18 (admin cannot change)
     function tryModifySpecialPolicies(
         uint256 actorSeed,
         uint256 accountSeed,
@@ -452,7 +452,7 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
         vm.startPrank(actor);
         try registry.modifyPolicyWhitelist(policyId, account, true) {
             vm.stopPrank();
-            revert("TEMPO-REG17: Should not be able to modify special policy");
+            revert("MAGNUS-REG17: Should not be able to modify special policy");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownError(reason);
@@ -462,7 +462,7 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
         vm.startPrank(actor);
         try registry.modifyPolicyBlacklist(policyId, account, true) {
             vm.stopPrank();
-            revert("TEMPO-REG17: Should not be able to modify special policy");
+            revert("MAGNUS-REG17: Should not be able to modify special policy");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownError(reason);
@@ -472,7 +472,7 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
         vm.startPrank(actor);
         try registry.setPolicyAdmin(policyId, account) {
             vm.stopPrank();
-            revert("TEMPO-REG18: Should not be able to change special policy admin");
+            revert("MAGNUS-REG18: Should not be able to change special policy admin");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownError(reason);
@@ -484,35 +484,35 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Run all invariant checks in a single unified loop
-    /// @dev Combines TEMPO-REG3, REG15, REG16, REG19 checks
+    /// @dev Combines MAGNUS-REG3, REG15, REG16, REG19 checks
     ///      Special policies check (REG13) moved to setUp() as they're immutable
     function invariant_globalInvariants() public {
-        // TEMPO-REG15: Counter monotonicity (done once, not per-policy)
+        // MAGNUS-REG15: Counter monotonicity (done once, not per-policy)
         uint64 counter = registry.policyIdCounter();
-        assertTrue(counter >= 2, "TEMPO-REG15: Counter should be at least 2");
+        assertTrue(counter >= 2, "MAGNUS-REG15: Counter should be at least 2");
         uint64 expectedCounter = 2 + _basePoliciesCreated + uint64(_totalPoliciesCreated);
         assertEq(
-            counter, expectedCounter, "TEMPO-REG15: Counter must equal 2 + totalPoliciesCreated"
+            counter, expectedCounter, "MAGNUS-REG15: Counter must equal 2 + totalPoliciesCreated"
         );
-        assertGe(counter, _lastSeenCounter, "TEMPO-REG15: Counter must never decrease");
+        assertGe(counter, _lastSeenCounter, "MAGNUS-REG15: Counter must never decrease");
         _lastSeenCounter = counter;
 
         // Single loop over all created policies
         for (uint256 i = 0; i < _createdPolicies.length; i++) {
             uint64 policyId = _createdPolicies[i];
 
-            // TEMPO-REG3: Created policy exists
-            assertTrue(registry.policyExists(policyId), "TEMPO-REG3: Created policy should exist");
+            // MAGNUS-REG3: Created policy exists
+            assertTrue(registry.policyExists(policyId), "MAGNUS-REG3: Created policy should exist");
 
-            // TEMPO-REG16: Policy type immutability
+            // MAGNUS-REG16: Policy type immutability
             (IMIP403Registry.PolicyType currentType,) = registry.policyData(policyId);
             assertEq(
                 uint256(currentType),
                 uint256(_policyTypes[policyId]),
-                "TEMPO-REG16: Policy type should not change"
+                "MAGNUS-REG16: Policy type should not change"
             );
 
-            // TEMPO-REG19: Ghost policy membership matches registry
+            // MAGNUS-REG19: Ghost policy membership matches registry
             address[] memory accounts = _policyAccounts[policyId];
             for (uint256 j = 0; j < accounts.length; j++) {
                 address account = accounts[j];
@@ -521,11 +521,11 @@ contract MIP403RegistryInvariantTest is InvariantBaseTest {
 
                 if (currentType == IMIP403Registry.PolicyType.WHITELIST) {
                     assertEq(
-                        isAuthorized, ghostMember, "TEMPO-REG19: Whitelist membership mismatch"
+                        isAuthorized, ghostMember, "MAGNUS-REG19: Whitelist membership mismatch"
                     );
                 } else {
                     assertEq(
-                        isAuthorized, !ghostMember, "TEMPO-REG19: Blacklist membership mismatch"
+                        isAuthorized, !ghostMember, "MAGNUS-REG19: Blacklist membership mismatch"
                     );
                 }
             }

@@ -1,4 +1,4 @@
-# tempoup
+# magnusup
 
 Official installer for [Magnus](https://magnus.xyz) - a blockchain for payments at scale.
 
@@ -11,11 +11,11 @@ curl -L https://magnus.xyz/install | bash
 ## Usage
 
 ```bash
-tempoup                  # Install latest release
-tempoup -i v1.0.0        # Install specific version
-tempoup -v               # Print installer version
-tempoup --update         # Update tempoup itself
-tempoup --help           # Show help
+magnusup                  # Install latest release
+magnusup -i v1.0.0        # Install specific version
+magnusup -v               # Print installer version
+magnusup --update         # Update magnusup itself
+magnusup --help           # Show help
 ```
 
 ## Supported Platforms
@@ -30,33 +30,33 @@ Default: `~/.magnus/bin/`
 
 Customize with `MAGNUS_DIR` environment variable:
 ```bash
-MAGNUS_DIR=/custom/path tempoup
+MAGNUS_DIR=/custom/path magnusup
 ```
 
 ## Updating
 
 ### Update Magnus Binary
 
-Simply run tempoup again:
+Simply run magnusup again:
 
 ```bash
-tempoup
+magnusup
 ```
 
-### Update Tempoup Itself
+### Update Magnusup Itself
 
 Use the built-in update command:
 
 ```bash
-tempoup --update
+magnusup --update
 ```
 
 This will:
 1. Check the latest version available on GitHub
-2. Download and replace the tempoup script if a newer version exists
+2. Download and replace the magnusup script if a newer version exists
 3. Notify you of the version change
 
-**Note:** Tempoup automatically checks for updates when you run it and will warn you if your version is outdated.
+**Note:** Magnusup automatically checks for updates when you run it and will warn you if your version is outdated.
 
 ## Uninstalling
 

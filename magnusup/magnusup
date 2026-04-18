@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 set -e
 
-# Tempoup - Magnus installer
+# Magnusup - Magnus installer
 # Downloads and installs the magnus binary from GitHub releases
 
 # NOTE: if you make modifications to this script, please increment the version number.
 # WARNING: the SemVer pattern: major.minor.patch must be followed as we use it to determine if the script is up to date.
-TEMPOUP_INSTALLER_VERSION="0.0.8"
+MAGNUSUP_INSTALLER_VERSION="0.0.8"
 
 REPO="Magnus-Foundation/magnus"
 # GPG key fingerprint for release signing verification
 GPG_KEY_FINGERPRINT="EE3C5D41EA963E896F310EC3CBBFA54B20D33446"
 GPG_KEYSERVER="keyserver.ubuntu.com"
 BIN_DIR="${MAGNUS_BIN_DIR:-$HOME/.magnus/bin}"
-TEMPOUP_BIN_URL="https://raw.githubusercontent.com/Magnus-Foundation/magnus/main/tempoup/tempoup"
-TEMPOUP_BIN_PATH="$BIN_DIR/tempoup"
+MAGNUSUP_BIN_URL="https://raw.githubusercontent.com/Magnus-Foundation/magnus/main/magnusup/magnusup"
+MAGNUSUP_BIN_PATH="$BIN_DIR/magnusup"
 
 # Color output
 RED='\033[0;31m'
@@ -63,7 +63,7 @@ EOF
 
 # Print installer version
 version() {
-    echo "$TEMPOUP_INSTALLER_VERSION"
+    echo "$MAGNUSUP_INSTALLER_VERSION"
     exit 0
 }
 
@@ -96,7 +96,7 @@ check_cmd() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Check if tempoup installer is up to date
+# Check if magnusup installer is up to date
 check_installer_up_to_date() {
     # Skip check if curl not available
     if ! command -v curl >/dev/null 2>&1; then
@@ -104,26 +104,26 @@ check_installer_up_to_date() {
     fi
 
     # Fetch the remote version
-    local remote_version=$(curl -fsSL "$TEMPOUP_BIN_URL" 2>/dev/null | \
-        grep '^TEMPOUP_INSTALLER_VERSION=' | sed -E 's/TEMPOUP_INSTALLER_VERSION="(.+)"/\1/')
+    local remote_version=$(curl -fsSL "$MAGNUSUP_BIN_URL" 2>/dev/null | \
+        grep '^MAGNUSUP_INSTALLER_VERSION=' | sed -E 's/MAGNUSUP_INSTALLER_VERSION="(.+)"/\1/')
 
     if [[ -z "$remote_version" ]]; then
         return
     fi
 
     # Compare versions
-    if version_gt "$remote_version" "$TEMPOUP_INSTALLER_VERSION"; then
+    if version_gt "$remote_version" "$MAGNUSUP_INSTALLER_VERSION"; then
         echo ""
-        warn "Your tempoup version ($TEMPOUP_INSTALLER_VERSION) is outdated."
+        warn "Your magnusup version ($MAGNUSUP_INSTALLER_VERSION) is outdated."
         warn "Latest version is $remote_version."
-        warn "Run 'tempoup --update' to update to the latest version."
+        warn "Run 'magnusup --update' to update to the latest version."
         echo ""
     fi
 }
 
-# Update tempoup itself
-update_tempoup() {
-    info "Updating tempoup..."
+# Update magnusup itself
+update_magnusup() {
+    info "Updating magnusup..."
 
     if ! command -v curl >/dev/null 2>&1; then
         error "curl not found. Please install curl."
@@ -133,38 +133,38 @@ update_tempoup() {
     local tmp_file=$(mktemp)
     trap "rm -f $tmp_file" EXIT
 
-    # Download latest tempoup script
-    info "Downloading latest tempoup..."
+    # Download latest magnusup script
+    info "Downloading latest magnusup..."
 
-    if ! curl -fsSL "$TEMPOUP_BIN_URL" -o "$tmp_file" 2>/dev/null; then
-        error "Failed to download tempoup update"
+    if ! curl -fsSL "$MAGNUSUP_BIN_URL" -o "$tmp_file" 2>/dev/null; then
+        error "Failed to download magnusup update"
     fi
 
     # Extract remote version
-    local remote_version=$(grep '^TEMPOUP_INSTALLER_VERSION=' "$tmp_file" | sed -E 's/TEMPOUP_INSTALLER_VERSION="(.+)"/\1/')
+    local remote_version=$(grep '^MAGNUSUP_INSTALLER_VERSION=' "$tmp_file" | sed -E 's/MAGNUSUP_INSTALLER_VERSION="(.+)"/\1/')
 
     if [[ -z "$remote_version" ]]; then
         error "Failed to determine remote version"
     fi
 
     # Check if update is needed
-    if ! version_gt "$remote_version" "$TEMPOUP_INSTALLER_VERSION"; then
-        info "Tempoup is already up to date (version $TEMPOUP_INSTALLER_VERSION)"
+    if ! version_gt "$remote_version" "$MAGNUSUP_INSTALLER_VERSION"; then
+        info "Magnusup is already up to date (version $MAGNUSUP_INSTALLER_VERSION)"
         exit 0
     fi
 
     # Replace current script with new version
-    info "Updating from $TEMPOUP_INSTALLER_VERSION to $remote_version..."
-    if cp "$tmp_file" "$TEMPOUP_BIN_PATH" 2>/dev/null; then
-        chmod 755 "$TEMPOUP_BIN_PATH"
-    elif sudo cp "$tmp_file" "$TEMPOUP_BIN_PATH" 2>/dev/null; then
-        sudo chmod 755 "$TEMPOUP_BIN_PATH"
+    info "Updating from $MAGNUSUP_INSTALLER_VERSION to $remote_version..."
+    if cp "$tmp_file" "$MAGNUSUP_BIN_PATH" 2>/dev/null; then
+        chmod 755 "$MAGNUSUP_BIN_PATH"
+    elif sudo cp "$tmp_file" "$MAGNUSUP_BIN_PATH" 2>/dev/null; then
+        sudo chmod 755 "$MAGNUSUP_BIN_PATH"
     else
-        error "Failed to update tempoup at $TEMPOUP_BIN_PATH. Try running with sudo."
+        error "Failed to update magnusup at $MAGNUSUP_BIN_PATH. Try running with sudo."
     fi
 
     echo ""
-    info "✓ Tempoup updated successfully to version $remote_version"
+    info "✓ Magnusup updated successfully to version $remote_version"
     exit 0
 }
 
@@ -180,22 +180,22 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -U|--update)
-            update_tempoup
+            update_magnusup
             ;;
         -h|--help)
-            echo "Usage: tempoup [OPTIONS]"
+            echo "Usage: magnusup [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  -v, --version         Print tempoup installer version"
+            echo "  -v, --version         Print magnusup installer version"
             echo "  -i, --install <VER>   Install specific magnus version (e.g., v1.0.0)"
-            echo "  -U, --update          Update tempoup to the latest version"
+            echo "  -U, --update          Update magnusup to the latest version"
             echo "  -h, --help            Show this help message"
             echo ""
             echo "Examples:"
-            echo "  tempoup                   # Install latest release"
-            echo "  tempoup -i v1.0.0         # Install specific version"
-            echo "  tempoup -v                # Print installer version"
-            echo "  tempoup --update          # Update tempoup itself"
+            echo "  magnusup                   # Install latest release"
+            echo "  magnusup -i v1.0.0         # Install specific version"
+            echo "  magnusup -v                # Print installer version"
+            echo "  magnusup --update          # Update magnusup itself"
             exit 0
             ;;
         *)
@@ -303,7 +303,7 @@ get_latest_version() {
 
 # Main installation logic
 main() {
-    # Check if tempoup installer is up to date
+    # Check if magnusup installer is up to date
     check_installer_up_to_date
 
     info "Installing magnus..."
@@ -431,7 +431,7 @@ main() {
 
     # Install binary
     # Move old binary out of the way to avoid ETXTBSY ("Text file busy") when
-    # overwriting a running executable (e.g. `magnus update` calls tempoup
+    # overwriting a running executable (e.g. `magnus update` calls magnusup
     # while the magnus binary is still mapped). If the script fails at any
     # point after this, the trap restores the old binary.
     info "Installing to $BIN_DIR/$BINARY_NAME..."

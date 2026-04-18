@@ -7,7 +7,7 @@ import { InvariantBaseTest } from "./InvariantBaseTest.t.sol";
 
 /// @title MIP20 Invariant Tests
 /// @notice Fuzz-based invariant tests for the MIP20 token implementation
-/// @dev Tests invariants TEMPO-MIP1 through TEMPO-MIP36
+/// @dev Tests invariants MAGNUS-MIP1 through MAGNUS-MIP36
 contract MIP20InvariantTest is InvariantBaseTest {
 
     /// @dev Ghost variables for reward distribution tracking
@@ -87,8 +87,8 @@ contract MIP20InvariantTest is InvariantBaseTest {
         for (uint256 i = 0; i < _tokens.length; i++) {
             MIP20 token = _tokens[i];
 
-            // TEMPO-MIP21: Decimals is always 6
-            assertEq(token.decimals(), 6, "TEMPO-MIP21: Decimals should always be 6");
+            // MAGNUS-MIP21: Decimals is always 6
+            assertEq(token.decimals(), 6, "MAGNUS-MIP21: Decimals should always be 6");
 
             // Quote token graph must be acyclic (set at creation, never changes)
             IMIP20 current = token.quoteToken();
@@ -108,7 +108,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Handler for token transfers
-    /// @dev Tests TEMPO-MIP1 (balance conservation), TEMPO-MIP2 (total supply unchanged)
+    /// @dev Tests MAGNUS-MIP1 (balance conservation), MAGNUS-MIP2 (total supply unchanged)
     function transfer(
         uint256 actorSeed,
         uint256 tokenSeed,
@@ -136,25 +136,25 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(actor);
         try token.transfer(recipient, amount) returns (bool success) {
             vm.stopPrank();
-            assertTrue(success, "TEMPO-MIP1: Transfer should return true");
+            assertTrue(success, "MAGNUS-MIP1: Transfer should return true");
 
-            // TEMPO-MIP1: Balance conservation
+            // MAGNUS-MIP1: Balance conservation
             assertEq(
                 token.balanceOf(actor),
                 actorBalance - amount,
-                "TEMPO-MIP1: Sender balance not decreased correctly"
+                "MAGNUS-MIP1: Sender balance not decreased correctly"
             );
             assertEq(
                 token.balanceOf(recipient),
                 recipientBalanceBefore + amount,
-                "TEMPO-MIP1: Recipient balance not increased correctly"
+                "MAGNUS-MIP1: Recipient balance not increased correctly"
             );
 
-            // TEMPO-MIP2: Total supply unchanged
+            // MAGNUS-MIP2: Total supply unchanged
             assertEq(
                 token.totalSupply(),
                 totalSupplyBefore,
-                "TEMPO-MIP2: Total supply changed during transfer"
+                "MAGNUS-MIP2: Total supply changed during transfer"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -209,7 +209,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for transferFrom with allowance
-    /// @dev Tests TEMPO-MIP3 (allowance consumption), TEMPO-MIP4 (infinite allowance)
+    /// @dev Tests MAGNUS-MIP3 (allowance consumption), MAGNUS-MIP4 (infinite allowance)
     function transferFrom(
         uint256 actorSeed,
         uint256 tokenSeed,
@@ -242,32 +242,32 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(spender);
         try token.transferFrom(owner, recipient, amount) returns (bool success) {
             vm.stopPrank();
-            assertTrue(success, "TEMPO-MIP3: TransferFrom should return true");
+            assertTrue(success, "MAGNUS-MIP3: TransferFrom should return true");
 
-            // TEMPO-MIP3/MIP4: Allowance handling
+            // MAGNUS-MIP3/MIP4: Allowance handling
             if (isInfiniteAllowance) {
                 assertEq(
                     token.allowance(owner, spender),
                     type(uint256).max,
-                    "TEMPO-MIP4: Infinite allowance should remain infinite"
+                    "MAGNUS-MIP4: Infinite allowance should remain infinite"
                 );
             } else {
                 assertEq(
                     token.allowance(owner, spender),
                     allowance - amount,
-                    "TEMPO-MIP3: Allowance not decreased correctly"
+                    "MAGNUS-MIP3: Allowance not decreased correctly"
                 );
             }
 
             assertEq(
                 token.balanceOf(owner),
                 ownerBalance - amount,
-                "TEMPO-MIP3: Owner balance not decreased"
+                "MAGNUS-MIP3: Owner balance not decreased"
             );
             assertEq(
                 token.balanceOf(recipient),
                 recipientBalanceBefore + amount,
-                "TEMPO-MIP3: Recipient balance not increased"
+                "MAGNUS-MIP3: Recipient balance not increased"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -276,7 +276,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for approvals
-    /// @dev Tests TEMPO-MIP5 (allowance setting)
+    /// @dev Tests MAGNUS-MIP5 (allowance setting)
     function approve(
         uint256 actorSeed,
         uint256 tokenSeed,
@@ -294,10 +294,10 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(actor);
         try token.approve(spender, amount) returns (bool success) {
             vm.stopPrank();
-            assertTrue(success, "TEMPO-MIP5: Approve should return true");
+            assertTrue(success, "MAGNUS-MIP5: Approve should return true");
 
             assertEq(
-                token.allowance(actor, spender), amount, "TEMPO-MIP5: Allowance not set correctly"
+                token.allowance(actor, spender), amount, "MAGNUS-MIP5: Allowance not set correctly"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -306,7 +306,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for minting tokens
-    /// @dev Tests TEMPO-MIP6 (supply increase), TEMPO-MIP7 (supply cap)
+    /// @dev Tests MAGNUS-MIP6 (supply increase), MAGNUS-MIP7 (supply cap)
     function mint(uint256 tokenSeed, uint256 recipientSeed, uint256 amount) external {
         MIP20 token = _selectBaseToken(tokenSeed);
         address recipient = _selectAuthorizedActor(recipientSeed, address(token));
@@ -328,20 +328,20 @@ contract MIP20InvariantTest is InvariantBaseTest {
 
             _tokenMintSum[address(token)] += amount;
 
-            // TEMPO-MIP6: Total supply should increase
+            // MAGNUS-MIP6: Total supply should increase
             assertEq(
                 token.totalSupply(),
                 currentSupply + amount,
-                "TEMPO-MIP6: Total supply not increased correctly"
+                "MAGNUS-MIP6: Total supply not increased correctly"
             );
 
-            // TEMPO-MIP7: Total supply should not exceed cap
-            assertLe(token.totalSupply(), supplyCap, "TEMPO-MIP7: Total supply exceeds supply cap");
+            // MAGNUS-MIP7: Total supply should not exceed cap
+            assertLe(token.totalSupply(), supplyCap, "MAGNUS-MIP7: Total supply exceeds supply cap");
 
             assertEq(
                 token.balanceOf(recipient),
                 recipientBalanceBefore + amount,
-                "TEMPO-MIP6: Recipient balance not increased"
+                "MAGNUS-MIP6: Recipient balance not increased"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -350,7 +350,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for burning tokens
-    /// @dev Tests TEMPO-MIP8 (supply decrease)
+    /// @dev Tests MAGNUS-MIP8 (supply decrease)
     function burn(uint256 tokenSeed, uint256 amount) external {
         MIP20 token = _selectBaseToken(tokenSeed);
 
@@ -367,17 +367,17 @@ contract MIP20InvariantTest is InvariantBaseTest {
 
             _tokenBurnSum[address(token)] += amount;
 
-            // TEMPO-MIP8: Total supply should decrease
+            // MAGNUS-MIP8: Total supply should decrease
             assertEq(
                 token.totalSupply(),
                 totalSupplyBefore - amount,
-                "TEMPO-MIP8: Total supply not decreased correctly"
+                "MAGNUS-MIP8: Total supply not decreased correctly"
             );
 
             assertEq(
                 token.balanceOf(admin),
                 adminBalance - amount,
-                "TEMPO-MIP8: Admin balance not decreased"
+                "MAGNUS-MIP8: Admin balance not decreased"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -386,7 +386,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for transfer with memo
-    /// @dev Tests TEMPO-MIP9 (memo transfers work like regular transfers)
+    /// @dev Tests MAGNUS-MIP9 (memo transfers work like regular transfers)
     function transferWithMemo(
         uint256 actorSeed,
         uint256 tokenSeed,
@@ -416,18 +416,18 @@ contract MIP20InvariantTest is InvariantBaseTest {
         try token.transferWithMemo(recipient, amount, memo) {
             vm.stopPrank();
 
-            // TEMPO-MIP9: Balance changes same as regular transfer
+            // MAGNUS-MIP9: Balance changes same as regular transfer
             assertEq(
                 token.balanceOf(actor),
                 actorBalance - amount,
-                "TEMPO-MIP9: Sender balance not decreased"
+                "MAGNUS-MIP9: Sender balance not decreased"
             );
             assertEq(
                 token.balanceOf(recipient),
                 recipientBalanceBefore + amount,
-                "TEMPO-MIP9: Recipient balance not increased"
+                "MAGNUS-MIP9: Recipient balance not increased"
             );
-            assertEq(token.totalSupply(), totalSupplyBefore, "TEMPO-MIP9: Total supply changed");
+            assertEq(token.totalSupply(), totalSupplyBefore, "MAGNUS-MIP9: Total supply changed");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertTrue(_isKnownTIP20Error(bytes4(reason)), "Unknown error encountered");
@@ -435,7 +435,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for transferFrom with memo
-    /// @dev Tests TEMPO-MIP9 (memo transfers work like regular transfers with allowance)
+    /// @dev Tests MAGNUS-MIP9 (memo transfers work like regular transfers with allowance)
     function transferFromWithMemo(
         uint256 actorSeed,
         uint256 tokenSeed,
@@ -470,33 +470,33 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(spender);
         try token.transferFromWithMemo(owner, recipient, amount, memo) returns (bool success) {
             vm.stopPrank();
-            assertTrue(success, "TEMPO-MIP9: TransferFromWithMemo should return true");
+            assertTrue(success, "MAGNUS-MIP9: TransferFromWithMemo should return true");
 
             // Balance changes same as regular transferFrom
             assertEq(
                 token.balanceOf(owner),
                 ownerBalance - amount,
-                "TEMPO-MIP9: Owner balance not decreased"
+                "MAGNUS-MIP9: Owner balance not decreased"
             );
             assertEq(
                 token.balanceOf(recipient),
                 recipientBalanceBefore + amount,
-                "TEMPO-MIP9: Recipient balance not increased"
+                "MAGNUS-MIP9: Recipient balance not increased"
             );
-            assertEq(token.totalSupply(), totalSupplyBefore, "TEMPO-MIP9: Total supply changed");
+            assertEq(token.totalSupply(), totalSupplyBefore, "MAGNUS-MIP9: Total supply changed");
 
             // Allowance handling same as transferFrom
             if (isInfiniteAllowance) {
                 assertEq(
                     token.allowance(owner, spender),
                     type(uint256).max,
-                    "TEMPO-MIP4: Infinite allowance should remain infinite"
+                    "MAGNUS-MIP4: Infinite allowance should remain infinite"
                 );
             } else {
                 assertEq(
                     token.allowance(owner, spender),
                     allowance - amount,
-                    "TEMPO-MIP3: Allowance not decreased correctly"
+                    "MAGNUS-MIP3: Allowance not decreased correctly"
                 );
             }
         } catch (bytes memory reason) {
@@ -506,7 +506,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for setting reward recipient (opt-in, opt-out, or delegate)
-    /// @dev Tests TEMPO-MIP10 (opted-in supply), TEMPO-MIP11 (supply updates), TEMPO-MIP25 (delegation)
+    /// @dev Tests MAGNUS-MIP10 (opted-in supply), MAGNUS-MIP11 (supply updates), MAGNUS-MIP25 (delegation)
     function setRewardRecipient(
         uint256 actorSeed,
         uint256 tokenSeed,
@@ -574,7 +574,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for distributing rewards
-    /// @dev Tests TEMPO-MIP12, TEMPO-MIP13
+    /// @dev Tests MAGNUS-MIP12, MAGNUS-MIP13
     function distributeReward(uint256 actorSeed, uint256 tokenSeed, uint256 amount) external {
         MIP20 token = _selectBaseToken(tokenSeed);
         address actor = _selectAuthorizedActor(actorSeed, address(token));
@@ -604,7 +604,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
             _registerHolder(address(token), actor);
             _registerHolder(address(token), address(token));
 
-            // TEMPO-MIP12: Global reward per token should increase by exact floor division
+            // MAGNUS-MIP12: Global reward per token should increase by exact floor division
             // Formula: delta = floor(amount * ACC_PRECISION / optedInSupply)
             // Note: optedInSupply may change during _transfer before the delta calculation,
             // so we verify the delta is consistent with the post-transfer optedInSupply
@@ -615,14 +615,14 @@ contract MIP20InvariantTest is InvariantBaseTest {
             // The exact formula verification is complex due to optedInSupply changes during transfer
             assertTrue(
                 actualDelta > 0 || amount * ACC_PRECISION < token.optedInSupply(),
-                "TEMPO-MIP12: globalRewardPerToken should increase unless amount is tiny relative to optedInSupply"
+                "MAGNUS-MIP12: globalRewardPerToken should increase unless amount is tiny relative to optedInSupply"
             );
 
-            // TEMPO-MIP13: Tokens should be transferred to the token contract
+            // MAGNUS-MIP13: Tokens should be transferred to the token contract
             assertEq(
                 token.balanceOf(address(token)),
                 tokenBalanceBefore + amount,
-                "TEMPO-MIP13: Tokens not transferred to contract"
+                "MAGNUS-MIP13: Tokens not transferred to contract"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -631,7 +631,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for distributing tiny rewards where delta == 0
-    /// @dev Tests TEMPO-MIP12 edge case: when amount << optedInSupply, delta is 0
+    /// @dev Tests MAGNUS-MIP12 edge case: when amount << optedInSupply, delta is 0
     function distributeRewardTiny(uint256 actorSeed, uint256 tokenSeed) external {
         MIP20 token = _selectBaseToken(tokenSeed);
         address actor = _selectAuthorizedActor(actorSeed, address(token));
@@ -665,12 +665,12 @@ contract MIP20InvariantTest is InvariantBaseTest {
             _registerHolder(address(token), actor);
             _registerHolder(address(token), address(token));
 
-            // TEMPO-MIP12: When delta == 0, globalRewardPerToken must stay constant
+            // MAGNUS-MIP12: When delta == 0, globalRewardPerToken must stay constant
             uint256 globalRPTAfter = token.globalRewardPerToken();
             assertEq(
                 globalRPTAfter,
                 globalRPTBefore,
-                "TEMPO-MIP12: Zero-delta distribution should not change globalRewardPerToken"
+                "MAGNUS-MIP12: Zero-delta distribution should not change globalRewardPerToken"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -679,7 +679,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for attempting to distribute rewards when optedInSupply == 0
-    /// @dev Tests TEMPO-MIP12 edge case: must revert with NoOptedInSupply when nobody is opted in
+    /// @dev Tests MAGNUS-MIP12 edge case: must revert with NoOptedInSupply when nobody is opted in
     function distributeRewardZeroOptedIn(uint256 actorSeed, uint256 tokenSeed) external {
         MIP20 token = _selectBaseToken(tokenSeed);
         address actor = _selectAuthorizedActor(actorSeed, address(token));
@@ -697,19 +697,19 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(actor);
         try token.distributeReward(1000) {
             vm.stopPrank();
-            revert("TEMPO-MIP12: distributeReward should revert when optedInSupply == 0");
+            revert("MAGNUS-MIP12: distributeReward should revert when optedInSupply == 0");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IMIP20.NoOptedInSupply.selector,
-                "TEMPO-MIP12: Should revert with NoOptedInSupply when optedInSupply == 0"
+                "MAGNUS-MIP12: Should revert with NoOptedInSupply when optedInSupply == 0"
             );
         }
     }
 
     /// @notice Handler for claiming rewards
-    /// @dev Tests TEMPO-MIP14, TEMPO-MIP15
+    /// @dev Tests MAGNUS-MIP14, MAGNUS-MIP15
     function claimRewards(uint256 actorSeed, uint256 tokenSeed) external {
         MIP20 token = _selectBaseToken(tokenSeed);
         address actor = _selectAuthorizedActor(actorSeed, address(token));
@@ -734,22 +734,22 @@ contract MIP20InvariantTest is InvariantBaseTest {
                 _tokenRewardsClaimed[address(token)] += claimed;
             }
 
-            // TEMPO-MIP14: Actor should receive claimed amount
+            // MAGNUS-MIP14: Actor should receive claimed amount
             assertEq(
                 token.balanceOf(actor),
                 actorBalanceBefore + claimed,
-                "TEMPO-MIP14: Actor balance not increased by claimed amount"
+                "MAGNUS-MIP14: Actor balance not increased by claimed amount"
             );
 
             assertEq(
                 token.balanceOf(address(token)),
                 contractBalanceBefore - claimed,
-                "TEMPO-MIP14: Contract balance not decreased"
+                "MAGNUS-MIP14: Contract balance not decreased"
             );
 
-            // TEMPO-MIP15: Claimed amount should not exceed available
+            // MAGNUS-MIP15: Claimed amount should not exceed available
             assertLe(
-                claimed, contractBalanceBefore, "TEMPO-MIP15: Claimed more than contract balance"
+                claimed, contractBalanceBefore, "MAGNUS-MIP15: Claimed more than contract balance"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -758,7 +758,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for reward claim with detailed verification
-    /// @dev Tests TEMPO-MIP14/MIP15: verifies claim is bounded by contract balance and stored rewards
+    /// @dev Tests MAGNUS-MIP14/MIP15: verifies claim is bounded by contract balance and stored rewards
     function claimRewardsVerified(uint256 actorSeed, uint256 tokenSeed) external {
         MIP20 token = _selectBaseToken(tokenSeed);
         address actor = _selectAuthorizedActor(actorSeed, address(token));
@@ -787,24 +787,24 @@ contract MIP20InvariantTest is InvariantBaseTest {
                 _tokenRewardsClaimed[address(token)] += claimed;
             }
 
-            // TEMPO-MIP15: Claimed should be min(pendingRewards, contractBalance)
-            assertEq(claimed, expectedClaim, "TEMPO-MIP15: Claimed amount incorrect");
+            // MAGNUS-MIP15: Claimed should be min(pendingRewards, contractBalance)
+            assertEq(claimed, expectedClaim, "MAGNUS-MIP15: Claimed amount incorrect");
 
-            // TEMPO-MIP15: Claimed should not exceed contract balance
-            assertLe(claimed, contractBalance, "TEMPO-MIP15: Claimed more than contract balance");
+            // MAGNUS-MIP15: Claimed should not exceed contract balance
+            assertLe(claimed, contractBalance, "MAGNUS-MIP15: Claimed more than contract balance");
 
-            // TEMPO-MIP14: Actor should receive exactly the claimed amount
+            // MAGNUS-MIP14: Actor should receive exactly the claimed amount
             assertEq(
                 token.balanceOf(actor),
                 actorBalanceBefore + claimed,
-                "TEMPO-MIP14: Actor balance not increased correctly"
+                "MAGNUS-MIP14: Actor balance not increased correctly"
             );
 
             // Contract balance should decrease by claimed amount
             assertEq(
                 token.balanceOf(address(token)),
                 contractBalance - claimed,
-                "TEMPO-MIP14: Contract balance not decreased correctly"
+                "MAGNUS-MIP14: Contract balance not decreased correctly"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -813,7 +813,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for burning tokens from blocked accounts
-    /// @dev Tests TEMPO-MIP23 (burnBlocked functionality)
+    /// @dev Tests MAGNUS-MIP23 (burnBlocked functionality)
     function burnBlocked(uint256 tokenSeed, uint256 targetSeed, uint256 amount) external {
         MIP20 token = _selectBaseToken(tokenSeed);
         address target = _selectActor(targetSeed);
@@ -840,33 +840,33 @@ contract MIP20InvariantTest is InvariantBaseTest {
 
             _tokenBurnSum[address(token)] += amount;
 
-            // TEMPO-MIP23: Balance should decrease
+            // MAGNUS-MIP23: Balance should decrease
             assertEq(
                 token.balanceOf(target),
                 targetBalance - amount,
-                "TEMPO-MIP23: Target balance not decreased"
+                "MAGNUS-MIP23: Target balance not decreased"
             );
 
-            // TEMPO-MIP23: Total supply should decrease
+            // MAGNUS-MIP23: Total supply should decrease
             assertEq(
                 token.totalSupply(),
                 totalSupplyBefore - amount,
-                "TEMPO-MIP23: Total supply not decreased"
+                "MAGNUS-MIP23: Total supply not decreased"
             );
 
-            // TEMPO-MIP11: Opted-in supply should decrease by burned amount if target was opted in
+            // MAGNUS-MIP11: Opted-in supply should decrease by burned amount if target was opted in
             uint128 optedInSupplyAfter = token.optedInSupply();
             if (targetOptedIn) {
                 assertEq(
                     optedInSupplyAfter,
                     optedInSupplyBefore - uint128(amount),
-                    "TEMPO-MIP11: Opted-in supply not decreased after burnBlocked"
+                    "MAGNUS-MIP11: Opted-in supply not decreased after burnBlocked"
                 );
             } else {
                 assertEq(
                     optedInSupplyAfter,
                     optedInSupplyBefore,
-                    "TEMPO-MIP11: Opted-in supply changed unexpectedly after burnBlocked"
+                    "MAGNUS-MIP11: Opted-in supply changed unexpectedly after burnBlocked"
                 );
             }
         } catch (bytes memory reason) {
@@ -876,7 +876,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for attempting burnBlocked on protected addresses
-    /// @dev Tests TEMPO-MIP24 (protected addresses cannot be burned from).
+    /// @dev Tests MAGNUS-MIP24 (protected addresses cannot be burned from).
     ///      The precompile checks pause before protected-address, so when
     ///      the token is paused it may revert with ContractPaused instead of
     ///      ProtectedAddress. Both are valid rejections of the burn attempt.
@@ -894,31 +894,31 @@ contract MIP20InvariantTest is InvariantBaseTest {
         // Try to burn from FeeManager - should revert
         try token.burnBlocked(feeManager, amount) {
             vm.stopPrank();
-            revert("TEMPO-MIP24: Should revert for FeeManager");
+            revert("MAGNUS-MIP24: Should revert for FeeManager");
         } catch (bytes memory reason) {
             bytes4 sel = bytes4(reason);
             assertTrue(
                 sel == IMIP20.ProtectedAddress.selector || sel == IMIP20.ContractPaused.selector,
-                "TEMPO-MIP24: Should revert with ProtectedAddress or ContractPaused for FeeManager"
+                "MAGNUS-MIP24: Should revert with ProtectedAddress or ContractPaused for FeeManager"
             );
         }
 
         // Try to burn from DEX - should revert
         try token.burnBlocked(dex, amount) {
             vm.stopPrank();
-            revert("TEMPO-MIP24: Should revert for DEX");
+            revert("MAGNUS-MIP24: Should revert for DEX");
         } catch (bytes memory reason) {
             vm.stopPrank();
             bytes4 sel = bytes4(reason);
             assertTrue(
                 sel == IMIP20.ProtectedAddress.selector || sel == IMIP20.ContractPaused.selector,
-                "TEMPO-MIP24: Should revert with ProtectedAddress or ContractPaused for DEX"
+                "MAGNUS-MIP24: Should revert with ProtectedAddress or ContractPaused for DEX"
             );
         }
     }
 
     /// @notice Handler for unauthorized mint attempts
-    /// @dev Tests TEMPO-MIP26 (only ISSUER_ROLE can mint)
+    /// @dev Tests MAGNUS-MIP26 (only ISSUER_ROLE can mint)
     function mintUnauthorized(uint256 actorSeed, uint256 tokenSeed, uint256 amount) external {
         address attacker = _selectActor(actorSeed);
         MIP20 token = _selectBaseToken(tokenSeed);
@@ -931,7 +931,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(attacker);
         try token.mint(attacker, amount) {
             vm.stopPrank();
-            revert("TEMPO-MIP26: Non-issuer should not be able to mint");
+            revert("MAGNUS-MIP26: Non-issuer should not be able to mint");
         } catch {
             vm.stopPrank();
             // Expected to revert - access control enforced
@@ -939,7 +939,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for unauthorized pause attempts
-    /// @dev Tests TEMPO-MIP27 (only PAUSE_ROLE can pause)
+    /// @dev Tests MAGNUS-MIP27 (only PAUSE_ROLE can pause)
     function pauseUnauthorized(uint256 actorSeed, uint256 tokenSeed) external {
         address attacker = _selectActor(actorSeed);
         MIP20 token = _selectBaseToken(tokenSeed);
@@ -951,7 +951,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(attacker);
         try token.pause() {
             vm.stopPrank();
-            revert("TEMPO-MIP27: Non-pause-role should not be able to pause");
+            revert("MAGNUS-MIP27: Non-pause-role should not be able to pause");
         } catch {
             vm.stopPrank();
             // Expected to revert - access control enforced
@@ -959,7 +959,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for unauthorized unpause attempts
-    /// @dev Tests TEMPO-MIP28 (only UNPAUSE_ROLE can unpause)
+    /// @dev Tests MAGNUS-MIP28 (only UNPAUSE_ROLE can unpause)
     function unpauseUnauthorized(uint256 actorSeed, uint256 tokenSeed) external {
         address attacker = _selectActor(actorSeed);
         MIP20 token = _selectBaseToken(tokenSeed);
@@ -971,7 +971,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(attacker);
         try token.unpause() {
             vm.stopPrank();
-            revert("TEMPO-MIP28: Non-unpause-role should not be able to unpause");
+            revert("MAGNUS-MIP28: Non-unpause-role should not be able to unpause");
         } catch {
             vm.stopPrank();
             // Expected to revert - access control enforced
@@ -979,7 +979,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for unauthorized burnBlocked attempts
-    /// @dev Tests TEMPO-MIP29 (only BURN_BLOCKED_ROLE can call burnBlocked)
+    /// @dev Tests MAGNUS-MIP29 (only BURN_BLOCKED_ROLE can call burnBlocked)
     function burnBlockedUnauthorized(
         uint256 actorSeed,
         uint256 tokenSeed,
@@ -1002,7 +1002,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(attacker);
         try token.burnBlocked(target, amount) {
             vm.stopPrank();
-            revert("TEMPO-MIP29: Non-burn-blocked-role should not be able to call burnBlocked");
+            revert("MAGNUS-MIP29: Non-burn-blocked-role should not be able to call burnBlocked");
         } catch {
             vm.stopPrank();
             // Expected to revert - access control enforced
@@ -1125,7 +1125,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for setting supply cap
-    /// @dev Tests TEMPO-MIP22 (supply cap enforcement)
+    /// @dev Tests MAGNUS-MIP22 (supply cap enforcement)
     function setSupplyCap(uint256 tokenSeed, uint256 newCap) external {
         MIP20 token = _selectBaseToken(tokenSeed);
 
@@ -1138,12 +1138,12 @@ contract MIP20InvariantTest is InvariantBaseTest {
         try token.setSupplyCap(newCap) {
             vm.stopPrank();
 
-            // TEMPO-MIP22: New cap should be set
-            assertEq(token.supplyCap(), newCap, "TEMPO-MIP22: Supply cap not updated");
+            // MAGNUS-MIP22: New cap should be set
+            assertEq(token.supplyCap(), newCap, "MAGNUS-MIP22: Supply cap not updated");
 
-            // TEMPO-MIP22: Cap must be >= current supply
+            // MAGNUS-MIP22: Cap must be >= current supply
             assertGe(
-                token.supplyCap(), token.totalSupply(), "TEMPO-MIP22: Supply cap below total supply"
+                token.supplyCap(), token.totalSupply(), "MAGNUS-MIP22: Supply cap below total supply"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -1188,19 +1188,19 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(admin);
         try token.setSupplyCap(invalidCap) {
             vm.stopPrank();
-            revert("TEMPO-MIP22: Should revert when cap < supply");
+            revert("MAGNUS-MIP22: Should revert when cap < supply");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IMIP20.InvalidSupplyCap.selector,
-                "TEMPO-MIP22: Should revert with InvalidSupplyCap"
+                "MAGNUS-MIP22: Should revert with InvalidSupplyCap"
             );
         }
     }
 
     /// @notice Handler for toggling blacklist
-    /// @dev Tests TEMPO-MIP16 (blacklist enforcement)
+    /// @dev Tests MAGNUS-MIP16 (blacklist enforcement)
     function toggleBlacklist(uint256 actorSeed, uint256 tokenSeed, bool blacklist) external {
         address actor = _selectActor(actorSeed);
         MIP20 token = _selectBaseToken(tokenSeed);
@@ -1225,10 +1225,10 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(policyAdmin);
         try registry.modifyPolicyBlacklist(policyId, actor, blacklist) {
             vm.stopPrank();
-            // TEMPO-MIP16: Authorization status should be updated
+            // MAGNUS-MIP16: Authorization status should be updated
             bool afterAuthorized = _isAuthorized(address(token), actor);
             assertEq(
-                afterAuthorized, !blacklist, "TEMPO-MIP16: Blacklist status not updated correctly"
+                afterAuthorized, !blacklist, "MAGNUS-MIP16: Blacklist status not updated correctly"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -1237,7 +1237,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for pause/unpause
-    /// @dev Tests TEMPO-MIP17 (pause enforcement)
+    /// @dev Tests MAGNUS-MIP17 (pause enforcement)
     function togglePause(uint256 tokenSeed, bool pause) external {
         MIP20 token = _selectBaseToken(tokenSeed);
 
@@ -1247,10 +1247,10 @@ contract MIP20InvariantTest is InvariantBaseTest {
 
         if (pause && !token.paused()) {
             token.pause();
-            assertTrue(token.paused(), "TEMPO-MIP17: Token should be paused");
+            assertTrue(token.paused(), "MAGNUS-MIP17: Token should be paused");
         } else if (!pause && token.paused()) {
             token.unpause();
-            assertFalse(token.paused(), "TEMPO-MIP17: Token should be unpaused");
+            assertFalse(token.paused(), "MAGNUS-MIP17: Token should be unpaused");
         }
         vm.stopPrank();
     }
@@ -1302,41 +1302,41 @@ contract MIP20InvariantTest is InvariantBaseTest {
         try token.permit(actor, recipient, amount, deadline, v, r, s) {
             // If permit passes, check invariants
 
-            // **TEMPO-MIP36**: Permit should set correct allowance
+            // **MAGNUS-MIP36**: Permit should set correct allowance
             assertEq(
                 token.allowance(actor, recipient),
                 amount,
-                "TEMPO-MIP36: Permit did not set correct allowance"
+                "MAGNUS-MIP36: Permit did not set correct allowance"
             );
 
-            // **TEMPO-MIP32**: Nonce should be incremented
+            // **MAGNUS-MIP32**: Nonce should be incremented
             assertEq(
-                token.nonces(actor), actorNonce + 1, "TEMPO-MIP32: Permit did not increment nonce"
+                token.nonces(actor), actorNonce + 1, "MAGNUS-MIP32: Permit did not increment nonce"
             );
 
-            // **TEMPO-MIP34**: A permit with a deadline in the past must always revert.
+            // **MAGNUS-MIP34**: A permit with a deadline in the past must always revert.
             assertGe(
-                deadline, block.timestamp, "TEMPO-MIP34: Permit should revert if deadline is past"
+                deadline, block.timestamp, "MAGNUS-MIP34: Permit should revert if deadline is past"
             );
 
-            // **TEMPO-MIP35**: The recovered signer from a valid permit signature must exactly match the `owner` parameter.
+            // **MAGNUS-MIP35**: The recovered signer from a valid permit signature must exactly match the `owner` parameter.
             assertEq(
                 ecrecover(digest, v, r, s),
                 actor,
-                "TEMPO-MIP35: Recovered signer does not match expected"
+                "MAGNUS-MIP35: Recovered signer does not match expected"
             );
 
             // Occasionally try 2nd permit. Use prime modulo to test all cases of seed % 4 between [0, 3]
             if (resultSeed % 7 == 0) {
                 try token.permit(actor, recipient, amount, deadline, v, r, s) {
-                    revert("TEMPO-MIP33: Permit should not be reusable");
+                    revert("MAGNUS-MIP33: Permit should not be reusable");
                 } catch (bytes memory) { }
             }
         } catch (bytes memory) { }
     }
 
     /// @notice Handler that verifies paused tokens reject transfers with ContractPaused
-    /// @dev Tests TEMPO-MIP17: pause enforcement - transfers revert with ContractPaused
+    /// @dev Tests MAGNUS-MIP17: pause enforcement - transfers revert with ContractPaused
     function tryTransferWhilePaused(
         uint256 actorSeed,
         uint256 tokenSeed,
@@ -1357,7 +1357,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
         vm.startPrank(actor);
         try token.transfer(recipient, 1) {
             vm.stopPrank();
-            revert("TEMPO-MIP17: Transfer should fail when paused");
+            revert("MAGNUS-MIP17: Transfer should fail when paused");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertTrue(_isKnownTIP20Error(bytes4(reason)), "Unknown error encountered");
@@ -1369,7 +1369,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Run all invariant checks in a single unified loop
-    /// @dev Combines TEMPO-MIP18, MIP19, MIP20, MIP22, and rewards conservation checks
+    /// @dev Combines MAGNUS-MIP18, MIP19, MIP20, MIP22, and rewards conservation checks
     ///      Decimals (MIP21) and quote token acyclic checks moved to setUp() as they're immutable
     function invariant_globalInvariants() public view {
         for (uint256 i = 0; i < _tokens.length; i++) {
@@ -1377,27 +1377,27 @@ contract MIP20InvariantTest is InvariantBaseTest {
             address tokenAddr = address(token);
             uint256 totalSupply = token.totalSupply();
 
-            // TEMPO-MIP19: Opted-in supply <= total supply
+            // MAGNUS-MIP19: Opted-in supply <= total supply
             assertLe(
                 token.optedInSupply(),
                 totalSupply,
-                "TEMPO-MIP19: Opted-in supply exceeds total supply"
+                "MAGNUS-MIP19: Opted-in supply exceeds total supply"
             );
 
-            // TEMPO-MIP22: Supply cap is enforced
-            assertLe(totalSupply, token.supplyCap(), "TEMPO-MIP22: Total supply exceeds supply cap");
+            // MAGNUS-MIP22: Supply cap is enforced
+            assertLe(totalSupply, token.supplyCap(), "MAGNUS-MIP22: Total supply exceeds supply cap");
 
-            // TEMPO-MIP18: Supply conservation - totalSupply = mints - burns
+            // MAGNUS-MIP18: Supply conservation - totalSupply = mints - burns
             uint256 expectedSupply = _tokenMintSum[tokenAddr] - _tokenBurnSum[tokenAddr];
-            assertEq(totalSupply, expectedSupply, "TEMPO-MIP18: Supply conservation violated");
+            assertEq(totalSupply, expectedSupply, "MAGNUS-MIP18: Supply conservation violated");
 
-            // TEMPO-MIP20: Balance sum equals supply
+            // MAGNUS-MIP20: Balance sum equals supply
             address[] storage holders = _tokenHolders[tokenAddr];
             uint256 balanceSum = 0;
             for (uint256 j = 0; j < holders.length; j++) {
                 balanceSum += token.balanceOf(holders[j]);
             }
-            assertEq(balanceSum, totalSupply, "TEMPO-MIP20: Balance sum does not equal totalSupply");
+            assertEq(balanceSum, totalSupply, "MAGNUS-MIP20: Balance sum does not equal totalSupply");
 
             // Rewards conservation: claimed <= distributed, dust bounded
             uint256 distributed = _tokenRewardsDistributed[tokenAddr];

@@ -9,7 +9,7 @@ import { InvariantBaseTest } from "./InvariantBaseTest.t.sol";
 
 /// @title MIP20Factory Invariant Tests
 /// @notice Fuzz-based invariant tests for the MIP20Factory implementation
-/// @dev Tests invariants TEMPO-FAC1 through TEMPO-FAC12 as documented in README.md
+/// @dev Tests invariants MAGNUS-FAC1 through MAGNUS-FAC12 as documented in README.md
 contract MIP20FactoryInvariantTest is InvariantBaseTest {
 
     /// @dev Ghost variables for tracking operations
@@ -42,10 +42,10 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
         (_actors,) = _buildActors(10);
 
         // One-time constant checks (immutable after deployment)
-        // TEMPO-FAC8: isTIP20 consistency for system contracts
-        assertTrue(factory.isTIP20(address(pathUSD)), "TEMPO-FAC8: pathUSD should be MIP20");
-        assertFalse(factory.isTIP20(address(factory)), "TEMPO-FAC8: Factory should not be MIP20");
-        assertFalse(factory.isTIP20(address(amm)), "TEMPO-FAC8: AMM should not be MIP20");
+        // MAGNUS-FAC8: isTIP20 consistency for system contracts
+        assertTrue(factory.isTIP20(address(pathUSD)), "MAGNUS-FAC8: pathUSD should be MIP20");
+        assertFalse(factory.isTIP20(address(factory)), "MAGNUS-FAC8: Factory should not be MIP20");
+        assertFalse(factory.isTIP20(address(amm)), "MAGNUS-FAC8: AMM should not be MIP20");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -53,7 +53,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Handler for creating tokens
-    /// @dev Tests TEMPO-FAC1 (deterministic addresses), TEMPO-FAC2 (address uniqueness)
+    /// @dev Tests MAGNUS-FAC1 (deterministic addresses), MAGNUS-FAC2 (address uniqueness)
     function createToken(
         uint256 actorSeed,
         bytes32 salt,
@@ -73,7 +73,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
         try factory.getTokenAddress(actor, salt) returns (address addr) {
             predictedAddr = addr;
         } catch (bytes memory reason) {
-            // TEMPO-FAC5: Reserved address range is enforced
+            // MAGNUS-FAC5: Reserved address range is enforced
             if (bytes4(reason) == IMIP20Factory.AddressReserved.selector) {
                 _totalReservedAttempts++;
                 return;
@@ -86,7 +86,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
             vm.startPrank(actor);
             try factory.createToken(name, symbol, "USD", pathUSD, admin, salt) {
                 vm.stopPrank();
-                revert("TEMPO-FAC3: Should revert for existing token");
+                revert("MAGNUS-FAC3: Should revert for existing token");
             } catch (bytes memory reason) {
                 vm.stopPrank();
                 if (bytes4(reason) == IMIP20Factory.TokenAlreadyExists.selector) {
@@ -107,34 +107,34 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
             _totalTokensCreated++;
             _recordCreatedToken(actor, salt, tokenAddr);
 
-            // TEMPO-FAC1: Created address matches predicted address
+            // MAGNUS-FAC1: Created address matches predicted address
             assertEq(
                 tokenAddr,
                 predictedAddr,
-                "TEMPO-FAC1: Created address does not match predicted address"
+                "MAGNUS-FAC1: Created address does not match predicted address"
             );
 
-            // TEMPO-FAC2: Token is recognized as MIP20
+            // MAGNUS-FAC2: Token is recognized as MIP20
             assertTrue(
-                factory.isTIP20(tokenAddr), "TEMPO-FAC2: Created token not recognized as MIP20"
+                factory.isTIP20(tokenAddr), "MAGNUS-FAC2: Created token not recognized as MIP20"
             );
 
-            // TEMPO-FAC6: Token has correct properties
+            // MAGNUS-FAC6: Token has correct properties
             MIP20 newToken = MIP20(tokenAddr);
             assertEq(
                 keccak256(bytes(newToken.name())),
                 keccak256(bytes(name)),
-                "TEMPO-FAC6: Token name mismatch"
+                "MAGNUS-FAC6: Token name mismatch"
             );
             assertEq(
                 keccak256(bytes(newToken.symbol())),
                 keccak256(bytes(symbol)),
-                "TEMPO-FAC6: Token symbol mismatch"
+                "MAGNUS-FAC6: Token symbol mismatch"
             );
             assertEq(
                 keccak256(bytes(newToken.currency())),
                 keccak256(bytes("USD")),
-                "TEMPO-FAC6: Token currency mismatch"
+                "MAGNUS-FAC6: Token currency mismatch"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -143,7 +143,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for creating tokens with invalid quote token
-    /// @dev Tests TEMPO-FAC4 (quote token validation)
+    /// @dev Tests MAGNUS-FAC4 (quote token validation)
     function createTokenInvalidQuote(uint256 actorSeed, bytes32 salt) external {
         address actor = _selectActor(actorSeed);
 
@@ -165,21 +165,21 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
         vm.startPrank(actor);
         try factory.createToken("Test", "TST", "USD", IMIP20(invalidQuote), admin, salt) {
             vm.stopPrank();
-            revert("TEMPO-FAC4: Should revert for invalid quote token");
+            revert("MAGNUS-FAC4: Should revert for invalid quote token");
         } catch (bytes memory reason) {
             vm.stopPrank();
             // Must be InvalidQuoteToken since we filtered out reserved addresses and existing tokens
             assertEq(
                 bytes4(reason),
                 IMIP20Factory.InvalidQuoteToken.selector,
-                "TEMPO-FAC4: Expected InvalidQuoteToken error"
+                "MAGNUS-FAC4: Expected InvalidQuoteToken error"
             );
             _totalInvalidQuoteAttempts++;
         }
     }
 
     /// @notice Handler for creating tokens with mismatched currency
-    /// @dev Tests TEMPO-FAC7 (currency/quote token consistency)
+    /// @dev Tests MAGNUS-FAC7 (currency/quote token consistency)
     function createTokenMismatchedCurrency(
         uint256 actorSeed,
         bytes32 salt,
@@ -217,7 +217,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
                 assertEq(
                     keccak256(bytes(newToken.currency())),
                     keccak256(bytes(currency)),
-                    "TEMPO-FAC7: Currency mismatch"
+                    "MAGNUS-FAC7: Currency mismatch"
                 );
             }
         } catch (bytes memory reason) {
@@ -227,7 +227,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for attempting to create USD token with non-USD quote
-    /// @dev Tests TEMPO-FAC7 (USD tokens must have USD quote tokens)
+    /// @dev Tests MAGNUS-FAC7 (USD tokens must have USD quote tokens)
     function createUsdTokenWithNonUsdQuote(uint256 actorSeed, bytes32 salt) external {
         address actor = _selectActor(actorSeed);
 
@@ -282,7 +282,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
         vm.startPrank(actor);
         try factory.createToken("Bad USD", "BUSD", "USD", IMIP20(eurToken), admin, usdSalt) {
             vm.stopPrank();
-            revert("TEMPO-FAC7: USD token with non-USD quote should fail");
+            revert("MAGNUS-FAC7: USD token with non-USD quote should fail");
         } catch (bytes memory reason) {
             vm.stopPrank();
             // Accept either InvalidQuoteToken or TokenAlreadyExists since validation order
@@ -294,14 +294,14 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
                 || selector == IMIP20Factory.TokenAlreadyExists.selector;
             assertTrue(
                 isExpectedError,
-                "TEMPO-FAC7: Should revert with InvalidQuoteToken or TokenAlreadyExists"
+                "MAGNUS-FAC7: Should revert with InvalidQuoteToken or TokenAlreadyExists"
             );
             _totalUsdWithNonUsdQuoteRejected++;
         }
     }
 
     /// @notice Handler for testing reserved address enforcement on createToken
-    /// @dev Tests TEMPO-FAC5 (reserved address enforcement on createToken, not just getTokenAddress)
+    /// @dev Tests MAGNUS-FAC5 (reserved address enforcement on createToken, not just getTokenAddress)
     function createTokenReservedAddress(uint256 actorSeed, bytes32 salt) external {
         address actor = _selectActor(actorSeed);
 
@@ -317,37 +317,37 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
         vm.startPrank(actor);
         try factory.createToken("Reserved", "RES", "USD", pathUSD, admin, salt) {
             vm.stopPrank();
-            revert("TEMPO-FAC5: Should revert for reserved address on createToken");
+            revert("MAGNUS-FAC5: Should revert for reserved address on createToken");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IMIP20Factory.AddressReserved.selector,
-                "TEMPO-FAC5: createToken should revert with AddressReserved"
+                "MAGNUS-FAC5: createToken should revert with AddressReserved"
             );
             _totalReservedCreateAttempts++;
         }
     }
 
     /// @notice Handler for verifying isTIP20 on controlled addresses
-    /// @dev Tests TEMPO-FAC8 (isTIP20 consistency)
+    /// @dev Tests MAGNUS-FAC8 (isTIP20 consistency)
     function checkIsTIP20(uint256 addrSeed) external {
         _totalIsTIP20Checks++;
 
         if (addrSeed % 4 == 0 && _createdTokens.length > 0) {
             // Check a created token - must be MIP20
             address checkAddr = _createdTokens[addrSeed % _createdTokens.length];
-            assertTrue(factory.isTIP20(checkAddr), "TEMPO-FAC8: Created token should be MIP20");
+            assertTrue(factory.isTIP20(checkAddr), "MAGNUS-FAC8: Created token should be MIP20");
         } else if (addrSeed % 4 == 1) {
             // Check pathUSD (known MIP20)
-            assertTrue(factory.isTIP20(address(pathUSD)), "TEMPO-FAC8: pathUSD should be MIP20");
+            assertTrue(factory.isTIP20(address(pathUSD)), "MAGNUS-FAC8: pathUSD should be MIP20");
         } else if (addrSeed % 4 == 2) {
             // Check factory address - should NOT be MIP20
             assertFalse(
-                factory.isTIP20(address(factory)), "TEMPO-FAC8: Factory should not be MIP20"
+                factory.isTIP20(address(factory)), "MAGNUS-FAC8: Factory should not be MIP20"
             );
             // Check AMM address - should NOT be MIP20
-            assertFalse(factory.isTIP20(address(amm)), "TEMPO-FAC8: AMM should not be MIP20");
+            assertFalse(factory.isTIP20(address(amm)), "MAGNUS-FAC8: AMM should not be MIP20");
         } else {
             // Check a random address - exclude known MIP20s and reserved range
             address checkAddr = address(uint160(addrSeed));
@@ -364,28 +364,28 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
                     && checkAddr != address(token3) && checkAddr != address(token4) && !isReserved
             ) {
                 assertFalse(
-                    factory.isTIP20(checkAddr), "TEMPO-FAC8: Random address should not be MIP20"
+                    factory.isTIP20(checkAddr), "MAGNUS-FAC8: Random address should not be MIP20"
                 );
             }
         }
     }
 
     /// @notice Handler for verifying getTokenAddress determinism
-    /// @dev Tests TEMPO-FAC9 (address prediction is deterministic), TEMPO-FAC10 (sender differentiation)
+    /// @dev Tests MAGNUS-FAC9 (address prediction is deterministic), MAGNUS-FAC10 (sender differentiation)
     function verifyAddressDeterminism(uint256 actorSeed, bytes32 salt) external view {
         address actor = _selectActor(actorSeed);
         address otherActor = _selectActorExcluding(actorSeed, actor);
 
         try factory.getTokenAddress(actor, salt) returns (address addr1) {
-            // TEMPO-FAC9: Same inputs always produce same output
+            // MAGNUS-FAC9: Same inputs always produce same output
             address addr2 = factory.getTokenAddress(actor, salt);
-            assertEq(addr1, addr2, "TEMPO-FAC9: getTokenAddress not deterministic");
+            assertEq(addr1, addr2, "MAGNUS-FAC9: getTokenAddress not deterministic");
 
-            // TEMPO-FAC10: Different senders produce different addresses
+            // MAGNUS-FAC10: Different senders produce different addresses
             try factory.getTokenAddress(otherActor, salt) returns (address otherAddr) {
                 assertTrue(
                     addr1 != otherAddr,
-                    "TEMPO-FAC10: Different senders should produce different addresses"
+                    "MAGNUS-FAC10: Different senders should produce different addresses"
                 );
             } catch (bytes memory reason) {
                 // Other actor's salt might be reserved - that's OK
@@ -422,46 +422,46 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
             address tokenAddr = _createdTokens[idx];
             MIP20 token = MIP20(tokenAddr);
 
-            // TEMPO-FAC2: Created token is recognized as MIP20
+            // MAGNUS-FAC2: Created token is recognized as MIP20
             assertTrue(
-                factory.isTIP20(tokenAddr), "TEMPO-FAC2: Created token not recognized as MIP20"
+                factory.isTIP20(tokenAddr), "MAGNUS-FAC2: Created token not recognized as MIP20"
             );
 
-            // TEMPO-FAC11: Token address has correct prefix
+            // MAGNUS-FAC11: Token address has correct prefix
             uint160 addrValue = uint160(tokenAddr);
             uint96 prefix = uint96(addrValue >> 64);
             assertEq(
                 prefix,
                 0x20C000000000000000000000,
-                "TEMPO-FAC11: Token address has incorrect prefix"
+                "MAGNUS-FAC11: Token address has incorrect prefix"
             );
 
-            // TEMPO-FAC12 (reverse): Given a token address, verify the salt/sender that produced it
+            // MAGNUS-FAC12 (reverse): Given a token address, verify the salt/sender that produced it
             {
                 address sender = _tokenToSender[tokenAddr];
                 bytes32 salt = _tokenToSalt[tokenAddr];
-                assertTrue(sender != address(0), "TEMPO-FAC12: Missing sender ghost state");
+                assertTrue(sender != address(0), "MAGNUS-FAC12: Missing sender ghost state");
                 assertEq(
                     factory.getTokenAddress(sender, salt),
                     tokenAddr,
-                    "TEMPO-FAC12: Reverse invariant - token address does not match (sender, salt)"
+                    "MAGNUS-FAC12: Reverse invariant - token address does not match (sender, salt)"
                 );
                 bytes32 uniqueKey = keccak256(abi.encode(sender, salt));
                 assertEq(
                     _saltToToken[uniqueKey],
                     tokenAddr,
-                    "TEMPO-FAC12: Ghost maps inconsistent (forward vs reverse)"
+                    "MAGNUS-FAC12: Ghost maps inconsistent (forward vs reverse)"
                 );
             }
 
-            // TEMPO-FAC12: USD tokens must have USD quote tokens
+            // MAGNUS-FAC12: USD tokens must have USD quote tokens
             if (keccak256(bytes(token.currency())) == usdHash) {
                 IMIP20 quote = token.quoteToken();
                 if (address(quote) != address(0)) {
                     assertEq(
                         keccak256(bytes(MIP20(address(quote)).currency())),
                         usdHash,
-                        "TEMPO-FAC12: USD token has non-USD quote token"
+                        "MAGNUS-FAC12: USD token has non-USD quote token"
                     );
                 }
             }
@@ -478,22 +478,22 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
     /// @param tokenAddr The address of the created token
     function _recordCreatedToken(address actor, bytes32 salt, address tokenAddr) internal {
         // Defensive: ensure we're not recording duplicates
-        assertFalse(_isCreatedToken[tokenAddr], "TEMPO-FAC3: Duplicate token address detected");
+        assertFalse(_isCreatedToken[tokenAddr], "MAGNUS-FAC3: Duplicate token address detected");
 
         bytes32 uniqueKey = keccak256(abi.encode(actor, salt));
         assertEq(
             _saltToToken[uniqueKey], address(0), "Ghost state: salt already used for this actor"
         );
 
-        // TEMPO-FAC1: Verify salt-to-token mapping consistency immediately
+        // MAGNUS-FAC1: Verify salt-to-token mapping consistency immediately
         address factoryAddr = factory.getTokenAddress(actor, salt);
-        assertEq(tokenAddr, factoryAddr, "TEMPO-FAC1: Created address inconsistent with factory");
+        assertEq(tokenAddr, factoryAddr, "MAGNUS-FAC1: Created address inconsistent with factory");
 
-        // TEMPO-FAC11: Verify token address has correct prefix
+        // MAGNUS-FAC11: Verify token address has correct prefix
         uint160 addrValue = uint160(tokenAddr);
         uint96 prefix = uint96(addrValue >> 64);
         assertEq(
-            prefix, 0x20C000000000000000000000, "TEMPO-FAC11: Token address has incorrect prefix"
+            prefix, 0x20C000000000000000000000, "MAGNUS-FAC11: Token address has incorrect prefix"
         );
 
         _createdTokens.push(tokenAddr);

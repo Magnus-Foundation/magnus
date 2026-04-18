@@ -6,7 +6,7 @@ import { InvariantBaseTest } from "./InvariantBaseTest.t.sol";
 
 /// @title ValidatorConfig Invariant Tests
 /// @notice Fuzz-based invariant tests for the ValidatorConfig precompile
-/// @dev Tests invariants TEMPO-VAL1 through TEMPO-VAL16 for validator management
+/// @dev Tests invariants MAGNUS-VAL1 through MAGNUS-VAL16 for validator management
 contract ValidatorConfigInvariantTest is InvariantBaseTest {
 
     /// @dev Starting offset for validator address pool (distinct from zero address)
@@ -74,7 +74,7 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Handler for adding validators (owner only)
-    /// @dev Tests TEMPO-VAL1 (owner-only add), TEMPO-VAL2 (index assignment)
+    /// @dev Tests MAGNUS-VAL1 (owner-only add), MAGNUS-VAL2 (index assignment)
     function addValidator(uint256 validatorSeed, uint256 keySeed, bool active) external {
         address validatorAddr = _selectPotentialValidator(validatorSeed);
 
@@ -100,15 +100,15 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
             _ghostValidatorOutbound[validatorAddr] = outbound;
             _ghostValidatorList.push(validatorAddr);
 
-            // TEMPO-VAL2: Index should be count before addition
+            // MAGNUS-VAL2: Index should be count before addition
             IValidatorConfig.Validator[] memory validators = validatorConfig.getValidators();
             assertEq(
-                validators.length, countBefore + 1, "TEMPO-VAL2: Validator count should increment"
+                validators.length, countBefore + 1, "MAGNUS-VAL2: Validator count should increment"
             );
             assertEq(
                 validators[countBefore].index,
                 countBefore,
-                "TEMPO-VAL2: New validator index should be previous count"
+                "MAGNUS-VAL2: New validator index should be previous count"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -117,7 +117,7 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for unauthorized add attempts
-    /// @dev Tests TEMPO-VAL1 (owner-only enforcement)
+    /// @dev Tests MAGNUS-VAL1 (owner-only enforcement)
     function tryAddValidatorUnauthorized(uint256 callerSeed, uint256 validatorSeed) external {
         address caller = _selectPotentialValidator(callerSeed);
         address validatorAddr = _selectPotentialValidator(validatorSeed);
@@ -132,19 +132,19 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
         vm.startPrank(caller);
         try validatorConfig.addValidator(validatorAddr, publicKey, true, inbound, outbound) {
             vm.stopPrank();
-            revert("TEMPO-VAL1: Non-owner should not be able to add validator");
+            revert("MAGNUS-VAL1: Non-owner should not be able to add validator");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IValidatorConfig.Unauthorized.selector,
-                "TEMPO-VAL1: Should revert with Unauthorized"
+                "MAGNUS-VAL1: Should revert with Unauthorized"
             );
         }
     }
 
     /// @notice Handler for validator self-update
-    /// @dev Tests TEMPO-VAL3 (validator can update self), TEMPO-VAL4 (only validator can update)
+    /// @dev Tests MAGNUS-VAL3 (validator can update self), MAGNUS-VAL4 (only validator can update)
     function updateValidator(uint256 validatorSeed, uint256 keySeed) external {
         if (_ghostValidatorList.length == 0) return;
 
@@ -163,7 +163,7 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
             _ghostValidatorInbound[validatorAddr] = newInbound;
             _ghostValidatorOutbound[validatorAddr] = newOutbound;
 
-            // TEMPO-VAL3: Verify update persisted
+            // MAGNUS-VAL3: Verify update persisted
             IValidatorConfig.Validator[] memory validators = validatorConfig.getValidators();
             bool found = false;
             for (uint256 i = 0; i < validators.length; i++) {
@@ -171,13 +171,13 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
                     assertEq(
                         validators[i].publicKey,
                         newPublicKey,
-                        "TEMPO-VAL3: Public key should be updated"
+                        "MAGNUS-VAL3: Public key should be updated"
                     );
                     found = true;
                     break;
                 }
             }
-            assertTrue(found, "TEMPO-VAL3: Updated validator should exist");
+            assertTrue(found, "MAGNUS-VAL3: Updated validator should exist");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownValidatorError(reason);
@@ -185,7 +185,7 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for owner trying to update validator (should fail)
-    /// @dev Tests TEMPO-VAL4 (only validator can update self)
+    /// @dev Tests MAGNUS-VAL4 (only validator can update self)
     function tryOwnerUpdateValidator(uint256 validatorSeed, uint256 keySeed) external {
         if (_ghostValidatorList.length == 0) return;
 
@@ -201,19 +201,19 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
         vm.startPrank(_ghostOwner);
         try validatorConfig.updateValidator(validatorAddr, newPublicKey, newInbound, newOutbound) {
             vm.stopPrank();
-            revert("TEMPO-VAL4: Owner should not be able to update validator");
+            revert("MAGNUS-VAL4: Owner should not be able to update validator");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IValidatorConfig.ValidatorNotFound.selector,
-                "TEMPO-VAL4: Should revert with ValidatorNotFound"
+                "MAGNUS-VAL4: Should revert with ValidatorNotFound"
             );
         }
     }
 
     /// @notice Handler for changing validator status (owner only)
-    /// @dev Tests TEMPO-VAL5 (owner can change status), TEMPO-VAL6 (status toggle)
+    /// @dev Tests MAGNUS-VAL5 (owner can change status), MAGNUS-VAL6 (status toggle)
     function changeValidatorStatus(uint256 validatorSeed, bool newStatus) external {
         if (_ghostValidatorList.length == 0) return;
 
@@ -226,12 +226,12 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
             // Update ghost state
             _ghostValidatorActive[validatorAddr] = newStatus;
 
-            // TEMPO-VAL6: Verify status changed
+            // MAGNUS-VAL6: Verify status changed
             IValidatorConfig.Validator[] memory validators = validatorConfig.getValidators();
             for (uint256 i = 0; i < validators.length; i++) {
                 if (validators[i].validatorAddress == validatorAddr) {
                     assertEq(
-                        validators[i].active, newStatus, "TEMPO-VAL6: Status should be updated"
+                        validators[i].active, newStatus, "MAGNUS-VAL6: Status should be updated"
                     );
                     break;
                 }
@@ -243,7 +243,7 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for validator trying to change own status (should fail)
-    /// @dev Tests TEMPO-VAL5 (only owner can change status)
+    /// @dev Tests MAGNUS-VAL5 (only owner can change status)
     function tryValidatorChangeOwnStatus(uint256 validatorSeed) external {
         if (_ghostValidatorList.length == 0) return;
 
@@ -255,19 +255,19 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
         vm.startPrank(validatorAddr);
         try validatorConfig.changeValidatorStatus(validatorAddr, false) {
             vm.stopPrank();
-            revert("TEMPO-VAL5: Validator should not be able to change own status");
+            revert("MAGNUS-VAL5: Validator should not be able to change own status");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IValidatorConfig.Unauthorized.selector,
-                "TEMPO-VAL5: Should revert with Unauthorized"
+                "MAGNUS-VAL5: Should revert with Unauthorized"
             );
         }
     }
 
     /// @notice Handler for changing owner
-    /// @dev Tests TEMPO-VAL7 (owner transfer), TEMPO-VAL8 (new owner has authority)
+    /// @dev Tests MAGNUS-VAL7 (owner transfer), MAGNUS-VAL8 (new owner has authority)
     function changeOwner(uint256 newOwnerSeed) external {
         address newOwner = _selectPotentialValidator(newOwnerSeed);
 
@@ -278,8 +278,8 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
             address oldOwner = _ghostOwner;
             _ghostOwner = newOwner;
 
-            // TEMPO-VAL7: Verify owner changed
-            assertEq(validatorConfig.owner(), newOwner, "TEMPO-VAL7: Owner should be updated");
+            // MAGNUS-VAL7: Verify owner changed
+            assertEq(validatorConfig.owner(), newOwner, "MAGNUS-VAL7: Owner should be updated");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownValidatorError(reason);
@@ -287,7 +287,7 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for unauthorized owner change
-    /// @dev Tests TEMPO-VAL8 (only owner can transfer ownership)
+    /// @dev Tests MAGNUS-VAL8 (only owner can transfer ownership)
     function tryChangeOwnerUnauthorized(uint256 callerSeed, uint256 newOwnerSeed) external {
         address caller = _selectPotentialValidator(callerSeed);
         address newOwner = _selectPotentialValidator(newOwnerSeed);
@@ -298,19 +298,19 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
         vm.startPrank(caller);
         try validatorConfig.changeOwner(newOwner) {
             vm.stopPrank();
-            revert("TEMPO-VAL8: Non-owner should not be able to change owner");
+            revert("MAGNUS-VAL8: Non-owner should not be able to change owner");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IValidatorConfig.Unauthorized.selector,
-                "TEMPO-VAL8: Should revert with Unauthorized"
+                "MAGNUS-VAL8: Should revert with Unauthorized"
             );
         }
     }
 
     /// @notice Handler for adding duplicate validator
-    /// @dev Tests TEMPO-VAL9 (duplicate rejection)
+    /// @dev Tests MAGNUS-VAL9 (duplicate rejection)
     function tryAddDuplicateValidator(uint256 validatorSeed) external {
         if (_ghostValidatorList.length == 0) return;
 
@@ -322,19 +322,19 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
         vm.startPrank(_ghostOwner);
         try validatorConfig.addValidator(existingValidator, publicKey, true, inbound, outbound) {
             vm.stopPrank();
-            revert("TEMPO-VAL9: Adding duplicate validator should fail");
+            revert("MAGNUS-VAL9: Adding duplicate validator should fail");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IValidatorConfig.ValidatorAlreadyExists.selector,
-                "TEMPO-VAL9: Should revert with ValidatorAlreadyExists"
+                "MAGNUS-VAL9: Should revert with ValidatorAlreadyExists"
             );
         }
     }
 
     /// @notice Handler for adding validator with zero public key
-    /// @dev Tests TEMPO-VAL10 (zero public key rejection)
+    /// @dev Tests MAGNUS-VAL10 (zero public key rejection)
     function tryAddValidatorZeroPublicKey(uint256 validatorSeed) external {
         address validatorAddr = _selectPotentialValidator(validatorSeed);
 
@@ -348,19 +348,19 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
         vm.startPrank(_ghostOwner);
         try validatorConfig.addValidator(validatorAddr, zeroPublicKey, true, inbound, outbound) {
             vm.stopPrank();
-            revert("TEMPO-VAL10: Adding validator with zero public key should fail");
+            revert("MAGNUS-VAL10: Adding validator with zero public key should fail");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IValidatorConfig.InvalidPublicKey.selector,
-                "TEMPO-VAL10: Should revert with InvalidPublicKey"
+                "MAGNUS-VAL10: Should revert with InvalidPublicKey"
             );
         }
     }
 
     /// @notice Handler for validator rotation
-    /// @dev Tests TEMPO-VAL11 (validator can rotate address)
+    /// @dev Tests MAGNUS-VAL11 (validator can rotate address)
     function rotateValidator(uint256 validatorSeed, uint256 newAddrSeed, uint256 keySeed) external {
         if (_ghostValidatorList.length == 0) return;
 
@@ -397,22 +397,22 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
             _ghostValidatorOutbound[newAddr] = newOutbound;
             _ghostValidatorList[oldIndex] = newAddr;
 
-            // TEMPO-VAL11: Verify rotation
+            // MAGNUS-VAL11: Verify rotation
             IValidatorConfig.Validator[] memory validators = validatorConfig.getValidators();
             bool found = false;
             for (uint256 i = 0; i < validators.length; i++) {
                 if (validators[i].validatorAddress == newAddr) {
                     assertEq(
-                        validators[i].index, oldIndex, "TEMPO-VAL11: Index should be preserved"
+                        validators[i].index, oldIndex, "MAGNUS-VAL11: Index should be preserved"
                     );
                     assertEq(
-                        validators[i].active, oldActive, "TEMPO-VAL11: Active should be preserved"
+                        validators[i].active, oldActive, "MAGNUS-VAL11: Active should be preserved"
                     );
                     found = true;
                     break;
                 }
             }
-            assertTrue(found, "TEMPO-VAL11: Rotated validator should exist");
+            assertTrue(found, "MAGNUS-VAL11: Rotated validator should exist");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownValidatorError(reason);
@@ -420,7 +420,7 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for setting DKG ceremony epoch (owner only)
-    /// @dev Tests TEMPO-VAL12 (DKG ceremony setting)
+    /// @dev Tests MAGNUS-VAL12 (DKG ceremony setting)
     function setNextDkgCeremony(uint64 epoch) external {
         vm.startPrank(_ghostOwner);
         try validatorConfig.setNextFullDkgCeremony(epoch) {
@@ -428,11 +428,11 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
 
             _ghostNextDkgCeremony = epoch;
 
-            // TEMPO-VAL12: Verify epoch set
+            // MAGNUS-VAL12: Verify epoch set
             assertEq(
                 validatorConfig.getNextFullDkgCeremony(),
                 epoch,
-                "TEMPO-VAL12: DKG epoch should be set"
+                "MAGNUS-VAL12: DKG epoch should be set"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -441,7 +441,7 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for unauthorized DKG ceremony setting
-    /// @dev Tests TEMPO-VAL13 (only owner can set DKG ceremony)
+    /// @dev Tests MAGNUS-VAL13 (only owner can set DKG ceremony)
     function trySetDkgCeremonyUnauthorized(uint256 callerSeed, uint64 epoch) external {
         address caller = _selectPotentialValidator(callerSeed);
 
@@ -451,13 +451,13 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
         vm.startPrank(caller);
         try validatorConfig.setNextFullDkgCeremony(epoch) {
             vm.stopPrank();
-            revert("TEMPO-VAL13: Non-owner should not be able to set DKG ceremony");
+            revert("MAGNUS-VAL13: Non-owner should not be able to set DKG ceremony");
         } catch (bytes memory reason) {
             vm.stopPrank();
             assertEq(
                 bytes4(reason),
                 IValidatorConfig.Unauthorized.selector,
-                "TEMPO-VAL13: Should revert with Unauthorized"
+                "MAGNUS-VAL13: Should revert with Unauthorized"
             );
         }
     }
@@ -475,79 +475,79 @@ contract ValidatorConfigInvariantTest is InvariantBaseTest {
         _invariantDkgCeremonyConsistency();
     }
 
-    /// @notice TEMPO-VAL14: Owner in contract matches ghost state
+    /// @notice MAGNUS-VAL14: Owner in contract matches ghost state
     function _invariantOwnerConsistency() internal view {
         assertEq(
-            validatorConfig.owner(), _ghostOwner, "TEMPO-VAL14: Owner should match ghost state"
+            validatorConfig.owner(), _ghostOwner, "MAGNUS-VAL14: Owner should match ghost state"
         );
     }
 
-    /// @notice TEMPO-VAL2: Validator count matches ghost list
+    /// @notice MAGNUS-VAL2: Validator count matches ghost list
     function _invariantValidatorCountConsistency() internal view {
         IValidatorConfig.Validator[] memory validators = validatorConfig.getValidators();
         assertEq(
             validators.length,
             _ghostValidatorList.length,
-            "TEMPO-VAL2: Validator count should match ghost list"
+            "MAGNUS-VAL2: Validator count should match ghost list"
         );
     }
 
-    /// @notice TEMPO-VAL15 & TEMPO-VAL16: Validator data and indices match ghost state
+    /// @notice MAGNUS-VAL15 & MAGNUS-VAL16: Validator data and indices match ghost state
     function _invariantValidatorDataConsistency() internal view {
         IValidatorConfig.Validator[] memory validators = validatorConfig.getValidators();
 
         for (uint256 i = 0; i < validators.length; i++) {
             address addr = validators[i].validatorAddress;
             assertTrue(
-                _ghostValidatorExists[addr], "TEMPO-VAL15: Validator should exist in ghost state"
+                _ghostValidatorExists[addr], "MAGNUS-VAL15: Validator should exist in ghost state"
             );
             assertEq(
                 validators[i].active,
                 _ghostValidatorActive[addr],
-                "TEMPO-VAL15: Active status should match"
+                "MAGNUS-VAL15: Active status should match"
             );
             assertEq(
                 validators[i].publicKey,
                 _ghostValidatorPublicKey[addr],
-                "TEMPO-VAL15: Public key should match"
+                "MAGNUS-VAL15: Public key should match"
             );
             assertEq(
                 validators[i].inboundAddress,
                 _ghostValidatorInbound[addr],
-                "TEMPO-VAL15: Inbound should match"
+                "MAGNUS-VAL15: Inbound should match"
             );
             assertEq(
                 validators[i].outboundAddress,
                 _ghostValidatorOutbound[addr],
-                "TEMPO-VAL15: Outbound should match"
+                "MAGNUS-VAL15: Outbound should match"
             );
             assertEq(
                 validators[i].index,
                 _ghostValidatorIndex[addr],
-                "TEMPO-VAL16: Index should match ghost state"
+                "MAGNUS-VAL16: Index should match ghost state"
             );
         }
     }
 
-    /// @notice TEMPO-VAL2: All validator indices are unique and sequential
+    /// @notice MAGNUS-VAL2: All validator indices are unique and sequential
     function _invariantIndexUniqueness() internal view {
         IValidatorConfig.Validator[] memory validators = validatorConfig.getValidators();
         bool[] memory usedIndices = new bool[](validators.length);
 
         for (uint256 i = 0; i < validators.length; i++) {
             uint64 idx = validators[i].index;
-            assertTrue(idx < validators.length, "TEMPO-VAL2: Index should be within bounds");
-            assertFalse(usedIndices[idx], "TEMPO-VAL2: Index should be unique");
+            assertTrue(idx < validators.length, "MAGNUS-VAL2: Index should be within bounds");
+            assertFalse(usedIndices[idx], "MAGNUS-VAL2: Index should be unique");
             usedIndices[idx] = true;
         }
     }
 
-    /// @notice TEMPO-VAL12: DKG ceremony epoch matches ghost state
+    /// @notice MAGNUS-VAL12: DKG ceremony epoch matches ghost state
     function _invariantDkgCeremonyConsistency() internal view {
         assertEq(
             validatorConfig.getNextFullDkgCeremony(),
             _ghostNextDkgCeremony,
-            "TEMPO-VAL12: DKG epoch should match ghost state"
+            "MAGNUS-VAL12: DKG epoch should match ghost state"
         );
     }
 

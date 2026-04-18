@@ -710,7 +710,7 @@ contract TempoTransactionInvariantTest is InvariantChecker {
     }
 
     /*//////////////////////////////////////////////////////////////
-                    TEMPO TRANSACTION HANDLERS (TX1-TX6)
+                    MAGNUS TRANSACTION HANDLERS (TX1-TX6)
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Handler: Execute a Magnus transfer with random signature type

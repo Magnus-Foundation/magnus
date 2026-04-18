@@ -10,14 +10,14 @@ import { InvariantBaseTest } from "./InvariantBaseTest.t.sol";
 /// @title MIP-1015 Compound Policy Invariant Tests
 /// @notice Handler-based invariant tests for compound transfer policies as specified in MIP-1015
 /// @dev Tests 8 invariants using Foundry's stateful fuzzing:
-///      TEMPO-1015-1: Simple Policy Constraint - compound policies only reference simple policies
-///      TEMPO-1015-2: Immutability - compound policies have no admin and cannot be modified
-///      TEMPO-1015-3: Existence Check - createCompoundPolicy reverts for non-existent policies
-///      TEMPO-1015-4: Delegation Correctness - simple policies have equivalent directional auth
-///      TEMPO-1015-5: isAuthorized Equivalence - isAuthorized = sender && recipient
-///      TEMPO-1015-6: Built-in Policy Compatibility - compound policies can reference policies 0/1
-///      TEMPO-1015-7: distributeReward requires both sender AND recipient authorization
-///      TEMPO-1015-8: claimRewards uses correct directional authorization
+///      MAGNUS-1015-1: Simple Policy Constraint - compound policies only reference simple policies
+///      MAGNUS-1015-2: Immutability - compound policies have no admin and cannot be modified
+///      MAGNUS-1015-3: Existence Check - createCompoundPolicy reverts for non-existent policies
+///      MAGNUS-1015-4: Delegation Correctness - simple policies have equivalent directional auth
+///      MAGNUS-1015-5: isAuthorized Equivalence - isAuthorized = sender && recipient
+///      MAGNUS-1015-6: Built-in Policy Compatibility - compound policies can reference policies 0/1
+///      MAGNUS-1015-7: distributeReward requires both sender AND recipient authorization
+///      MAGNUS-1015-8: claimRewards uses correct directional authorization
 /// forge-config: default.hardfork = "magnus:T2"
 contract MIP1015InvariantTest is InvariantBaseTest {
 
@@ -184,9 +184,9 @@ contract MIP1015InvariantTest is InvariantBaseTest {
             assertEq(
                 uint8(ptype),
                 uint8(IMIP403Registry.PolicyType.COMPOUND),
-                "TEMPO-1015-2: Type mismatch"
+                "MAGNUS-1015-2: Type mismatch"
             );
-            assertEq(policyAdmin, address(0), "TEMPO-1015-2: Compound must have no admin");
+            assertEq(policyAdmin, address(0), "MAGNUS-1015-2: Compound must have no admin");
 
             (uint64 storedS, uint64 storedR, uint64 storedM) =
                 registry.compoundPolicyData(compoundPid);
@@ -260,9 +260,9 @@ contract MIP1015InvariantTest is InvariantBaseTest {
 
         vm.stopPrank();
 
-        assertTrue(reverted, "TEMPO-1015-1: Should revert with compound in compound");
+        assertTrue(reverted, "MAGNUS-1015-1: Should revert with compound in compound");
         assertEq(
-            errorSelector, IMIP403Registry.PolicyNotSimple.selector, "TEMPO-1015-1: Wrong error"
+            errorSelector, IMIP403Registry.PolicyNotSimple.selector, "MAGNUS-1015-1: Wrong error"
         );
     }
 
@@ -304,11 +304,11 @@ contract MIP1015InvariantTest is InvariantBaseTest {
 
         vm.stopPrank();
 
-        assertTrue(reverted, "TEMPO-1015-3: Should revert for non-existent policy");
+        assertTrue(reverted, "MAGNUS-1015-3: Should revert for non-existent policy");
         assertEq(
             bytes4(revertReason),
             IMIP403Registry.PolicyNotFound.selector,
-            "TEMPO-1015-3: Wrong error selector"
+            "MAGNUS-1015-3: Wrong error selector"
         );
     }
 
@@ -350,7 +350,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
             whitelistReverted = true;
         }
         assertTrue(
-            whitelistReverted, "TEMPO-1015-2: modifyPolicyWhitelist should revert for compound"
+            whitelistReverted, "MAGNUS-1015-2: modifyPolicyWhitelist should revert for compound"
         );
 
         bool blacklistReverted;
@@ -360,7 +360,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
             blacklistReverted = true;
         }
         assertTrue(
-            blacklistReverted, "TEMPO-1015-2: modifyPolicyBlacklist should revert for compound"
+            blacklistReverted, "MAGNUS-1015-2: modifyPolicyBlacklist should revert for compound"
         );
     }
 
@@ -374,8 +374,8 @@ contract MIP1015InvariantTest is InvariantBaseTest {
         bool recipientAuth = registry.isAuthorizedRecipient(pid, account);
         bool mintAuth = registry.isAuthorizedMintRecipient(pid, account);
 
-        assertEq(senderAuth, recipientAuth, "TEMPO-1015-4: Sender != Recipient for simple");
-        assertEq(recipientAuth, mintAuth, "TEMPO-1015-4: Recipient != Mint for simple");
+        assertEq(senderAuth, recipientAuth, "MAGNUS-1015-4: Sender != Recipient for simple");
+        assertEq(recipientAuth, mintAuth, "MAGNUS-1015-4: Recipient != Mint for simple");
     }
 
     function checkCompoundIsAuthorizedEquivalence(
@@ -395,7 +395,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
         bool isAuth = registry.isAuthorized(pid, account);
 
         assertEq(
-            isAuth, senderAuth && recipientAuth, "TEMPO-1015-5: isAuthorized != sender && recipient"
+            isAuth, senderAuth && recipientAuth, "MAGNUS-1015-5: isAuthorized != sender && recipient"
         );
     }
 
@@ -598,7 +598,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
         vm.stopPrank();
     }
 
-    /// @notice TEMPO-1015-7: distributeReward requires both sender AND recipient authorization
+    /// @notice MAGNUS-1015-7: distributeReward requires both sender AND recipient authorization
     /// @dev Sender must be authorized to send, contract must be authorized to receive
     function distributeRewardWithCompoundPolicy(
         uint256 tokenSeed,
@@ -679,7 +679,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
             }
         } else {
             try token.distributeReward(amount) {
-                revert("TEMPO-1015-7: distributeReward should revert for unauthorized");
+                revert("MAGNUS-1015-7: distributeReward should revert for unauthorized");
             } catch {
                 // May revert for PolicyForbids or other reasons - both acceptable
             }
@@ -691,7 +691,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
         }
     }
 
-    /// @notice TEMPO-1015-8: claimRewards uses correct directional authorization
+    /// @notice MAGNUS-1015-8: claimRewards uses correct directional authorization
     /// @dev Contract must be authorized to send, claimer must be authorized to receive
     function claimRewardsWithCompoundPolicy(uint256 tokenSeed, uint256 claimerSeed) external {
         if (_compoundTokens.length == 0) return;
@@ -759,7 +759,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
             }
         } else {
             try token.claimRewards() {
-                revert("TEMPO-1015-8: claimRewards should revert for unauthorized");
+                revert("MAGNUS-1015-8: claimRewards should revert for unauthorized");
             } catch {
                 // May revert for PolicyForbids or other reasons - both acceptable
             }
@@ -893,7 +893,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler: isAuthorized must revert with PolicyNotFound for non-existent policies
-    /// @dev Tests TEMPO-REG20 (T2-specific: isAuthorized reverts instead of returning false)
+    /// @dev Tests MAGNUS-REG20 (T2-specific: isAuthorized reverts instead of returning false)
     function checkIsAuthorizedRevertsNonExistentPolicy(
         uint64 policyId,
         uint256 actorSeed
@@ -905,12 +905,12 @@ contract MIP1015InvariantTest is InvariantBaseTest {
         address account = _actors[bound(actorSeed, 0, _actors.length - 1)];
 
         try registry.isAuthorized(nonExistentId, account) {
-            revert("TEMPO-REG20: Non-existent policy should revert with PolicyNotFound");
+            revert("MAGNUS-REG20: Non-existent policy should revert with PolicyNotFound");
         } catch (bytes memory reason) {
             assertEq(
                 bytes4(reason),
                 IMIP403Registry.PolicyNotFound.selector,
-                "TEMPO-REG20: Should revert with PolicyNotFound"
+                "MAGNUS-REG20: Should revert with PolicyNotFound"
             );
         }
     }
@@ -920,13 +920,13 @@ contract MIP1015InvariantTest is InvariantBaseTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Combined invariant check - single loop through compound policies
-    /// @dev Checks TEMPO-1015-2, TEMPO-1015-3, TEMPO-1015-5, TEMPO-1015-6 in one pass
+    /// @dev Checks MAGNUS-1015-2, MAGNUS-1015-3, MAGNUS-1015-5, MAGNUS-1015-6 in one pass
     function invariant_globalInvariants() public view {
         _invariantSimplePolicyEquivalence();
         _invariantCompoundPoliciesCombined();
     }
 
-    /// @dev TEMPO-1015-4: Simple policy equivalence - all directional auth functions return same value
+    /// @dev MAGNUS-1015-4: Simple policy equivalence - all directional auth functions return same value
     function _invariantSimplePolicyEquivalence() internal view {
         for (uint256 i = 0; i < _simplePolicies.length; i++) {
             uint64 pid = _simplePolicies[i];
@@ -938,39 +938,39 @@ contract MIP1015InvariantTest is InvariantBaseTest {
                 bool recipientAuth = registry.isAuthorizedRecipient(pid, account);
                 bool mintAuth = registry.isAuthorizedMintRecipient(pid, account);
 
-                assertEq(senderAuth, recipientAuth, "TEMPO-1015-4: Sender != Recipient");
-                assertEq(recipientAuth, mintAuth, "TEMPO-1015-4: Recipient != Mint");
+                assertEq(senderAuth, recipientAuth, "MAGNUS-1015-4: Sender != Recipient");
+                assertEq(recipientAuth, mintAuth, "MAGNUS-1015-4: Recipient != Mint");
             }
         }
     }
 
     /// @dev Combined compound policy invariants - single loop checks:
-    ///      TEMPO-1015-2: Immutability (type=COMPOUND, admin=0)
-    ///      TEMPO-1015-3: Existence (policyExists returns true)
-    ///      TEMPO-1015-5: isAuthorized = sender && recipient
-    ///      TEMPO-1015-6: Delegation correctness
+    ///      MAGNUS-1015-2: Immutability (type=COMPOUND, admin=0)
+    ///      MAGNUS-1015-3: Existence (policyExists returns true)
+    ///      MAGNUS-1015-5: isAuthorized = sender && recipient
+    ///      MAGNUS-1015-6: Delegation correctness
     function _invariantCompoundPoliciesCombined() internal view {
         for (uint256 i = 0; i < _compoundPolicies.length; i++) {
             uint64 pid = _compoundPolicies[i];
 
-            // TEMPO-1015-3: Existence
-            assertTrue(registry.policyExists(pid), "TEMPO-1015-3: Compound policy should exist");
+            // MAGNUS-1015-3: Existence
+            assertTrue(registry.policyExists(pid), "MAGNUS-1015-3: Compound policy should exist");
 
-            // TEMPO-1015-2: Immutability
+            // MAGNUS-1015-2: Immutability
             (IMIP403Registry.PolicyType ptype, address policyAdmin) = registry.policyData(pid);
             assertEq(
                 uint8(ptype),
                 uint8(IMIP403Registry.PolicyType.COMPOUND),
-                "TEMPO-1015-2: Type should be COMPOUND"
+                "MAGNUS-1015-2: Type should be COMPOUND"
             );
-            assertEq(policyAdmin, address(0), "TEMPO-1015-2: Compound should have no admin");
+            assertEq(policyAdmin, address(0), "MAGNUS-1015-2: Compound should have no admin");
 
             // Get sub-policies for delegation check
             uint64 senderPid = _compoundSenderPolicy[pid];
             uint64 recipientPid = _compoundRecipientPolicy[pid];
             uint64 mintPid = _compoundMintPolicy[pid];
 
-            // Check all actors for TEMPO-1015-5 and TEMPO-1015-6
+            // Check all actors for MAGNUS-1015-5 and MAGNUS-1015-6
             for (uint256 j = 0; j < _actors.length; j++) {
                 address account = _actors[j];
 
@@ -979,25 +979,25 @@ contract MIP1015InvariantTest is InvariantBaseTest {
                 bool actualMint = registry.isAuthorizedMintRecipient(pid, account);
                 bool isAuth = registry.isAuthorized(pid, account);
 
-                // TEMPO-1015-5: isAuthorized equivalence
+                // MAGNUS-1015-5: isAuthorized equivalence
                 assertEq(
                     isAuth,
                     actualSender && actualRecipient,
-                    "TEMPO-1015-5: isAuthorized != sender && recipient"
+                    "MAGNUS-1015-5: isAuthorized != sender && recipient"
                 );
 
-                // TEMPO-1015-6: Delegation correctness
+                // MAGNUS-1015-6: Delegation correctness
                 bool expectedSender = registry.isAuthorized(senderPid, account);
                 bool expectedRecipient = registry.isAuthorized(recipientPid, account);
                 bool expectedMint = registry.isAuthorized(mintPid, account);
 
-                assertEq(actualSender, expectedSender, "TEMPO-1015-6: Sender delegation mismatch");
+                assertEq(actualSender, expectedSender, "MAGNUS-1015-6: Sender delegation mismatch");
                 assertEq(
                     actualRecipient,
                     expectedRecipient,
-                    "TEMPO-1015-6: Recipient delegation mismatch"
+                    "MAGNUS-1015-6: Recipient delegation mismatch"
                 );
-                assertEq(actualMint, expectedMint, "TEMPO-1015-6: Mint delegation mismatch");
+                assertEq(actualMint, expectedMint, "MAGNUS-1015-6: Mint delegation mismatch");
             }
         }
     }

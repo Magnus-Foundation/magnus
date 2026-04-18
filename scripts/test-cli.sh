@@ -15,22 +15,22 @@ run_ok() {
     echo "PASS"
 }
 
-TEMPO="${1:-$REPO_ROOT/target/debug/magnus}"
-if [[ ! -x "$TEMPO" ]]; then
+MAGNUS="${1:-$REPO_ROOT/target/debug/magnus}"
+if [[ ! -x "$MAGNUS" ]]; then
     echo "Building magnus..."
     cargo build -p magnus --manifest-path "$REPO_ROOT/Cargo.toml"
 fi
-echo "Testing: $TEMPO"
+echo "Testing: $MAGNUS"
 
-run_ok "magnus --version" "$TEMPO" --version
-run_ok "magnus --help" "$TEMPO" --help
-run_ok "magnus node --help" "$TEMPO" node --help
+run_ok "magnus --version" "$MAGNUS" --version
+run_ok "magnus --help" "$MAGNUS" --help
+run_ok "magnus node --help" "$MAGNUS" node --help
 
 # --- node --follow: verify it stays alive for 15s with no crashes ---
 echo "--- Test: magnus node --follow (no crash)"
 DATADIR=$(mktemp -d)
 NODE_LOG=$(mktemp)
-$TEMPO node --chain moderato --follow --datadir "$DATADIR" --http --http.port 18545 >"$NODE_LOG" 2>&1 &
+$MAGNUS node --chain moderato --follow --datadir "$DATADIR" --http --http.port 18545 >"$NODE_LOG" 2>&1 &
 NODE_PID=$!
 trap 'kill "$NODE_PID" 2>/dev/null || true; wait "$NODE_PID" 2>/dev/null || true; rm -rf "$DATADIR" "$NODE_LOG"' EXIT
 

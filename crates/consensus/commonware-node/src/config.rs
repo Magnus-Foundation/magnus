@@ -42,4 +42,8 @@ pub const RESOLVER_LIMIT: Quota =
 pub const SUBBLOCKS_LIMIT: Quota =
     Quota::per_second(NonZeroU32::new(128).expect("value is not zero"));
 
+// NOTE: NAMESPACE is a consensus-layer domain separator used in cryptographic
+// signing/verification. Changing it breaks network compatibility. Kept as
+// "TEMPO" for the Magnus rename refactor to preserve behavior; revisit with
+// the chain-ID change in a follow-up spec.
 pub const NAMESPACE: &[u8] = b"TEMPO";

@@ -11,7 +11,7 @@ import { InvariantBaseTest } from "./InvariantBaseTest.t.sol";
 
 /// @title FeeAMM Invariant Test
 /// @notice Invariant tests for the FeeAMM/FeeManager implementation
-/// @dev Tests invariants TEMPO-AMM1 through TEMPO-AMM34 and TEMPO-FEE1 through TEMPO-FEE6 as documented in README.md
+/// @dev Tests invariants MAGNUS-AMM1 through MAGNUS-AMM34 and MAGNUS-FEE1 through MAGNUS-FEE6 as documented in README.md
 contract FeeAMMInvariantTest is InvariantBaseTest {
 
     /// @dev Constants from Rust tip_fee_manager/amm.rs
@@ -65,12 +65,12 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
     uint256 private _ghostFeeInputSum;
     uint256 private _ghostFeeOutputSum;
 
-    /// @dev TEMPO-AMM26: Ghost variables for tracking fee swap reserve updates
+    /// @dev MAGNUS-AMM26: Ghost variables for tracking fee swap reserve updates
     /// Tracks cumulative changes to reserves from fee swaps
     uint256 private _ghostFeeSwapUserReserveIncrease;
     uint256 private _ghostFeeSwapValidatorReserveDecrease;
 
-    /// @dev TEMPO-AMM31: Ghost variables for tracking fee distribution zeroing
+    /// @dev MAGNUS-AMM31: Ghost variables for tracking fee distribution zeroing
     /// Tracks the number of distributeFees calls where fees were properly zeroed
     uint256 private _ghostDistributeFeesCalls;
     uint256 private _ghostDistributeFeesZeroedCount;
@@ -111,7 +111,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
     /// The +1 is intentional rounding that favors the pool
     uint256 private _ghostRebalanceRoundingDust;
 
-    /// @dev Ghost variables for fee conservation (TEMPO-AMM29)
+    /// @dev Ghost variables for fee conservation (MAGNUS-AMM29)
     uint256 private _ghostTotalFeesCollected;
     uint256 private _ghostTotalFeesDistributed;
 
@@ -234,14 +234,14 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         _setupInvariantBase();
         _actors = _buildActorsWithApprovals(20, address(amm));
 
-        // TEMPO-AMM16: Verify fee rate constants once at setup (never change)
-        assertTrue(M == 9970, "TEMPO-AMM16: Fee swap rate M should be 9970");
-        assertTrue(N == 9985, "TEMPO-AMM16: Rebalance rate N should be 9985");
-        assertTrue(SCALE == 10_000, "TEMPO-AMM16: SCALE should be 10000");
+        // MAGNUS-AMM16: Verify fee rate constants once at setup (never change)
+        assertTrue(M == 9970, "MAGNUS-AMM16: Fee swap rate M should be 9970");
+        assertTrue(N == 9985, "MAGNUS-AMM16: Rebalance rate N should be 9985");
+        assertTrue(SCALE == 10_000, "MAGNUS-AMM16: SCALE should be 10000");
 
-        // TEMPO-AMM21: Verify spread constants once at setup (never change)
-        assertTrue(M < N, "TEMPO-AMM21: M must be less than N for spread");
-        assertTrue(N - M == SPREAD, "TEMPO-AMM21: Spread should be 15 bps");
+        // MAGNUS-AMM21: Verify spread constants once at setup (never change)
+        assertTrue(M < N, "MAGNUS-AMM21: M must be less than N for spread");
+        assertTrue(N - M == SPREAD, "MAGNUS-AMM21: Spread should be 15 bps");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -274,39 +274,39 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
 
             _totalMints++;
 
-            // TEMPO-AMM1: Liquidity minted should be positive
-            assertTrue(liquidity > 0, "TEMPO-AMM1: Minted liquidity should be positive");
+            // MAGNUS-AMM1: Liquidity minted should be positive
+            assertTrue(liquidity > 0, "MAGNUS-AMM1: Minted liquidity should be positive");
 
-            // TEMPO-AMM2: Total supply should increase by minted liquidity (+ MIN_LIQUIDITY for first mint)
+            // MAGNUS-AMM2: Total supply should increase by minted liquidity (+ MIN_LIQUIDITY for first mint)
             uint256 totalSupplyAfter = amm.totalSupply(poolId);
             if (totalSupplyBefore == 0) {
                 assertEq(
                     totalSupplyAfter,
                     liquidity + MIN_LIQUIDITY,
-                    "TEMPO-AMM2: First mint total supply mismatch"
+                    "MAGNUS-AMM2: First mint total supply mismatch"
                 );
             } else {
                 assertEq(
                     totalSupplyAfter,
                     totalSupplyBefore + liquidity,
-                    "TEMPO-AMM2: Subsequent mint total supply mismatch"
+                    "MAGNUS-AMM2: Subsequent mint total supply mismatch"
                 );
             }
 
-            // TEMPO-AMM3: Actor's liquidity balance should increase
+            // MAGNUS-AMM3: Actor's liquidity balance should increase
             uint256 actorLiquidityAfter = amm.liquidityBalances(poolId, actor);
             assertEq(
                 actorLiquidityAfter,
                 actorLiquidityBefore + liquidity,
-                "TEMPO-AMM3: Actor liquidity balance mismatch"
+                "MAGNUS-AMM3: Actor liquidity balance mismatch"
             );
 
-            // TEMPO-AMM4: Validator token reserve should increase by deposited amount
+            // MAGNUS-AMM4: Validator token reserve should increase by deposited amount
             IFeeAMM.Pool memory poolAfter = amm.getPool(userToken, validatorToken);
             assertEq(
                 poolAfter.reserveValidatorToken,
                 poolBefore.reserveValidatorToken + uint128(amount),
-                "TEMPO-AMM4: Validator reserve mismatch after mint"
+                "MAGNUS-AMM4: Validator reserve mismatch after mint"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -314,7 +314,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         }
     }
 
-    /// @notice Handler for testing that blacklisted actors cannot mint (TEMPO-AMM33)
+    /// @notice Handler for testing that blacklisted actors cannot mint (MAGNUS-AMM33)
     /// @dev Explicitly tests that blacklisted actors are rejected with PolicyForbids
     /// @param actorSeed Seed for selecting actor (biased toward blacklistable actors)
     /// @param pairSeed Seed for selecting token pair
@@ -329,20 +329,20 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         vm.prank(actor);
         MIP20(validatorToken).approve(address(amm), amount);
 
-        // TEMPO-AMM33: Blacklisted actors cannot deposit tokens
+        // MAGNUS-AMM33: Blacklisted actors cannot deposit tokens
         // The mint should revert with PolicyForbids when trying to transfer tokens
         vm.startPrank(actor);
         try amm.mint(userToken, validatorToken, amount, actor) returns (uint256) {
             vm.stopPrank();
             // If we reach here, the blacklisted actor was able to mint - this is a bug
-            revert("TEMPO-AMM33: Blacklisted actor should not be able to mint");
+            revert("MAGNUS-AMM33: Blacklisted actor should not be able to mint");
         } catch (bytes memory reason) {
             vm.stopPrank();
-            // TEMPO-AMM33: Verify the revert is due to PolicyForbids or another known error
+            // MAGNUS-AMM33: Verify the revert is due to PolicyForbids or another known error
             // Other valid errors: InsufficientBalance (if actor lost funds), InsufficientAllowance,
             // InsufficientLiquidity (pool not initialized)
 
-            require(reason.length >= 4, "TEMPO-AMM33: Empty revert data");
+            require(reason.length >= 4, "MAGNUS-AMM33: Empty revert data");
             bytes4 selector = bytes4(reason);
             bool isExpectedError = selector == IMIP20.PolicyForbids.selector
                 || selector == IMIP20.InsufficientBalance.selector
@@ -350,7 +350,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 || selector == IFeeAMM.InsufficientLiquidity.selector;
             assertTrue(
                 isExpectedError,
-                "TEMPO-AMM33: Blacklisted mint should revert with PolicyForbids or known error"
+                "MAGNUS-AMM33: Blacklisted mint should revert with PolicyForbids or known error"
             );
         }
     }
@@ -413,55 +413,55 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         internal
         view
     {
-        // TEMPO-AMM5: Returned amounts should match pro-rata calculation
+        // MAGNUS-AMM5: Returned amounts should match pro-rata calculation
         uint256 expectedUserAmount =
             (ctx.liquidityToBurn * ctx.reserveUserBefore) / ctx.totalSupplyBefore;
         uint256 expectedValidatorAmount =
             (ctx.liquidityToBurn * ctx.reserveValidatorBefore) / ctx.totalSupplyBefore;
-        assertEq(amountUserToken, expectedUserAmount, "TEMPO-AMM5: User token amount mismatch");
+        assertEq(amountUserToken, expectedUserAmount, "MAGNUS-AMM5: User token amount mismatch");
         assertEq(
             amountValidatorToken,
             expectedValidatorAmount,
-            "TEMPO-AMM5: Validator token amount mismatch"
+            "MAGNUS-AMM5: Validator token amount mismatch"
         );
 
-        // TEMPO-AMM6: Total supply should decrease by burned liquidity
+        // MAGNUS-AMM6: Total supply should decrease by burned liquidity
         assertEq(
             amm.totalSupply(ctx.poolId),
             ctx.totalSupplyBefore - ctx.liquidityToBurn,
-            "TEMPO-AMM6: Total supply mismatch after burn"
+            "MAGNUS-AMM6: Total supply mismatch after burn"
         );
 
-        // TEMPO-AMM7: Actor's liquidity balance should decrease
+        // MAGNUS-AMM7: Actor's liquidity balance should decrease
         assertEq(
             amm.liquidityBalances(ctx.poolId, ctx.actor),
             ctx.actorLiquidity - ctx.liquidityToBurn,
-            "TEMPO-AMM7: Actor liquidity balance mismatch"
+            "MAGNUS-AMM7: Actor liquidity balance mismatch"
         );
 
-        // TEMPO-AMM8: Actor receives the exact calculated token amounts
+        // MAGNUS-AMM8: Actor receives the exact calculated token amounts
         assertEq(
             MIP20(ctx.userToken).balanceOf(ctx.actor),
             ctx.actorUserBalanceBefore + amountUserToken,
-            "TEMPO-AMM8: Actor user token balance mismatch"
+            "MAGNUS-AMM8: Actor user token balance mismatch"
         );
         assertEq(
             MIP20(ctx.validatorToken).balanceOf(ctx.actor),
             ctx.actorValidatorBalanceBefore + amountValidatorToken,
-            "TEMPO-AMM8: Actor validator token balance mismatch"
+            "MAGNUS-AMM8: Actor validator token balance mismatch"
         );
 
-        // TEMPO-AMM9: Pool reserves should decrease
+        // MAGNUS-AMM9: Pool reserves should decrease
         IFeeAMM.Pool memory poolAfter = amm.getPool(ctx.userToken, ctx.validatorToken);
         assertEq(
             poolAfter.reserveUserToken,
             ctx.reserveUserBefore - uint128(amountUserToken),
-            "TEMPO-AMM9: User reserve mismatch"
+            "MAGNUS-AMM9: User reserve mismatch"
         );
         assertEq(
             poolAfter.reserveValidatorToken,
             ctx.reserveValidatorBefore - uint128(amountValidatorToken),
-            "TEMPO-AMM9: Validator reserve mismatch"
+            "MAGNUS-AMM9: Validator reserve mismatch"
         );
     }
 
@@ -530,32 +530,32 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         internal
         view
     {
-        // TEMPO-AMM10: amountIn should match expected calculation
-        assertEq(amountIn, ctx.expectedAmountIn, "TEMPO-AMM10: Rebalance swap amountIn mismatch");
+        // MAGNUS-AMM10: amountIn should match expected calculation
+        assertEq(amountIn, ctx.expectedAmountIn, "MAGNUS-AMM10: Rebalance swap amountIn mismatch");
 
-        // TEMPO-AMM11: Pool reserves should update correctly
+        // MAGNUS-AMM11: Pool reserves should update correctly
         IFeeAMM.Pool memory poolAfter = amm.getPool(ctx.userToken, ctx.validatorToken);
         assertEq(
             poolAfter.reserveUserToken,
             ctx.reserveUserBefore - uint128(ctx.amountOut),
-            "TEMPO-AMM11: User reserve mismatch after rebalance"
+            "MAGNUS-AMM11: User reserve mismatch after rebalance"
         );
         assertEq(
             poolAfter.reserveValidatorToken,
             ctx.reserveValidatorBefore + uint128(amountIn),
-            "TEMPO-AMM11: Validator reserve mismatch after rebalance"
+            "MAGNUS-AMM11: Validator reserve mismatch after rebalance"
         );
 
-        // TEMPO-AMM12: Actor balances should update correctly
+        // MAGNUS-AMM12: Actor balances should update correctly
         assertEq(
             MIP20(ctx.validatorToken).balanceOf(ctx.actor),
             ctx.actorValidatorBefore - amountIn,
-            "TEMPO-AMM12: Actor validator balance mismatch"
+            "MAGNUS-AMM12: Actor validator balance mismatch"
         );
         assertEq(
             MIP20(ctx.userToken).balanceOf(ctx.actor),
             ctx.actorUserBefore + ctx.amountOut,
-            "TEMPO-AMM12: Actor user balance mismatch"
+            "MAGNUS-AMM12: Actor user balance mismatch"
         );
     }
 
@@ -576,9 +576,9 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         try amm.setValidatorToken(token) {
             vm.stopPrank();
 
-            // TEMPO-FEE1: Validator token should be updated
+            // MAGNUS-FEE1: Validator token should be updated
             address storedToken = amm.validatorTokens(actor);
-            assertEq(storedToken, token, "TEMPO-FEE1: Validator token not set correctly");
+            assertEq(storedToken, token, "MAGNUS-FEE1: Validator token not set correctly");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownFeeManagerError(reason);
@@ -599,9 +599,9 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         try amm.setUserToken(token) {
             vm.stopPrank();
 
-            // TEMPO-FEE2: User token should be updated
+            // MAGNUS-FEE2: User token should be updated
             address storedToken = amm.userTokens(actor);
-            assertEq(storedToken, token, "TEMPO-FEE2: User token not set correctly");
+            assertEq(storedToken, token, "MAGNUS-FEE2: User token not set correctly");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownFeeManagerError(reason);
@@ -630,10 +630,10 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                     _totalMintBurnCycles++;
 
                     uint256 actorBalAfter = MIP20(validatorToken).balanceOf(actor);
-                    // TEMPO-AMM17: Mint/burn cycle should not profit the actor
+                    // MAGNUS-AMM17: Mint/burn cycle should not profit the actor
                     assertTrue(
                         actorBalAfter <= actorBalBefore,
-                        "TEMPO-AMM17: Actor should not profit from mint/burn cycle"
+                        "MAGNUS-AMM17: Actor should not profit from mint/burn cycle"
                     );
                 } catch (bytes memory reason) {
                     _assertKnownError(reason);
@@ -664,16 +664,16 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         try amm.rebalanceSwap(userToken, validatorToken, amountOut, actor) returns (
             uint256 amountIn
         ) {
-            // TEMPO-AMM10/18: Rebalance swap must follow exact formula: amountIn = floor(amountOut * N / SCALE) + 1
+            // MAGNUS-AMM10/18: Rebalance swap must follow exact formula: amountIn = floor(amountOut * N / SCALE) + 1
             // This is the exact rounding-up formula that always favors the pool
             uint256 expectedAmountIn = (amountOut * N) / SCALE + 1;
             assertEq(
                 amountIn,
                 expectedAmountIn,
-                "TEMPO-AMM18: Small swap amountIn must equal exact formula (floor + 1)"
+                "MAGNUS-AMM18: Small swap amountIn must equal exact formula (floor + 1)"
             );
-            // TEMPO-AMM19: Must pay at least 1 for any swap (implicit from +1 in formula)
-            assertTrue(amountIn >= 1, "TEMPO-AMM19: Must pay at least 1 for any swap");
+            // MAGNUS-AMM19: Must pay at least 1 for any swap (implicit from +1 in formula)
+            assertTrue(amountIn >= 1, "MAGNUS-AMM19: Must pay at least 1 for any swap");
         } catch (bytes memory reason) {
             _assertKnownError(reason);
         }
@@ -731,7 +731,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for testing rebalance swap with exact division (no remainder)
-    /// @dev Tests TEMPO-AMM22: +1 rounding applies even when (amountOut * N) % SCALE == 0
+    /// @dev Tests MAGNUS-AMM22: +1 rounding applies even when (amountOut * N) % SCALE == 0
     /// @param actorSeed Seed for selecting actor
     /// @param pairSeed Seed for selecting token pair
     /// @dev Converted to invariant handler since it requires initialized pools
@@ -759,14 +759,14 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         ) {
             vm.stopPrank();
 
-            // TEMPO-AMM22: Even with exact division, the +1 should still apply
+            // MAGNUS-AMM22: Even with exact division, the +1 should still apply
             // Without +1: amountIn would be (2000 * 9985) / 10000 = 1997
             // With +1: amountIn should be 1998
             uint256 floorValue = (amountOut * N) / SCALE;
             assertEq(
                 amountIn,
                 floorValue + 1,
-                "TEMPO-AMM22: Rebalance with exact division should still add +1"
+                "MAGNUS-AMM22: Rebalance with exact division should still add +1"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -779,7 +779,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
     uint256 private constant BLACKLISTABLE_ACTOR_COUNT = 5;
 
     /// @notice Handler for toggling blacklist status of actors
-    /// @dev TEMPO-AMM32/33: Blacklist state changes happen independently of operations.
+    /// @dev MAGNUS-AMM32/33: Blacklist state changes happen independently of operations.
     ///      Existing handlers (mint, burn, rebalanceSwap, distributeFees) will naturally
     ///      encounter blacklisted actors and verify PolicyForbids behavior.
     ///
@@ -848,30 +848,30 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         try amm.distributeFees(validator, token) {
             _removePendingFee(validator, token);
 
-            // TEMPO-FEE3 & TEMPO-AMM31: Collected fees should be zeroed after distribution
+            // MAGNUS-FEE3 & MAGNUS-AMM31: Collected fees should be zeroed after distribution
             // This prevents double-counting of fees for the same validator/token pair
             uint256 collectedAfter = amm.collectedFees(validator, token);
             assertEq(
                 collectedAfter,
                 0,
-                "TEMPO-FEE3/AMM31: Collected fees should be zero after distribution"
+                "MAGNUS-FEE3/AMM31: Collected fees should be zero after distribution"
             );
 
-            // TEMPO-AMM31: Track that fees were properly zeroed
+            // MAGNUS-AMM31: Track that fees were properly zeroed
             _ghostDistributeFeesCalls++;
             if (collectedAfter == 0) {
                 _ghostDistributeFeesZeroedCount++;
             }
 
-            // TEMPO-FEE4: Validator should receive the collected fees
+            // MAGNUS-FEE4: Validator should receive the collected fees
             if (collectedBefore > 0) {
                 uint256 validatorBalanceAfter = MIP20(token).balanceOf(validator);
                 assertEq(
                     validatorBalanceAfter,
                     validatorBalanceBefore + collectedBefore,
-                    "TEMPO-FEE4: Validator should receive collected fees"
+                    "MAGNUS-FEE4: Validator should receive collected fees"
                 );
-                _ghostTotalFeesDistributed += collectedBefore; // Track for TEMPO-AMM29
+                _ghostTotalFeesDistributed += collectedBefore; // Track for MAGNUS-AMM29
             }
         } catch (bytes memory reason) {
             _assertKnownFeeManagerError(reason);
@@ -960,7 +960,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 uint128 newReserveValidator = pool.reserveValidatorToken - uint128(expectedOut);
                 _storePoolReserves(poolId, newReserveUser, newReserveValidator);
 
-                // TEMPO-AMM26: Track fee swap reserve updates
+                // MAGNUS-AMM26: Track fee swap reserve updates
                 // User token reserve increases by feeAmount, validator token reserve decreases by expectedOut
                 _ghostFeeSwapUserReserveIncrease += feeAmount;
                 _ghostFeeSwapValidatorReserveDecrease += expectedOut;
@@ -976,7 +976,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 _totalFeeCollections++;
                 _ghostFeeInputSum += feeAmount;
                 _ghostFeeOutputSum += expectedOut;
-                _ghostTotalFeesCollected += expectedOut; // Track for TEMPO-AMM29
+                _ghostTotalFeesCollected += expectedOut; // Track for MAGNUS-AMM29
 
                 // Track precise dust from fee swap (inline to avoid stack depth)
                 _ghostFeeSwapTheoreticalDust += (feeAmount * (SCALE - M)) / SCALE;
@@ -1001,7 +1001,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 _totalFeeCollections++;
                 _ghostFeeInputSum += feeAmount;
                 _ghostFeeOutputSum += feeAmount;
-                _ghostTotalFeesCollected += feeAmount; // Track for TEMPO-AMM29
+                _ghostTotalFeesCollected += feeAmount; // Track for MAGNUS-AMM29
                 // No dust for same-token transfers
             } catch (bytes memory reason) {
                 _assertKnownError(reason);
@@ -1069,7 +1069,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
 
     /// @notice Called after each invariant run
     function afterInvariant() public {
-        // TEMPO-AMM24: All participants can exit - simulate full withdrawal
+        // MAGNUS-AMM24: All participants can exit - simulate full withdrawal
         _verifyAllCanExit();
     }
 
@@ -1082,9 +1082,9 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         _invariantPoolStateChecks(); // Unified: AMM13, AMM14, AMM15, AMM20, FEE5
         _invariantRebalanceRoundingFavorsPool();
         _invariantBurnRoundingFavorsPool();
-        _invariantFeeSwapRateApplied(); // Also covers TEMPO-FEE6
-        _invariantFeeSwapReservesUpdate(); // TEMPO-AMM26
-        _invariantFeeDoubleCountPrevention(); // TEMPO-AMM31
+        _invariantFeeSwapRateApplied(); // Also covers MAGNUS-FEE6
+        _invariantFeeSwapReservesUpdate(); // MAGNUS-AMM26
+        _invariantFeeDoubleCountPrevention(); // MAGNUS-AMM31
         _invariantPoolIdUniqueness();
         _invariantNoLpWhenUninitialized();
         _invariantFeeConservation();
@@ -1135,7 +1135,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
 
             assertTrue(
                 totalReserves + totalCollected <= ammBalances[i],
-                "TEMPO-FEE5: Combined reserves + collected fees exceed AMM balance"
+                "MAGNUS-FEE5: Combined reserves + collected fees exceed AMM balance"
             );
         }
         // Check pathUSD combined solvency
@@ -1156,7 +1156,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
             }
             assertTrue(
                 totalPathUsdReserves + totalPathUsdCollected <= ammPathUsdBalance,
-                "TEMPO-FEE5: Combined pathUSD reserves + collected fees exceed AMM balance"
+                "MAGNUS-FEE5: Combined pathUSD reserves + collected fees exceed AMM balance"
             );
         }
 
@@ -1172,70 +1172,70 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 bytes32 poolId = amm.getPoolId(userToken, validatorToken);
                 uint256 totalSupply = amm.totalSupply(poolId);
 
-                // TEMPO-AMM13: Pool solvency - use cached balances
+                // MAGNUS-AMM13: Pool solvency - use cached balances
                 assertTrue(
                     ammBalances[i] >= pool.reserveUserToken,
-                    "TEMPO-AMM13: AMM user token balance < reserve"
+                    "MAGNUS-AMM13: AMM user token balance < reserve"
                 );
                 assertTrue(
                     ammBalances[j] >= pool.reserveValidatorToken,
-                    "TEMPO-AMM13: AMM validator token balance < reserve"
+                    "MAGNUS-AMM13: AMM validator token balance < reserve"
                 );
 
-                // TEMPO-AMM20: Reserves bounded by uint128
+                // MAGNUS-AMM20: Reserves bounded by uint128
                 assertTrue(
                     uint256(pool.reserveUserToken) <= MAX_U128,
-                    "TEMPO-AMM20: reserveUserToken exceeds uint128"
+                    "MAGNUS-AMM20: reserveUserToken exceeds uint128"
                 );
                 assertTrue(
                     uint256(pool.reserveValidatorToken) <= MAX_U128,
-                    "TEMPO-AMM20: reserveValidatorToken exceeds uint128"
+                    "MAGNUS-AMM20: reserveValidatorToken exceeds uint128"
                 );
 
-                // TEMPO-AMM15: MIN_LIQUIDITY locked on first mint
+                // MAGNUS-AMM15: MIN_LIQUIDITY locked on first mint
                 if (pool.reserveValidatorToken > 0 || pool.reserveUserToken > 0) {
                     assertTrue(
                         totalSupply >= MIN_LIQUIDITY,
-                        "TEMPO-AMM15: Total supply < MIN_LIQUIDITY after initialization"
+                        "MAGNUS-AMM15: Total supply < MIN_LIQUIDITY after initialization"
                     );
                 }
 
-                // TEMPO-AMM14: LP token accounting (only if pool has supply)
+                // MAGNUS-AMM14: LP token accounting (only if pool has supply)
                 if (totalSupply > 0) {
                     uint256 sumBalances = 0;
                     for (uint256 k = 0; k < numActors; k++) {
                         sumBalances += amm.liquidityBalances(poolId, _actors[k]);
                     }
                     assertTrue(
-                        totalSupply >= sumBalances, "TEMPO-AMM14: Total supply < sum of balances"
+                        totalSupply >= sumBalances, "MAGNUS-AMM14: Total supply < sum of balances"
                     );
                     assertTrue(
                         totalSupply <= sumBalances + MIN_LIQUIDITY,
-                        "TEMPO-AMM14: Total supply > sum of balances + MIN_LIQUIDITY"
+                        "MAGNUS-AMM14: Total supply > sum of balances + MIN_LIQUIDITY"
                     );
                 }
             }
         }
 
-        // Check pathUSD pools - TEMPO-AMM13
+        // Check pathUSD pools - MAGNUS-AMM13
         for (uint256 i = 0; i < numTokens; i++) {
             address token = address(_tokens[i]);
 
             IFeeAMM.Pool memory pool1 = amm.getPool(address(pathUSD), token);
             assertTrue(
                 ammPathUsdBalance >= pool1.reserveUserToken,
-                "TEMPO-AMM13: AMM pathUSD balance < reserve (as user)"
+                "MAGNUS-AMM13: AMM pathUSD balance < reserve (as user)"
             );
 
             IFeeAMM.Pool memory pool2 = amm.getPool(token, address(pathUSD));
             assertTrue(
                 ammPathUsdBalance >= pool2.reserveValidatorToken,
-                "TEMPO-AMM13: AMM pathUSD balance < reserve (as validator)"
+                "MAGNUS-AMM13: AMM pathUSD balance < reserve (as validator)"
             );
         }
     }
 
-    /// @notice TEMPO-AMM22: Rebalance swap rounding always favors the pool
+    /// @notice MAGNUS-AMM22: Rebalance swap rounding always favors the pool
     function _invariantRebalanceRoundingFavorsPool() internal view {
         // The +1 in rebalanceSwap formula ensures pool never loses to rounding
         // amountIn = (amountOut * N) / SCALE + 1
@@ -1246,35 +1246,35 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
             uint256 theoretical = (_ghostRebalanceOutputSum * N) / SCALE;
             assertTrue(
                 _ghostRebalanceInputSum >= theoretical,
-                "TEMPO-AMM22: Rebalance rounding should favor pool"
+                "MAGNUS-AMM22: Rebalance rounding should favor pool"
             );
         }
     }
 
-    /// @notice TEMPO-AMM25 & TEMPO-FEE6: Fee swap rate M is correctly applied
+    /// @notice MAGNUS-AMM25 & MAGNUS-FEE6: Fee swap rate M is correctly applied
     /// amountOut = (amountIn * M / SCALE), output never exceeds input
-    /// TEMPO-FEE6: Ensures amountOut <= amountIn for all fee swaps (0.3% fee captured)
+    /// MAGNUS-FEE6: Ensures amountOut <= amountIn for all fee swaps (0.3% fee captured)
     function _invariantFeeSwapRateApplied() internal view {
         // Verify via accumulated ghost variables
         // When userToken == validatorToken: output == input (no swap)
         // When userToken != validatorToken: output == input * M / SCALE (0.3% fee)
         // So output should always be <= input
         if (_ghostFeeInputSum > 0 && _totalFeeCollections > 0) {
-            // TEMPO-AMM25: Fee output never exceeds fee input
+            // MAGNUS-AMM25: Fee output never exceeds fee input
             assertTrue(
-                _ghostFeeOutputSum <= _ghostFeeInputSum, "TEMPO-AMM25: Fee output exceeds fee input"
+                _ghostFeeOutputSum <= _ghostFeeInputSum, "MAGNUS-AMM25: Fee output exceeds fee input"
             );
 
-            // TEMPO-FEE6: Explicit check that amountOut <= amountIn for fee swaps
+            // MAGNUS-FEE6: Explicit check that amountOut <= amountIn for fee swaps
             // This is the core fee swap rate invariant - the 0.3% fee means output < input
             assertTrue(
                 _ghostFeeOutputSum <= _ghostFeeInputSum,
-                "TEMPO-FEE6: Fee swap rate violated - amountOut must be <= amountIn"
+                "MAGNUS-FEE6: Fee swap rate violated - amountOut must be <= amountIn"
             );
         }
     }
 
-    /// @notice TEMPO-AMM26: Fee swap reserves update correctly
+    /// @notice MAGNUS-AMM26: Fee swap reserves update correctly
     /// Verifies that fee swaps properly update user token reserve (increase) and
     /// validator token reserve (decrease) by the tracked amounts
     function _invariantFeeSwapReservesUpdate() internal view {
@@ -1287,7 +1287,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
             // Output should always be <= input due to the 0.3% fee
             assertTrue(
                 _ghostFeeSwapValidatorReserveDecrease <= _ghostFeeSwapUserReserveIncrease,
-                "TEMPO-AMM26: Fee swap reserve decrease exceeds increase"
+                "MAGNUS-AMM26: Fee swap reserve decrease exceeds increase"
             );
 
             // The captured fee should equal input - output (the 0.3% spread)
@@ -1298,12 +1298,12 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
             // Expected: capturedFee = input * (SCALE - M) / SCALE = input * 30 / 10000
             uint256 expectedFeeMin = (_ghostFeeSwapUserReserveIncrease * (SCALE - M)) / SCALE;
             assertTrue(
-                capturedFee >= expectedFeeMin, "TEMPO-AMM26: Captured fee less than expected 0.3%"
+                capturedFee >= expectedFeeMin, "MAGNUS-AMM26: Captured fee less than expected 0.3%"
             );
         }
     }
 
-    /// @notice TEMPO-AMM31: Fee double-count prevention
+    /// @notice MAGNUS-AMM31: Fee double-count prevention
     /// After distributeFees, collected fees for that validator/token pair should be zeroed
     function _invariantFeeDoubleCountPrevention() internal view {
         // Every distributeFees call should result in zeroed fees
@@ -1311,12 +1311,12 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         if (_ghostDistributeFeesCalls > 0) {
             assertTrue(
                 _ghostDistributeFeesZeroedCount == _ghostDistributeFeesCalls,
-                "TEMPO-AMM31: Not all distributeFees calls resulted in zeroed fees"
+                "MAGNUS-AMM31: Not all distributeFees calls resulted in zeroed fees"
             );
         }
     }
 
-    /// @notice TEMPO-AMM23: Burn rounding dust accumulates in pool, not extracted by users
+    /// @notice MAGNUS-AMM23: Burn rounding dust accumulates in pool, not extracted by users
     /// @dev Integer division in burn calculation: amount = liquidity * reserve / totalSupply
     ///      This always rounds down, so users receive <= theoretical amount.
     ///      The dust (theoretical - actual) remains in the pool.
@@ -1325,15 +1325,15 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         // (they should be equal or less due to rounding down)
         assertTrue(
             _ghostBurnUserActual <= _ghostBurnUserTheoretical,
-            "TEMPO-AMM23: Burn user actual exceeds theoretical"
+            "MAGNUS-AMM23: Burn user actual exceeds theoretical"
         );
         assertTrue(
             _ghostBurnValidatorActual <= _ghostBurnValidatorTheoretical,
-            "TEMPO-AMM23: Burn validator actual exceeds theoretical"
+            "MAGNUS-AMM23: Burn validator actual exceeds theoretical"
         );
     }
 
-    /// @notice TEMPO-AMM27: Pool ID uniqueness - directional pool separation
+    /// @notice MAGNUS-AMM27: Pool ID uniqueness - directional pool separation
     /// Pool(A, B) and Pool(B, A) must be separate pools with different IDs
     function _invariantPoolIdUniqueness() internal view {
         for (uint256 i = 0; i < _tokens.length; i++) {
@@ -1347,13 +1347,13 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 // Pool IDs must be different for directional separation
                 assertTrue(
                     poolIdAB != poolIdBA,
-                    "TEMPO-AMM27: Pool(A,B) and Pool(B,A) must have different IDs"
+                    "MAGNUS-AMM27: Pool(A,B) and Pool(B,A) must have different IDs"
                 );
             }
         }
     }
 
-    /// @notice TEMPO-AMM28: No LP when uninitialized
+    /// @notice MAGNUS-AMM28: No LP when uninitialized
     /// If totalSupply == 0, no actor should hold LP tokens for that pool
     function _invariantNoLpWhenUninitialized() internal view {
         for (uint256 i = 0; i < _tokens.length; i++) {
@@ -1371,7 +1371,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                     for (uint256 k = 0; k < _actors.length; k++) {
                         uint256 balance = amm.liquidityBalances(poolId, _actors[k]);
                         assertEq(
-                            balance, 0, "TEMPO-AMM28: Actor has LP tokens in uninitialized pool"
+                            balance, 0, "MAGNUS-AMM28: Actor has LP tokens in uninitialized pool"
                         );
                     }
                 }
@@ -1379,16 +1379,16 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         }
     }
 
-    /// @notice TEMPO-AMM29: Fee conservation
+    /// @notice MAGNUS-AMM29: Fee conservation
     /// Total fees distributed cannot exceed total fees collected
     function _invariantFeeConservation() internal view {
         assertTrue(
             _ghostTotalFeesDistributed <= _ghostTotalFeesCollected,
-            "TEMPO-AMM29: Fees distributed exceed fees collected - value creation bug"
+            "MAGNUS-AMM29: Fees distributed exceed fees collected - value creation bug"
         );
     }
 
-    /// @notice TEMPO-AMM30: Pool initialization shape
+    /// @notice MAGNUS-AMM30: Pool initialization shape
     /// A pool is either completely uninitialized (all zeros) OR properly initialized with MIN_LIQUIDITY locked
     /// No partial/bricked states allowed (e.g., reserves > 0 but totalSupply < MIN_LIQUIDITY)
     function _invariantPoolInitializationShape() internal view {
@@ -1414,18 +1414,18 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
             assertEq(
                 pool.reserveUserToken,
                 0,
-                "TEMPO-AMM30: Uninitialized pool has non-zero user reserve"
+                "MAGNUS-AMM30: Uninitialized pool has non-zero user reserve"
             );
             assertEq(
                 pool.reserveValidatorToken,
                 0,
-                "TEMPO-AMM30: Uninitialized pool has non-zero validator reserve"
+                "MAGNUS-AMM30: Uninitialized pool has non-zero validator reserve"
             );
         } else {
             // Initialized: totalSupply must be >= MIN_LIQUIDITY
             assertTrue(
                 totalSupply >= MIN_LIQUIDITY,
-                "TEMPO-AMM30: Initialized pool has totalSupply < MIN_LIQUIDITY (bricked state)"
+                "MAGNUS-AMM30: Initialized pool has totalSupply < MIN_LIQUIDITY (bricked state)"
             );
             // Note: Validator reserve CAN be zero in initialized pools due to rounding.
             // When burns occur with small reserves and large totalSupply, the pro-rata
@@ -1437,7 +1437,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         }
     }
 
-    /// @notice TEMPO-AMM24: All participants can exit - verify everyone can withdraw
+    /// @notice MAGNUS-AMM24: All participants can exit - verify everyone can withdraw
     /// @dev After all operations, all LPs should be able to burn their positions and
     ///      all validators should be able to claim their fees. Only dust should remain.
     function _verifyAllCanExit() internal {
@@ -1450,7 +1450,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         // Step 3: Verify only dust remains in the AMM (accounting for frozen balances)
         _exitVerifyOnlyDustRemains();
 
-        // Step 4: TEMPO-AMM34 - Unblacklist all actors and verify frozen balances are recoverable
+        // Step 4: MAGNUS-AMM34 - Unblacklist all actors and verify frozen balances are recoverable
         _exitVerifyCleanExitAfterUnblacklist();
     }
 
@@ -1503,7 +1503,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                         _assertKnownFeeManagerError(reason);
                         revert(
                             string.concat(
-                                "TEMPO-AMM34: Distribution failed for ",
+                                "MAGNUS-AMM34: Distribution failed for ",
                                 vm.toString(validator),
                                 " after unblacklist - frozen fees should be recoverable"
                             )
@@ -1521,7 +1521,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                     _assertKnownFeeManagerError(reason);
                     revert(
                         string.concat(
-                            "TEMPO-AMM34: pathUSD distribution failed for ",
+                            "MAGNUS-AMM34: pathUSD distribution failed for ",
                             vm.toString(validator),
                             " after unblacklist - frozen fees should be recoverable"
                         )
@@ -1545,7 +1545,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         assertEq(
             remainingFees,
             0,
-            "TEMPO-AMM34: All fees should be distributable after unblacklisting all actors"
+            "MAGNUS-AMM34: All fees should be distributable after unblacklisting all actors"
         );
 
         // Step 5: Verify no LP positions remain (all should be burned now)
@@ -1566,7 +1566,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         }
 
         assertEq(
-            remainingLP, 0, "TEMPO-AMM34: All LP should be burnable after unblacklisting all actors"
+            remainingLP, 0, "MAGNUS-AMM34: All LP should be burnable after unblacklisting all actors"
         );
     }
 
@@ -1677,7 +1677,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         // - Unclaimed fee dust from rounding in fee swaps
         // - Rebalance +1 rounding dust
 
-        // TEMPO-AMM24: Verify MIN_LIQUIDITY preserves reserves after all pro-rata burns
+        // MAGNUS-AMM24: Verify MIN_LIQUIDITY preserves reserves after all pro-rata burns
         // For each initialized pool, totalSupply >= MIN_LIQUIDITY, so reserves cannot be fully drained
         _verifyMinLiquidityPreservesReserves();
 
@@ -1712,7 +1712,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         // The difference is dust from fee swaps that accumulated
         assertTrue(
             ammPathUSD >= expectedPathUSD,
-            "TEMPO-AMM24: pathUSD balance < expected reserves after exit"
+            "MAGNUS-AMM24: pathUSD balance < expected reserves after exit"
         );
         uint256 pathUSDDust = ammPathUSD - expectedPathUSD;
 
@@ -1722,7 +1722,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
 
             assertTrue(
                 ammBalance >= expectedTokens[t],
-                "TEMPO-AMM24: Token balance < expected reserves after exit"
+                "MAGNUS-AMM24: Token balance < expected reserves after exit"
             );
 
             uint256 tokenDust = ammBalance - expectedTokens[t];
@@ -1744,7 +1744,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
             totalFrozenFees += _exitFrozenFees[address(_tokens[t])];
         }
 
-        // TEMPO-AMM24: After all burns, any remaining balance beyond reserves should be
+        // MAGNUS-AMM24: After all burns, any remaining balance beyond reserves should be
         // from MIN_LIQUIDITY lockup, unclaimed collectedFees, or frozen blacklisted balances.
         // The balance should NOT exceed reserves by more than the tracked dust sources (no value creation).
         uint256 expectedDust = _ghostFeeSwapActualDust + _ghostRebalanceRoundingDust;
@@ -1752,7 +1752,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
 
         assertTrue(
             totalDust <= maxExpectedDust,
-            "TEMPO-AMM24: AMM has more dust than expected - potential value creation bug"
+            "MAGNUS-AMM24: AMM has more dust than expected - potential value creation bug"
         );
     }
 
@@ -1783,9 +1783,9 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         // Skip uninitialized pools
         if (totalSupply == 0) return;
 
-        // TEMPO-AMM15: totalSupply >= MIN_LIQUIDITY for initialized pools
+        // MAGNUS-AMM15: totalSupply >= MIN_LIQUIDITY for initialized pools
         assertTrue(
-            totalSupply >= MIN_LIQUIDITY, "TEMPO-AMM24: totalSupply < MIN_LIQUIDITY after burns"
+            totalSupply >= MIN_LIQUIDITY, "MAGNUS-AMM24: totalSupply < MIN_LIQUIDITY after burns"
         );
 
         // Sum all user LP balances
@@ -1802,7 +1802,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
             // At least one reserve must be > 0 (validator token is always deposited on mint)
             assertTrue(
                 pool.reserveValidatorToken > 0 || pool.reserveUserToken > 0,
-                "TEMPO-AMM24: reserves drained despite MIN_LIQUIDITY lock"
+                "MAGNUS-AMM24: reserves drained despite MIN_LIQUIDITY lock"
             );
         }
     }

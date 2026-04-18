@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-# Tempoup bootstrap installer
-# Downloads tempoup and magnus to ~/.magnus/bin
+# Magnusup bootstrap installer
+# Downloads magnusup and magnus to ~/.magnus/bin
 
 MAGNUS_DIR="${MAGNUS_DIR:-$HOME/.magnus}"
 BIN_DIR="${MAGNUS_BIN_DIR:-$MAGNUS_DIR/bin}"
 ENV_FILE="$MAGNUS_DIR/env"
-TEMPOUP_URL="https://raw.githubusercontent.com/Magnus-Foundation/magnus/main/tempoup/tempoup"
+MAGNUSUP_URL="https://raw.githubusercontent.com/Magnus-Foundation/magnus/main/magnusup/magnusup"
 
 # Color output
 GREEN='\033[0;32m'
@@ -39,31 +39,31 @@ install_bin() {
 }
 
 main() {
-    echo "Installing tempoup..."
+    echo "Installing magnusup..."
     echo ""
 
     # Ensure BIN_DIR exists
     mkdir -p "$MAGNUS_DIR"
     mkdir -p "$BIN_DIR"
 
-    # Download tempoup script to a temp file
+    # Download magnusup script to a temp file
     local tmp_file
-    tmp_file="$(mktemp 2>/dev/null || mktemp -t tempoup)"
+    tmp_file="$(mktemp 2>/dev/null || mktemp -t magnusup)"
     trap "rm -f '$tmp_file'" EXIT
 
-    info "Downloading tempoup script..."
+    info "Downloading magnusup script..."
     if command -v curl >/dev/null 2>&1; then
-        curl -# -L "$TEMPOUP_URL" -o "$tmp_file"
+        curl -# -L "$MAGNUSUP_URL" -o "$tmp_file"
     elif command -v wget >/dev/null 2>&1; then
-        wget --show-progress -q -O "$tmp_file" "$TEMPOUP_URL"
+        wget --show-progress -q -O "$tmp_file" "$MAGNUSUP_URL"
     else
         echo "error: neither curl nor wget found"
         exit 1
     fi
 
-    # Install tempoup to BIN_DIR
-    install_bin "$tmp_file" "$BIN_DIR/tempoup"
-    info "Tempoup installed to $BIN_DIR/tempoup"
+    # Install magnusup to BIN_DIR
+    install_bin "$tmp_file" "$BIN_DIR/magnusup"
+    info "Magnusup installed to $BIN_DIR/magnusup"
 
     # Create env file that can be sourced to set PATH (POSIX shells)
     cat > "$ENV_FILE" <<'ENVEOF'
@@ -83,11 +83,11 @@ ENVEOF
     # Configure shell profiles
     configure_shell
 
-    # Run tempoup to install magnus binary
-    info "Running tempoup to install magnus..."
+    # Run magnusup to install magnus binary
+    info "Running magnusup to install magnus..."
     echo ""
 
-    MAGNUS_BIN_DIR="$BIN_DIR" "$BIN_DIR/tempoup"
+    MAGNUS_BIN_DIR="$BIN_DIR" "$BIN_DIR/magnusup"
 
     echo ""
     local user_shell
@@ -153,7 +153,7 @@ configure_shell() {
         fi
 
         echo >> "$cfg"
-        echo "# Added by tempoup installer" >> "$cfg"
+        echo "# Added by magnusup installer" >> "$cfg"
         echo "$source_line" >> "$cfg"
         info "Added magnus to PATH in $cfg"
         modified=1
@@ -164,7 +164,7 @@ configure_shell() {
     if [[ -d "$(dirname "$fish_config")" ]] || [[ "$(basename "$SHELL")" == "fish" ]]; then
         if [[ ! -f "$fish_config" ]] || ! grep -qF "$ENV_FILE.fish" "$fish_config" 2>/dev/null; then
             mkdir -p "$(dirname "$fish_config")"
-            echo "# Added by tempoup installer" > "$fish_config"
+            echo "# Added by magnusup installer" > "$fish_config"
             echo "source $ENV_FILE.fish" >> "$fish_config"
             info "Added magnus to PATH in $fish_config"
             modified=1

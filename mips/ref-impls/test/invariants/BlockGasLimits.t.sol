@@ -15,12 +15,12 @@ import { LegacyTransaction, LegacyTransactionLib } from "magnus-std/tx/LegacyTra
 /// @dev Tests block gas limit invariants using vmExec.executeTransaction()
 ///
 /// MIP-1010 specifies:
-/// - Block gas limit: 500,000,000 (TEMPO-BLOCK1)
-/// - General lane limit: 30,000,000 (TEMPO-BLOCK2)
-/// - Transaction gas cap: 30,000,000 (TEMPO-BLOCK3)
-/// - T1 base fee: 20 gwei (TEMPO-BLOCK4)
-/// - Payment lane minimum: 470,000,000 (TEMPO-BLOCK5)
-/// - Max deployment fits in tx cap (TEMPO-BLOCK6)
+/// - Block gas limit: 500,000,000 (MAGNUS-BLOCK1)
+/// - General lane limit: 30,000,000 (MAGNUS-BLOCK2)
+/// - Transaction gas cap: 30,000,000 (MAGNUS-BLOCK3)
+/// - T1 base fee: 20 gwei (MAGNUS-BLOCK4)
+/// - Payment lane minimum: 470,000,000 (MAGNUS-BLOCK5)
+/// - Max deployment fits in tx cap (MAGNUS-BLOCK6)
 ///
 /// Block-level lane enforcement (BLOCK7, BLOCK12) and shared gas limit
 /// (BLOCK10) are tested in Rust (crates/consensus/src/lib.rs).
@@ -67,13 +67,13 @@ contract BlockGasLimitsInvariantTest is InvariantBase {
                             GHOST VARIABLES
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev TEMPO-BLOCK3: Tx gas cap enforcement
+    /// @dev MAGNUS-BLOCK3: Tx gas cap enforcement
     uint256 public ghost_txGasCapTests;
     uint256 public ghost_txAtCapSucceeded;
     uint256 public ghost_txOverCapRejected;
     uint256 public ghost_txOverCapViolations; // Over-cap tx was accepted
 
-    /// @dev TEMPO-BLOCK6: Deployment fits in cap
+    /// @dev MAGNUS-BLOCK6: Deployment fits in cap
     uint256 public ghost_deploymentTests;
     uint256 public ghost_maxDeploymentSucceeded;
     uint256 public ghost_maxDeploymentFailed; // Unexpected - would indicate cap too low
@@ -107,21 +107,21 @@ contract BlockGasLimitsInvariantTest is InvariantBase {
         _invariantMaxDeploymentFits();
     }
 
-    /// @notice TEMPO-BLOCK3: Tx gas cap must be enforced at 30M
+    /// @notice MAGNUS-BLOCK3: Tx gas cap must be enforced at 30M
     /// @dev Violations occur if tx with gas > 30M is accepted
     function _invariantTxGasCap() internal view {
         assertEq(
-            ghost_txOverCapViolations, 0, "TEMPO-BLOCK3: Transaction over 30M gas cap was accepted"
+            ghost_txOverCapViolations, 0, "MAGNUS-BLOCK3: Transaction over 30M gas cap was accepted"
         );
     }
 
-    /// @notice TEMPO-BLOCK6: Max contract deployment (24KB) must fit in tx cap
+    /// @notice MAGNUS-BLOCK6: Max contract deployment (24KB) must fit in tx cap
     /// @dev Failures indicate tx cap is too low for max-size contracts
     function _invariantMaxDeploymentFits() internal view {
         if (ghost_deploymentTests > 0) {
             assertTrue(
                 ghost_maxDeploymentSucceeded > 0 || ghost_maxDeploymentFailed == 0,
-                "TEMPO-BLOCK6: Max deployment never succeeded"
+                "MAGNUS-BLOCK6: Max deployment never succeeded"
             );
         }
     }
@@ -130,7 +130,7 @@ contract BlockGasLimitsInvariantTest is InvariantBase {
                             HANDLERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Handler: Test tx gas cap enforcement (TEMPO-BLOCK3)
+    /// @notice Handler: Test tx gas cap enforcement (MAGNUS-BLOCK3)
     /// @param actorSeed Seed for selecting actor
     /// @param gasMultiplier Multiplier to test various gas levels
     function handler_txGasCapEnforcement(uint256 actorSeed, uint256 gasMultiplier) external {
@@ -185,7 +185,7 @@ contract BlockGasLimitsInvariantTest is InvariantBase {
         }
     }
 
-    /// @notice Handler: Test max contract deployment fits in cap (TEMPO-BLOCK6)
+    /// @notice Handler: Test max contract deployment fits in cap (MAGNUS-BLOCK6)
     /// @param actorSeed Seed for selecting actor
     /// @param sizeFraction Fraction of max size to deploy (50-100%)
     function handler_maxDeploymentFits(uint256 actorSeed, uint256 sizeFraction) external {

@@ -6,7 +6,7 @@ import { InvariantBaseTest } from "./InvariantBaseTest.t.sol";
 
 /// @title Nonce Invariant Tests
 /// @notice Fuzz-based invariant tests for the Nonce precompile
-/// @dev Tests invariants TEMPO-NON1 through TEMPO-NON11 for the 2D nonce system
+/// @dev Tests invariants MAGNUS-NON1 through MAGNUS-NON11 for the 2D nonce system
 contract NonceInvariantTest is InvariantBaseTest {
 
     /// @dev Storage slot for nonces mapping (slot 0)
@@ -169,7 +169,7 @@ contract NonceInvariantTest is InvariantBaseTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Handler for incrementing nonces
-    /// @dev Tests TEMPO-NON1 (monotonic increment), TEMPO-NON2 (sequential values)
+    /// @dev Tests MAGNUS-NON1 (monotonic increment), MAGNUS-NON2 (sequential values)
     function incrementNonce(uint256 actorSeed, uint256 keySeed) external {
         address actor = _selectActor(actorSeed);
         uint256 nonceKey = _selectNonceKey(keySeed);
@@ -177,8 +177,8 @@ contract NonceInvariantTest is InvariantBaseTest {
         uint64 expectedBefore = _ghostNonces[actor][nonceKey];
         uint64 actualBefore = nonce.getNonce(actor, nonceKey);
 
-        // TEMPO-NON2: Ghost state should match actual state
-        assertEq(actualBefore, expectedBefore, "TEMPO-NON2: Ghost nonce mismatch before increment");
+        // MAGNUS-NON2: Ghost state should match actual state
+        assertEq(actualBefore, expectedBefore, "MAGNUS-NON2: Ghost nonce mismatch before increment");
 
         uint64 newNonce = _incrementNonceViaStorage(actor, nonceKey);
         _totalIncrements++;
@@ -190,16 +190,16 @@ contract NonceInvariantTest is InvariantBaseTest {
         // Track nonce key usage
         _trackNonceKey(actor, nonceKey);
 
-        // TEMPO-NON1: Nonce should increment by exactly 1
-        assertEq(newNonce, expectedBefore + 1, "TEMPO-NON1: Nonce should increment by 1");
+        // MAGNUS-NON1: Nonce should increment by exactly 1
+        assertEq(newNonce, expectedBefore + 1, "MAGNUS-NON1: Nonce should increment by 1");
 
-        // TEMPO-NON3: New value should be readable
+        // MAGNUS-NON3: New value should be readable
         uint64 actualAfter = nonce.getNonce(actor, nonceKey);
-        assertEq(actualAfter, newNonce, "TEMPO-NON3: Stored nonce should match returned value");
+        assertEq(actualAfter, newNonce, "MAGNUS-NON3: Stored nonce should match returned value");
     }
 
     /// @notice Handler for reading nonces
-    /// @dev Tests TEMPO-NON3 (read consistency)
+    /// @dev Tests MAGNUS-NON3 (read consistency)
     function readNonce(uint256 actorSeed, uint256 keySeed) external {
         address actor = _selectActor(actorSeed);
         uint256 nonceKey = _selectNonceKey(keySeed);
@@ -209,23 +209,23 @@ contract NonceInvariantTest is InvariantBaseTest {
 
         _totalReads++;
 
-        // TEMPO-NON3: Read should return correct value
-        assertEq(actual, expected, "TEMPO-NON3: Read nonce should match ghost state");
+        // MAGNUS-NON3: Read should return correct value
+        assertEq(actual, expected, "MAGNUS-NON3: Read nonce should match ghost state");
     }
 
     /// @notice Handler for testing protocol nonce rejection
-    /// @dev Tests TEMPO-NON4 (protocol nonce key 0 not supported)
+    /// @dev Tests MAGNUS-NON4 (protocol nonce key 0 not supported)
     function tryProtocolNonce(uint256 actorSeed) external {
         address actor = _selectActor(actorSeed);
 
-        // TEMPO-NON4: Key 0 should revert with ProtocolNonceNotSupported
+        // MAGNUS-NON4: Key 0 should revert with ProtocolNonceNotSupported
         try nonce.getNonce(actor, 0) {
-            revert("TEMPO-NON4: Protocol nonce (key 0) should revert");
+            revert("MAGNUS-NON4: Protocol nonce (key 0) should revert");
         } catch (bytes memory reason) {
             assertEq(
                 bytes4(reason),
                 INonce.ProtocolNonceNotSupported.selector,
-                "TEMPO-NON4: Should revert with ProtocolNonceNotSupported"
+                "MAGNUS-NON4: Should revert with ProtocolNonceNotSupported"
             );
         }
 
@@ -233,7 +233,7 @@ contract NonceInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for verifying account independence
-    /// @dev Tests TEMPO-NON5 (different accounts have independent nonces)
+    /// @dev Tests MAGNUS-NON5 (different accounts have independent nonces)
     function verifyAccountIndependence(
         uint256 actor1Seed,
         uint256 actor2Seed,
@@ -253,15 +253,15 @@ contract NonceInvariantTest is InvariantBaseTest {
         _lastSeenNonces[actor1][nonceKey] = newNonce1;
         _trackNonceKey(actor1, nonceKey);
 
-        // TEMPO-NON5: Actor2's nonce should be unchanged
+        // MAGNUS-NON5: Actor2's nonce should be unchanged
         uint64 nonce2After = nonce.getNonce(actor2, nonceKey);
-        assertEq(nonce2After, nonce2Before, "TEMPO-NON5: Other account nonce should be unchanged");
+        assertEq(nonce2After, nonce2Before, "MAGNUS-NON5: Other account nonce should be unchanged");
 
         _totalAccountIndependenceChecks++;
     }
 
     /// @notice Handler for verifying key independence
-    /// @dev Tests TEMPO-NON6 (different keys have independent nonces)
+    /// @dev Tests MAGNUS-NON6 (different keys have independent nonces)
     function verifyKeyIndependence(uint256 actorSeed, uint256 key1Seed, uint256 key2Seed) external {
         address actor = _selectActor(actorSeed);
         uint256 key1 = _selectNonceKey(key1Seed);
@@ -275,15 +275,15 @@ contract NonceInvariantTest is InvariantBaseTest {
         _lastSeenNonces[actor][key1] = newNonce1;
         _trackNonceKey(actor, key1);
 
-        // TEMPO-NON6: Key2's nonce should be unchanged
+        // MAGNUS-NON6: Key2's nonce should be unchanged
         uint64 nonce2After = nonce.getNonce(actor, key2);
-        assertEq(nonce2After, nonce2Before, "TEMPO-NON6: Other key nonce should be unchanged");
+        assertEq(nonce2After, nonce2Before, "MAGNUS-NON6: Other key nonce should be unchanged");
 
         _totalKeyIndependenceChecks++;
     }
 
     /// @notice Handler for testing max nonce key
-    /// @dev Tests TEMPO-NON7 (large nonce keys work)
+    /// @dev Tests MAGNUS-NON7 (large nonce keys work)
     /// Note: type(uint256).max is reserved for TEMPO_EXPIRING_NONCE_KEY, so we use max-1
     function testLargeNonceKey(uint256 actorSeed) external {
         address actor = _selectActor(actorSeed);
@@ -291,7 +291,7 @@ contract NonceInvariantTest is InvariantBaseTest {
 
         // Should work with large uint256 key
         uint64 result = nonce.getNonce(actor, largeKey);
-        assertEq(result, _ghostNonces[actor][largeKey], "TEMPO-NON7: Large key should work");
+        assertEq(result, _ghostNonces[actor][largeKey], "MAGNUS-NON7: Large key should work");
 
         // Increment and verify
         uint64 newNonce = _incrementNonceViaStorage(actor, largeKey);
@@ -300,13 +300,13 @@ contract NonceInvariantTest is InvariantBaseTest {
         _trackNonceKey(actor, largeKey);
 
         uint64 afterIncrement = nonce.getNonce(actor, largeKey);
-        assertEq(afterIncrement, newNonce, "TEMPO-NON7: Large key should increment correctly");
+        assertEq(afterIncrement, newNonce, "MAGNUS-NON7: Large key should increment correctly");
 
         _totalLargeKeyTests++;
     }
 
     /// @notice Handler for multiple sequential increments
-    /// @dev Tests TEMPO-NON8 (strict monotonicity over many increments)
+    /// @dev Tests MAGNUS-NON8 (strict monotonicity over many increments)
     function multipleIncrements(uint256 actorSeed, uint256 keySeed, uint8 countSeed) external {
         address actor = _selectActor(actorSeed);
         uint256 nonceKey = _selectNonceKey(keySeed);
@@ -320,22 +320,22 @@ contract NonceInvariantTest is InvariantBaseTest {
             _ghostNonces[actor][nonceKey] = newNonce;
             _lastSeenNonces[actor][nonceKey] = newNonce;
 
-            // TEMPO-NON8: Each increment should be exactly +1
+            // MAGNUS-NON8: Each increment should be exactly +1
             assertEq(
-                newNonce, beforeIncrement + 1, "TEMPO-NON8: Each increment should be exactly +1"
+                newNonce, beforeIncrement + 1, "MAGNUS-NON8: Each increment should be exactly +1"
             );
         }
 
         _trackNonceKey(actor, nonceKey);
 
         uint64 endNonce = nonce.getNonce(actor, nonceKey);
-        assertEq(endNonce, startNonce + uint64(count), "TEMPO-NON8: Total increment should match");
+        assertEq(endNonce, startNonce + uint64(count), "MAGNUS-NON8: Total increment should match");
 
         _totalMultipleIncrements++;
     }
 
     /// @notice Handler for testing nonce overflow at u64::MAX
-    /// @dev Tests TEMPO-NON9 (nonce overflow protection)
+    /// @dev Tests MAGNUS-NON9 (nonce overflow protection)
     /// Uses a small bounded key range to avoid conflicts and prevent unbounded key growth:
     /// - Normal handlers (1 to MAX_NORMAL_NONCE_KEY)
     /// - testLargeNonceKey (max-1)
@@ -351,14 +351,14 @@ contract NonceInvariantTest is InvariantBaseTest {
 
         // Verify the nonce is at max
         uint64 currentNonce = nonce.getNonce(actor, nonceKey);
-        assertEq(currentNonce, type(uint64).max, "TEMPO-NON9: Nonce should be at max");
+        assertEq(currentNonce, type(uint64).max, "MAGNUS-NON9: Nonce should be at max");
 
         // Update ghost state to reflect the storage manipulation
         _ghostNonces[actor][nonceKey] = type(uint64).max;
         _lastSeenNonces[actor][nonceKey] = type(uint64).max;
         _trackNonceKey(actor, nonceKey);
 
-        // TEMPO-NON9: Attempting to increment at max should revert with NonceOverflow
+        // MAGNUS-NON9: Attempting to increment at max should revert with NonceOverflow
         vm.expectRevert(INonce.NonceOverflow.selector);
         this.externalIncrementNonceViaStorage(actor, nonceKey);
 
@@ -366,14 +366,14 @@ contract NonceInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for testing invalid nonce key (key 0) increment rejection
-    /// @dev Tests TEMPO-NON10 (InvalidNonceKey for key 0 increment)
+    /// @dev Tests MAGNUS-NON10 (InvalidNonceKey for key 0 increment)
     /// Note: Rust distinguishes between:
     /// - get_nonce(key=0) -> ProtocolNonceNotSupported
     /// - increment_nonce(key=0) -> InvalidNonceKey
     function testInvalidNonceKeyIncrement(uint256 actorSeed) external {
         address actor = _selectActor(actorSeed);
 
-        // TEMPO-NON10: Increment with key 0 should revert with InvalidNonceKey
+        // MAGNUS-NON10: Increment with key 0 should revert with InvalidNonceKey
         vm.expectRevert(INonce.InvalidNonceKey.selector);
         this.externalIncrementNonceViaStorage(actor, 0);
 
@@ -381,20 +381,20 @@ contract NonceInvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for testing reserved TEMPO_EXPIRING_NONCE_KEY readability
-    /// @dev Tests TEMPO-NON11 (reserved key type(uint256).max is readable via getNonce)
+    /// @dev Tests MAGNUS-NON11 (reserved key type(uint256).max is readable via getNonce)
     /// @dev Expiring nonces use tx-hash-based replay protection (separate storage). This
     ///      test verifies the key is accessible and returns 0 for uninitialized accounts.
     function testReservedExpiringNonceKey(uint256 actorSeed) external {
         address actor = _selectActor(actorSeed);
         uint256 reservedKey = type(uint256).max;
 
-        // TEMPO-NON11: Reserved key should be readable (returns 0 for uninitialized)
+        // MAGNUS-NON11: Reserved key should be readable (returns 0 for uninitialized)
         // The key is reserved for expiring nonces but reading it works
         uint64 result = nonce.getNonce(actor, reservedKey);
 
         // For uninitialized, it should return 0
         // (We don't track this in ghost state since it's reserved)
-        assertEq(result, 0, "TEMPO-NON11: Reserved key should return 0 for uninitialized");
+        assertEq(result, 0, "MAGNUS-NON11: Reserved key should return 0 for uninitialized");
 
         _totalReservedKeyTests++;
     }
@@ -404,7 +404,7 @@ contract NonceInvariantTest is InvariantBaseTest {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Run all invariant checks in a single unified loop
-    /// @dev Combines TEMPO-NON1 (never decrease) and TEMPO-NON2 (ghost consistency) checks
+    /// @dev Combines MAGNUS-NON1 (never decrease) and MAGNUS-NON2 (ghost consistency) checks
     ///      Caches nonce.getNonce() result to avoid duplicate external calls
     function invariant_globalInvariants() public view {
         for (uint256 a = 0; a < _actors.length; a++) {
@@ -416,13 +416,13 @@ contract NonceInvariantTest is InvariantBaseTest {
                 uint256 nonceKey = keys[k];
                 uint64 actual = nonce.getNonce(actor, nonceKey);
 
-                // TEMPO-NON2: Ghost state should match actual state
+                // MAGNUS-NON2: Ghost state should match actual state
                 uint64 expected = _ghostNonces[actor][nonceKey];
-                assertEq(actual, expected, "TEMPO-NON2: Ghost state should match actual state");
+                assertEq(actual, expected, "MAGNUS-NON2: Ghost state should match actual state");
 
-                // TEMPO-NON1: Nonces should never decrease
+                // MAGNUS-NON1: Nonces should never decrease
                 uint64 lastSeen = _lastSeenNonces[actor][nonceKey];
-                assertGe(actual, lastSeen, "TEMPO-NON1: Nonce decreased from last seen value");
+                assertGe(actual, lastSeen, "MAGNUS-NON1: Nonce decreased from last seen value");
             }
         }
     }

@@ -8,7 +8,7 @@ import { Vm } from "forge-std/Vm.sol";
 
 /// @title ValidatorConfigV2 Invariant Tests
 /// @notice Fuzz-based invariant tests for the ValidatorConfigV2 precompile
-/// @dev Tests invariants TEMPO-VALV2-1 through TEMPO-VALV2-25 covering:
+/// @dev Tests invariants MAGNUS-VALV2-1 through MAGNUS-VALV2-25 covering:
 ///      - Per-handler assertions (VALV2-1 to VALV2-7): auth enforcement, count changes, height tracking, init gates
 ///      - Global invariants (VALV2-8 to VALV2-25): append-only, uniqueness, lookups, migration correctness
 /// forge-config: default.hardfork = "magnus:T2"
@@ -411,8 +411,8 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for adding validators with real Ed25519 signatures
-    /// @dev Tests TEMPO-VALV2-2 (owner-only), TEMPO-VALV2-3 (count changes), TEMPO-VALV2-4 (height tracking),
-    ///      TEMPO-VALV2-6 (address uniqueness), TEMPO-VALV2-7 (pubkey uniqueness/zero)
+    /// @dev Tests MAGNUS-VALV2-2 (owner-only), MAGNUS-VALV2-3 (count changes), MAGNUS-VALV2-4 (height tracking),
+    ///      MAGNUS-VALV2-6 (address uniqueness), MAGNUS-VALV2-7 (pubkey uniqueness/zero)
     function _addValidator(
         uint256 innerFnSeed,
         uint256 callerSeed,
@@ -498,13 +498,13 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             vm.stopPrank();
             assertTrue(
                 _ghostInitialized,
-                "TEMPO-VALV2-5: addValidator must not succeed when not initialized"
+                "MAGNUS-VALV2-5: addValidator must not succeed when not initialized"
             );
-            assertTrue(isOwner, "TEMPO-VALV2-2: Non-owner should not add validator");
-            assertFalse(pubKeyZero, "TEMPO-VALV2-7: Zero pubkey should not succeed");
-            assertFalse(pubKeyUsed, "TEMPO-VALV2-7: Duplicate pubkey should not succeed");
-            assertFalse(addressInUse, "TEMPO-VALV2-6: Duplicate address should not succeed");
-            assertFalse(ipUsed, "TEMPO-VALV2-13: Duplicate ingress IP should not succeed");
+            assertTrue(isOwner, "MAGNUS-VALV2-2: Non-owner should not add validator");
+            assertFalse(pubKeyZero, "MAGNUS-VALV2-7: Zero pubkey should not succeed");
+            assertFalse(pubKeyUsed, "MAGNUS-VALV2-7: Duplicate pubkey should not succeed");
+            assertFalse(addressInUse, "MAGNUS-VALV2-6: Duplicate address should not succeed");
+            assertFalse(ipUsed, "MAGNUS-VALV2-13: Duplicate ingress IP should not succeed");
 
             // forge-lint: disable-next-line(unsafe-typecast)
             uint64 idx = uint64(_ghostTotalCount);
@@ -523,34 +523,34 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
 
             _ghostTotalCount++;
 
-            // TEMPO-VALV2-3: addValidator should +1 active, +1 total
+            // MAGNUS-VALV2-3: addValidator should +1 active, +1 total
             assertEq(
                 _countActiveValidators(),
                 activeCountBefore + 1,
-                "TEMPO-VALV2-3: addValidator should increment active count by 1"
+                "MAGNUS-VALV2-3: addValidator should increment active count by 1"
             );
             assertEq(
                 _ghostTotalCount,
                 totalCountBefore + 1,
-                "TEMPO-VALV2-3: addValidator should increment total count by 1"
+                "MAGNUS-VALV2-3: addValidator should increment total count by 1"
             );
 
-            // TEMPO-VALV2-4: Height tracking
+            // MAGNUS-VALV2-4: Height tracking
             IValidatorConfigV2.Validator memory v =
                 validatorConfigV2.validatorByAddress(validatorAddr);
             assertEq(
-                v.addedAtHeight, uint64(block.number), "TEMPO-VALV2-4: addedAtHeight should be set"
+                v.addedAtHeight, uint64(block.number), "MAGNUS-VALV2-4: addedAtHeight should be set"
             );
             assertEq(
                 v.deactivatedAtHeight,
                 0,
-                "TEMPO-VALV2-4: deactivatedAtHeight should be 0 for new validator"
+                "MAGNUS-VALV2-4: deactivatedAtHeight should be 0 for new validator"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
             if (bytes4(reason) == IValidatorConfigV2.NotInitialized.selector) {
                 assertFalse(
-                    _ghostInitialized, "TEMPO-VALV2-5: NotInitialized but ghost says initialized"
+                    _ghostInitialized, "MAGNUS-VALV2-5: NotInitialized but ghost says initialized"
                 );
             }
             // We expect a revert when: !initialized, !isOwner, pubKeyZero, pubKeyUsed, addressInUse, or ipUsed
@@ -565,8 +565,8 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for deactivating validators (owner, validator, or third party; active or already deactivated)
-    /// @dev Tests TEMPO-VALV2-1 (dual-auth), TEMPO-VALV2-3 (count changes), TEMPO-VALV2-4 (height tracking),
-    ///      TEMPO-VALV2-9 (delete-once: already deactivated rejects)
+    /// @dev Tests MAGNUS-VALV2-1 (dual-auth), MAGNUS-VALV2-3 (count changes), MAGNUS-VALV2-4 (height tracking),
+    ///      MAGNUS-VALV2-9 (delete-once: already deactivated rejects)
     function _deactivateValidator(uint256 callerSeed, uint256 validatorSeed) internal {
         if (_ghostTotalCount == 0) return;
 
@@ -591,8 +591,8 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
         vm.startPrank(caller);
         try validatorConfigV2.deactivateValidator(currentIdx) {
             vm.stopPrank();
-            assertTrue(isAuthorized, "TEMPO-VALV2-1: Third party should not deactivate");
-            assertTrue(isActive, "TEMPO-VALV2-9: Already deactivated should not succeed");
+            assertTrue(isAuthorized, "MAGNUS-VALV2-1: Third party should not deactivate");
+            assertTrue(isActive, "MAGNUS-VALV2-9: Already deactivated should not succeed");
 
             _ghostDeactivatedAtHeight[currentIdx] = uint64(block.number);
 
@@ -602,24 +602,24 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             bytes32 ingressIpHash = keccak256(bytes(_ghostIngress[currentIdx]));
             delete _ghostActiveIngressIpHashes[ingressIpHash];
 
-            // TEMPO-VALV2-3: deactivateValidator should -1 active, +0 total
+            // MAGNUS-VALV2-3: deactivateValidator should -1 active, +0 total
             assertEq(
                 _countActiveValidators(),
                 activeCountBefore - 1,
-                "TEMPO-VALV2-3: deactivateValidator should decrement active count by 1"
+                "MAGNUS-VALV2-3: deactivateValidator should decrement active count by 1"
             );
             assertEq(
                 _ghostTotalCount,
                 totalCountBefore,
-                "TEMPO-VALV2-3: deactivateValidator should not change total count"
+                "MAGNUS-VALV2-3: deactivateValidator should not change total count"
             );
 
-            // TEMPO-VALV2-4: Height tracking
+            // MAGNUS-VALV2-4: Height tracking
             IValidatorConfigV2.Validator memory v = validatorConfigV2.validatorByIndex(currentIdx);
             assertEq(
                 v.deactivatedAtHeight,
                 uint64(block.number),
-                "TEMPO-VALV2-4: deactivatedAtHeight should match block.number"
+                "MAGNUS-VALV2-4: deactivatedAtHeight should match block.number"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -632,7 +632,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for ownership transfer
-    /// @dev Tests TEMPO-VALV2-2 (owner-only), TEMPO-VALV2-20 (owner consistency)
+    /// @dev Tests MAGNUS-VALV2-2 (owner-only), MAGNUS-VALV2-20 (owner consistency)
     function _transferOwnership(uint256 callerSeed, uint256 newOwnerSeed) internal {
         address caller = _selectOwnerOrRandom(callerSeed);
         bool isOwner = (caller == _ghostOwner);
@@ -644,14 +644,14 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             vm.stopPrank();
             assertTrue(
                 _ghostInitialized,
-                "TEMPO-VALV2-5: transferOwnership must not succeed when not initialized"
+                "MAGNUS-VALV2-5: transferOwnership must not succeed when not initialized"
             );
-            assertTrue(isOwner, "TEMPO-VALV2-2: Non-owner should not transfer ownership");
+            assertTrue(isOwner, "MAGNUS-VALV2-2: Non-owner should not transfer ownership");
 
             address oldOwner = _ghostOwner;
             _ghostOwner = newOwner;
 
-            assertEq(validatorConfigV2.owner(), newOwner, "TEMPO-VALV2-20: Owner should be updated");
+            assertEq(validatorConfigV2.owner(), newOwner, "MAGNUS-VALV2-20: Owner should be updated");
         } catch (bytes memory reason) {
             vm.stopPrank();
             _assertKnownV2Error(reason);
@@ -659,7 +659,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for setting DKG ceremony epoch
-    /// @dev Tests TEMPO-VALV2-2 (owner-only), TEMPO-VALV2-21 (DKG consistency)
+    /// @dev Tests MAGNUS-VALV2-2 (owner-only), MAGNUS-VALV2-21 (DKG consistency)
     function _setNextDkgCeremony(uint256 callerSeed, uint64 epoch) internal {
         address caller = _selectOwnerOrRandom(callerSeed);
         bool isOwner = (caller == _ghostOwner);
@@ -669,22 +669,22 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             vm.stopPrank();
             assertTrue(
                 _ghostInitialized,
-                "TEMPO-VALV2-5: setNextDkgCeremony must not succeed when not initialized"
+                "MAGNUS-VALV2-5: setNextDkgCeremony must not succeed when not initialized"
             );
-            assertTrue(isOwner, "TEMPO-VALV2-2: Non-owner should not set DKG ceremony");
+            assertTrue(isOwner, "MAGNUS-VALV2-2: Non-owner should not set DKG ceremony");
 
             _ghostNextNetworkIdentityRotation = epoch;
 
             assertEq(
                 validatorConfigV2.getNextNetworkIdentityRotationEpoch(),
                 epoch,
-                "TEMPO-VALV2-21: DKG epoch should be set"
+                "MAGNUS-VALV2-21: DKG epoch should be set"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
             if (bytes4(reason) == IValidatorConfigV2.NotInitialized.selector) {
                 assertFalse(
-                    _ghostInitialized, "TEMPO-VALV2-5: NotInitialized but ghost says initialized"
+                    _ghostInitialized, "MAGNUS-VALV2-5: NotInitialized but ghost says initialized"
                 );
             }
             _assertKnownV2Error(reason);
@@ -692,7 +692,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for setting IP addresses (owner, validator, or third party)
-    /// @dev Tests TEMPO-VALV2-1 (dual-auth)
+    /// @dev Tests MAGNUS-VALV2-1 (dual-auth)
     function _setIpAddresses(uint256 callerSeed, uint256 validatorSeed, uint256 ipSeed) internal {
         (address validatorAddr, uint64 ghostIdx, bool found) = _selectActiveValidator(validatorSeed);
         if (!found) return;
@@ -706,7 +706,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
         vm.startPrank(caller);
         try validatorConfigV2.setIpAddresses(ghostIdx, newIngress, newEgress) {
             vm.stopPrank();
-            assertTrue(isAuthorized, "TEMPO-VALV2-1: Third party should not update IPs");
+            assertTrue(isAuthorized, "MAGNUS-VALV2-1: Third party should not update IPs");
 
             bytes32 oldIngressIpHash = keccak256(bytes(_ghostIngress[ghostIdx]));
             bytes32 newIngressIpHash = keccak256(bytes(newIngress));
@@ -720,12 +720,12 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             assertEq(
                 keccak256(bytes(v.ingress)),
                 keccak256(bytes(newIngress)),
-                "TEMPO-VALV2-1: Ingress should match"
+                "MAGNUS-VALV2-1: Ingress should match"
             );
             assertEq(
                 keccak256(bytes(v.egress)),
                 keccak256(bytes(newEgress)),
-                "TEMPO-VALV2-1: Egress should match"
+                "MAGNUS-VALV2-1: Egress should match"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
@@ -734,7 +734,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for setting fee recipient (owner or validator)
-    /// @dev Tests TEMPO-VALV2-1 (dual-auth), TEMPO-VALV2-16 (data consistency for feeRecipient)
+    /// @dev Tests MAGNUS-VALV2-1 (dual-auth), MAGNUS-VALV2-16 (data consistency for feeRecipient)
     function _setFeeRecipient(
         uint256 callerSeed,
         uint256 validatorSeed,
@@ -755,19 +755,19 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             vm.stopPrank();
             assertTrue(
                 _ghostInitialized,
-                "TEMPO-VALV2-5: setFeeRecipient must not succeed when not initialized"
+                "MAGNUS-VALV2-5: setFeeRecipient must not succeed when not initialized"
             );
-            assertTrue(isAuthorized, "TEMPO-VALV2-1: Third party should not set fee recipient");
+            assertTrue(isAuthorized, "MAGNUS-VALV2-1: Third party should not set fee recipient");
 
             IValidatorConfigV2.Validator memory v = validatorConfigV2.validatorByIndex(ghostIdx);
             assertEq(
-                v.feeRecipient, newRecipient, "TEMPO-VALV2-16: Fee recipient should be updated"
+                v.feeRecipient, newRecipient, "MAGNUS-VALV2-16: Fee recipient should be updated"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
             if (bytes4(reason) == IValidatorConfigV2.NotInitialized.selector) {
                 assertFalse(
-                    _ghostInitialized, "TEMPO-VALV2-5: NotInitialized but ghost says initialized"
+                    _ghostInitialized, "MAGNUS-VALV2-5: NotInitialized but ghost says initialized"
                 );
             }
             _assertKnownV2Error(reason);
@@ -775,7 +775,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for transferring validator ownership (owner, validator, or third party)
-    /// @dev Tests TEMPO-VALV2-1 (dual-auth), TEMPO-VALV2-11 (address uniqueness on transfer)
+    /// @dev Tests MAGNUS-VALV2-1 (dual-auth), MAGNUS-VALV2-11 (address uniqueness on transfer)
     function _transferValidatorOwnership(
         uint256 callerSeed,
         uint256 validatorSeed,
@@ -797,10 +797,10 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             vm.stopPrank();
             assertTrue(
                 _ghostInitialized,
-                "TEMPO-VALV2-5: transferValidatorOwnership must not succeed when not initialized"
+                "MAGNUS-VALV2-5: transferValidatorOwnership must not succeed when not initialized"
             );
-            assertTrue(isAuthorized, "TEMPO-VALV2-1: Third party should not transfer validator");
-            assertFalse(newAddrInUse, "TEMPO-VALV2-11: Duplicate address should not succeed");
+            assertTrue(isAuthorized, "MAGNUS-VALV2-1: Third party should not transfer validator");
+            assertFalse(newAddrInUse, "MAGNUS-VALV2-11: Duplicate address should not succeed");
 
             _ghostAddress[ghostIdx] = newAddr;
             delete _ghostAddressInUse[currentAddr];
@@ -809,17 +809,17 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             delete _ghostActiveIndex[currentAddr];
 
             IValidatorConfigV2.Validator memory v = validatorConfigV2.validatorByAddress(newAddr);
-            assertEq(v.validatorAddress, newAddr, "TEMPO-VALV2-1: Address should be updated");
+            assertEq(v.validatorAddress, newAddr, "MAGNUS-VALV2-1: Address should be updated");
             assertEq(
                 v.publicKey,
                 _ghostPubKey[ghostIdx],
-                "TEMPO-VALV2-1: Public key preserved after transfer"
+                "MAGNUS-VALV2-1: Public key preserved after transfer"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
             if (bytes4(reason) == IValidatorConfigV2.NotInitialized.selector) {
                 assertFalse(
-                    _ghostInitialized, "TEMPO-VALV2-5: NotInitialized but ghost says initialized"
+                    _ghostInitialized, "MAGNUS-VALV2-5: NotInitialized but ghost says initialized"
                 );
             }
             assertTrue(
@@ -831,8 +831,8 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for rotating validators with real Ed25519 signatures (owner, validator, or third party)
-    /// @dev Tests TEMPO-VALV2-1 (dual-auth), TEMPO-VALV2-3 (count changes), TEMPO-VALV2-4 (height tracking),
-    ///      TEMPO-VALV2-6 (address mapping), TEMPO-VALV2-7 (pubkey uniqueness/zero), TEMPO-VALV2-13 (IP uniqueness).
+    /// @dev Tests MAGNUS-VALV2-1 (dual-auth), MAGNUS-VALV2-3 (count changes), MAGNUS-VALV2-4 (height tracking),
+    ///      MAGNUS-VALV2-6 (address mapping), MAGNUS-VALV2-7 (pubkey uniqueness/zero), MAGNUS-VALV2-13 (IP uniqueness).
     function _rotateValidator(uint256 callerSeed, uint256 validatorSeed, uint256 keySeed) internal {
         (address validatorAddr, uint64 oldGhostIdx, bool found) =
             _selectActiveValidator(validatorSeed);
@@ -863,12 +863,12 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             vm.stopPrank();
             assertTrue(
                 _ghostInitialized,
-                "TEMPO-VALV2-5: rotateValidator must not succeed when not initialized"
+                "MAGNUS-VALV2-5: rotateValidator must not succeed when not initialized"
             );
-            assertTrue(isAuthorized, "TEMPO-VALV2-1: Third party should not rotate validator");
-            assertFalse(pubKeyZero, "TEMPO-VALV2-7: Zero pubkey should not succeed");
-            assertFalse(pubKeyUsed, "TEMPO-VALV2-7: Duplicate pubkey should not succeed");
-            assertFalse(ipUsed, "TEMPO-VALV2-13: Duplicate ingress IP should not succeed");
+            assertTrue(isAuthorized, "MAGNUS-VALV2-1: Third party should not rotate validator");
+            assertFalse(pubKeyZero, "MAGNUS-VALV2-7: Zero pubkey should not succeed");
+            assertFalse(pubKeyUsed, "MAGNUS-VALV2-7: Duplicate pubkey should not succeed");
+            assertFalse(ipUsed, "MAGNUS-VALV2-13: Duplicate ingress IP should not succeed");
 
             delete _ghostActiveIngressIpHashes[oldIngressIpHash];
 
@@ -898,49 +898,49 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
 
             _ghostTotalCount++;
 
-            // TEMPO-VALV2-3: rotateValidator should +0 active, +1 total
+            // MAGNUS-VALV2-3: rotateValidator should +0 active, +1 total
             assertEq(
                 _countActiveValidators(),
                 activeCountBefore,
-                "TEMPO-VALV2-3: rotateValidator should not change active count"
+                "MAGNUS-VALV2-3: rotateValidator should not change active count"
             );
             assertEq(
                 _ghostTotalCount,
                 totalCountBefore + 1,
-                "TEMPO-VALV2-3: rotateValidator should increment total count by 1"
+                "MAGNUS-VALV2-3: rotateValidator should increment total count by 1"
             );
 
-            // TEMPO-VALV2-4: Height tracking for snapshot and updated slot
+            // MAGNUS-VALV2-4: Height tracking for snapshot and updated slot
             IValidatorConfigV2.Validator memory snapshotV =
                 validatorConfigV2.validatorByIndex(snapshotIdx);
             assertEq(
                 snapshotV.deactivatedAtHeight,
                 uint64(block.number),
-                "TEMPO-VALV2-4: Snapshot deactivatedAtHeight should be current block"
+                "MAGNUS-VALV2-4: Snapshot deactivatedAtHeight should be current block"
             );
 
             IValidatorConfigV2.Validator memory updatedV =
                 validatorConfigV2.validatorByIndex(oldGhostIdx);
-            // TEMPO-VALV2-6: Address mapping unchanged — same address, same slot
+            // MAGNUS-VALV2-6: Address mapping unchanged — same address, same slot
             assertEq(
                 updatedV.index,
                 oldGhostIdx,
-                "TEMPO-VALV2-6: Updated slot must preserve original index"
+                "MAGNUS-VALV2-6: Updated slot must preserve original index"
             );
-            assertEq(updatedV.publicKey, newPubKey, "TEMPO-VALV2-4: New public key should be set");
+            assertEq(updatedV.publicKey, newPubKey, "MAGNUS-VALV2-4: New public key should be set");
             assertEq(
                 updatedV.addedAtHeight,
                 uint64(block.number),
-                "TEMPO-VALV2-4: Updated validator addedAtHeight should be current block"
+                "MAGNUS-VALV2-4: Updated validator addedAtHeight should be current block"
             );
             assertEq(
-                updatedV.deactivatedAtHeight, 0, "TEMPO-VALV2-4: Updated validator should be active"
+                updatedV.deactivatedAtHeight, 0, "MAGNUS-VALV2-4: Updated validator should be active"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
             if (bytes4(reason) == IValidatorConfigV2.NotInitialized.selector) {
                 assertFalse(
-                    _ghostInitialized, "TEMPO-VALV2-5: NotInitialized but ghost says initialized"
+                    _ghostInitialized, "MAGNUS-VALV2-5: NotInitialized but ghost says initialized"
                 );
             }
             assertTrue(
@@ -953,7 +953,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for migrateValidator (pre-init only)
-    /// @dev Tests TEMPO-VALV2-2 (owner-only), TEMPO-VALV2-23 (sequential migration), TEMPO-VALV2-25 (activity preserved)
+    /// @dev Tests MAGNUS-VALV2-2 (owner-only), MAGNUS-VALV2-23 (sequential migration), MAGNUS-VALV2-25 (activity preserved)
     function _migrateValidator(uint256 callerSeed, uint256 idxSeed) internal {
         IValidatorConfig.Validator[] memory v1Vals = validatorConfig.getValidators();
 
@@ -990,11 +990,11 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             vm.stopPrank();
             assertFalse(
                 _ghostInitialized,
-                "TEMPO-VALV2-5: migrateValidator must not succeed when already initialized"
+                "MAGNUS-VALV2-5: migrateValidator must not succeed when already initialized"
             );
             assertTrue(isCorrectIdx, "Migration should require sequential index");
             assertTrue(idxInRange, "Migration index should be in V1 range");
-            assertTrue(isOwner, "TEMPO-VALV2-2: Non-owner should not migrate");
+            assertTrue(isOwner, "MAGNUS-VALV2-2: Non-owner should not migrate");
 
             // Update ghost owner on first migration (auto-set from V1)
             if (_ghostTotalCount == 0 && _ghostOwner == address(0)) {
@@ -1027,20 +1027,20 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
                 _ghostNextMigrationIndex--;
             }
 
-            // TEMPO-VALV2-25: Migration preserves activity — checked per-handler at migration time,
+            // MAGNUS-VALV2-25: Migration preserves activity — checked per-handler at migration time,
             // not globally, because migrated validators can be deactivated after migration
             bool v2Active = v2.deactivatedAtHeight == 0;
             assertEq(
                 v2Active,
                 v1Vals[idx].active,
-                "TEMPO-VALV2-25: Migrated validator activity must match V1"
+                "MAGNUS-VALV2-25: Migrated validator activity must match V1"
             );
         } catch (bytes memory reason) {
             vm.stopPrank();
             if (bytes4(reason) == IValidatorConfigV2.AlreadyInitialized.selector) {
                 assertTrue(
                     _ghostInitialized,
-                    "TEMPO-VALV2-5: AlreadyInitialized but ghost says not initialized"
+                    "MAGNUS-VALV2-5: AlreadyInitialized but ghost says not initialized"
                 );
             }
             assertTrue(
@@ -1052,7 +1052,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
     }
 
     /// @notice Handler for initializeIfMigrated (pre-init only)
-    /// @dev Tests TEMPO-VALV2-2 (owner-only), TEMPO-VALV2-22 (one-way initialization)
+    /// @dev Tests MAGNUS-VALV2-2 (owner-only), MAGNUS-VALV2-22 (one-way initialization)
     function _initializeIfMigrated(uint256 callerSeed) internal {
         // 75% owner, 25% random
         address caller;
@@ -1071,9 +1071,9 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             vm.stopPrank();
             assertFalse(
                 _ghostInitialized,
-                "TEMPO-VALV2-5: initializeIfMigrated must not succeed when already initialized"
+                "MAGNUS-VALV2-5: initializeIfMigrated must not succeed when already initialized"
             );
-            assertTrue(isOwner, "TEMPO-VALV2-2: Non-owner should not initialize");
+            assertTrue(isOwner, "MAGNUS-VALV2-2: Non-owner should not initialize");
             assertTrue(allMigrated, "Should not initialize before migration complete");
 
             _ghostInitialized = true;
@@ -1084,7 +1084,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             if (bytes4(reason) == IValidatorConfigV2.AlreadyInitialized.selector) {
                 assertTrue(
                     _ghostInitialized,
-                    "TEMPO-VALV2-5: AlreadyInitialized but ghost says not initialized"
+                    "MAGNUS-VALV2-5: AlreadyInitialized but ghost says not initialized"
                 );
             }
             assertTrue(
@@ -1120,78 +1120,78 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
         _invariantMigrationIdentity(); // VALV2-24
     }
 
-    /// @notice TEMPO-VALV2-8: Validator count only increases (append-only)
+    /// @notice MAGNUS-VALV2-8: Validator count only increases (append-only)
     function _invariantAppendOnlyCount() internal view {
         uint64 count = validatorConfigV2.validatorCount();
-        assertEq(count, _ghostTotalCount, "TEMPO-VALV2-8: Count should match ghost total");
+        assertEq(count, _ghostTotalCount, "MAGNUS-VALV2-8: Count should match ghost total");
     }
 
-    /// @notice TEMPO-VALV2-20: Owner matches ghost state
+    /// @notice MAGNUS-VALV2-20: Owner matches ghost state
     function _invariantOwnerConsistency() internal view {
         assertEq(
-            validatorConfigV2.owner(), _ghostOwner, "TEMPO-VALV2-20: Owner should match ghost state"
+            validatorConfigV2.owner(), _ghostOwner, "MAGNUS-VALV2-20: Owner should match ghost state"
         );
     }
 
-    /// @notice TEMPO-VALV2-16: All validator data matches ghost state (index-keyed)
+    /// @notice MAGNUS-VALV2-16: All validator data matches ghost state (index-keyed)
     function _invariantValidatorDataConsistency() internal view {
         IValidatorConfigV2.Validator[] memory vals = _allValidators();
-        assertEq(vals.length, _ghostTotalCount, "TEMPO-VALV2-16: Array length mismatch");
+        assertEq(vals.length, _ghostTotalCount, "MAGNUS-VALV2-16: Array length mismatch");
 
         for (uint256 i = 0; i < vals.length; i++) {
             // forge-lint: disable-next-line(unsafe-typecast)
             uint64 idx = uint64(i);
             assertEq(
-                vals[i].validatorAddress, _ghostAddress[idx], "TEMPO-VALV2-16: Address mismatch"
+                vals[i].validatorAddress, _ghostAddress[idx], "MAGNUS-VALV2-16: Address mismatch"
             );
-            assertEq(vals[i].publicKey, _ghostPubKey[idx], "TEMPO-VALV2-16: Public key mismatch");
-            assertEq(vals[i].index, idx, "TEMPO-VALV2-16: Index mismatch");
+            assertEq(vals[i].publicKey, _ghostPubKey[idx], "MAGNUS-VALV2-16: Public key mismatch");
+            assertEq(vals[i].index, idx, "MAGNUS-VALV2-16: Index mismatch");
             assertEq(
                 vals[i].addedAtHeight,
                 _ghostAddedAtHeight[idx],
-                "TEMPO-VALV2-16: addedAtHeight mismatch"
+                "MAGNUS-VALV2-16: addedAtHeight mismatch"
             );
             assertEq(
                 vals[i].deactivatedAtHeight,
                 _ghostDeactivatedAtHeight[idx],
-                "TEMPO-VALV2-16: deactivatedAtHeight mismatch"
+                "MAGNUS-VALV2-16: deactivatedAtHeight mismatch"
             );
         }
     }
 
-    /// @notice TEMPO-VALV2-14: All indices are sequential (0, 1, 2, ...)
+    /// @notice MAGNUS-VALV2-14: All indices are sequential (0, 1, 2, ...)
     function _invariantIndexSequential() internal view {
         IValidatorConfigV2.Validator[] memory vals = _allValidators();
 
         for (uint256 i = 0; i < vals.length; i++) {
-            assertEq(vals[i].index, i, "TEMPO-VALV2-14: Index should equal array position");
+            assertEq(vals[i].index, i, "MAGNUS-VALV2-14: Index should equal array position");
         }
     }
 
-    /// @notice TEMPO-VALV2-12: All public keys are unique and non-zero
+    /// @notice MAGNUS-VALV2-12: All public keys are unique and non-zero
     function _invariantPubKeyUniqueness() internal view {
         IValidatorConfigV2.Validator[] memory vals = _allValidators();
 
         for (uint256 i = 0; i < vals.length; i++) {
             assertTrue(
-                vals[i].publicKey != bytes32(0), "TEMPO-VALV2-12: Public key must not be zero"
+                vals[i].publicKey != bytes32(0), "MAGNUS-VALV2-12: Public key must not be zero"
             );
 
             for (uint256 j = i + 1; j < vals.length; j++) {
                 assertTrue(
                     vals[i].publicKey != vals[j].publicKey,
-                    "TEMPO-VALV2-12: Public keys must be unique"
+                    "MAGNUS-VALV2-12: Public keys must be unique"
                 );
             }
         }
     }
 
-    /// @notice TEMPO-VALV2-15: Active validators are a proper subset of all validators
+    /// @notice MAGNUS-VALV2-15: Active validators are a proper subset of all validators
     function _invariantActiveValidatorSubset() internal view {
         IValidatorConfigV2.Validator[] memory all = _allValidators();
         IValidatorConfigV2.Validator[] memory active = validatorConfigV2.getActiveValidators();
 
-        assertLe(active.length, all.length, "TEMPO-VALV2-15: Active count <= total count");
+        assertLe(active.length, all.length, "MAGNUS-VALV2-15: Active count <= total count");
 
         uint256 expectedActive = 0;
         for (uint256 i = 0; i < all.length; i++) {
@@ -1202,47 +1202,47 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
         assertEq(
             active.length,
             expectedActive,
-            "TEMPO-VALV2-15: Active count should match filtered count"
+            "MAGNUS-VALV2-15: Active count should match filtered count"
         );
 
         for (uint256 i = 0; i < active.length; i++) {
             assertEq(
                 active[i].deactivatedAtHeight,
                 0,
-                "TEMPO-VALV2-15: Active validators must have deactivatedAtHeight == 0"
+                "MAGNUS-VALV2-15: Active validators must have deactivatedAtHeight == 0"
             );
         }
     }
 
-    /// @notice TEMPO-VALV2-21: DKG epoch matches ghost state
+    /// @notice MAGNUS-VALV2-21: DKG epoch matches ghost state
     function _invariantDkgCeremonyConsistency() internal view {
         assertEq(
             validatorConfigV2.getNextNetworkIdentityRotationEpoch(),
             _ghostNextNetworkIdentityRotation,
-            "TEMPO-VALV2-21: DKG epoch should match ghost state"
+            "MAGNUS-VALV2-21: DKG epoch should match ghost state"
         );
     }
 
-    /// @notice TEMPO-VALV2-10: Height tracking invariants
+    /// @notice MAGNUS-VALV2-10: Height tracking invariants
     /// @dev For active validators: addedAtHeight > 0, deactivatedAtHeight == 0
     ///      For deactivated validators: deactivatedAtHeight >= addedAtHeight
     function _invariantHeightTracking() internal view {
         IValidatorConfigV2.Validator[] memory vals = _allValidators();
 
         for (uint256 i = 0; i < vals.length; i++) {
-            assertTrue(vals[i].addedAtHeight > 0, "TEMPO-VALV2-10: addedAtHeight must be > 0");
+            assertTrue(vals[i].addedAtHeight > 0, "MAGNUS-VALV2-10: addedAtHeight must be > 0");
 
             if (vals[i].deactivatedAtHeight != 0) {
                 assertGe(
                     vals[i].deactivatedAtHeight,
                     vals[i].addedAtHeight,
-                    "TEMPO-VALV2-10: deactivatedAtHeight must be >= addedAtHeight"
+                    "MAGNUS-VALV2-10: deactivatedAtHeight must be >= addedAtHeight"
                 );
             }
         }
     }
 
-    /// @notice TEMPO-VALV2-13: Ingress uniqueness among active validators
+    /// @notice MAGNUS-VALV2-13: Ingress uniqueness among active validators
     /// @dev No two active validators share the same ingress (full ip:port compared)
     function _invariantIpUniqueness() internal view {
         IValidatorConfigV2.Validator[] memory vals = _allValidators();
@@ -1257,14 +1257,14 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
                 // Check full ingress uniqueness (ip:port)
                 bytes32 ipI = keccak256(bytes(vals[i].ingress));
                 bytes32 ipJ = keccak256(bytes(vals[j].ingress));
-                assertTrue(ipI != ipJ, "TEMPO-VALV2-13: Active validators must have unique ingress");
+                assertTrue(ipI != ipJ, "MAGNUS-VALV2-13: Active validators must have unique ingress");
 
                 // Note: egress uniqueness is NOT enforced
             }
         }
     }
 
-    /// @notice TEMPO-VALV2-9: Delete-once - deactivatedAtHeight never changes once set
+    /// @notice MAGNUS-VALV2-9: Delete-once - deactivatedAtHeight never changes once set
     function _invariantDeleteOnce() internal view {
         // This is enforced by the contract and validated by our handlers
         // The property: once deactivatedAtHeight != 0, it cannot change
@@ -1278,12 +1278,12 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             assertEq(
                 vals[i].deactivatedAtHeight,
                 _ghostDeactivatedAtHeight[idx],
-                "TEMPO-VALV2-9: deactivatedAtHeight must never change once set"
+                "MAGNUS-VALV2-9: deactivatedAtHeight must never change once set"
             );
         }
     }
 
-    /// @notice TEMPO-VALV2-11: Address uniqueness among active validators
+    /// @notice MAGNUS-VALV2-11: Address uniqueness among active validators
     /// @dev At most one active validator per address; deactivated addresses may be reused
     function _invariantAddressUniqueness() internal view {
         IValidatorConfigV2.Validator[] memory vals = _allValidators();
@@ -1297,21 +1297,21 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
 
                 assertTrue(
                     vals[i].validatorAddress != vals[j].validatorAddress,
-                    "TEMPO-VALV2-11: Active validators must have unique addresses"
+                    "MAGNUS-VALV2-11: Active validators must have unique addresses"
                 );
             }
         }
     }
 
-    /// @notice TEMPO-VALV2-17: Validator count consistency
+    /// @notice MAGNUS-VALV2-17: Validator count consistency
     /// @dev validatorCount() equals actual array length
     function _invariantValidatorCountConsistency() internal view {
         uint64 count = validatorConfigV2.validatorCount();
         IValidatorConfigV2.Validator[] memory vals = _allValidators();
-        assertEq(count, vals.length, "TEMPO-VALV2-17: validatorCount must equal array length");
+        assertEq(count, vals.length, "MAGNUS-VALV2-17: validatorCount must equal array length");
     }
 
-    /// @notice TEMPO-VALV2-18: Address lookup correctness
+    /// @notice MAGNUS-VALV2-18: Address lookup correctness
     /// @dev validatorByAddress returns the active validator for that address.
     ///      After rotation, the active entry stays at the original index while deactivated
     ///      snapshots are appended — so the active entry may have a LOWER index than snapshots.
@@ -1349,7 +1349,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
                 assertEq(
                     lookedUp.validatorAddress,
                     addr,
-                    "TEMPO-VALV2-18: Address lookup must preserve address"
+                    "MAGNUS-VALV2-18: Address lookup must preserve address"
                 );
 
                 if (hasActive) {
@@ -1357,35 +1357,35 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
                     assertEq(
                         lookedUp.index,
                         vals[activeIdx].index,
-                        "TEMPO-VALV2-18: Address lookup must return the active validator"
+                        "MAGNUS-VALV2-18: Address lookup must return the active validator"
                     );
                     assertEq(
                         lookedUp.publicKey,
                         vals[activeIdx].publicKey,
-                        "TEMPO-VALV2-18: Address lookup must preserve public key"
+                        "MAGNUS-VALV2-18: Address lookup must preserve public key"
                     );
                     assertEq(
                         lookedUp.deactivatedAtHeight,
                         0,
-                        "TEMPO-VALV2-18: Active validator lookup must not return deactivated entry"
+                        "MAGNUS-VALV2-18: Active validator lookup must not return deactivated entry"
                     );
                 } else {
                     assertTrue(
                         lookedUp.deactivatedAtHeight != 0,
-                        "TEMPO-VALV2-18: If no active validator exists, lookup must not return an active one"
+                        "MAGNUS-VALV2-18: If no active validator exists, lookup must not return an active one"
                     );
                 }
             } catch {
                 // Lookup failed — only acceptable if no active validator exists for this address
                 // (e.g., deactivated validator whose successor was transferred away)
                 assertTrue(
-                    !hasActive, "TEMPO-VALV2-18: Active validators must be lookupable by address"
+                    !hasActive, "MAGNUS-VALV2-18: Active validators must be lookupable by address"
                 );
             }
         }
     }
 
-    /// @notice TEMPO-VALV2-19: Public key lookup correctness
+    /// @notice MAGNUS-VALV2-19: Public key lookup correctness
     /// @dev For every validator, validatorByPublicKey returns the correct validator
     function _invariantPubkeyLookupCorrectness() internal view {
         IValidatorConfigV2.Validator[] memory vals = _allValidators();
@@ -1398,46 +1398,46 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             assertEq(
                 lookedUp.publicKey,
                 vals[i].publicKey,
-                "TEMPO-VALV2-19: Pubkey lookup must return correct validator"
+                "MAGNUS-VALV2-19: Pubkey lookup must return correct validator"
             );
             assertEq(
                 lookedUp.validatorAddress,
                 vals[i].validatorAddress,
-                "TEMPO-VALV2-19: Pubkey lookup must preserve address"
+                "MAGNUS-VALV2-19: Pubkey lookup must preserve address"
             );
             assertEq(
-                lookedUp.index, vals[i].index, "TEMPO-VALV2-19: Pubkey lookup must preserve index"
+                lookedUp.index, vals[i].index, "MAGNUS-VALV2-19: Pubkey lookup must preserve index"
             );
         }
     }
 
-    /// @notice TEMPO-VALV2-22: Initialization one-way
+    /// @notice MAGNUS-VALV2-22: Initialization one-way
     /// @dev Once isInitialized() == true, it remains true forever
     function _invariantInitializationOneWay() internal view {
         bool isInit = validatorConfigV2.isInitialized();
         if (_ghostInitialized) {
-            assertTrue(isInit, "TEMPO-VALV2-22: Once initialized, must remain initialized");
+            assertTrue(isInit, "MAGNUS-VALV2-22: Once initialized, must remain initialized");
             assertEq(
                 validatorConfigV2.getInitializedAtHeight(),
                 _ghostInitializedAtHeight,
-                "TEMPO-VALV2-22: Initialization height must match ghost state"
+                "MAGNUS-VALV2-22: Initialization height must match ghost state"
             );
         }
     }
 
-    /// @notice TEMPO-VALV2-23: Migration completeness
+    /// @notice MAGNUS-VALV2-23: Migration completeness
     /// @dev If not initialized, validatorCount <= V1.getAllValidators().length
     function _invariantMigrationCompleteness() internal view {
         if (!_ghostInitialized) {
             IValidatorConfig.Validator[] memory v1Vals = validatorConfig.getValidators();
             uint64 v2Count = validatorConfigV2.validatorCount();
             assertLe(
-                v2Count, v1Vals.length, "TEMPO-VALV2-23: Migration cannot exceed V1 validator count"
+                v2Count, v1Vals.length, "MAGNUS-VALV2-23: Migration cannot exceed V1 validator count"
             );
         }
     }
 
-    /// @notice TEMPO-VALV2-24: Migration preserves identity
+    /// @notice MAGNUS-VALV2-24: Migration preserves identity
     /// @dev For each migrated validator: the V1 pubkey must still exist somewhere in V2.
     ///      If the validator was rotated, the original pubkey lives in a deactivated snapshot
     ///      rather than the original slot. We verify via pubkey lookup which covers both cases.
@@ -1463,11 +1463,11 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
             assertEq(
                 snapshotVal.publicKey,
                 v1Vals[v1Idx].publicKey,
-                "TEMPO-VALV2-24: Migrated pubkey must still exist in V2 (possibly as snapshot)"
+                "MAGNUS-VALV2-24: Migrated pubkey must still exist in V2 (possibly as snapshot)"
             );
             assertTrue(
                 snapshotVal.deactivatedAtHeight != 0,
-                "TEMPO-VALV2-24: Rotated-out migrated pubkey must be in a deactivated snapshot"
+                "MAGNUS-VALV2-24: Rotated-out migrated pubkey must be in a deactivated snapshot"
             );
         }
     }
@@ -1492,7 +1492,7 @@ contract ValidatorConfigV2InvariantTest is InvariantBaseTest {
                     vm.stopPrank();
                     fail(
                         string.concat(
-                            "TEMPO-VALV2-TEARDOWN: deactivateValidator reverted for active validator: ",
+                            "MAGNUS-VALV2-TEARDOWN: deactivateValidator reverted for active validator: ",
                             vm.toString(reason)
                         )
                     );
