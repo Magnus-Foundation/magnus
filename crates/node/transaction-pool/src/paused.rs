@@ -1,6 +1,6 @@
 //! Pool for transactions whose fee token is temporarily paused.
 //!
-//! When a TIP20 fee token emits `PauseStateUpdate(isPaused=true)`, transactions
+//! When a MIP20 fee token emits `PauseStateUpdate(isPaused=true)`, transactions
 //! using that fee token are moved here instead of being evicted entirely.
 //! When the token is unpaused, transactions are moved back to the main pool
 //! and re-validated.

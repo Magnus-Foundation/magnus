@@ -1,4 +1,4 @@
-//! Tempo EVM Handler implementation.
+//! Magnus EVM Handler implementation.
 
 use std::{
     cmp::Ordering,
@@ -51,7 +51,7 @@ use magnus_precompiles::{
         Handler as _, PrecompileStorageProvider, StorageCtx, evm::EvmPrecompileStorageProvider,
     },
     tip_fee_manager::TipFeeManager,
-    tip20::{ITIP20::InsufficientBalance, TIP20Error, TIP20Token},
+    mip20::{IMIP20::InsufficientBalance, MIP20Error, MIP20Token},
 };
 use magnus_primitives::{
     MagnusAddressExt,
@@ -84,9 +84,9 @@ const KEY_AUTH_PER_LIMIT_GAS: u64 = 22_000;
 
 /// Gas cost for expiring nonce transactions (replay check + insert).
 ///
-/// See [TIP-1009] for full specification.
+/// See [MIP-1009] for full specification.
 ///
-/// [TIP-1009]: <https://docs.tempo.xyz/protocol/tips/tip-1009>
+/// [MIP-1009]: <https://docs.magnus.xyz/protocol/mips/mip-1009>
 ///
 /// Operations charged:
 /// - 2 cold SLOADs: `seen[tx_hash]`, `ring[idx]` (unique slots per tx)
@@ -347,7 +347,7 @@ fn adjusted_initial_gas(
     }
 }
 
-/// Tempo EVM [`Handler`] implementation with Tempo specific modifications:
+/// Magnus EVM [`Handler`] implementation with Magnus specific modifications:
 ///
 /// Fees are paid in fee tokens instead of account balance.
 #[derive(Debug)]
@@ -731,7 +731,7 @@ where
     ///
     /// Additionally, delegates the standard single-call execution to the `exec_loop` closure.
     /// This allows downstream consumers like the `FoundryHandler` to inject custom execution
-    /// loop logic (such as CREATE2 factory routing) while preserving all Tempo-specific
+    /// loop logic (such as CREATE2 factory routing) while preserving all Magnus-specific
     /// behavior as a single source of truth.
     pub fn inspect_execution_with<F>(
         &mut self,
@@ -863,7 +863,7 @@ where
             pre_execution::apply_eip7702_auth_list::<_, Self::Error>(evm.ctx(), init_and_floor_gas)?
         };
 
-        // TIP-1000: State Creation Cost Increase
+        // MIP-1000: State Creation Cost Increase
         // Authorization lists: There is no refund if the account already exists
         if spec.is_t1() {
             return Ok(0);
@@ -891,14 +891,14 @@ where
 
         evm.fee_token = Some(fee_token);
 
-        // Always validate TIP20 prefix to prevent panics in get_token_balance.
+        // Always validate MIP20 prefix to prevent panics in get_token_balance.
         // This is a protocol-level check since validators could bypass initial validation.
         if !fee_token.is_tip20() {
             return Err(MagnusInvalidTransaction::InvalidFeeToken(fee_token).into());
         }
 
         // Skip USD currency check for cases when the transaction is free and is not a part of a subblock.
-        // Since we already validated the TIP20 prefix above, we only need to check the USD currency.
+        // Since we already validated the MIP20 prefix above, we only need to check the USD currency.
         if (!tx.max_balance_spending()?.is_zero() || tx.is_subblock_transaction())
             && !journal
                 .is_tip20_usd(cfg.spec, fee_token)
@@ -1151,7 +1151,7 @@ where
                 .validate_chain_id(cfg.chain_id(), spec.is_t1c())
                 .map_err(MagnusInvalidTransaction::from)?;
 
-            // T3 gates all TIP-1011 fields. Before activation, transaction semantics must stay
+            // T3 gates all MIP-1011 fields. Before activation, transaction semantics must stay
             // unchanged, so periodic limits and call scopes are rejected.
             if !spec.is_t3() {
                 if key_auth.has_periodic_limits() {
@@ -1406,7 +1406,7 @@ where
 
                     // Set the transaction key in the keychain precompile
                     // This marks that the current transaction is using an access key
-                    // The TIP20 precompile will read this during execution to enforce spending limits
+                    // The MIP20 precompile will read this during execution to enforce spending limits
                     keychain
                         .set_transaction_key(access_key_addr)
                         .map_err(|e| EVMError::Custom(e.to_string()))?;
@@ -1452,7 +1452,7 @@ where
                     .into()
                 }
 
-                MagnusPrecompileError::TIP20(TIP20Error::InsufficientBalance(
+                MagnusPrecompileError::MIP20(MIP20Error::InsufficientBalance(
                     InsufficientBalance { available, .. },
                 )) => FeePaymentError::InsufficientFeeTokenBalance {
                     fee: gas_balance_spending,
@@ -1560,7 +1560,7 @@ where
         }
 
         // All accounts have zero balance so transfer of value is not possible.
-        // Check added in https://github.com/tempoxyz/tempo/pull/759
+        // Check added in https://github.com/Magnus-Foundation/magnus/pull/759
         if !evm.ctx.tx.value().is_zero() {
             return Err(MagnusInvalidTransaction::ValueTransferNotAllowed.into());
         }
@@ -1680,7 +1680,7 @@ where
                 storage as u64,
                 tx.authorization_list_len() as u64,
             );
-            // TIP-1000: Storage pricing updates for launch
+            // MIP-1000: Storage pricing updates for launch
             // EIP-7702 authorisation list entries with `auth_list.nonce == 0` require an additional 250,000 gas.
             // no need for v1 fork check as gas_params would be zero
             for auth in tx.authorization_list() {
@@ -1690,7 +1690,7 @@ where
                 }
             }
 
-            // TIP-1000: Storage pricing updates for launch
+            // MIP-1000: Storage pricing updates for launch
             // Transactions with any `nonce_key` and `nonce == 0` require an additional 250,000 gas.
             if spec.is_t1() && tx.nonce == 0 {
                 init_gas.initial_total_gas += gas_params.get(GasId::new_account_cost());
@@ -1848,7 +1848,7 @@ pub fn calculate_aa_batch_intrinsic_gas<'a>(
     // No need for v1 fork check as gas_params would be zero
     for auth in authorization_list {
         gas.initial_total_gas += magnus_signature_verification_gas(auth.signature());
-        // TIP-1000: Storage pricing updates for launch
+        // MIP-1000: Storage pricing updates for launch
         // EIP-7702 authorisation list entries with `auth_list.nonce == 0` require an additional 250,000 gas.
         if auth.nonce == 0 {
             gas.initial_total_gas += gas_params.tx_tip1000_auth_account_creation_cost();
@@ -1870,7 +1870,7 @@ pub fn calculate_aa_batch_intrinsic_gas<'a>(
 
         // 4b. CREATE-specific costs
         if call.to.is_create() {
-            // CREATE costs 500,000 gas in TIP-1000 (T1), 32,000 before
+            // CREATE costs 500,000 gas in MIP-1000 (T1), 32,000 before
             gas.initial_total_gas += gas_params.create_cost();
 
             // EIP-3860: Initcode analysis gas using revm helper
@@ -1878,7 +1878,7 @@ pub fn calculate_aa_batch_intrinsic_gas<'a>(
         }
 
         // Note: Transaction value is not allowed in AA transactions as there is no balances in accounts yet.
-        // Check added in https://github.com/tempoxyz/tempo/pull/759
+        // Check added in https://github.com/Magnus-Foundation/magnus/pull/759
         if !call.value.is_zero() {
             return Err(MagnusInvalidTransaction::ValueTransferNotAllowedInAATx);
         }
@@ -1955,12 +1955,12 @@ where
             // - Regular nonce (nonce_key == 0): no additional gas
             batch_gas.initial_total_gas += EXPIRING_NONCE_GAS;
         } else if tx.nonce == 0 {
-            // TIP-1000: Storage pricing updates for launch
-            // Tempo transactions with any `nonce_key` and `nonce == 0` require an additional 250,000 gas
+            // MIP-1000: Storage pricing updates for launch
+            // Magnus transactions with any `nonce_key` and `nonce == 0` require an additional 250,000 gas
             batch_gas.initial_total_gas += gas_params.get(GasId::new_account_cost());
         } else if !aa_env.nonce_key.is_zero() {
             // Existing 2D nonce key usage (nonce > 0)
-            // TIP-1000 Invariant 3: existing state updates must charge +5,000 gas
+            // MIP-1000 Invariant 3: existing state updates must charge +5,000 gas
             batch_gas.initial_total_gas += spec.gas_existing_nonce_key();
         }
     } else if let Some(aa_env) = &tx.magnus_tx_env
@@ -2011,7 +2011,7 @@ where
     Ok(batch_gas)
 }
 
-/// IMPORTANT: the caller must ensure `token` is a valid TIP20Token address.
+/// IMPORTANT: the caller must ensure `token` is a valid MIP20Token address.
 pub fn get_token_balance<JOURNAL>(
     journal: &mut JOURNAL,
     token: Address,
@@ -2020,10 +2020,10 @@ pub fn get_token_balance<JOURNAL>(
 where
     JOURNAL: JournalTr,
 {
-    // Address has already been validated as having TIP20 prefix
+    // Address has already been validated as having MIP20 prefix
     journal.load_account(token)?;
-    let balance_slot = TIP20Token::from_address(token)
-        .expect("TIP20 prefix already validated")
+    let balance_slot = MIP20Token::from_address(token)
+        .expect("MIP20 prefix already validated")
         .balances[sender]
         .slot();
     let balance = journal.sload(token, balance_slot)?.data;
@@ -2107,7 +2107,7 @@ pub fn validate_time_window(
     }
 
     // Validate validBefore constraint
-    // IMPORTANT: must be aligned with `fn has_expired_transactions` in `tempo-payload-builder`.
+    // IMPORTANT: must be aligned with `fn has_expired_transactions` in `magnus-payload-builder`.
     if let Some(before) = valid_before
         && block_timestamp >= before
     {
@@ -2149,13 +2149,13 @@ mod tests {
 
     #[test]
     fn test_invalid_fee_token_rejected() {
-        // Test that an invalid fee token (non-TIP20 address) is rejected with InvalidFeeToken error
+        // Test that an invalid fee token (non-MIP20 address) is rejected with InvalidFeeToken error
         // rather than panicking. This validates the check in validate_against_state_and_deduct_caller that
         // guards against invalid tokens reaching get_token_balance.
-        let invalid_token = Address::random(); // Random address won't have TIP20 prefix
+        let invalid_token = Address::random(); // Random address won't have MIP20 prefix
         assert!(
             !invalid_token.is_tip20(),
-            "Test requires a non-TIP20 address"
+            "Test requires a non-MIP20 address"
         );
 
         let handler: MagnusEvmHandler<CacheDB<EmptyDB>, ()> = MagnusEvmHandler::default();
@@ -2258,13 +2258,13 @@ mod tests {
     #[test]
     fn test_get_token_balance() -> eyre::Result<()> {
         let mut journal = create_test_journal();
-        // Use PATH_USD_ADDRESS which has the TIP20 prefix
+        // Use PATH_USD_ADDRESS which has the MIP20 prefix
         let token = PATH_USD_ADDRESS;
         let account = Address::random();
         let expected_balance = U256::random();
 
         // Set up initial balance
-        let balance_slot = TIP20Token::from_address(token)?.balances[account].slot();
+        let balance_slot = MIP20Token::from_address(token)?.balances[account].slot();
         journal.load_account(token)?;
         journal
             .sstore(token, balance_slot, expected_balance)
@@ -2717,7 +2717,7 @@ mod tests {
     }
 
     /// This test will start failing once we get the balance transfer enabled
-    /// PR that introduced [`MagnusInvalidTransaction::ValueTransferNotAllowed`] https://github.com/tempoxyz/tempo/pull/759
+    /// PR that introduced [`MagnusInvalidTransaction::ValueTransferNotAllowed`] https://github.com/Magnus-Foundation/magnus/pull/759
     #[test]
     fn test_zero_value_transfer() -> eyre::Result<()> {
         use crate::MagnusEvm;
@@ -4022,13 +4022,13 @@ mod tests {
 
     /// Test that T1 hardfork correctly charges 250k gas for nonce == 0.
     ///
-    /// This test validates [TIP-1000]'s requirement:
-    /// "Tempo transactions with any `nonce_key` and `nonce == 0` require an additional 250,000 gas"
+    /// This test validates [MIP-1000]'s requirement:
+    /// "Magnus transactions with any `nonce_key` and `nonce == 0` require an additional 250,000 gas"
     ///
     /// The test proves the audit finding (claiming only 22,100 gas is charged) is a false positive
     /// by using delta-based assertions: gas(nonce=0) - gas(nonce>0) == new_account_cost.
     ///
-    /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
+    /// [MIP-1000]: <https://docs.magnus.xyz/protocol/mips/mip-1000>
     #[test]
     fn test_t1_2d_nonce_key_charges_250k_gas() {
         use crate::gas_params::magnus_gas_params;
@@ -4041,7 +4041,7 @@ mod tests {
         const NEW_NONCE_KEY_GAS: u64 = SPEC.gas_new_nonce_key();
         const EXISTING_NONCE_KEY_GAS: u64 = SPEC.gas_existing_nonce_key();
 
-        // Create T1 config with TIP-1000 gas params
+        // Create T1 config with MIP-1000 gas params
         let mut cfg = CfgEnv::<MagnusHardfork>::default();
         cfg.spec = SPEC;
         cfg.gas_params = magnus_gas_params(MagnusHardfork::T1);
@@ -4089,7 +4089,7 @@ mod tests {
             .unwrap();
 
         // Case 2: nonce > 0 with same 2D nonce key -> should charge EXISTING_NONCE_KEY_GAS (5k)
-        // This tests that existing 2D nonce keys are charged 5k gas per TIP-1000 Invariant 3
+        // This tests that existing 2D nonce keys are charged 5k gas per MIP-1000 Invariant 3
         let mut evm_nonce_five = make_evm(cfg.clone(), 5, TEST_NONCE_KEY);
         let gas_nonce_five = handler
             .validate_initial_tx_gas(&mut evm_nonce_five)
@@ -4124,14 +4124,14 @@ mod tests {
 
     /// Test that T1 hardfork correctly charges 5k gas for existing 2D nonce keys (nonce > 0).
     ///
-    /// This test validates [TIP-1000] Invariant 3:
+    /// This test validates [MIP-1000] Invariant 3:
     /// "SSTORE operations that modify existing non-zero state (non-zero to non-zero)
     /// MUST continue to charge 5,000 gas"
     ///
     /// When using an existing 2D nonce key (nonce_key != 0 && nonce > 0), the nonce value
     /// transitions from N to N+1 (non-zero to non-zero), which must charge EXISTING_NONCE_KEY_GAS.
     ///
-    /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
+    /// [MIP-1000]: <https://docs.magnus.xyz/protocol/mips/mip-1000>
     #[test]
     fn test_t1_existing_2d_nonce_key_charges_5k_gas() {
         use crate::gas_params::magnus_gas_params;

@@ -45,7 +45,7 @@ impl ForkSchedule {
         }
     }
 
-    /// Returns whether the given Tempo hardfork is active for this schedule.
+    /// Returns whether the given Magnus hardfork is active for this schedule.
     ///
     /// For [`Devnet`](Self::Devnet) all forks from the dev genesis are active.
     /// For other schedules, a fork is active only if its timestamp in the
@@ -153,22 +153,22 @@ use magnus_chainspec::{
 };
 use magnus_contracts::precompiles::{
     IRolesAuth,
-    ITIP20::{self, ITIP20Instance},
-    ITIP20Factory,
+    IMIP20::{self, IMIP20Instance},
+    IMIP20Factory,
 };
 use magnus_node::node::MagnusNode;
 use magnus_payload_types::MagnusPayloadAttributes;
-use magnus_precompiles::{PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS, tip20::ISSUER_ROLE};
+use magnus_precompiles::{PATH_USD_ADDRESS, MIP20_FACTORY_ADDRESS, mip20::ISSUER_ROLE};
 
-/// Creates a test TIP20 token with issuer role granted to the caller
+/// Creates a test MIP20 token with issuer role granted to the caller
 pub(crate) async fn setup_test_token<P>(
     provider: P,
     caller: Address,
-) -> eyre::Result<ITIP20Instance<impl Clone + Provider>>
+) -> eyre::Result<IMIP20Instance<impl Clone + Provider>>
 where
     P: Provider + Clone,
 {
-    let factory = ITIP20Factory::new(TIP20_FACTORY_ADDRESS, provider.clone());
+    let factory = IMIP20Factory::new(MIP20_FACTORY_ADDRESS, provider.clone());
     let salt = B256::random();
     let receipt = factory
         .createToken(
@@ -184,10 +184,10 @@ where
         .await?
         .get_receipt()
         .await?;
-    let event = ITIP20Factory::TokenCreated::decode_log(&receipt.logs()[1].inner).unwrap();
+    let event = IMIP20Factory::TokenCreated::decode_log(&receipt.logs()[1].inner).unwrap();
 
     let token_addr = event.token;
-    let token = ITIP20::new(token_addr, provider.clone());
+    let token = IMIP20::new(token_addr, provider.clone());
     let roles = IRolesAuth::new(*token.address(), provider);
 
     roles
@@ -264,7 +264,7 @@ pub(crate) async fn await_receipts(
 pub(crate) struct SingleNodeSetup {
     /// The node handle for direct manipulation (inject_tx, advance_block, etc.)
     pub node: reth_e2e_test_utils::NodeHelperType<MagnusNode>,
-    /// Latest Tempo hardfork active at genesis (timestamp 0).
+    /// Latest Magnus hardfork active at genesis (timestamp 0).
     pub hardfork: MagnusHardfork,
 }
 

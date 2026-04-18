@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
-# Tempoup - Tempo installer
-# Downloads and installs the tempo binary from GitHub releases
+# Tempoup - Magnus installer
+# Downloads and installs the magnus binary from GitHub releases
 
 # NOTE: if you make modifications to this script, please increment the version number.
 # WARNING: the SemVer pattern: major.minor.patch must be followed as we use it to determine if the script is up to date.
 TEMPOUP_INSTALLER_VERSION="0.0.8"
 
-REPO="tempoxyz/tempo"
+REPO="Magnus-Foundation/magnus"
 # GPG key fingerprint for release signing verification
 GPG_KEY_FINGERPRINT="EE3C5D41EA963E896F310EC3CBBFA54B20D33446"
 GPG_KEYSERVER="keyserver.ubuntu.com"
-BIN_DIR="${MAGNUS_BIN_DIR:-$HOME/.tempo/bin}"
-TEMPOUP_BIN_URL="https://raw.githubusercontent.com/tempoxyz/tempo/main/tempoup/tempoup"
+BIN_DIR="${MAGNUS_BIN_DIR:-$HOME/.magnus/bin}"
+TEMPOUP_BIN_URL="https://raw.githubusercontent.com/Magnus-Foundation/magnus/main/tempoup/tempoup"
 TEMPOUP_BIN_PATH="$BIN_DIR/tempoup"
 
 # Color output
@@ -187,7 +187,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  -v, --version         Print tempoup installer version"
-            echo "  -i, --install <VER>   Install specific tempo version (e.g., v1.0.0)"
+            echo "  -i, --install <VER>   Install specific magnus version (e.g., v1.0.0)"
             echo "  -U, --update          Update tempoup to the latest version"
             echo "  -h, --help            Show this help message"
             echo ""
@@ -287,7 +287,7 @@ get_latest_version() {
 
     # List recent non-prerelease releases and pick the first tag starting with
     # "v" (binary releases). The /releases/latest endpoint can return crate-publish
-    # tags (e.g. tempo-primitives@1.6.0) which carry no binary assets.
+    # tags (e.g. magnus-primitives@1.6.0) which carry no binary assets.
     # We also match only strict "vN.N.N" to skip prerelease tags like v1.6.0-rc.1.
     local api_url="https://api.github.com/repos/$REPO/releases?per_page=100"
     local version=$(curl -sSL "$api_url" 2>/dev/null | \
@@ -306,7 +306,7 @@ main() {
     # Check if tempoup installer is up to date
     check_installer_up_to_date
 
-    info "Installing tempo..."
+    info "Installing magnus..."
 
     # Ensure BIN_DIR exists
     mkdir -p "$BIN_DIR"
@@ -330,23 +330,23 @@ main() {
     VERSION_TAG="$VERSION"
     VERSION_NUMBER="${VERSION#v}"
 
-    info "Installing tempo $VERSION_TAG"
+    info "Installing magnus $VERSION_TAG"
 
     # Construct archive name
-    # Format: tempo-v{VERSION}-{TARGET}.tar.gz
+    # Format: magnus-v{VERSION}-{TARGET}.tar.gz
     ARCHIVE_EXT="tar.gz"
     if [[ "$PLATFORM" == "win32" ]]; then
         ARCHIVE_EXT="zip"
     fi
 
-    ARCHIVE_NAME="tempo-${VERSION_TAG}-${TARGET}.${ARCHIVE_EXT}"
+    ARCHIVE_NAME="magnus-${VERSION_TAG}-${TARGET}.${ARCHIVE_EXT}"
 
     # Create temporary directory
     TMP_DIR=$(mktemp -d)
     trap "rm -rf $TMP_DIR" EXIT
 
     # Download archive
-    info "Downloading tempo binary..."
+    info "Downloading magnus binary..."
     download_file "$VERSION_TAG" "$ARCHIVE_NAME" "$TMP_DIR"
 
     ARCHIVE_PATH="$TMP_DIR/$ARCHIVE_NAME"
@@ -378,7 +378,7 @@ main() {
             # Import the release signing key if not already present
             if ! gpg --list-keys "$GPG_KEY_FINGERPRINT" >/dev/null 2>&1; then
                 GPG_KEY_URL="https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${GPG_KEY_FINGERPRINT}"
-                info "Fetching Tempo release signing key..."
+                info "Fetching Magnus release signing key..."
                 if curl -sSfL "$GPG_KEY_URL" 2>/dev/null | gpg --import 2>/dev/null; then
                     : # key imported via HTTPS
                 else
@@ -410,9 +410,9 @@ main() {
         unzip -q "$ARCHIVE_PATH" -d "$TMP_DIR"
     fi
 
-    # Find tempo binary in extracted files
-    # Binary is named: tempo-{VERSION}-{TARGET}
-    BINARY_PATTERN="tempo-${VERSION_TAG}-${TARGET}"
+    # Find magnus binary in extracted files
+    # Binary is named: magnus-{VERSION}-{TARGET}
+    BINARY_PATTERN="magnus-${VERSION_TAG}-${TARGET}"
     if [[ "$PLATFORM" == "win32" ]]; then
         BINARY_PATTERN="${BINARY_PATTERN}.exe"
     fi
@@ -420,19 +420,19 @@ main() {
     BINARY_PATH=$(find "$TMP_DIR" -name "$BINARY_PATTERN" -type f | head -n 1)
 
     if [[ -z "$BINARY_PATH" ]]; then
-        error "Could not find tempo binary in downloaded archive"
+        error "Could not find magnus binary in downloaded archive"
     fi
 
-    # Final binary name (just "tempo" or "tempo.exe")
-    BINARY_NAME="tempo"
+    # Final binary name (just "magnus" or "magnus.exe")
+    BINARY_NAME="magnus"
     if [[ "$PLATFORM" == "win32" ]]; then
-        BINARY_NAME="tempo.exe"
+        BINARY_NAME="magnus.exe"
     fi
 
     # Install binary
     # Move old binary out of the way to avoid ETXTBSY ("Text file busy") when
-    # overwriting a running executable (e.g. `tempo update` calls tempoup
-    # while the tempo binary is still mapped). If the script fails at any
+    # overwriting a running executable (e.g. `magnus update` calls tempoup
+    # while the magnus binary is still mapped). If the script fails at any
     # point after this, the trap restores the old binary.
     info "Installing to $BIN_DIR/$BINARY_NAME..."
     local OLD_BINARY="$BIN_DIR/$BINARY_NAME.old"
@@ -451,7 +451,7 @@ main() {
 
     # Success message
     echo ""
-    info "✓ Tempo $VERSION_TAG installed successfully!"
+    info "✓ Magnus $VERSION_TAG installed successfully!"
     echo ""
 
     # Warn only if BIN_DIR is not in PATH
@@ -461,7 +461,7 @@ main() {
         echo "    export PATH=\"$BIN_DIR:\$PATH\""
         echo ""
     else
-        info "Run 'tempo --version' to verify installation"
+        info "Run 'magnus --version' to verify installation"
     fi
 }
 

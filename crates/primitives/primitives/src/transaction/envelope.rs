@@ -9,26 +9,26 @@ use alloy_consensus::{
 };
 use alloy_primitives::{Address, B256, Bytes, Signature, TxKind, U256, hex};
 use core::fmt;
-use magnus_contracts::precompiles::ITIP20;
+use magnus_contracts::precompiles::IMIP20;
 
-/// TIP20 payment address prefix (12 bytes for payment classification)
-/// Same as TIP20_TOKEN_PREFIX
-pub const TIP20_PAYMENT_PREFIX: [u8; 12] = hex!("20C000000000000000000000");
+/// MIP20 payment address prefix (12 bytes for payment classification)
+/// Same as MIP20_TOKEN_PREFIX
+pub const MIP20_PAYMENT_PREFIX: [u8; 12] = hex!("20C000000000000000000000");
 
-/// Fake signature for Tempo system transactions.
+/// Fake signature for Magnus system transactions.
 pub const MAGNUS_SYSTEM_TX_SIGNATURE: Signature = Signature::new(U256::ZERO, U256::ZERO, false);
 
-/// Fake sender for Tempo system transactions.
+/// Fake sender for Magnus system transactions.
 pub const MAGNUS_SYSTEM_TX_SENDER: Address = Address::ZERO;
 
-/// Tempo transaction envelope containing all supported transaction types
+/// Magnus transaction envelope containing all supported transaction types
 ///
 /// Transaction types included:
 /// - Legacy transactions
 /// - EIP-2930 access list transactions
 /// - EIP-1559 dynamic fee transactions
 /// - EIP-7702 authorization list transactions
-/// - Tempo transactions
+/// - Magnus transactions
 #[derive(Clone, Debug, alloy_consensus::TransactionEnvelope)]
 #[envelope(
     tx_type_name = MagnusTxType,
@@ -55,7 +55,7 @@ pub enum MagnusTxEnvelope {
     #[envelope(ty = 4)]
     Eip7702(Signed<TxEip7702>),
 
-    /// Tempo transaction (type 0x76)
+    /// Magnus transaction (type 0x76)
     #[envelope(ty = 0x76, typed = MagnusTransaction)]
     AA(AASigned),
 }
@@ -137,7 +137,7 @@ impl MagnusTxEnvelope {
         }
     }
 
-    /// Returns the Tempo authorization list if present (for Tempo transactions)
+    /// Returns the Magnus authorization list if present (for Magnus transactions)
     pub fn magnus_authorization_list(
         &self,
     ) -> Option<&[crate::transaction::MagnusSignedAuthorization]> {
@@ -147,12 +147,12 @@ impl MagnusTxEnvelope {
         }
     }
 
-    /// Returns true if this is a Tempo system transaction
+    /// Returns true if this is a Magnus system transaction
     pub fn is_system_tx(&self) -> bool {
         matches!(self, Self::Legacy(tx) if tx.signature() == &MAGNUS_SYSTEM_TX_SIGNATURE)
     }
 
-    /// Returns true if this is a valid Tempo system transaction, i.e all gas fields and nonce are zero.
+    /// Returns true if this is a valid Magnus system transaction, i.e all gas fields and nonce are zero.
     pub fn is_valid_system_tx(&self, chain_id: u64) -> bool {
         self.max_fee_per_gas() == 0
             && self.gas_limit() == 0
@@ -161,16 +161,16 @@ impl MagnusTxEnvelope {
             && self.nonce() == 0
     }
 
-    /// [TIP-20 payment] classification: `to` address has the `0x20c0` prefix.
+    /// [MIP-20 payment] classification: `to` address has the `0x20c0` prefix.
     ///
-    /// A transaction is considered a payment if its `to` address carries the TIP-20 prefix.
-    /// For AA transactions, every call must target a TIP-20 address.
+    /// A transaction is considered a payment if its `to` address carries the MIP-20 prefix.
+    /// For AA transactions, every call must target a MIP-20 address.
     ///
     /// # NOTE
     /// Consensus-level classifier, used during block validation, against `general_gas_limit`.
     /// See [`is_payment_v2`](Self::is_payment_v2) for the stricter builder-level variant.
     ///
-    /// [TIP-20 payment]: <https://docs.tempo.xyz/protocol/tip20/overview#get-predictable-payment-fees>
+    /// [MIP-20 payment]: <https://docs.magnus.xyz/protocol/mip20/overview#get-predictable-payment-fees>
     pub fn is_payment_v1(&self) -> bool {
         match self {
             Self::Legacy(tx) => is_tip20_call(tx.tx().to.to()),
@@ -181,7 +181,7 @@ impl MagnusTxEnvelope {
         }
     }
 
-    /// Strict [TIP-20 payment]: `0x20c0` prefix, recognized calldata, and NO gas-bearing sidecars.
+    /// Strict [MIP-20 payment]: `0x20c0` prefix, recognized calldata, and NO gas-bearing sidecars.
     ///
     /// Like [`is_payment_v1`](Self::is_payment_v1), but additionally requires:
     /// - calldata to match a recognized payment selector with exact ABI-encoded length.
@@ -190,10 +190,10 @@ impl MagnusTxEnvelope {
     ///
     /// # NOTE
     /// Builder-level classifier, used by the transaction pool and payload builder to prevent DoS of
-    /// the payment lane. NOT enforced during block validation — a future TIP will enshrine this
+    /// the payment lane. NOT enforced during block validation — a future MIP will enshrine this
     /// stricter classification at the protocol level.
     ///
-    /// [TIP-20 payment]: <https://docs.tempo.xyz/protocol/tip20/overview#get-predictable-payment-fees>
+    /// [MIP-20 payment]: <https://docs.magnus.xyz/protocol/mip20/overview#get-predictable-payment-fees>
     pub fn is_payment_v2(&self) -> bool {
         match self {
             Self::Legacy(tx) => is_tip20_payment(tx.tx().to.to(), &tx.tx().input),
@@ -231,7 +231,7 @@ impl MagnusTxEnvelope {
         tx.tx().subblock_proposer()
     }
 
-    /// Returns the [`AASigned`] transaction if this is a Tempo transaction.
+    /// Returns the [`AASigned`] transaction if this is a Magnus transaction.
     pub fn as_aa(&self) -> Option<&AASigned> {
         match self {
             Self::AA(tx) => Some(tx),
@@ -244,7 +244,7 @@ impl MagnusTxEnvelope {
         self.as_aa().map(|tx| tx.tx().nonce_key)
     }
 
-    /// Returns true if this is a Tempo transaction
+    /// Returns true if this is a Magnus transaction
     pub fn is_aa(&self) -> bool {
         matches!(self, Self::AA(_))
     }
@@ -472,17 +472,17 @@ impl From<MagnusTransaction> for MagnusTypedTransaction {
     }
 }
 
-/// Returns `true` if `to` has the TIP-20 payment prefix.
+/// Returns `true` if `to` has the MIP-20 payment prefix.
 #[inline]
 fn is_tip20_call(to: Option<&Address>) -> bool {
-    to.is_some_and(|to| to.starts_with(&TIP20_PAYMENT_PREFIX))
+    to.is_some_and(|to| to.starts_with(&MIP20_PAYMENT_PREFIX))
 }
 
-/// Returns `true` if `to` has the TIP-20 payment prefix and `input` is recognized payment
+/// Returns `true` if `to` has the MIP-20 payment prefix and `input` is recognized payment
 /// calldata (selector + exact ABI-encoded length).
 #[inline]
 fn is_tip20_payment(to: Option<&Address>, input: &[u8]) -> bool {
-    is_tip20_call(to) && ITIP20::ITIP20Calls::is_payment(input)
+    is_tip20_call(to) && IMIP20::IMIP20Calls::is_payment(input)
 }
 
 #[cfg(feature = "rpc")]
@@ -532,19 +532,19 @@ mod tests {
     const PAYMENT_TKN: Address = address!("20c0000000000000000000000000000000000001");
 
     #[rustfmt::skip]
-    /// Returns valid ABI-encoded calldata for every recognized TIP-20 payment selector.
+    /// Returns valid ABI-encoded calldata for every recognized MIP-20 payment selector.
     fn payment_calldatas() -> [Bytes; 9] {
         let (to, from, amount, memo) = (Address::random(), Address::random(), U256::random(), B256::random());
         [
-            ITIP20::transferCall { to, amount }.abi_encode().into(),
-            ITIP20::transferWithMemoCall { to, amount, memo }.abi_encode().into(),
-            ITIP20::transferFromCall { from, to, amount }.abi_encode().into(),
-            ITIP20::transferFromWithMemoCall { from, to, amount, memo }.abi_encode().into(),
-            ITIP20::approveCall { spender: to, amount }.abi_encode().into(),
-            ITIP20::mintCall { to, amount }.abi_encode().into(),
-            ITIP20::mintWithMemoCall { to, amount, memo }.abi_encode().into(),
-            ITIP20::burnCall { amount }.abi_encode().into(),
-            ITIP20::burnWithMemoCall { amount, memo }.abi_encode().into(),
+            IMIP20::transferCall { to, amount }.abi_encode().into(),
+            IMIP20::transferWithMemoCall { to, amount, memo }.abi_encode().into(),
+            IMIP20::transferFromCall { from, to, amount }.abi_encode().into(),
+            IMIP20::transferFromWithMemoCall { from, to, amount, memo }.abi_encode().into(),
+            IMIP20::approveCall { spender: to, amount }.abi_encode().into(),
+            IMIP20::mintCall { to, amount }.abi_encode().into(),
+            IMIP20::mintWithMemoCall { to, amount, memo }.abi_encode().into(),
+            IMIP20::burnCall { amount }.abi_encode().into(),
+            IMIP20::burnWithMemoCall { amount, memo }.abi_encode().into(),
         ]
     }
 
@@ -679,7 +679,7 @@ mod tests {
 
     #[test]
     fn test_payment_classification_aa_partial_match() {
-        // First 12 bytes match TIP20_PAYMENT_PREFIX, remaining 8 bytes differ
+        // First 12 bytes match MIP20_PAYMENT_PREFIX, remaining 8 bytes differ
         let payment_addr = address!("20c0000000000000000000001111111111111111");
         let call = Call {
             to: TxKind::Call(payment_addr),
@@ -818,7 +818,7 @@ mod tests {
 
     #[test]
     fn test_payment_v2_eip7702_rejects_authorization_list() {
-        let calldata = ITIP20::transferCall {
+        let calldata = IMIP20::transferCall {
             to: Address::random(),
             amount: U256::from(1),
         }
@@ -852,7 +852,7 @@ mod tests {
 
     #[test]
     fn test_payment_v2_aa_rejects_key_authorization() {
-        let calldata = ITIP20::transferCall {
+        let calldata = IMIP20::transferCall {
             to: Address::random(),
             amount: U256::from(1),
         }
@@ -890,7 +890,7 @@ mod tests {
 
     #[test]
     fn test_payment_v2_aa_rejects_tempo_authorization_list() {
-        let calldata = ITIP20::transferCall {
+        let calldata = IMIP20::transferCall {
             to: Address::random(),
             amount: U256::from(1),
         }
@@ -925,7 +925,7 @@ mod tests {
 
     #[test]
     fn test_payment_v2_rejects_access_list() {
-        let calldata: Bytes = ITIP20::transferCall {
+        let calldata: Bytes = IMIP20::transferCall {
             to: Address::random(),
             amount: U256::from(1),
         }

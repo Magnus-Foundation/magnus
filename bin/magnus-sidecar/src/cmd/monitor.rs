@@ -44,7 +44,7 @@ impl MonitorArgs {
             .context("failed to install recorder")?;
 
         if self.tokens.iter().any(|t| !t.is_tip20()) {
-            return Err(eyre!("Invalid input. Pools require TIP20 tokens."));
+            return Err(eyre!("Invalid input. Pools require MIP20 tokens."));
         }
 
         let mut monitor = Monitor::new(

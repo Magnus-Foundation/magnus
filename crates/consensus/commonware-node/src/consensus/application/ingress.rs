@@ -145,7 +145,7 @@ impl Automaton for Mailbox {
     }
 }
 
-// TODO: figure out if this can be useful for tempo. The original PR implementing
+// TODO: figure out if this can be useful for magnus. The original PR implementing
 // this trait:
 // https://github.com/commonwarexyz/monorepo/pull/2565
 // Associated issue:

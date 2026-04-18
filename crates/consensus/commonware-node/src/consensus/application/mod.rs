@@ -67,7 +67,7 @@ pub(super) struct Config<TContext> {
     /// The minimum amount of time to wait before returning the built payload back to consensus for proposal.
     pub(super) payload_return_time: Duration,
 
-    /// The epoch strategy used by tempo, to map block heights to epochs.
+    /// The epoch strategy used by magnus, to map block heights to epochs.
     pub(super) epoch_strategy: FixedEpocher,
 
     /// The scheme provider to use for the application.

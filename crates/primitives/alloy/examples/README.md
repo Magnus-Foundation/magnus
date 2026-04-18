@@ -1,13 +1,13 @@
-# `tempo-alloy` Examples
+# `magnus-alloy` Examples
 
-Runnable examples demonstrating common operations with the `tempo-alloy` crate.
+Runnable examples demonstrating common operations with the `magnus-alloy` crate.
 
 ## Prerequisites
 
-Set the `RPC_URL` environment variable to a Tempo RPC endpoint:
+Set the `RPC_URL` environment variable to a Magnus RPC endpoint:
 
 ```bash
-export RPC_URL="https://rpc.moderato.tempo.xyz"
+export RPC_URL="https://rpc.moderato.magnus.xyz"
 ```
 
 ## Running Examples
@@ -15,7 +15,7 @@ export RPC_URL="https://rpc.moderato.tempo.xyz"
 Run any example with:
 
 ```bash
-cargo run --example <example_name> -p tempo-alloy
+cargo run --example <example_name> -p magnus-alloy
 ```
 
 ## Examples
@@ -24,7 +24,7 @@ cargo run --example <example_name> -p tempo-alloy
 |---------|-------------|
 | `get_balance` | Get the balance of a token for an address |
 | `get_block_number` | Get the current block number from the network |
-| `configure_provider` | Configure a Tempo provider to interact with the network |
+| `configure_provider` | Configure a Magnus provider to interact with the network |
 | `transfer` | Send a basic token transfer |
 | `transfer_with_memo` | Send a token transfer with a memo for payment reconciliation |
 | `batch_payments` | Send multiple payments in a single batch transaction |

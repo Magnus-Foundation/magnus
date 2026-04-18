@@ -7,7 +7,7 @@ use alloy::{
 };
 use alloy_rpc_types_eth::TransactionRequest;
 use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
-use magnus_contracts::precompiles::{IFeeManager, ITIP20};
+use magnus_contracts::precompiles::{IFeeManager, IMIP20};
 use magnus_precompiles::TIP_FEE_MANAGER_ADDRESS;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -41,13 +41,13 @@ async fn test_payment_lane_with_mixed_load() -> eyre::Result<()> {
     // Get fee tokens for both accounts
     let fee_manager = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, provider.clone());
     let fee_token_address1 = fee_manager.userTokens(caller).call().await?;
-    let fee_token1 = ITIP20::new(fee_token_address1, provider.clone());
+    let fee_token1 = IMIP20::new(fee_token_address1, provider.clone());
 
     let fee_manager2 = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, provider2.clone());
     let fee_token_address2 = fee_manager2.userTokens(caller2).call().await?;
-    let fee_token2 = ITIP20::new(fee_token_address2, provider2.clone());
+    let fee_token2 = IMIP20::new(fee_token_address2, provider2.clone());
 
-    // Setup TIP20 tokens for payment transactions
+    // Setup MIP20 tokens for payment transactions
     let token = crate::utils::setup_test_token(provider.clone(), caller).await?;
     let token2 = crate::utils::setup_test_token(provider2.clone(), caller2).await?;
 
@@ -426,7 +426,7 @@ async fn test_payment_lane_ordering() -> eyre::Result<()> {
         providers.push(provider);
     }
 
-    // Setup a single shared TIP20 token to reduce setup transactions
+    // Setup a single shared MIP20 token to reduce setup transactions
     let shared_token =
         crate::utils::setup_test_token(providers[0].clone(), wallets[0].address()).await?;
 
@@ -443,7 +443,7 @@ async fn test_payment_lane_ordering() -> eyre::Result<()> {
     // Create token instances for each provider
     let mut tokens = Vec::new();
     for provider in &providers {
-        let token = ITIP20::new(*shared_token.address(), provider.clone());
+        let token = IMIP20::new(*shared_token.address(), provider.clone());
         tokens.push(token);
     }
 
@@ -544,7 +544,7 @@ async fn test_payment_lane_gas_limits() -> eyre::Result<()> {
     let caller = wallet.address();
     let provider = ProviderBuilder::new().wallet(wallet).connect_http(http_url);
 
-    // Setup a TIP20 token for payment transactions
+    // Setup a MIP20 token for payment transactions
     let token = crate::utils::setup_test_token(provider.clone(), caller).await?;
     token
         .mint(caller, U256::from(1_000_000))
@@ -579,7 +579,7 @@ async fn test_payment_lane_gas_limits() -> eyre::Result<()> {
     // Now send payment transactions - they should still go through
     println!("\nSending payment transactions (should succeed despite non-payment gas usage)...");
     for i in 0..3 {
-        // Send valid TIP20 transfer transactions
+        // Send valid MIP20 transfer transactions
         let transfer_tx = token.transfer(caller, U256::from(1));
         let tx = transfer_tx
             .into_transaction_request()

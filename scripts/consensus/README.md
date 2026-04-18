@@ -1,6 +1,6 @@
 # Consensus E2E Tests
 
-This directory contains e2e tests for Tempo consensus. Each test spins up 4 peered validators, starts a round-robin transaction generator, and verifies behavior under various failure modes.
+This directory contains e2e tests for Magnus consensus. Each test spins up 4 peered validators, starts a round-robin transaction generator, and verifies behavior under various failure modes.
 
 ### test-partial-network-failure.sh
 Single node crash and recovery. This test starts the network and tx generator, verifies block production continues, restarts the validator, and verifies continued production.

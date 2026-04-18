@@ -1379,7 +1379,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", container=\"tempo-node\"}[5m])) by (pod)",
+          "expr": "avg(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", container=\"magnus-node\"}[5m])) by (pod)",
           "legendFormat": "{{pod}} - usage",
           "range": true,
           "refId": "A"
@@ -1390,7 +1390,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(kube_pod_container_resource_limits{namespace=\"$namespace\", resource=\"cpu\", container=\"tempo-node\"}) by (pod)",
+          "expr": "avg(kube_pod_container_resource_limits{namespace=\"$namespace\", resource=\"cpu\", container=\"magnus-node\"}) by (pod)",
           "instant": false,
           "legendFormat": "{{pod}} - limit",
           "range": true,
@@ -1490,7 +1490,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(container_memory_working_set_bytes{namespace=\"$namespace\", container=\"tempo-node\"}) by (pod)",
+          "expr": "avg(container_memory_working_set_bytes{namespace=\"$namespace\", container=\"magnus-node\"}) by (pod)",
           "legendFormat": "{{pod}} - usage",
           "range": true,
           "refId": "A"
@@ -1501,7 +1501,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "avg(kube_pod_container_resource_limits{namespace=\"$namespace\", resource=\"memory\", container=\"tempo-node\"}) by (pod)",
+          "expr": "avg(kube_pod_container_resource_limits{namespace=\"$namespace\", resource=\"memory\", container=\"magnus-node\"}) by (pod)",
           "instant": false,
           "legendFormat": "{{pod}} - limit",
           "range": true,
@@ -1953,7 +1953,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Tempo - Benchmarking",
+  "title": "Magnus - Benchmarking",
   "uid": "alwpxwv",
   "version": 13,
   "weekStart": ""

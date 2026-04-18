@@ -26,7 +26,7 @@ use magnus_node::primitives::{
     transaction::{Call, calc_gas_balance_spending},
 };
 use magnus_precompiles::{
-    DEFAULT_FEE_TOKEN, NONCE_PRECOMPILE_ADDRESS, nonce::NonceManager, tip20::TIP20Token,
+    DEFAULT_FEE_TOKEN, NONCE_PRECOMPILE_ADDRESS, nonce::NonceManager, mip20::MIP20Token,
 };
 
 use magnus_node::consensus::MAGNUS_SHARED_GAS_DIVISOR;
@@ -115,7 +115,7 @@ fn subblocks_are_included() {
 
                 // Assert that all validators were paid for their subblock transactions
                 for fee_recipient in &fee_recipients {
-                    let balance_slot = TIP20Token::from_address(DEFAULT_FEE_TOKEN)
+                    let balance_slot = MIP20Token::from_address(DEFAULT_FEE_TOKEN)
                         .unwrap()
                         .balances[*fee_recipient]
                         .slot();
@@ -284,7 +284,7 @@ fn subblocks_are_included_with_failing_txs() {
                     .storage;
 
                 // Assert that all validators were paid for their subblock transactions
-                let balance_slot = TIP20Token::from_address(DEFAULT_FEE_TOKEN)
+                let balance_slot = MIP20Token::from_address(DEFAULT_FEE_TOKEN)
                     .unwrap()
                     .balances[*fee_recipient]
                     .slot();
@@ -299,7 +299,7 @@ fn subblocks_are_included_with_failing_txs() {
             }
 
             // Send subblock transactions to all nodes.
-            // TIP-1000 charges 250k gas for new account creation, so txs from random signers
+            // MIP-1000 charges 250k gas for new account creation, so txs from random signers
             // need ~300k intrinsic gas. With 600k per-validator budget (5 validators), we fit 2 txs.
             for node in nodes.iter() {
                 for _ in 0..5 {

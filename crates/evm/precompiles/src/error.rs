@@ -1,4 +1,4 @@
-//! Unified error handling for Tempo precompiles.
+//! Unified error handling for Magnus precompiles.
 //!
 //! Provides [`MagnusPrecompileError`] — the top-level error enum — along with an
 //! ABI-selector-based decoder registry for mapping raw revert bytes back to
@@ -9,7 +9,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-use crate::tip20::TIP20Error;
+use crate::mip20::MIP20Error;
 use alloy::{
     primitives::{Selector, U256},
     sol_types::{Panic, PanicKind, SolError, SolInterface},
@@ -21,11 +21,11 @@ use revm::{
 };
 use magnus_contracts::precompiles::{
     AccountKeychainError, AddrRegistryError, FeeManagerError, NonceError, RolesAuthError,
-    SignatureVerifierError, StablecoinDEXError, TIP20FactoryError, TIP403RegistryError,
+    SignatureVerifierError, StablecoinDEXError, MIP20FactoryError, MIP403RegistryError,
     TIPFeeAMMError, UnknownFunctionSelector, ValidatorConfigError, ValidatorConfigV2Error,
 };
 
-/// Top-level error type for all Tempo precompile operations
+/// Top-level error type for all Magnus precompile operations
 #[derive(
     Debug, Clone, PartialEq, Eq, thiserror::Error, derive_more::From, derive_more::TryInto,
 )]
@@ -34,36 +34,36 @@ pub enum MagnusPrecompileError {
     #[error("Stablecoin DEX error: {0:?}")]
     StablecoinDEX(StablecoinDEXError),
 
-    /// Error from TIP20 token
-    #[error("TIP20 token error: {0:?}")]
-    TIP20(TIP20Error),
+    /// Error from MIP20 token
+    #[error("MIP20 token error: {0:?}")]
+    MIP20(MIP20Error),
 
-    /// Error from TIP20 factory
-    #[error("TIP20 factory error: {0:?}")]
-    TIP20Factory(TIP20FactoryError),
+    /// Error from MIP20 factory
+    #[error("MIP20 factory error: {0:?}")]
+    MIP20Factory(MIP20FactoryError),
 
     /// Error from roles auth
     #[error("Roles auth error: {0:?}")]
     RolesAuthError(RolesAuthError),
 
-    /// Error from TIP20 registry (TIP-1022)
-    #[error("TIP20 registry error: {0:?}")]
+    /// Error from MIP20 registry (MIP-1022)
+    #[error("MIP20 registry error: {0:?}")]
     AddrRegistryError(AddrRegistryError),
 
     /// Error from 403 registry
-    #[error("TIP403 registry error: {0:?}")]
-    TIP403RegistryError(TIP403RegistryError),
+    #[error("MIP403 registry error: {0:?}")]
+    MIP403RegistryError(MIP403RegistryError),
 
-    /// Error from TIP fee manager
-    #[error("TIP fee manager error: {0:?}")]
+    /// Error from MIP fee manager
+    #[error("MIP fee manager error: {0:?}")]
     FeeManagerError(FeeManagerError),
 
-    /// Error from TIP fee AMM
-    #[error("TIP fee AMM error: {0:?}")]
+    /// Error from MIP fee AMM
+    #[error("MIP fee AMM error: {0:?}")]
     TIPFeeAMMError(TIPFeeAMMError),
 
-    /// Error from Tempo Transaction nonce manager
-    #[error("Tempo Transaction nonce error: {0:?}")]
+    /// Error from Magnus Transaction nonce manager
+    #[error("Magnus Transaction nonce error: {0:?}")]
     NonceError(NonceError),
 
     /// EVM panic (i.e. arithmetic under/overflow, out-of-bounds access).
@@ -126,7 +126,7 @@ impl From<JournalLoadError<revm::context::ErasedError>> for MagnusPrecompileErro
     }
 }
 
-/// Result type alias for Tempo precompile operations
+/// Result type alias for Magnus precompile operations
 pub type Result<T> = std::result::Result<T, MagnusPrecompileError>;
 
 impl MagnusPrecompileError {
@@ -136,14 +136,14 @@ impl MagnusPrecompileError {
         match self {
             Self::OutOfGas | Self::Fatal(_) | Self::Panic(_) => true,
             Self::StablecoinDEX(_)
-            | Self::TIP20(_)
+            | Self::MIP20(_)
             | Self::NonceError(_)
-            | Self::TIP20Factory(_)
+            | Self::MIP20Factory(_)
             | Self::RolesAuthError(_)
             | Self::AddrRegistryError(_)
             | Self::TIPFeeAMMError(_)
             | Self::FeeManagerError(_)
-            | Self::TIP403RegistryError(_)
+            | Self::MIP403RegistryError(_)
             | Self::ValidatorConfigError(_)
             | Self::ValidatorConfigV2Error(_)
             | Self::AccountKeychainError(_)
@@ -175,11 +175,11 @@ impl MagnusPrecompileError {
     pub fn into_precompile_result(self, gas: u64, reservoir: u64) -> PrecompileResult {
         let bytes = match self {
             Self::StablecoinDEX(e) => e.abi_encode().into(),
-            Self::TIP20(e) => e.abi_encode().into(),
-            Self::TIP20Factory(e) => e.abi_encode().into(),
+            Self::MIP20(e) => e.abi_encode().into(),
+            Self::MIP20Factory(e) => e.abi_encode().into(),
             Self::RolesAuthError(e) => e.abi_encode().into(),
             Self::AddrRegistryError(e) => e.abi_encode().into(),
-            Self::TIP403RegistryError(e) => e.abi_encode().into(),
+            Self::MIP403RegistryError(e) => e.abi_encode().into(),
             Self::FeeManagerError(e) => e.abi_encode().into(),
             Self::TIPFeeAMMError(e) => e.abi_encode().into(),
             Self::NonceError(e) => e.abi_encode().into(),
@@ -249,11 +249,11 @@ pub fn error_decoder_registry() -> MagnusPrecompileErrorRegistry {
     let mut registry: MagnusPrecompileErrorRegistry = HashMap::new();
 
     add_errors_to_registry(&mut registry, MagnusPrecompileError::StablecoinDEX);
-    add_errors_to_registry(&mut registry, MagnusPrecompileError::TIP20);
-    add_errors_to_registry(&mut registry, MagnusPrecompileError::TIP20Factory);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::MIP20);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::MIP20Factory);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::RolesAuthError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::AddrRegistryError);
-    add_errors_to_registry(&mut registry, MagnusPrecompileError::TIP403RegistryError);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::MIP403RegistryError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::FeeManagerError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::TIPFeeAMMError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::NonceError);
@@ -265,7 +265,7 @@ pub fn error_decoder_registry() -> MagnusPrecompileErrorRegistry {
     registry
 }
 
-/// Global lazily-initialized registry of all Tempo precompile error decoders.
+/// Global lazily-initialized registry of all Magnus precompile error decoders.
 pub static ERROR_REGISTRY: LazyLock<MagnusPrecompileErrorRegistry> =
     LazyLock::new(error_decoder_registry);
 
@@ -399,17 +399,17 @@ mod tests {
     #[test]
     fn test_decode_error_with_tip20_error() {
         // Use insufficient_allowance which has a unique selector (no collision with other errors)
-        let error = TIP20Error::insufficient_allowance();
+        let error = MIP20Error::insufficient_allowance();
         let encoded = error.abi_encode();
 
         let result = decode_error(&encoded);
-        assert!(result.is_some(), "Should decode TIP20 errors");
+        assert!(result.is_some(), "Should decode MIP20 errors");
 
         let decoded = result.unwrap();
-        // Verify it's a TIP20 error
+        // Verify it's a MIP20 error
         match decoded.error {
-            MagnusPrecompileError::TIP20(_) => {}
-            other => panic!("Expected TIP20 error, got {other:?}"),
+            MagnusPrecompileError::MIP20(_) => {}
+            other => panic!("Expected MIP20 error, got {other:?}"),
         }
     }
 }

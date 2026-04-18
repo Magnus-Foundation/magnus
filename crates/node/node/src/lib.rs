@@ -1,4 +1,4 @@
-//! Tempo Node types config.
+//! Magnus Node types config.
 
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -25,5 +25,5 @@ mod version;
 type MagnusFullNodeTypes = RethFullAdapter<DatabaseEnv, MagnusNode>;
 type MagnusNodeAdapter = NodeAdapter<MagnusFullNodeTypes>;
 
-/// Type alias for a launched tempo node.
+/// Type alias for a launched magnus node.
 pub type MagnusFullNode = FullNode<MagnusNodeAdapter, MagnusAddOns<MagnusFullNodeTypes>>;

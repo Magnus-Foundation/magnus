@@ -18,10 +18,10 @@ use magnus_primitives::{
     },
 };
 
-/// Tempo transaction environment for AA features.
+/// Magnus transaction environment for AA features.
 #[derive(Debug, Clone, Default)]
 pub struct MagnusBatchCallEnv {
-    /// Signature bytes for Tempo transactions
+    /// Signature bytes for Magnus transactions
     pub signature: MagnusSignature,
 
     /// validBefore timestamp
@@ -30,10 +30,10 @@ pub struct MagnusBatchCallEnv {
     /// validAfter timestamp
     pub valid_after: Option<u64>,
 
-    /// Multiple calls for Tempo transactions
+    /// Multiple calls for Magnus transactions
     pub aa_calls: Vec<Call>,
 
-    /// Authorization list (EIP-7702 with Tempo signatures)
+    /// Authorization list (EIP-7702 with Magnus signatures)
     ///
     /// Each authorization lazily recovers the authority on first access and caches the result.
     /// The signature is preserved for gas calculation.
@@ -70,7 +70,7 @@ pub struct MagnusBatchCallEnv {
     /// Stores how many other expiring nonce transactions are there in the block before this one.
     pub expiring_nonce_idx: Option<usize>,
 }
-/// Tempo transaction environment.
+/// Magnus transaction environment.
 #[derive(Debug, Clone, Default, derive_more::Deref, derive_more::DerefMut)]
 pub struct MagnusTxEnv {
     /// Inner Ethereum [`TxEnv`].
@@ -320,7 +320,7 @@ impl FromRecoveredTx<AASigned> for MagnusTxEnv {
                 chain_id: Some(*chain_id),
                 gas_priority_fee: Some(*max_priority_fee_per_gas),
                 access_list: access_list.clone(),
-                // Convert Tempo authorization list to RecoveredAuthorization upfront
+                // Convert Magnus authorization list to RecoveredAuthorization upfront
                 authorization_list: magnus_authorization_list
                     .iter()
                     .map(|auth| {

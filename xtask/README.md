@@ -1,4 +1,4 @@
-# tempo-xtask
+# magnus-xtask
 
 A polyfill to perform various operations on the codebase.
 

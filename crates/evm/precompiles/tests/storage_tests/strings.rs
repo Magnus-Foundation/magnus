@@ -19,7 +19,7 @@ fn test_string() {
         assert_eq!(layout.another_string.read().unwrap(), "");
 
         // Test short string
-        let short = "Hello Tempo!".to_string();
+        let short = "Hello Magnus!".to_string();
         layout.one_string.write(short.clone()).unwrap();
         assert_eq!(layout.one_string.read().unwrap(), short);
 

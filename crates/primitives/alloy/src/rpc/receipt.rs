@@ -5,7 +5,7 @@ use alloy_rpc_types_eth::{Log, TransactionReceipt};
 use serde::{Deserialize, Serialize};
 use magnus_primitives::MagnusReceipt;
 
-/// Tempo RPC receipt type.
+/// Magnus RPC receipt type.
 #[derive(Debug, Clone, Serialize, Deserialize, derive_more::Deref, derive_more::DerefMut)]
 #[serde(rename_all = "camelCase")]
 pub struct MagnusTransactionReceipt {

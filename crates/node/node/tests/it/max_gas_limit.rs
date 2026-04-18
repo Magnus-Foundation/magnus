@@ -1,10 +1,10 @@
-//! Tests for per-transaction gas limit caps across hardforks ([TIP-1000]/[TIP-1010]).
+//! Tests for per-transaction gas limit caps across hardforks ([MIP-1000]/[MIP-1010]).
 //!
 //! Pre-T1A: EIP-7825 Osaka limit (16,777,216 gas).
-//! Post-T1A (TIP-1010): per-tx gas limit cap is 30M (`MAGNUS_T1_TX_GAS_LIMIT_CAP`).
+//! Post-T1A (MIP-1010): per-tx gas limit cap is 30M (`MAGNUS_T1_TX_GAS_LIMIT_CAP`).
 //!
-//! [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
-//! [TIP-1010]: <https://docs.tempo.xyz/protocol/tips/tip-1010>
+//! [MIP-1000]: <https://docs.magnus.xyz/protocol/mips/mip-1000>
+//! [MIP-1010]: <https://docs.magnus.xyz/protocol/mips/mip-1010>
 
 use alloy::{
     consensus::{SignableTransaction, TxEip1559, TxEnvelope},
@@ -71,7 +71,7 @@ async fn test_post_t1a_tx_at_osaka_limit() -> eyre::Result<()> {
     Ok(())
 }
 
-/// Post-T1A: tx between the Osaka limit (16M) and Tempo's T1A cap (30M) should
+/// Post-T1A: tx between the Osaka limit (16M) and Magnus's T1A cap (30M) should
 /// be accepted by the pool and included in a block.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_post_t1a_tx_above_osaka_below_tempo_cap() -> eyre::Result<()> {
@@ -96,13 +96,13 @@ async fn test_post_t1a_tx_above_osaka_below_tempo_cap() -> eyre::Result<()> {
         .any(|tx| *tx.tx_hash() == expected_hash);
     assert!(
         included,
-        "tx at 20M should be included in block (TIP-1010 cap is 30M)"
+        "tx at 20M should be included in block (MIP-1010 cap is 30M)"
     );
 
     Ok(())
 }
 
-/// Post-T1A: tx at exactly the Tempo T1A cap (30M) should be accepted by the
+/// Post-T1A: tx at exactly the Magnus T1A cap (30M) should be accepted by the
 /// pool and included in a block.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_post_t1a_tx_at_tempo_cap() -> eyre::Result<()> {
@@ -127,13 +127,13 @@ async fn test_post_t1a_tx_at_tempo_cap() -> eyre::Result<()> {
         .any(|tx| *tx.tx_hash() == expected_hash);
     assert!(
         included,
-        "tx at Tempo's 30M cap should be included in block"
+        "tx at Magnus's 30M cap should be included in block"
     );
 
     Ok(())
 }
 
-/// Post-T1A: tx exceeding Tempo's 30M cap should be rejected by the pool.
+/// Post-T1A: tx exceeding Magnus's 30M cap should be rejected by the pool.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_post_t1a_tx_exceeding_tempo_cap() -> eyre::Result<()> {
     reth_tracing::init_test_tracing();

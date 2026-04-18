@@ -1,4 +1,4 @@
-//! Tempo chainspec implementation.
+//! Magnus chainspec implementation.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(all(not(test), feature = "reth"), warn(unused_crate_dependencies))]

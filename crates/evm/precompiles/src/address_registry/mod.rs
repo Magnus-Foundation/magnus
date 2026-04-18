@@ -1,9 +1,9 @@
-//! [TIP-1022] virtual address registry precompile. Enabled on `MagnusHardfork::T3`.
+//! [MIP-1022] virtual address registry precompile. Enabled on `MagnusHardfork::T3`.
 //!
 //! Provides on-chain registration of virtual-address masters and resolution of
-//! [TIP-1022] virtual addresses back to their registered master EOA/contract.
+//! [MIP-1022] virtual addresses back to their registered master EOA/contract.
 //!
-//! [TIP-1022]: <https://docs.tempo.xyz/protocol/tip1022>
+//! [MIP-1022]: <https://docs.magnus.xyz/protocol/mip1022>
 
 pub mod dispatch;
 
@@ -20,7 +20,7 @@ pub use magnus_contracts::precompiles::{AddrRegistryError, AddrRegistryEvent, IA
 use magnus_precompiles_macros::{Storable, contract};
 pub use magnus_primitives::{MasterId, MagnusAddressExt, UserTag};
 
-/// [TIP-1022] virtual address registry contract.
+/// [MIP-1022] virtual address registry contract.
 ///
 /// Maps a 4-byte [`MasterId`] to its registered master address and metadata.
 /// Registration requires a 32-bit proof-of-work to prevent squatting.
@@ -28,7 +28,7 @@ pub use magnus_primitives::{MasterId, MagnusAddressExt, UserTag};
 /// The struct fields define the on-chain storage layout; the `#[contract]` macro generates the
 /// storage handlers which provide an ergonomic way to interact with the EVM state.
 ///
-/// [TIP-1022]: <https://docs.tempo.xyz/protocol/tip1022>
+/// [MIP-1022]: <https://docs.magnus.xyz/protocol/mip1022>
 #[contract(addr = ADDRESS_REGISTRY_ADDRESS)]
 pub struct AddressRegistry {
     /// Maps `masterId → RegistryData` (master address + metadata).
@@ -70,7 +70,7 @@ impl AddressRegistry {
     /// The first 4 bytes MUST be zero (32-bit proof-of-work). `masterId` is bytes `[4:8]`.
     ///
     /// # Errors
-    /// - `InvalidMasterAddress` — `msg_sender` is zero, a virtual address, or a TIP-20 token
+    /// - `InvalidMasterAddress` — `msg_sender` is zero, a virtual address, or a MIP-20 token
     /// - `ProofOfWorkFailed` — the first 4 bytes of the registration hash are not zero
     /// - `MasterIdCollision` — the derived `masterId` is already registered
     pub fn register_virtual_master(
@@ -133,7 +133,7 @@ impl AddressRegistry {
     /// - `VirtualAddressUnregistered` — `to` is a virtual address whose `masterId` is not registered
     pub fn resolve_recipient(&self, to: Address) -> Result<Address> {
         // Explicit check because it isn't exclusively a view function.
-        // It is also used by `tip20::Recipient`.
+        // It is also used by `mip20::Recipient`.
         if !self.storage.spec().is_t3() {
             return Ok(to);
         }
@@ -256,13 +256,13 @@ mod tests {
     #[test]
     fn test_register_rejects_tip20_address_as_master() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
-        let tip20_addr = crate::PATH_USD_ADDRESS;
+        let mip20_addr = crate::PATH_USD_ADDRESS;
 
         StorageCtx::enter(&mut storage, || {
             let mut registry = AddressRegistry::new();
 
             let result = registry.register_virtual_master(
-                tip20_addr,
+                mip20_addr,
                 IAddressRegistry::registerVirtualMasterCall {
                     salt: FixedBytes::ZERO,
                 },

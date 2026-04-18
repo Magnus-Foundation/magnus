@@ -5,7 +5,7 @@ use alloy_primitives::{Address, B256};
 use reth_evm::NextBlockEnvAttributes;
 use magnus_primitives::{MagnusConsensusContext, subblock::PartialValidatorKey};
 
-/// Execution context for Tempo block.
+/// Execution context for Magnus block.
 #[derive(Debug, Clone, derive_more::Deref)]
 pub struct MagnusBlockExecutionCtx<'a> {
     /// Inner [`EthBlockExecutionCtx`].

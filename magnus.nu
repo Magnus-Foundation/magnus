@@ -25,8 +25,8 @@ const PRESETS = {
     "magnus-mix": [0.8, 0, 0.19, 0.01]
 }
 
-# TIP20 token IDs created by localnet genesis (pathUSD, AlphaUSD, BetaUSD, ThetaUSD)
-const TIP20_TOKEN_IDS = [0, 1, 2, 3]
+# MIP20 token IDs created by localnet genesis (pathUSD, AlphaUSD, BetaUSD, ThetaUSD)
+const MIP20_TOKEN_IDS = [0, 1, 2, 3]
 
 # ============================================================================
 # Helper functions
@@ -101,7 +101,7 @@ def generate-bloat-file [bloat_size: int, profile: string] {
         return
     }
     print $"Generating state bloat \(($bloat_size) MiB\)..."
-    let token_args = ($TIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
+    let token_args = ($MIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
     cargo run -p magnus-xtask --profile $profile -- generate-state-bloat --size $bloat_size --out $bloat_file ...$token_args
 }
 
@@ -733,7 +733,7 @@ def upload-tracy-profile [profile_path: string, label: string, commit_sha: strin
     let short_sha = ($commit_sha | str substring 0..7)
     let remote_name = $"($label)-($short_sha)-($timestamp).tracy"
     let mc_alias = "r2"
-    let viewer_base = "https://tracy.tempoxyz.dev"
+    let viewer_base = "https://tracy.Magnus-Foundation.dev"
 
     try {
         mc cp $profile_path $"($mc_alias)/tracy/profiles/($remote_name)"
@@ -1117,7 +1117,7 @@ def "main localnet" [
     --node-args: string = ""    # Additional node arguments (space-separated)
     --skip-build                # Skip building (assumes binary is already built)
     --force                     # Kill dangling processes without prompting
-    --bloat: int = 0            # Generate state bloat (size in MiB) for TIP20 tokens
+    --bloat: int = 0            # Generate state bloat (size in MiB) for MIP20 tokens
 ] {
     validate-mode $mode
 
@@ -1536,7 +1536,7 @@ def "main bench-init" [
     let bloat_file = $"($abs_localnet)/state_bloat.bin"
     if $bloat > 0 {
         print $"Generating state bloat \(($bloat) MiB\)..."
-        let token_args = ($TIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
+        let token_args = ($MIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
         cargo run -p magnus-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
     }
 
@@ -1578,7 +1578,7 @@ def "main bench" [
     --baseline-env: string = ""                     # Environment variables for baseline node runs (KEY=VAL KEY2=VAL2)
     --feature-env: string = ""                      # Environment variables for feature node runs (KEY=VAL KEY2=VAL2)
     --bench-env: string = ""                        # Environment variables for magnus-bench (KEY=VAL KEY2=VAL2)
-    --bloat: int = 0                                # Generate state bloat (size in MiB) for TIP20 tokens
+    --bloat: int = 0                                # Generate state bloat (size in MiB) for MIP20 tokens
     --no-infra                                      # Skip starting observability stack (Grafana + Prometheus)
     --baseline: string = ""                         # Git ref for baseline (comparison mode)
     --feature: string = ""                          # Git ref for feature (comparison mode)
@@ -1880,7 +1880,7 @@ def "main bench" [
                 # Generate bloat file (shared, fork-agnostic)
                 if $bloat > 0 and not ($bloat_file | path exists) {
                     print $"Generating state bloat \(($bloat) MiB\)..."
-                    let token_args = ($TIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
+                    let token_args = ($MIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
                     if $baseline == "local" {
                         cargo run -p magnus-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
                     } else {
@@ -1950,7 +1950,7 @@ def "main bench" [
 
                 if $bloat > 0 and not ($bloat_file | path exists) {
                     print $"Generating state bloat \(($bloat) MiB\) from baseline..."
-                    let token_args = ($TIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
+                    let token_args = ($MIP20_TOKEN_IDS | each { |id| ["--token" $"($id)"] } | flatten)
                     if $baseline == "local" {
                         cargo run -p magnus-xtask --profile $profile -- generate-state-bloat --size $bloat --out $bloat_file ...$token_args
                     } else {
@@ -2243,7 +2243,7 @@ def wait-for-rpc [url: string, max_attempts: int = 120] {
 # ============================================================================
 
 const COV_DIR = "coverage"
-const INVARIANT_DIR = "tips/ref-impls"
+const INVARIANT_DIR = "mips/ref-impls"
 
 # Find magnus-foundry checkout (same search as magnus-forge script)
 def find-magnus-foundry [] {
@@ -2337,7 +2337,7 @@ def "main coverage" [
             print "Error: could not find magnus-foundry repository."
             print ""
             print "Either:"
-            print "  1. Clone as sibling: git clone git@github.com:tempoxyz/magnus-foundry.git ../magnus-foundry"
+            print "  1. Clone as sibling: git clone git@github.com:Magnus-Foundation/magnus-foundry.git ../magnus-foundry"
             print "  2. Set MAGNUS_FOUNDRY_PATH=/path/to/magnus-foundry"
             exit 1
         }
@@ -2379,7 +2379,7 @@ def "main coverage" [
         let patch_block = $"
 
 # AUTO-GENERATED by magnus.nu coverage --invariants -- do not commit
-[patch.'https://github.com/tempoxyz/magnus']
+[patch.'https://github.com/Magnus-Foundation/magnus']
 magnus-alloy = { path = '($tempo_root)/crates/alloy' }
 magnus-contracts = { path = '($tempo_root)/crates/contracts' }
 magnus-revm = { path = '($tempo_root)/crates/revm' }
@@ -2675,14 +2675,14 @@ def main [] {
     print "  --baseline-args <ARGS>       Additional node arguments for baseline runs only"
     print "  --feature-args <ARGS>        Additional node arguments for feature runs only"
     print "  --bench-args <ARGS>      Additional magnus-bench arguments (space-separated)"
-    print "  --bloat <N>              Generate TIP20 state bloat (size in MiB)"
+    print "  --bloat <N>              Generate MIP20 state bloat (size in MiB)"
     print "  --gas-limit <N>          Block gas limit for genesis (raw number, default: 1000000000000)"
     print ""
     print "Localnet flags:"
     print "  --mode <dev|consensus>   Mode (default: dev)"
     print "  --nodes <N>              Number of validators for consensus (default: 3)"
     print "  --accounts <N>           Genesis accounts (default: 1000)"
-    print "  --bloat <N>              Generate TIP20 state bloat (size in MiB)"
+    print "  --bloat <N>              Generate MIP20 state bloat (size in MiB)"
     print "  --samply                 Enable samply profiling (foreground node only)"
     print "  --samply-args <ARGS>     Additional samply arguments (space-separated)"
     print "  --loud                   Show all node logs (WARN/ERROR shown by default)"

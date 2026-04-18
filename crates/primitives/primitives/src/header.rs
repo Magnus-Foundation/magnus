@@ -4,7 +4,7 @@ use alloy_rlp::{RlpDecodable, RlpEncodable};
 
 use crate::ed25519::PublicKey;
 
-/// Consensus context metadata for a Tempo block.
+/// Consensus context metadata for a Magnus block.
 ///
 /// The `proposer` is validated as a valid Ed25519 public key during RLP
 /// decoding to reject malformed blocks at the network boundary.
@@ -21,7 +21,7 @@ pub struct MagnusConsensusContext {
     pub proposer: PublicKey,
 }
 
-/// Tempo block header.
+/// Magnus block header.
 ///
 /// RLP-encoded as `[general_gas_limit, shared_gas_limit, timestamp_millis_part, inner,
 /// consensus_context?]`. The `consensus_context` is trailing and omitted for pre-fork blocks.

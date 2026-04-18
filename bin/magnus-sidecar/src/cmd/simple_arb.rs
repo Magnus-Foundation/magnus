@@ -14,8 +14,8 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use poem::{EndpointExt as _, Route, Server, get, listener::TcpListener};
 use std::{collections::HashSet, time::Duration};
 use magnus_precompiles::{
-    TIP_FEE_MANAGER_ADDRESS, TIP20_FACTORY_ADDRESS, tip_fee_manager::ITIPFeeAMM,
-    tip20_factory::ITIP20Factory,
+    TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS, tip_fee_manager::ITIPFeeAMM,
+    mip20_factory::IMIP20Factory,
 };
 use magnus_telemetry_util::error_field;
 use tracing::{debug, error, info, instrument};
@@ -45,15 +45,15 @@ pub struct SimpleArbArgs {
 #[instrument(skip(provider))]
 async fn fetch_all_pairs<P: Provider>(provider: P) -> eyre::Result<HashSet<(Address, Address)>> {
     let filter = Filter::new()
-        .address(TIP20_FACTORY_ADDRESS)
-        .event_signature(ITIP20Factory::TokenCreated::SIGNATURE_HASH);
+        .address(MIP20_FACTORY_ADDRESS)
+        .event_signature(IMIP20Factory::TokenCreated::SIGNATURE_HASH);
 
     let logs = provider.get_logs(&filter).await?;
 
     let tokens: Vec<Address> = logs
         .iter()
         .filter_map(|log| {
-            log.log_decode::<ITIP20Factory::TokenCreated>()
+            log.log_decode::<IMIP20Factory::TokenCreated>()
                 .ok()
                 .map(|event| event.inner.token)
         })

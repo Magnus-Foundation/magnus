@@ -1,4 +1,4 @@
-//! EVM storage abstraction layer for Tempo precompile contracts.
+//! EVM storage abstraction layer for Magnus precompile contracts.
 //!
 //! Provides traits and types for reading/writing contract state from EVM storage,
 //! including persistent (SLOAD/SSTORE) and transient (TLOAD/TSTORE) operations.
@@ -130,11 +130,11 @@ pub trait PrecompileStorageProvider {
     }
 
     /// Recovers the signer address from an ECDSA signature and charges ecrecover gas.
-    /// As per [TIP-1004], it only accepts `v` values of `27` or `28` (no `0`/`1` normalization).
+    /// As per [MIP-1004], it only accepts `v` values of `27` or `28` (no `0`/`1` normalization).
     ///
     /// Returns `Ok(None)` on invalid signatures; callers map to domain-specific errors.
     ///
-    /// [TIP-1004]: <https://github.com/tempoxyz/tempo/blob/main/tips/tip-1004.md#signature-validation>
+    /// [MIP-1004]: <https://github.com/Magnus-Foundation/magnus/blob/main/mips/mip-1004.md#signature-validation>
     fn recover_signer(&mut self, digest: B256, v: u8, r: B256, s: B256) -> Result<Option<Address>> {
         self.deduct_gas(crate::ECRECOVER_GAS)?;
 

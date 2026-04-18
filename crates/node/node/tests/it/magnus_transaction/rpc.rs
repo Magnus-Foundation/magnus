@@ -148,7 +148,7 @@ impl super::types::TestEnv for RpcEnv {
             wait_for_receipt(&self.provider, tx_hash).await?;
         }
 
-        let balance = magnus_precompiles::tip20::ITIP20::new(
+        let balance = magnus_precompiles::mip20::IMIP20::new(
             magnus_contracts::precompiles::DEFAULT_FEE_TOKEN,
             &self.provider,
         )

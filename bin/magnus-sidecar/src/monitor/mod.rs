@@ -19,11 +19,11 @@ use std::sync::Arc;
 use magnus_precompiles::{
     TIP_FEE_MANAGER_ADDRESS,
     tip_fee_manager::ITIPFeeAMM::{self, ITIPFeeAMMInstance, Mint, Pool},
-    tip20::ITIP20,
+    mip20::IMIP20,
 };
 use tracing::{debug, error, info, instrument};
 
-pub struct TIP20Token {
+pub struct MIP20Token {
     decimals: u8,
     name: String,
 }
@@ -39,7 +39,7 @@ struct MonitorConfig {
 pub struct Monitor {
     rpc_url: Url,
     poll_interval: u64,
-    tokens: AddressMap<TIP20Token>,
+    tokens: AddressMap<MIP20Token>,
     pools: HashMap<(Address, Address), Pool>,
     known_pairs: HashSet<(Address, Address)>,
     last_processed_block: u64,
@@ -109,13 +109,13 @@ impl MonitorConfig {
     async fn fetch_token_metadata<P: Provider + Clone>(
         &self,
         provider: &Arc<P>,
-    ) -> Result<AddressMap<TIP20Token>> {
+    ) -> Result<AddressMap<MIP20Token>> {
         let get_token_metadata: Vec<_> = self
             .target_tokens
             .iter()
             .map(|addr| {
                 debug!(%addr, "fetching token metadata");
-                let token = ITIP20::new(*addr, provider.clone());
+                let token = IMIP20::new(*addr, provider.clone());
                 async move {
                     let decimals = token.decimals().call().await.map_err(|e| {
                         counter!("magnus_fee_amm_errors", "request" => "decimals").increment(1);
@@ -125,7 +125,7 @@ impl MonitorConfig {
                         counter!("magnus_fee_amm_errors", "request" => "name").increment(1);
                         eyre!("failed to fetch token name for {}: {}", addr, e)
                     })?;
-                    Ok::<_, eyre::Error>((*addr, TIP20Token { decimals, name }))
+                    Ok::<_, eyre::Error>((*addr, MIP20Token { decimals, name }))
                 }
             })
             .collect();

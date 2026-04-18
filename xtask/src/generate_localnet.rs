@@ -163,7 +163,7 @@ impl GenerateLocalnet {
 
             println!("run the node with the following command:\n");
             let cmd = format!(
-                "cargo run --bin tempo -- node \
+                "cargo run --bin magnus -- node \
                 \\\n--consensus.signing-key {signing_key} \
                 \\\n--consensus.signing-share {signing_share} \
                 \\\n--consensus.listen-address 127.0.0.1:{listen_port} \

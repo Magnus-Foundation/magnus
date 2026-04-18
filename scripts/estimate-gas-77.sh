@@ -29,7 +29,7 @@ export TEST_PK="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff
 
 echo ""
 echo "=== Step 0: Check test account balance ==="
-# The test account is the faucet account, which should be pre-funded by tempo-dev
+# The test account is the faucet account, which should be pre-funded by magnus-dev
 # If not, we'll fund another address and use that
 BALANCE=$(cast balance --erc20 $DEFAULT_TOKEN $TEST_ADDR)
 echo "Test account balance in default token: $BALANCE"

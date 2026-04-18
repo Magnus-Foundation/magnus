@@ -1,15 +1,15 @@
 use alloy_primitives::{Address, FixedBytes, hex};
 
-/// TIP20 token address prefix (12 bytes)
-/// The full address is: TIP20_TOKEN_PREFIX (12 bytes) || derived_bytes (8 bytes)
-const TIP20_TOKEN_PREFIX: [u8; 12] = hex!("20C000000000000000000000");
+/// MIP20 token address prefix (12 bytes)
+/// The full address is: MIP20_TOKEN_PREFIX (12 bytes) || derived_bytes (8 bytes)
+const MIP20_TOKEN_PREFIX: [u8; 12] = hex!("20C000000000000000000000");
 
-/// Returns `true` if `addr` has the TIP-20 token prefix.
+/// Returns `true` if `addr` has the MIP-20 token prefix.
 ///
 /// NOTE: This only checks the prefix, not whether the token was actually created.
-/// Use `TIP20Factory::is_tip20()` for full validation.
+/// Use `MIP20Factory::is_tip20()` for full validation.
 pub fn is_tip20_prefix(addr: Address) -> bool {
-    addr.as_slice().starts_with(&TIP20_TOKEN_PREFIX)
+    addr.as_slice().starts_with(&MIP20_TOKEN_PREFIX)
 }
 
 /// 4-byte master identifier derived from the registration hash.
@@ -18,33 +18,33 @@ pub type MasterId = FixedBytes<4>;
 /// 6-byte user tag occupying the trailing bytes of a virtual address.
 pub type UserTag = FixedBytes<6>;
 
-/// Extension trait with helper functions for Tempo addresses.
+/// Extension trait with helper functions for Magnus addresses.
 pub trait MagnusAddressExt {
-    /// 12-byte prefix shared by all TIP-20 token addresses.
+    /// 12-byte prefix shared by all MIP-20 token addresses.
     ///
-    /// NOTE: prefix alone does not prove a token exists — use `TIP20Factory::is_tip20()` for that.
-    const TIP20_PREFIX: [u8; 12];
+    /// NOTE: prefix alone does not prove a token exists — use `MIP20Factory::is_tip20()` for that.
+    const MIP20_PREFIX: [u8; 12];
 
-    /// 10-byte magic value occupying bytes `[4:14]` of every [TIP-1022] virtual address.
+    /// 10-byte magic value occupying bytes `[4:14]` of every [MIP-1022] virtual address.
     ///
-    /// [TIP-1022]: <https://docs.tempo.xyz/protocol/tip1022>
+    /// [MIP-1022]: <https://docs.magnus.xyz/protocol/mip1022>
     const VIRTUAL_MAGIC: [u8; 10];
 
-    /// Returns `true` if the address has the [TIP-20] token prefix.
+    /// Returns `true` if the address has the [MIP-20] token prefix.
     ///
     /// NOTE: This only checks the prefix, not whether the token was actually created.
-    /// Use `TIP20Factory::is_tip20()` for full validation.
+    /// Use `MIP20Factory::is_tip20()` for full validation.
     ///
-    /// [TIP-20]: <https://docs.tempo.xyz/protocol/tip20>
+    /// [MIP-20]: <https://docs.magnus.xyz/protocol/mip20>
     fn is_tip20(&self) -> bool;
 
-    /// Returns `true` if the address matches the [TIP-1022] virtual-address format
+    /// Returns `true` if the address matches the [MIP-1022] virtual-address format
     /// (bytes `[4:14]` == [`Self::VIRTUAL_MAGIC`]).
     ///
-    /// [TIP-1022]: <https://docs.tempo.xyz/protocol/tip1022>
+    /// [MIP-1022]: <https://docs.magnus.xyz/protocol/mip1022>
     fn is_virtual(&self) -> bool;
 
-    /// Returns `true` if the address is eligible to be a virtual-address master per TIP-1022.
+    /// Returns `true` if the address is eligible to be a virtual-address master per MIP-1022.
     fn is_valid_master(&self) -> bool;
 
     /// Decodes a virtual address into its `(masterId, userTag)` components.
@@ -52,14 +52,14 @@ pub trait MagnusAddressExt {
     /// Returns `None` if the address does not match the virtual-address format.
     fn decode_virtual(&self) -> Option<(MasterId, UserTag)>;
 
-    /// Builds a [TIP-1022] virtual address from a `masterId` and `userTag`.
+    /// Builds a [MIP-1022] virtual address from a `masterId` and `userTag`.
     ///
-    /// [TIP-1022]: <https://docs.tempo.xyz/protocol/tip1022>
+    /// [MIP-1022]: <https://docs.magnus.xyz/protocol/mip1022>
     fn new_virtual(master_id: MasterId, user_tag: UserTag) -> Self;
 }
 
 impl MagnusAddressExt for Address {
-    const TIP20_PREFIX: [u8; 12] = TIP20_TOKEN_PREFIX;
+    const MIP20_PREFIX: [u8; 12] = MIP20_TOKEN_PREFIX;
     const VIRTUAL_MAGIC: [u8; 10] = [0xFD; 10];
 
     fn is_tip20(&self) -> bool {

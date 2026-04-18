@@ -1,4 +1,4 @@
-//! An iterator over the best transactions in the tempo pool.
+//! An iterator over the best transactions in the magnus pool.
 
 use crate::transaction::MagnusPooledTransaction;
 use reth_transaction_pool::{

@@ -470,7 +470,7 @@ mod tests {
         let hash = tx.fee_payer_signature_hash(sender);
         let fee_payer_sig = sponsor.sign_hash_sync(&hash).expect("sign");
 
-        // Request with ONLY fee_payer_signature as the Tempo-specific field
+        // Request with ONLY fee_payer_signature as the Magnus-specific field
         let req = MagnusTransactionRequest {
             inner: TransactionRequest {
                 from: Some(sender),
@@ -615,7 +615,7 @@ mod tests {
                 assert_eq!(tx.calls, vec![call], "calls must be preserved");
             }
             other => panic!(
-                "Expected AA envelope for request with Tempo fields, got {:?}",
+                "Expected AA envelope for request with Magnus fields, got {:?}",
                 other.tx_type()
             ),
         }

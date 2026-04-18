@@ -1,4 +1,4 @@
-//! Tempo EVM implementation.
+//! Magnus EVM implementation.
 
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -46,7 +46,7 @@ pub use magnus_revm::{MagnusBlockEnv, MagnusHaltReason, MagnusStateAccess};
 #[cfg(test)]
 mod test_utils;
 
-/// Tempo-related EVM configuration.
+/// Magnus-related EVM configuration.
 #[derive(Debug, Clone)]
 pub struct MagnusEvmConfig {
     /// Inner evm config
@@ -137,7 +137,7 @@ impl ConfigureEvm for MagnusEvmConfig {
 
         let spec = self.chain_spec().magnus_hardfork_at(header.timestamp());
 
-        // Apply TIP-1000 gas params for T1 hardfork.
+        // Apply MIP-1000 gas params for T1 hardfork.
         let mut cfg_env = cfg_env.with_spec_and_gas_params(spec, magnus_gas_params(spec));
         cfg_env.tx_gas_limit_cap = spec.tx_gas_limit_cap();
 
@@ -175,7 +175,7 @@ impl ConfigureEvm for MagnusEvmConfig {
 
         let spec = self.chain_spec().magnus_hardfork_at(attributes.timestamp);
 
-        // Apply TIP-1000 gas params for T1 hardfork.
+        // Apply MIP-1000 gas params for T1 hardfork.
         let mut cfg_env = cfg_env.with_spec_and_gas_params(spec, magnus_gas_params(spec));
         cfg_env.tx_gas_limit_cap = spec.tx_gas_limit_cap();
 
@@ -214,7 +214,7 @@ impl ConfigureEvm for MagnusEvmConfig {
             inner: EthBlockExecutionCtx {
                 parent_hash: block.header().parent_hash(),
                 parent_beacon_block_root: block.header().parent_beacon_block_root(),
-                // no ommers in tempo
+                // no ommers in magnus
                 ommers: &[],
                 withdrawals: block
                     .body()
@@ -319,13 +319,13 @@ mod tests {
         assert_eq!(evm_env.block_env.inner.gas_limit, header.gas_limit());
         assert_eq!(evm_env.block_env.inner.beneficiary, header.beneficiary());
 
-        // Verify Tempo-specific field
+        // Verify Magnus-specific field
         assert_eq!(evm_env.block_env.timestamp_millis_part, 500);
     }
 
-    /// Test that evm_env sets 30M gas limit cap for T1 hardfork as per [TIP-1000].
+    /// Test that evm_env sets 30M gas limit cap for T1 hardfork as per [MIP-1000].
     ///
-    /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
+    /// [MIP-1000]: <https://docs.magnus.xyz/protocol/mips/mip-1000>
     #[test]
     fn test_evm_env_t1_gas_cap() {
         use magnus_chainspec::spec::DEV;
@@ -353,11 +353,11 @@ mod tests {
 
         let evm_env = evm_config.evm_env(&header).unwrap();
 
-        // Verify TIP-1000 gas limit cap is set
+        // Verify MIP-1000 gas limit cap is set
         assert_eq!(
             evm_env.cfg_env.tx_gas_limit_cap,
             Some(magnus_chainspec::spec::MAGNUS_T1_TX_GAS_LIMIT_CAP),
-            "TIP-1000 requires 30M gas limit cap for T1 hardfork"
+            "MIP-1000 requires 30M gas limit cap for T1 hardfork"
         );
     }
 
@@ -412,7 +412,7 @@ mod tests {
         );
         assert_eq!(evm_env.block_env.inner.gas_limit, 30_000_000);
 
-        // Verify Tempo-specific field
+        // Verify Magnus-specific field
         assert_eq!(evm_env.block_env.timestamp_millis_part, 750);
     }
 

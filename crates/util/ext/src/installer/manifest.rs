@@ -12,7 +12,7 @@ pub(super) struct ReleaseManifest {
     pub(super) version: String,
     /// Optional short description of the extension.
     pub(super) description: Option<String>,
-    /// Per-platform binary entries, keyed by platform name (e.g. `"tempo-wallet-darwin-arm64"`).
+    /// Per-platform binary entries, keyed by platform name (e.g. `"magnus-wallet-darwin-arm64"`).
     pub(super) binaries: HashMap<String, ReleaseBinary>,
     /// Optional URL for the extension's agent skill file.
     pub(super) skill: Option<String>,
@@ -96,7 +96,7 @@ mod tests {
     fn deserialize_full_manifest() {
         let json = r#"{
             "version": "2.0.0",
-            "description": "Tempo wallet extension",
+            "description": "Magnus wallet extension",
             "binaries": {
                 "wallet": {
                     "url": "https://example.com/wallet",
@@ -112,7 +112,7 @@ mod tests {
         assert_eq!(manifest.version, "2.0.0");
         assert_eq!(
             manifest.description.as_deref(),
-            Some("Tempo wallet extension")
+            Some("Magnus wallet extension")
         );
         assert_eq!(manifest.binaries["wallet"].sha256, "abc123");
         assert_eq!(

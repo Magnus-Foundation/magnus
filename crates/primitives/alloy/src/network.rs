@@ -22,7 +22,7 @@ use magnus_primitives::{
 /// `N` is a nonce filler.
 pub type MagnusFillers<N> = JoinFill<N, JoinFill<GasFiller, ChainIdFiller>>;
 
-/// The Tempo specific configuration of [`Network`] schema and consensus primitives.
+/// The Magnus specific configuration of [`Network`] schema and consensus primitives.
 #[derive(Default, Debug, Clone, Copy)]
 #[non_exhaustive]
 pub struct MagnusNetwork;
@@ -147,7 +147,7 @@ impl NetworkTransactionBuilder<MagnusNetwork> for MagnusTransactionRequest {
             | MagnusTxType::Eip1559
             | MagnusTxType::Eip7702 => NetworkTransactionBuilder::<Ethereum>::complete_type(
                 &self.inner,
-                ty.try_into().expect("tempo tx types checked"),
+                ty.try_into().expect("magnus tx types checked"),
             ),
         }
     }
@@ -179,7 +179,7 @@ impl NetworkTransactionBuilder<MagnusNetwork> for MagnusTransactionRequest {
                 TxType::Legacy => MagnusTxType::Legacy,
                 TxType::Eip2930 => MagnusTxType::Eip2930,
                 TxType::Eip1559 => MagnusTxType::Eip1559,
-                // EIP-4844 transactions are not supported on Tempo
+                // EIP-4844 transactions are not supported on Magnus
                 TxType::Eip4844 => MagnusTxType::Legacy,
                 TxType::Eip7702 => MagnusTxType::Eip7702,
             }

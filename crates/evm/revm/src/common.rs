@@ -17,25 +17,25 @@ use magnus_precompiles::{
     error::{Result as MagnusResult, MagnusPrecompileError},
     storage::{Handler, PrecompileStorageProvider, StorageCtx},
     tip_fee_manager::TipFeeManager,
-    tip20::{ITIP20, TIP20Token},
-    tip403_registry::{AuthRole, TIP403Registry},
+    mip20::{IMIP20, MIP20Token},
+    mip403_registry::{AuthRole, MIP403Registry},
 };
 use magnus_primitives::{MagnusAddressExt, MagnusTxEnvelope};
 
-/// Returns true if the calldata is for a TIP-20 function that should trigger fee token inference.
+/// Returns true if the calldata is for a MIP-20 function that should trigger fee token inference.
 /// Only `transfer`, `transferWithMemo`, and `distributeReward` qualify.
 fn is_tip20_fee_inference_call(input: &[u8]) -> bool {
     input.first_chunk::<4>().is_some_and(|&s| {
         matches!(
             s,
-            ITIP20::transferCall::SELECTOR
-                | ITIP20::transferWithMemoCall::SELECTOR
-                | ITIP20::distributeRewardCall::SELECTOR
+            IMIP20::transferCall::SELECTOR
+                | IMIP20::transferWithMemoCall::SELECTOR
+                | IMIP20::distributeRewardCall::SELECTOR
         )
     })
 }
 
-/// Helper trait to abstract over different representations of Tempo transactions.
+/// Helper trait to abstract over different representations of Magnus transactions.
 #[auto_impl::auto_impl(&, Arc)]
 pub trait MagnusTx {
     /// Returns the transaction's `feeToken` field, if configured.
@@ -91,7 +91,7 @@ impl MagnusTx for Recovered<MagnusTxEnvelope> {
     }
 }
 
-/// Helper trait to perform Tempo-specific operations on top of different state providers.
+/// Helper trait to perform Magnus-specific operations on top of different state providers.
 ///
 /// We provide blanket implementations for revm database, journal and reth state provider.
 ///
@@ -151,7 +151,7 @@ pub trait MagnusStateAccess<M = ()> {
             return Ok(user_token);
         }
 
-        // Check if the fee can be inferred from the TIP20 token being called
+        // Check if the fee can be inferred from the MIP20 token being called
         if let Some(to) = tx.calls().next().and_then(|(kind, _)| kind.to().copied()) {
             let can_infer_tip20 =
                 // AA txs only when fee_payer == tx.origin.
@@ -190,20 +190,20 @@ pub trait MagnusStateAccess<M = ()> {
             }
         }
 
-        // If no fee token is found, default to the first deployed TIP20
+        // If no fee token is found, default to the first deployed MIP20
         Ok(DEFAULT_FEE_TOKEN)
     }
 
-    /// Checks if the given TIP20 token has USD currency.
+    /// Checks if the given MIP20 token has USD currency.
     ///
-    /// IMPORTANT: Caller must ensure `fee_token` has a valid TIP20 prefix.
+    /// IMPORTANT: Caller must ensure `fee_token` has a valid MIP20 prefix.
     fn is_tip20_usd(&mut self, spec: MagnusHardfork, fee_token: Address) -> MagnusResult<bool>
     where
         Self: Sized,
     {
         self.with_read_only_storage_ctx(spec, || {
             // SAFETY: caller must ensure prefix is already checked
-            let token = TIP20Token::from_address_unchecked(fee_token);
+            let token = MIP20Token::from_address_unchecked(fee_token);
             Ok(token.currency.len()? == 3 && token.currency.read()?.as_str() == "USD")
         })
     }
@@ -213,7 +213,7 @@ pub trait MagnusStateAccess<M = ()> {
     where
         Self: Sized,
     {
-        // Must have TIP20 prefix to be a valid fee token
+        // Must have MIP20 prefix to be a valid fee token
         if !fee_token.is_tip20() {
             return Ok(false);
         }
@@ -228,7 +228,7 @@ pub trait MagnusStateAccess<M = ()> {
         Self: Sized,
     {
         self.with_read_only_storage_ctx(spec, || {
-            let token = TIP20Token::from_address(fee_token)?;
+            let token = MIP20Token::from_address(fee_token)?;
             token.paused()
         })
     }
@@ -244,20 +244,20 @@ pub trait MagnusStateAccess<M = ()> {
         Self: Sized,
     {
         self.with_read_only_storage_ctx(spec, || {
-            let token = TIP20Token::from_address(fee_token)?;
+            let token = MIP20Token::from_address(fee_token)?;
             if spec.is_t1c() {
                 // Check both the fee payer and the fee manager is authorized
                 token.is_transfer_authorized(fee_payer, TIP_FEE_MANAGER_ADDRESS)
             } else {
                 let policy_id = token.transfer_policy_id.read()?;
-                TIP403Registry::new().is_authorized_as(policy_id, fee_payer, AuthRole::sender())
+                MIP403Registry::new().is_authorized_as(policy_id, fee_payer, AuthRole::sender())
             }
         })
     }
 
     /// Returns the balance of the given token for the given account.
     ///
-    /// IMPORTANT: the caller must ensure `token` is a valid TIP20Token address.
+    /// IMPORTANT: the caller must ensure `token` is a valid MIP20Token address.
     fn get_token_balance(
         &mut self,
         token: Address,
@@ -269,7 +269,7 @@ pub trait MagnusStateAccess<M = ()> {
     {
         self.with_read_only_storage_ctx(spec, || {
             // Load the token balance for the given account.
-            TIP20Token::from_address(token)?.balances[account].read()
+            MIP20Token::from_address(token)?.balances[account].read()
         })
     }
 }
@@ -460,9 +460,9 @@ mod tests {
     use magnus_precompiles::{
         PATH_USD_ADDRESS,
         storage::{StorageCtx, evm::EvmPrecompileStorageProvider},
-        test_util::TIP20Setup,
-        tip20::{IRolesAuth::*, ITIP20::*, TIP20Token, slots as tip20_slots},
-        tip403_registry::{ITIP403Registry, TIP403Registry},
+        test_util::MIP20Setup,
+        mip20::{IRolesAuth::*, IMIP20::*, MIP20Token, slots as mip20_slots},
+        mip403_registry::{IMIP403Registry, MIP403Registry},
     };
 
     #[test]
@@ -530,11 +530,11 @@ mod tests {
     #[test]
     fn test_get_fee_token_tip20() -> eyre::Result<()> {
         let caller = Address::random();
-        let tip20_token = Address::random();
+        let mip20_token = Address::random();
 
         let tx_env = TxEnv {
             data: Bytes::from_static(b"transfer_data"),
-            kind: TxKind::Call(tip20_token),
+            kind: TxKind::Call(mip20_token),
             caller,
             ..Default::default()
         };
@@ -632,7 +632,7 @@ mod tests {
 
         // Set up CacheDB with balance
         let mut db = revm::database::CacheDB::new(EmptyDB::default());
-        let balance_slot = TIP20Token::from_address(token_address)?.balances[account].slot();
+        let balance_slot = MIP20Token::from_address(token_address)?.balances[account].slot();
         db.insert_account_storage(token_address, balance_slot, expected_balance)?;
 
         // Read balance using typed storage
@@ -668,7 +668,7 @@ mod tests {
         assert!(!db.is_fee_token_paused(MagnusHardfork::Genesis, token_address)?);
 
         // Set paused=true
-        db.insert_account_storage(token_address, tip20_slots::PAUSED, U256::from(1))?;
+        db.insert_account_storage(token_address, mip20_slots::PAUSED, U256::from(1))?;
         assert!(db.is_fee_token_paused(MagnusHardfork::Genesis, token_address)?);
 
         Ok(())
@@ -704,7 +704,7 @@ mod tests {
 
         for (currency_value, expected, label) in cases {
             let mut db = revm::database::CacheDB::new(EmptyDB::default());
-            db.insert_account_storage(fee_token, tip20_slots::CURRENCY, *currency_value)?;
+            db.insert_account_storage(fee_token, mip20_slots::CURRENCY, *currency_value)?;
 
             let is_usd = db.is_tip20_usd(MagnusHardfork::Genesis, fee_token)?;
             assert_eq!(is_usd, *expected, "currency '{label}' failed");
@@ -734,26 +734,26 @@ mod tests {
                 EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
             let mut provider = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
             StorageCtx::enter(&mut provider, || -> eyre::Result<u64> {
-                TIP20Setup::path_usd(admin).apply()?;
-                let mut registry = TIP403Registry::new();
+                MIP20Setup::path_usd(admin).apply()?;
+                let mut registry = MIP403Registry::new();
                 registry.initialize()?;
 
                 let policy_id = registry.create_policy(
                     admin,
-                    ITIP403Registry::createPolicyCall {
+                    IMIP403Registry::createPolicyCall {
                         admin,
-                        policyType: ITIP403Registry::PolicyType::WHITELIST,
+                        policyType: IMIP403Registry::PolicyType::WHITELIST,
                     },
                 )?;
-                TIP20Token::from_address(PATH_USD_ADDRESS)?.change_transfer_policy_id(
+                MIP20Token::from_address(PATH_USD_ADDRESS)?.change_transfer_policy_id(
                     admin,
-                    ITIP20::changeTransferPolicyIdCall {
+                    IMIP20::changeTransferPolicyIdCall {
                         newPolicyId: policy_id,
                     },
                 )?;
                 registry.modify_policy_whitelist(
                     admin,
-                    ITIP403Registry::modifyPolicyWhitelistCall {
+                    IMIP403Registry::modifyPolicyWhitelistCall {
                         policyId: policy_id,
                         account: fee_payer,
                         allowed: true,
@@ -783,9 +783,9 @@ mod tests {
                 EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
             let mut provider = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
             StorageCtx::enter(&mut provider, || {
-                TIP403Registry::new().modify_policy_whitelist(
+                MIP403Registry::new().modify_policy_whitelist(
                     admin,
-                    ITIP403Registry::modifyPolicyWhitelistCall {
+                    IMIP403Registry::modifyPolicyWhitelistCall {
                         policyId: policy_id,
                         account: TIP_FEE_MANAGER_ADDRESS,
                         allowed: true,

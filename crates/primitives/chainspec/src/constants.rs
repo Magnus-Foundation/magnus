@@ -1,4 +1,4 @@
-//! Tempo constants shared by both the published surface and the reth-backed spec implementation.
+//! Magnus constants shared by both the published surface and the reth-backed spec implementation.
 //!
 //! Gas-accounting constants are grouped under [`gas`].
 //! Hardfork activation schedules live in [`mainnet`] and [`moderato`].
@@ -22,22 +22,22 @@ pub mod gas {
     /// Attodollars are the atomic gas accounting units at 10^-18 USD precision.
     /// Basefee is denominated in attodollars.
     ///
-    /// At this basefee, a standard TIP-20 transfer (~50,000 gas) costs:
+    /// At this basefee, a standard MIP-20 transfer (~50,000 gas) costs:
     /// - Gas: 50,000 × 20 billion attodollars/gas = 1 quadrillion attodollars
     /// - Tokens: 1 quadrillion attodollars / 10^12 = 1,000 microdollars
     /// - Economic: 1,000 microdollars = 0.001 USD = 0.1 cents
     pub const MAGNUS_T1_BASE_FEE: u64 = 20_000_000_000;
 
-    /// [TIP-1010] general (non-payment) gas limit: 30 million gas per block.
+    /// [MIP-1010] general (non-payment) gas limit: 30 million gas per block.
     /// Cap for non-payment transactions.
     ///
-    /// [TIP-1010]: <https://docs.tempo.xyz/protocol/tips/tip-1010>
+    /// [MIP-1010]: <https://docs.magnus.xyz/protocol/mips/mip-1010>
     pub const MAGNUS_T1_GENERAL_GAS_LIMIT: u64 = 30_000_000;
 
-    /// TIP-1010 per-transaction gas limit cap: 30 million gas.
-    /// Allows maximum-sized contract deployments under [TIP-1000] state creation costs.
+    /// MIP-1010 per-transaction gas limit cap: 30 million gas.
+    /// Allows maximum-sized contract deployments under [MIP-1000] state creation costs.
     ///
-    /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
+    /// [MIP-1000]: <https://docs.magnus.xyz/protocol/mips/mip-1000>
     pub const MAGNUS_T1_TX_GAS_LIMIT_CAP: u64 = 30_000_000;
 
     /// Gas cost for using an existing 2D nonce key (cold SLOAD + warm SSTORE reset).
@@ -53,7 +53,7 @@ pub mod gas {
 }
 
 pub mod mainnet {
-    //! Tempo mainnet (Presto) hardfork activation constants.
+    //! Magnus mainnet (Presto) hardfork activation constants.
 
     /// Genesis activation block.
     pub const MAINNET_GENESIS_BLOCK: u64 = 0;

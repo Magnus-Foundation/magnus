@@ -63,15 +63,15 @@ use magnus_contracts::precompiles::{
     IFeeManager::IFeeManagerInstance,
     IRolesAuth,
     IStablecoinDEX::IStablecoinDEXInstance,
-    ITIP20::{self, ITIP20Instance},
-    ITIP20Factory, STABLECOIN_DEX_ADDRESS, TIP20_FACTORY_ADDRESS,
+    IMIP20::{self, IMIP20Instance},
+    IMIP20Factory, STABLECOIN_DEX_ADDRESS, MIP20_FACTORY_ADDRESS,
 };
 use magnus_precompiles::{
     TIP_FEE_MANAGER_ADDRESS,
     address_registry::MasterId,
     stablecoin_dex::{MAX_TICK, MIN_ORDER_AMOUNT, MIN_TICK, TICK_SPACING},
     tip_fee_manager::DEFAULT_FEE_TOKEN,
-    tip20::ISSUER_ROLE,
+    mip20::ISSUER_ROLE,
 };
 use tokio::{
     select,
@@ -140,20 +140,20 @@ pub struct MaxTpsArgs {
     #[arg(long)]
     benchmark_mode: Option<String>,
 
-    /// A weight that determines the likelihood of generating a TIP-20 transfer transaction.
+    /// A weight that determines the likelihood of generating a MIP-20 transfer transaction.
     #[arg(long, default_value_t = 1.0)]
-    tip20_weight: f64,
+    mip20_weight: f64,
 
-    /// A weight that determines the likelihood of generating a TIP-20 transfer
+    /// A weight that determines the likelihood of generating a MIP-20 transfer
     /// to a virtual address. Treated as a separate transaction type alongside
-    /// `--tip20-weight`, not a fraction of it.
+    /// `--mip20-weight`, not a fraction of it.
     ///
     /// Requires the anvil mnemonic (`-m "test test test ... junk"`) with
     /// `--from-mnemonic-index` covering indices 0–5, since virtual-address
-    /// registration needs pre-mined TIP-1022 PoW salts that are only embedded
+    /// registration needs pre-mined MIP-1022 PoW salts that are only embedded
     /// for the first 6 anvil accounts.
     #[arg(long, default_value_t = 0.0)]
-    tip20_virtual_weight: f64,
+    mip20_virtual_weight: f64,
 
     /// A weight that determines the likelihood of generating a DEX place transaction.
     #[arg(long, default_value_t = 0.0)]
@@ -178,7 +178,7 @@ pub struct MaxTpsArgs {
 
     /// Send transfers to existing signer accounts instead of random new addresses.
     ///
-    /// When enabled, TIP-20 and ERC-20 transfers are sent to the bench's own signer addresses
+    /// When enabled, MIP-20 and ERC-20 transfers are sent to the bench's own signer addresses
     /// (which already exist on-chain), avoiding cold SSTORE for account creation. This tests
     /// pure transfer throughput without state growth.
     #[arg(long, default_value_t = true, default_missing_value = "true", num_args = 0..=1, action = clap::ArgAction::Set)]
@@ -206,11 +206,11 @@ pub struct MaxTpsArgs {
 
     /// Use 2D nonces instead of expiring nonces.
     ///
-    /// By default, tempo-bench uses expiring nonces ([TIP-1009]) which use a circular buffer
+    /// By default, magnus-bench uses expiring nonces ([MIP-1009]) which use a circular buffer
     /// for replay protection, avoiding state bloat. Use this flag to switch to 2D nonces
     /// which store nonce state per (address, nonce_key) pair.
     ///
-    /// [TIP-1009]: <https://docs.tempo.xyz/protocol/tips/tip-1009>
+    /// [MIP-1009]: <https://docs.magnus.xyz/protocol/mips/mip-1009>
     #[arg(long)]
     use_2d_nonces: bool,
 
@@ -284,12 +284,12 @@ impl MaxTpsArgs {
             );
             self.run_with_manager(signer_provider_manager).await
         } else {
-            // Default: Use expiring nonces (TIP-1009)
+            // Default: Use expiring nonces (MIP-1009)
             // Use the default 25-second expiry window (protocol max is 30s).
             let expiry_secs = ExpiringNonceFiller::DEFAULT_EXPIRY_SECS;
             info!(
                 accounts = self.accounts,
-                expiry_secs, "Creating signers (with expiring nonces - TIP-1009)"
+                expiry_secs, "Creating signers (with expiring nonces - MIP-1009)"
             );
             let signer_provider_manager = SignerProviderManager::new(
                 self.mnemonic.resolve(),
@@ -380,7 +380,7 @@ impl MaxTpsArgs {
         // Register virtual-address masters using pre-mined anvil salts.
         // Only signers with a known salt are registered; each master supports
         // unlimited virtual addresses via random userTags.
-        let virtual_master_ids = if self.tip20_virtual_weight > 0.0 {
+        let virtual_master_ids = if self.mip20_virtual_weight > 0.0 {
             let mut master_ids = Vec::new();
             for (signer, signer_provider) in signer_providers.iter() {
                 let Some(&(_, salt)) = ANVIL_VIRTUAL_SALTS
@@ -416,7 +416,7 @@ impl MaxTpsArgs {
             );
             info!(
                 masters = master_ids.len(),
-                weight = self.tip20_virtual_weight,
+                weight = self.mip20_virtual_weight,
                 "Registered virtual-address masters"
             );
             master_ids
@@ -425,7 +425,7 @@ impl MaxTpsArgs {
         };
 
         // Setup DEX tokens, pairs, and liquidity only if any DEX transaction type has non-zero
-        // weight. Otherwise, use the fee token for TIP-20 transfers directly.
+        // weight. Otherwise, use the fee token for MIP-20 transfers directly.
         let (quote_token, user_tokens) = if self.place_order_weight > 0.0 || self.swap_weight > 0.0
         {
             let user_tokens = 2;
@@ -439,7 +439,7 @@ impl MaxTpsArgs {
             .await?;
             (Some(quote_token), user_tokens)
         } else {
-            info!(fee_token = %self.fee_token, "Using fee token for TIP-20 transfers");
+            info!(fee_token = %self.fee_token, "Using fee token for MIP-20 transfers");
             (None, vec![self.fee_token])
         };
 
@@ -474,9 +474,9 @@ impl MaxTpsArgs {
 
         // Generate and send transactions
         let total_txs = self.tps * self.duration;
-        let tip20_weight = (self.tip20_weight * Self::WEIGHT_PRECISION).trunc() as u64;
-        let tip20_virtual_weight =
-            (self.tip20_virtual_weight * Self::WEIGHT_PRECISION).trunc() as u64;
+        let mip20_weight = (self.mip20_weight * Self::WEIGHT_PRECISION).trunc() as u64;
+        let mip20_virtual_weight =
+            (self.mip20_virtual_weight * Self::WEIGHT_PRECISION).trunc() as u64;
         let place_order_weight = (self.place_order_weight * Self::WEIGHT_PRECISION).trunc() as u64;
         let swap_weight = (self.swap_weight * Self::WEIGHT_PRECISION).trunc() as u64;
         let erc20_weight = (self.erc20_weight * Self::WEIGHT_PRECISION).trunc() as u64;
@@ -506,8 +506,8 @@ impl MaxTpsArgs {
         let chain_id = provider.get_chain_id().await?;
 
         let gen_input = GenerateTransactionsInput {
-            tip20_weight,
-            tip20_virtual_weight,
+            mip20_weight,
+            mip20_virtual_weight,
             place_order_weight,
             swap_weight,
             erc20_weight,
@@ -606,8 +606,8 @@ impl MaxTpsArgs {
         cancel_token.cancel();
 
         info!(
-            tip20_transfers = counters.tip20_transfers.load(Ordering::Relaxed),
-            tip20_virtual_transfers = counters.tip20_virtual_transfers.load(Ordering::Relaxed),
+            mip20_transfers = counters.mip20_transfers.load(Ordering::Relaxed),
+            mip20_virtual_transfers = counters.mip20_virtual_transfers.load(Ordering::Relaxed),
             swaps = counters.swaps.load(Ordering::Relaxed),
             orders = counters.orders.load(Ordering::Relaxed),
             erc20_transfers = counters.erc20_transfers.load(Ordering::Relaxed),
@@ -697,8 +697,8 @@ impl MnemonicArg {
 #[derive(Clone, Default)]
 struct TransactionCounters {
     /// Per-type generation counters
-    tip20_transfers: Arc<AtomicUsize>,
-    tip20_virtual_transfers: Arc<AtomicUsize>,
+    mip20_transfers: Arc<AtomicUsize>,
+    mip20_virtual_transfers: Arc<AtomicUsize>,
     swaps: Arc<AtomicUsize>,
     orders: Arc<AtomicUsize>,
     erc20_transfers: Arc<AtomicUsize>,
@@ -712,8 +712,8 @@ struct TransactionCounters {
 
 #[derive(Clone)]
 struct GenerateTransactionsInput {
-    tip20_weight: u64,
-    tip20_virtual_weight: u64,
+    mip20_weight: u64,
+    mip20_virtual_weight: u64,
     place_order_weight: u64,
     swap_weight: u64,
     erc20_weight: u64,
@@ -739,8 +739,8 @@ fn generate_transactions<F: TxFiller<MagnusNetwork> + 'static>(
     counters: TransactionCounters,
 ) -> impl Stream<Item = impl Future<Output = eyre::Result<Vec<u8>>>> {
     let GenerateTransactionsInput {
-        tip20_weight,
-        tip20_virtual_weight,
+        mip20_weight,
+        mip20_virtual_weight,
         place_order_weight,
         swap_weight,
         erc20_weight,
@@ -758,8 +758,8 @@ fn generate_transactions<F: TxFiller<MagnusNetwork> + 'static>(
     const TX_TYPES: usize = 6;
     // Weights for random sampling for each transaction type
     let tx_weights: [u64; TX_TYPES] = [
-        tip20_weight,
-        tip20_virtual_weight,
+        mip20_weight,
+        mip20_virtual_weight,
         swap_weight,
         place_order_weight,
         erc20_weight,
@@ -801,8 +801,8 @@ fn generate_transactions<F: TxFiller<MagnusNetwork> + 'static>(
 
             let mut tx = match tx_index {
                 0 => {
-                    counters.tip20_transfers.fetch_add(1, Ordering::Relaxed);
-                    let token = ITIP20Instance::new(token, provider.clone());
+                    counters.mip20_transfers.fetch_add(1, Ordering::Relaxed);
+                    let token = IMIP20Instance::new(token, provider.clone());
 
                     // Transfer minimum possible amount
                     token
@@ -810,11 +810,11 @@ fn generate_transactions<F: TxFiller<MagnusNetwork> + 'static>(
                         .into_transaction_request()
                 }
                 1 => {
-                    // TIP-20 transfer to a virtual address
+                    // MIP-20 transfer to a virtual address
                     counters
-                        .tip20_virtual_transfers
+                        .mip20_virtual_transfers
                         .fetch_add(1, Ordering::Relaxed);
-                    let token = ITIP20Instance::new(token, provider.clone());
+                    let token = IMIP20Instance::new(token, provider.clone());
                     let master_id = virtual_master_ids
                         .choose(&mut rand::rng())
                         .copied()
@@ -862,7 +862,7 @@ fn generate_transactions<F: TxFiller<MagnusNetwork> + 'static>(
                     let contract = mpp_contract_address
                         .expect("mpp_channel_address must be set when mpp_weight > 0");
 
-                    // Single Tempo tx with two calls: open a channel, then close it.
+                    // Single Magnus tx with two calls: open a channel, then close it.
                     // Signer is both payer and payee, so close succeeds immediately.
                     let salt = B256::random();
                     let payer = signer.address();
@@ -1040,8 +1040,8 @@ struct BenchmarkMetadata {
     build_profile: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     mode: Option<String>,
-    tip20_weight: f64,
-    tip20_virtual_weight: f64,
+    mip20_weight: f64,
+    mip20_virtual_weight: f64,
     place_order_weight: f64,
     swap_weight: f64,
     erc20_weight: f64,
@@ -1125,8 +1125,8 @@ pub async fn generate_report(
         node_commit_sha: args.node_commit_sha.clone(),
         build_profile: args.build_profile.clone(),
         mode: args.benchmark_mode.clone(),
-        tip20_weight: args.tip20_weight,
-        tip20_virtual_weight: args.tip20_virtual_weight,
+        mip20_weight: args.mip20_weight,
+        mip20_virtual_weight: args.mip20_virtual_weight,
         place_order_weight: args.place_order_weight,
         swap_weight: args.swap_weight,
         erc20_weight: args.erc20_weight,

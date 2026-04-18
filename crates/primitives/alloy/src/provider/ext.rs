@@ -17,7 +17,7 @@ use crate::{
     fillers::{ExpiringNonceFiller, NonceKeyFiller, Random2DNonceFiller},
 };
 
-/// Extension trait for [`Provider`] with Tempo-specific functionality.
+/// Extension trait for [`Provider`] with Magnus-specific functionality.
 #[cfg_attr(target_family = "wasm", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 pub trait MagnusProviderExt: Provider<MagnusNetwork> {
@@ -96,7 +96,7 @@ pub trait MagnusProviderExt: Provider<MagnusNetwork> {
         self.account_keychain().getTransactionKey().call().await
     }
 
-    /// Returns `true` if the given Tempo hardfork is active on the connected chain.
+    /// Returns `true` if the given Magnus hardfork is active on the connected chain.
     ///
     /// Queries the node's `magnus_forkSchedule` RPC to determine the currently active hardfork.
     async fn is_hardfork_active(
@@ -124,9 +124,9 @@ pub trait MagnusProviderExt: Provider<MagnusNetwork> {
 #[cfg_attr(not(target_family = "wasm"), async_trait::async_trait)]
 impl<P> MagnusProviderExt for P where P: Provider<MagnusNetwork> {}
 
-/// Extension trait for [`ProviderBuilder`] with Tempo-specific functionality.
+/// Extension trait for [`ProviderBuilder`] with Magnus-specific functionality.
 pub trait MagnusProviderBuilderExt {
-    /// Returns a provider builder with the recommended Tempo fillers and the random 2D nonce filler.
+    /// Returns a provider builder with the recommended Magnus fillers and the random 2D nonce filler.
     ///
     /// See [`Random2DNonceFiller`] for more information on random 2D nonces.
     fn with_random_2d_nonces(
@@ -137,11 +137,11 @@ pub trait MagnusProviderBuilderExt {
         MagnusNetwork,
     >;
 
-    /// Returns a provider builder with the recommended Tempo fillers and the expiring nonce filler.
+    /// Returns a provider builder with the recommended Magnus fillers and the expiring nonce filler.
     ///
-    /// See [`ExpiringNonceFiller`] for more information on expiring nonces ([TIP-1009]).
+    /// See [`ExpiringNonceFiller`] for more information on expiring nonces ([MIP-1009]).
     ///
-    /// [TIP-1009]: <https://docs.tempo.xyz/protocol/tips/tip-1009>
+    /// [MIP-1009]: <https://docs.magnus.xyz/protocol/mips/mip-1009>
     fn with_expiring_nonces(
         self,
     ) -> ProviderBuilder<
@@ -150,7 +150,7 @@ pub trait MagnusProviderBuilderExt {
         MagnusNetwork,
     >;
 
-    /// Returns a provider builder with the recommended Tempo fillers and the nonce key filler.
+    /// Returns a provider builder with the recommended Magnus fillers and the nonce key filler.
     ///
     /// The nonce key filler requires `nonce_key` to be set on the transaction request and
     /// fills the correct next nonce by querying the chain, with caching for batched sends.

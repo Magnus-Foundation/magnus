@@ -30,8 +30,8 @@ check_network_unreachable() {
 stop_all_validators() {
   echo "Stopping ALL validators..."
   for i in {0..3}; do
-    echo "  Stopping tempo-validator-$i..."
-    docker stop "tempo-validator-$i" >/dev/null 2>&1 || true
+    echo "  Stopping magnus-validator-$i..."
+    docker stop "magnus-validator-$i" >/dev/null 2>&1 || true
   done
   echo "  All validators stopped"
 }
@@ -40,8 +40,8 @@ stop_all_validators() {
 start_all_validators() {
   echo "Starting all validators..."
   for i in {0..3}; do
-    echo "  Starting tempo-validator-$i..."
-    docker start "tempo-validator-$i" >/dev/null 2>&1 || true
+    echo "  Starting magnus-validator-$i..."
+    docker start "magnus-validator-$i" >/dev/null 2>&1 || true
   done
   echo "  All validators started"
 }

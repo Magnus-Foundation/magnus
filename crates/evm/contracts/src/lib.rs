@@ -1,4 +1,4 @@
-//! Tempo predeployed contracts and bindings.
+//! Magnus predeployed contracts and bindings.
 
 #![no_std]
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
@@ -100,7 +100,7 @@ mod tests {
     //!
     //! Run with:
     //! ```sh
-    //! cargo test -p tempo-contracts
+    //! cargo test -p magnus-contracts
     //! ```
     //!
     //! Optionally set `ETH_RPC_URL` to use a custom RPC endpoint.

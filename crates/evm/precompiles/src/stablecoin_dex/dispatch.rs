@@ -111,7 +111,7 @@ mod tests {
         Precompile,
         stablecoin_dex::{IStablecoinDEX, MIN_ORDER_AMOUNT, StablecoinDEX},
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
-        test_util::{TIP20Setup, assert_full_coverage, check_selector_coverage},
+        test_util::{MIP20Setup, assert_full_coverage, check_selector_coverage},
     };
     use alloy::{
         primitives::{Address, U256},
@@ -129,13 +129,13 @@ mod tests {
         let amount = 200_000_000u128;
 
         // Initialize quote token (pathUSD)
-        let quote = TIP20Setup::path_usd(admin)
+        let quote = MIP20Setup::path_usd(admin)
             .with_issuer(admin)
             .with_mint(user, U256::from(amount))
             .with_approval(user, exchange.address, U256::from(amount))
             .apply()?;
 
-        let base = TIP20Setup::create("USDC", "USDC", admin)
+        let base = MIP20Setup::create("USDC", "USDC", admin)
             .with_issuer(admin)
             .with_mint(user, U256::from(amount))
             .with_approval(user, exchange.address, U256::from(amount))

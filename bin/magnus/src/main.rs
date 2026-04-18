@@ -75,7 +75,7 @@ use tracing::{debug, info, info_span, warn};
 type MagnusCli =
     Cli<MagnusChainSpecParser, MagnusArgs, MagnusRpcModuleValidator, magnus_cmd::MagnusSubcommand>;
 
-const MAGNUS_CUSTOM_RPC_MODULES: &[&str] = &["consensus", "operator", "tempo", "token"];
+const MAGNUS_CUSTOM_RPC_MODULES: &[&str] = &["consensus", "operator", "magnus", "token"];
 
 #[derive(Debug, Clone, Copy)]
 struct MagnusRpcModuleValidator;
@@ -117,7 +117,7 @@ struct MagnusArgs {
     ///
     /// Bootnodes for the current chain are added as peer hints to the discovery service.
     #[arg(
-        long = "tempo.bootnodes-endpoint",
+        long = "magnus.bootnodes-endpoint",
         value_name = "URL",
         env = "MAGNUS_BOOTNODES_ENDPOINT"
     )]
@@ -196,7 +196,7 @@ impl NodeCommandExt for reth_cli_commands::node::NodeCommand<MagnusChainSpecPars
 }
 
 /// Print installed extensions as a footer after root help output.
-/// Skips printing when help is for a subcommand (e.g. `tempo node --help`).
+/// Skips printing when help is for a subcommand (e.g. `magnus node --help`).
 fn print_extensions_footer() {
     let is_subcommand_help = std::env::args()
         .skip(1)
@@ -389,7 +389,7 @@ fn main() -> eyre::Result<()> {
     let shutdown_token_clone = shutdown_token.clone();
     let cl_feed_state_clone = cl_feed_state.clone();
     let consensus_handle = thread::spawn(move || {
-        // Exit early if we are not executing `tempo node` command.
+        // Exit early if we are not executing `magnus node` command.
         if !is_node {
             return Ok(());
         }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Publish tempo-contracts, tempo-primitives, tempo-chainspec, and tempo-alloy to crates.io
+# Publish magnus-contracts, magnus-primitives, magnus-chainspec, and magnus-alloy to crates.io
 # by stripping all reth-specific code and dependencies.
 #
 # Usage:
@@ -161,7 +161,7 @@ EOF
 # Generate workspace deps, dynamically filtering out reth-* and all internal
 # path-only crates, then overriding the publish targets with local paths.
 python3 "$SANITIZE_PY" gen_workspace "$REPO_ROOT/Cargo.toml" "$TMP_WORK_DIR/Cargo.toml" \
-    "tempo-contracts,tempo-primitives,tempo-chainspec,tempo-alloy"
+    "magnus-contracts,magnus-primitives,magnus-chainspec,magnus-alloy"
 
 # Seed the lockfile so transitive deps use the same versions as the main workspace
 cp "$REPO_ROOT/Cargo.lock" "$TMP_WORK_DIR/Cargo.lock"
@@ -181,8 +181,8 @@ log "Compilation verified ✓"
 # ── 5. Pre-resolve validation ─────────────────────────────────────────────────
 # Validate BEFORE resolve_deps so that internal deps (which still have
 # workspace/path markers) can be detected. After resolve_deps, a leaked
-# internal dep like `tempo-foo.workspace = true` becomes
-# `tempo-foo = { version = "1.x.0" }` and is much harder to catch.
+# internal dep like `magnus-foo.workspace = true` becomes
+# `magnus-foo = { version = "1.x.0" }` and is much harder to catch.
 log "Pre-resolve validation …"
 
 # Dynamically discover all internal path-only deps from the workspace root
@@ -192,7 +192,7 @@ INTERNAL_PATH_DEPS=$(python3 -c "
 import sys; sys.path.insert(0, '$SANITIZE_DIR')
 from sanitize_toml import parse_workspace_deps
 _, _, ws_path_deps, _, _ = parse_workspace_deps('$REPO_ROOT/Cargo.toml')
-keep = {'tempo-contracts', 'tempo-primitives', 'tempo-chainspec', 'tempo-alloy'}
+keep = {'magnus-contracts', 'magnus-primitives', 'magnus-chainspec', 'magnus-alloy'}
 for d in sorted(ws_path_deps - keep):
     print(d)
 ")
@@ -214,12 +214,12 @@ done
 # Primitives: no forbidden features
 for feat in reth reth-codec serde-bincode-compat rpc; do
     grep -qE "^\s*${feat}\s*=" "$TMP_WORK_DIR/primitives/Cargo.toml" && \
-        err "Feature '$feat' still defined in tempo-primitives Cargo.toml"
+        err "Feature '$feat' still defined in magnus-primitives Cargo.toml"
 done
 
 # Alloy: no reth feature
 grep -qE "^\s*reth\s*=" "$TMP_WORK_DIR/alloy/Cargo.toml" && \
-    err "Feature 'reth' still defined in tempo-alloy Cargo.toml"
+    err "Feature 'reth' still defined in magnus-alloy Cargo.toml"
 
 # Source: no forbidden references
 (
@@ -227,15 +227,15 @@ grep -qE "^\s*reth\s*=" "$TMP_WORK_DIR/alloy/Cargo.toml" && \
     grep -rq 'feature = "reth-codec"' "$TMP_WORK_DIR/primitives/src/" || \
     grep -rq 'reth_codecs' "$TMP_WORK_DIR/primitives/src/" || \
     grep -rq 'feature = "rpc"' "$TMP_WORK_DIR/primitives/src/"
-) && err "reth-gated code still in tempo-primitives source"
+) && err "reth-gated code still in magnus-primitives source"
 
 grep -rq 'feature = "reth"' "$TMP_WORK_DIR/alloy/src/" && \
-    err "reth-gated code still in tempo-alloy source"
+    err "reth-gated code still in magnus-alloy source"
 
 # Exclude hardfork.rs: the tempo_hardfork! macro generates #[cfg(feature = "reth")]
 # blocks that are dead code when the reth feature is absent (suppressed via check-cfg).
 grep -rq --exclude='hardfork.rs' 'feature = "reth"' "$TMP_WORK_DIR/chainspec/src/" && \
-    err "reth-gated code still in tempo-chainspec source"
+    err "reth-gated code still in magnus-chainspec source"
 
 log "Pre-resolve validation passed ✓"
 
@@ -272,10 +272,10 @@ members = ["contracts", "primitives", "chainspec", "alloy"]
 resolver = "3"
 
 [patch.crates-io]
-tempo-contracts = { path = "contracts" }
-tempo-primitives = { path = "primitives" }
-tempo-chainspec = { path = "chainspec" }
-tempo-alloy = { path = "alloy" }
+magnus-contracts = { path = "contracts" }
+magnus-primitives = { path = "primitives" }
+magnus-chainspec = { path = "chainspec" }
+magnus-alloy = { path = "alloy" }
 EOF
 
 log "Running final cargo check …"
@@ -300,7 +300,7 @@ if $SEMVER_CHECK; then
     append_contracts_semver_overrides "$TMP_WORK_DIR/contracts/Cargo.toml"
     SEMVER_FAILED=false
     SEMVER_SKIPPED_ALL=true
-    PUBLISH_CRATES=("tempo-contracts" "tempo-primitives" "tempo-chainspec" "tempo-alloy")
+    PUBLISH_CRATES=("magnus-contracts" "magnus-primitives" "magnus-chainspec" "magnus-alloy")
     for crate_dir in "$TMP_WORK_DIR/contracts" "$TMP_WORK_DIR/primitives" "$TMP_WORK_DIR/chainspec" "$TMP_WORK_DIR/alloy"; do
         crate_name=$(grep -m1 'name = ' "$crate_dir/Cargo.toml" | sed 's/.*"\(.*\)".*/\1/')
         crate_ver=$(grep -m1 'version = ' "$crate_dir/Cargo.toml" | sed 's/.*"\(.*\)".*/\1/')
@@ -328,7 +328,7 @@ if $SEMVER_CHECK; then
         # Using the API directly instead of `cargo info` which resolves
         # the local workspace version when run inside a workspace.
         published_ver=$(curl -sL "https://crates.io/api/v1/crates/$crate_name" \
-            -H "User-Agent: tempo-publish-script" | \
+            -H "User-Agent: magnus-publish-script" | \
             python3 -c "import sys,json; d=json.load(sys.stdin); print(d['crate']['max_stable_version'] or d['crate']['max_version'])" 2>/dev/null)
         if [ -z "$published_ver" ] || [ "$published_ver" = "null" ]; then
             log "$crate_name not yet published, skipping"

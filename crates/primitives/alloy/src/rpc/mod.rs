@@ -1,4 +1,4 @@
-//! Tempo RPC types.
+//! Magnus RPC types.
 
 mod header;
 pub use header::MagnusHeaderResponse;

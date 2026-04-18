@@ -1,7 +1,7 @@
 services:
   prometheus:
     image: prom/prometheus:v2.54.0
-    container_name: tempo-bench-prometheus
+    container_name: magnus-bench-prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
@@ -18,7 +18,7 @@ services:
 
   grafana:
     image: grafana/grafana:11.2.0
-    container_name: tempo-bench-grafana
+    container_name: magnus-bench-grafana
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro

@@ -75,7 +75,7 @@ pub struct AA2dPool {
     metrics: AA2dPoolMetrics,
     /// All transactions ordered by eviction priority (lowest priority first).
     ///
-    /// Since Tempo has a constant base fee, priority never changes after insertion,
+    /// Since Magnus has a constant base fee, priority never changes after insertion,
     /// so we can maintain this ordering incrementally. At eviction time, we scan
     /// this set checking `is_pending` to find queued or pending transactions.
     by_eviction_order: BTreeSet<EvictionKey>,
@@ -143,7 +143,7 @@ impl AA2dPool {
     /// If transaction is using 2D nonces, this is expected to be the nonce corresponding
     /// to the transaction's nonce key.
     ///
-    /// `hardfork` indicates the active Tempo hardfork. When T1 or later, expiring nonce
+    /// `hardfork` indicates the active Magnus hardfork. When T1 or later, expiring nonce
     /// transactions (nonce_key == U256::MAX) are handled specially. Otherwise, they are
     /// treated as regular 2D nonce transactions.
     pub(crate) fn add_transaction(

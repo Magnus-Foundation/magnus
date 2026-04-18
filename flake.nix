@@ -74,7 +74,7 @@
           overrides:
           craneLib.buildPackage (
             composeAttrOverrides {
-              pname = "tempo";
+              pname = "magnus";
               version = packageVersion;
               src = ./.;
               inherit nativeBuildInputs;
@@ -92,7 +92,7 @@
         # Cargo.toml would fix it by letting crane use allRefs=false.
         #
         # packages = rec {
-        #   tempo = mkTempo (
+        #   magnus = mkTempo (
         #     [
         #       withClang
         #       withMaxPerf
@@ -102,7 +102,7 @@
         #     ]
         #   );
         #
-        #   default = tempo;
+        #   default = magnus;
         # };
 
         devShell =

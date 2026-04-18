@@ -70,7 +70,7 @@ const MAX_KEYCHAIN_SELECTOR_RULES_PER_SCOPE: u8 = 64;
 /// Maximum number of recipients per selector rule.
 const MAX_KEYCHAIN_RECIPIENTS_PER_SELECTOR: u8 = 64;
 
-/// Validator for Tempo transactions.
+/// Validator for Magnus transactions.
 #[derive(Debug)]
 pub struct MagnusTransactionValidator<Client> {
     /// Inner validator that performs default Ethereum tx validation.
@@ -256,7 +256,7 @@ where
         }
 
         // Check key_authorization cardinality limits (DoS protection).
-        // Semantic validation (duplicates, zero-address, TIP-20, u128 cap) is handled by the
+        // Semantic validation (duplicates, zero-address, MIP-20, u128 cap) is handled by the
         // EVM precompile via `validate_with_evm`.
         if let Some(ref key_auth) = tx.key_authorization {
             if let Some(limits) = &key_auth.limits
@@ -296,7 +296,7 @@ where
         Ok(())
     }
 
-    /// Runs the Tempo EVM validation pipeline against the given state, reusing the
+    /// Runs the Magnus EVM validation pipeline against the given state, reusing the
     /// same validation logic that the block executor uses
     /// ([`MagnusEvm::validate_transaction`]).
     ///
@@ -663,7 +663,7 @@ mod tests {
     use magnus_chainspec::spec::{MODERATO, MAGNUS_T0_BASE_FEE, MAGNUS_T1_TX_GAS_LIMIT_CAP};
     use magnus_precompiles::{
         PATH_USD_ADDRESS,
-        tip20::{TIP20Token, slots as tip20_slots},
+        mip20::{MIP20Token, slots as mip20_slots},
     };
     use magnus_primitives::{
         Block, MagnusHeader, MagnusPrimitives, MagnusTxEnvelope, MagnusTxType,
@@ -747,8 +747,8 @@ mod tests {
         let transfer_policy_id_packed =
             uint!(0x0000000000000000000000010000000000000000000000000000000000000000_U256);
         // Compute the balance slot for the sender in the PATH_USD token
-        let balance_slot = TIP20Token::from_address(PATH_USD_ADDRESS)
-            .expect("PATH_USD_ADDRESS is a valid TIP20 token")
+        let balance_slot = MIP20Token::from_address(PATH_USD_ADDRESS)
+            .expect("PATH_USD_ADDRESS is a valid MIP20 token")
             .balances[transaction.sender()]
         .slot();
         // Give the sender enough balance to cover the transaction cost
@@ -756,9 +756,9 @@ mod tests {
         provider.add_account(
             PATH_USD_ADDRESS,
             ExtendedAccount::new(0, U256::ZERO).extend_storage([
-                (tip20_slots::CURRENCY.into(), usd_currency_value),
+                (mip20_slots::CURRENCY.into(), usd_currency_value),
                 (
-                    tip20_slots::TRANSFER_POLICY_ID.into(),
+                    mip20_slots::TRANSFER_POLICY_ID.into(),
                     transfer_policy_id_packed,
                 ),
                 (balance_slot.into(), fee_payer_balance),
@@ -2286,8 +2286,8 @@ mod tests {
         provider.add_account(
             fee_token,
             ExtendedAccount::new(0, U256::ZERO).extend_storage([
-                (tip20_slots::CURRENCY.into(), usd_currency_value),
-                (tip20_slots::PAUSED.into(), U256::from(1)),
+                (mip20_slots::CURRENCY.into(), usd_currency_value),
+                (mip20_slots::PAUSED.into(), U256::from(1)),
             ]),
         );
 
@@ -2403,7 +2403,7 @@ mod tests {
     /// Paused validator tokens should be rejected even though they would bypass the liquidity check.
     #[test]
     fn test_paused_validator_token_rejected_before_liquidity_bypass() {
-        // Use a TIP20-prefixed address for the fee token
+        // Use a MIP20-prefixed address for the fee token
         let paused_validator_token = address!("20C0000000000000000000000000000000000001");
 
         // "USD" = 0x555344, stored in high bytes with length 6 (3*2) in LSB
@@ -2417,8 +2417,8 @@ mod tests {
         provider.add_account(
             paused_validator_token,
             ExtendedAccount::new(0, U256::ZERO).extend_storage([
-                (tip20_slots::CURRENCY.into(), usd_currency_value),
-                (tip20_slots::PAUSED.into(), U256::from(1)),
+                (mip20_slots::CURRENCY.into(), usd_currency_value),
+                (mip20_slots::PAUSED.into(), U256::from(1)),
             ]),
         );
 

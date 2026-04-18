@@ -16,7 +16,7 @@ use magnus_primitives::{
 
 use crate::MagnusNetwork;
 
-/// An Ethereum [`TransactionRequest`] extended with Tempo-specific fields.
+/// An Ethereum [`TransactionRequest`] extended with Magnus-specific fields.
 #[derive(
     Clone,
     Debug,
@@ -45,11 +45,11 @@ pub struct MagnusTransactionRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nonce_key: Option<U256>,
 
-    /// Optional calls array, for Tempo transactions.
+    /// Optional calls array, for Magnus transactions.
     #[serde(default)]
     pub calls: Vec<Call>,
 
-    /// Optional key type for gas estimation of Tempo transactions.
+    /// Optional key type for gas estimation of Magnus transactions.
     /// Specifies the signature verification algorithm to calculate accurate gas costs.
     #[serde(default)]
     pub key_type: Option<SignatureType>,
@@ -67,7 +67,7 @@ pub struct MagnusTransactionRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key_id: Option<Address>,
 
-    /// Optional authorization list for Tempo transactions (supports multiple signature types)
+    /// Optional authorization list for Magnus transactions (supports multiple signature types)
     #[serde(
         default,
         skip_serializing_if = "Vec::is_empty",
@@ -80,10 +80,10 @@ pub struct MagnusTransactionRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key_authorization: Option<SignedKeyAuthorization>,
 
-    /// Transaction valid before timestamp in seconds (for expiring nonces, [TIP-1009]).
+    /// Transaction valid before timestamp in seconds (for expiring nonces, [MIP-1009]).
     /// Transaction can only be included in a block before this timestamp.
     ///
-    /// [TIP-1009]: <https://docs.tempo.xyz/protocol/tips/tip-1009>
+    /// [MIP-1009]: <https://docs.magnus.xyz/protocol/mips/mip-1009>
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -91,10 +91,10 @@ pub struct MagnusTransactionRequest {
     )]
     pub valid_before: Option<NonZeroU64>,
 
-    /// Transaction valid after timestamp in seconds (for expiring nonces, [TIP-1009]).
+    /// Transaction valid after timestamp in seconds (for expiring nonces, [MIP-1009]).
     /// Transaction can only be included in a block after this timestamp.
     ///
-    /// [TIP-1009]: <https://docs.tempo.xyz/protocol/tips/tip-1009>
+    /// [MIP-1009]: <https://docs.magnus.xyz/protocol/mips/mip-1009>
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -131,18 +131,18 @@ impl MagnusTransactionRequest {
         self
     }
 
-    /// Replace the Tempo call list for this transaction.
+    /// Replace the Magnus call list for this transaction.
     pub fn set_calls(&mut self, calls: Vec<Call>) {
         self.calls = calls;
     }
 
-    /// Builder-pattern method for replacing the Tempo call list.
+    /// Builder-pattern method for replacing the Magnus call list.
     pub fn with_calls(mut self, calls: Vec<Call>) -> Self {
         self.calls = calls;
         self
     }
 
-    /// Append one call to the Tempo call list.
+    /// Append one call to the Magnus call list.
     pub fn push_call(&mut self, call: Call) {
         self.calls.push(call);
     }
@@ -191,9 +191,9 @@ impl MagnusTransactionRequest {
         self
     }
 
-    /// Set the valid_before timestamp for expiring nonces ([TIP-1009]).
+    /// Set the valid_before timestamp for expiring nonces ([MIP-1009]).
     ///
-    /// [TIP-1009]: <https://docs.tempo.xyz/protocol/tips/tip-1009>
+    /// [MIP-1009]: <https://docs.magnus.xyz/protocol/mips/mip-1009>
     pub fn set_valid_before(&mut self, valid_before: NonZeroU64) {
         self.valid_before = Some(valid_before);
     }
@@ -204,9 +204,9 @@ impl MagnusTransactionRequest {
         self
     }
 
-    /// Set the valid_after timestamp for expiring nonces ([TIP-1009]).
+    /// Set the valid_after timestamp for expiring nonces ([MIP-1009]).
     ///
-    /// [TIP-1009]: <https://docs.tempo.xyz/protocol/tips/tip-1009>
+    /// [MIP-1009]: <https://docs.magnus.xyz/protocol/mips/mip-1009>
     pub fn set_valid_after(&mut self, valid_after: NonZeroU64) {
         self.valid_after = Some(valid_after);
     }
@@ -233,32 +233,32 @@ impl MagnusTransactionRequest {
         if self.calls.is_empty() && self.inner.to.is_none() {
             return Err(ValueError::new(
                 self,
-                "Missing 'calls' or 'to' field for Tempo transaction.",
+                "Missing 'calls' or 'to' field for Magnus transaction.",
             ));
         }
 
         let Some(nonce) = self.inner.nonce else {
             return Err(ValueError::new(
                 self,
-                "Missing 'nonce' field for Tempo transaction.",
+                "Missing 'nonce' field for Magnus transaction.",
             ));
         };
         let Some(gas_limit) = self.inner.gas else {
             return Err(ValueError::new(
                 self,
-                "Missing 'gas_limit' field for Tempo transaction.",
+                "Missing 'gas_limit' field for Magnus transaction.",
             ));
         };
         let Some(max_fee_per_gas) = self.inner.max_fee_per_gas else {
             return Err(ValueError::new(
                 self,
-                "Missing 'max_fee_per_gas' field for Tempo transaction.",
+                "Missing 'max_fee_per_gas' field for Magnus transaction.",
             ));
         };
         let Some(max_priority_fee_per_gas) = self.inner.max_priority_fee_per_gas else {
             return Err(ValueError::new(
                 self,
-                "Missing 'max_priority_fee_per_gas' field for Tempo transaction.",
+                "Missing 'max_priority_fee_per_gas' field for Magnus transaction.",
             ));
         };
 

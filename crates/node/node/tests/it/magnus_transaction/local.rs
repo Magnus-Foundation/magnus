@@ -30,7 +30,7 @@ use magnus_contracts::precompiles::{
 };
 use magnus_precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS,
-    tip20::ITIP20::{self},
+    mip20::IMIP20::{self},
 };
 use magnus_primitives::{
     MagnusTransaction, MagnusTxEnvelope,
@@ -1528,7 +1528,7 @@ async fn test_aa_keychain_revocation_toctou_dos() -> eyre::Result<()> {
         .await?;
 
     // Check the transfer recipient balance to verify if the transaction actually executed
-    let recipient_balance = ITIP20::new(DEFAULT_FEE_TOKEN, &provider)
+    let recipient_balance = IMIP20::new(DEFAULT_FEE_TOKEN, &provider)
         .balanceOf(recipient)
         .call()
         .await?;
@@ -1821,7 +1821,7 @@ async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
         .await?;
 
     // Check the transfer recipient balance
-    let recipient_balance = ITIP20::new(DEFAULT_FEE_TOKEN, &provider)
+    let recipient_balance = IMIP20::new(DEFAULT_FEE_TOKEN, &provider)
         .balanceOf(recipient)
         .call()
         .await?;

@@ -74,7 +74,7 @@ impl AA2dPoolMetrics {
     }
 }
 
-/// Metrics for the Tempo pool maintenance task.
+/// Metrics for the Magnus pool maintenance task.
 #[derive(Metrics, Clone)]
 #[metrics(scope = "transaction_pool.maintenance")]
 pub struct MagnusPoolMaintenanceMetrics {

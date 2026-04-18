@@ -304,7 +304,7 @@ pub(super) fn compare_nested_struct_type(
         .types
         .values()
         .find(|t| {
-            // Extract type name after last dot (e.g., "struct TIP403Registry.PolicyData" -> "PolicyData")
+            // Extract type name after last dot (e.g., "struct MIP403Registry.PolicyData" -> "PolicyData")
             let type_name = t.label.rsplit('.').next().unwrap_or(&t.label);
             type_name == type_name_pattern
         })

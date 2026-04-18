@@ -5,7 +5,7 @@ use std::sync::Arc;
 use magnus_payload_types::MagnusPayloadAttributes;
 use magnus_primitives::{Block, MagnusHeader};
 
-/// Type encapsulating Tempo engine validation logic.
+/// Type encapsulating Magnus engine validation logic.
 #[derive(Debug, Default, Clone, Copy)]
 #[non_exhaustive]
 pub struct MagnusEngineValidator;

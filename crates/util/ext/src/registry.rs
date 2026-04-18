@@ -1,6 +1,6 @@
 //! Persistent registry of installed extensions (versions, update check timestamps).
 //!
-//! NOTE: load/save is not file-locked. Concurrent `tempo` invocations may
+//! NOTE: load/save is not file-locked. Concurrent `magnus` invocations may
 //! lose a write (last-writer-wins). This is acceptable today because the
 //! data is limited to `checked_at` timestamps and `installed_version`
 //! strings — the worst outcome is a redundant update check.
@@ -32,7 +32,7 @@ pub(crate) struct ExtensionState {
     pub(crate) installed_version: String,
     /// When true, auto-update will not install newer versions — only
     /// log that an update is available. Set when the user installs a
-    /// specific version via `tempo add <ext> <version>`.
+    /// specific version via `magnus add <ext> <version>`.
     #[serde(default)]
     pub(crate) pinned: bool,
     /// Short description from the release manifest.
@@ -161,13 +161,13 @@ fn now_secs() -> u64 {
 /// Resolves the path to the registry file.
 ///
 /// Uses `MAGNUS_HOME/extensions.json` if set, otherwise the platform data
-/// directory via `dirs_next` (e.g. `~/Library/Application Support/tempo` on
-/// macOS, `$XDG_DATA_HOME/tempo` on Linux).
+/// directory via `dirs_next` (e.g. `~/Library/Application Support/magnus` on
+/// macOS, `$XDG_DATA_HOME/magnus` on Linux).
 fn state_path() -> Option<PathBuf> {
     if let Some(home) = env::var_os("MAGNUS_HOME") {
         Some(PathBuf::from(home).join("extensions.json"))
     } else {
-        dirs_next::data_dir().map(|data| data.join("tempo").join("extensions.json"))
+        dirs_next::data_dir().map(|data| data.join("magnus").join("extensions.json"))
     }
 }
 
@@ -269,12 +269,12 @@ mod tests {
         let _lock = ENV_MUTEX.lock().unwrap();
         let _home = TempHome::new();
         let mut reg = Registry::default();
-        reg.record_check("wallet", "2.0.0", true, "Tempo wallet");
+        reg.record_check("wallet", "2.0.0", true, "Magnus wallet");
         reg.save();
         let loaded = Registry::load().unwrap();
         assert_eq!(loaded.extensions["wallet"].installed_version, "2.0.0");
         assert!(loaded.is_pinned("wallet"));
-        assert_eq!(loaded.extensions["wallet"].description, "Tempo wallet");
+        assert_eq!(loaded.extensions["wallet"].description, "Magnus wallet");
     }
 
     #[test]
@@ -394,8 +394,8 @@ mod tests {
     #[test]
     fn description_recorded() {
         let mut reg = Registry::default();
-        reg.record_check("wallet", "1.0.0", false, "Tempo wallet");
-        assert_eq!(reg.extensions["wallet"].description, "Tempo wallet");
+        reg.record_check("wallet", "1.0.0", false, "Magnus wallet");
+        assert_eq!(reg.extensions["wallet"].description, "Magnus wallet");
     }
 
     #[test]

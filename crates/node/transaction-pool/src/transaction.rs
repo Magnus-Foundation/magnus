@@ -25,9 +25,9 @@ use magnus_primitives::{MagnusTxEnvelope, transaction::calc_gas_balance_spending
 use magnus_revm::{MagnusInvalidTransaction, MagnusTxEnv};
 use thiserror::Error;
 
-/// Tempo pooled transaction representation.
+/// Magnus pooled transaction representation.
 ///
-/// This is a wrapper around the regular ethereum [`EthPooledTransaction`], but with tempo specific implementations.
+/// This is a wrapper around the regular ethereum [`EthPooledTransaction`], but with magnus specific implementations.
 #[derive(Debug, Clone)]
 pub struct MagnusPooledTransaction {
     inner: EthPooledTransaction<MagnusTxEnvelope>,
@@ -114,7 +114,7 @@ impl MagnusPooledTransaction {
 
     /// Returns whether this is a payment transaction.
     ///
-    /// Uses strict classification: TIP-20 prefix AND recognized calldata.
+    /// Uses strict classification: MIP-20 prefix AND recognized calldata.
     pub fn is_payment(&self) -> bool {
         self.is_payment
     }
@@ -241,7 +241,7 @@ impl MagnusPooledTransaction {
 #[derive(Debug, Error)]
 pub enum MagnusPoolTransactionError {
     #[error(
-        "Transaction exceeds non payment gas limit, please see https://docs.tempo.xyz/errors/tx/ExceedsNonPaymentLimit for more"
+        "Transaction exceeds non payment gas limit, please see https://docs.magnus.xyz/errors/tx/ExceedsNonPaymentLimit for more"
     )]
     ExceedsNonPaymentLimit,
 
@@ -254,12 +254,12 @@ pub enum MagnusPoolTransactionError {
     InvalidValidAfter { valid_after: u64, max_allowed: u64 },
 
     #[error(
-        "Keychain signature validation failed: {0}, please see https://docs.tempo.xyz/errors/tx/Keychain for more"
+        "Keychain signature validation failed: {0}, please see https://docs.magnus.xyz/errors/tx/Keychain for more"
     )]
     Keychain(&'static str),
 
-    /// Thrown if a Tempo Transaction with a nonce key prefixed with the sub-block prefix marker added to the pool
-    #[error("Tempo Transaction with subblock nonce key prefix aren't supported in the pool")]
+    /// Thrown if a Magnus Transaction with a nonce key prefixed with the sub-block prefix marker added to the pool
+    #[error("Magnus Transaction with subblock nonce key prefix aren't supported in the pool")]
     SubblockNonceKey,
 
     /// Thrown when an AA transaction has too many authorizations in its authorization list.
@@ -533,7 +533,7 @@ mod tests {
     use alloy_consensus::TxEip1559;
     use alloy_primitives::{Address, Signature, TxKind, address};
     use alloy_sol_types::SolCall;
-    use magnus_contracts::precompiles::ITIP20;
+    use magnus_contracts::precompiles::IMIP20;
     use magnus_precompiles::{PATH_USD_ADDRESS, nonce::NonceManager};
     use magnus_primitives::transaction::{
         MagnusTransaction,
@@ -544,8 +544,8 @@ mod tests {
 
     #[test]
     fn test_payment_classification_positive() {
-        // Test that TIP20 address prefix with valid calldata is classified as payment
-        let calldata = ITIP20::transferCall {
+        // Test that MIP20 address prefix with valid calldata is classified as payment
+        let calldata = IMIP20::transferCall {
             to: Address::random(),
             amount: U256::random(),
         }
@@ -575,7 +575,7 @@ mod tests {
 
     #[test]
     fn test_payment_classification_tip20_prefix_without_valid_calldata() {
-        // TIP20 prefix but no valid calldata should NOT be classified as payment in the pool
+        // MIP20 prefix but no valid calldata should NOT be classified as payment in the pool
         let payment_addr = address!("20c0000000000000000000000000000000000001");
         let tx = TxEip1559 {
             to: TxKind::Call(payment_addr),
@@ -600,7 +600,7 @@ mod tests {
 
     #[test]
     fn test_payment_classification_negative() {
-        // Test that non-TIP20 address is NOT classified as payment
+        // Test that non-MIP20 address is NOT classified as payment
         let non_payment_addr = Address::random();
         let pooled_tx = TxBuilder::eip1559(non_payment_addr)
             .gas_limit(21000)
@@ -920,7 +920,7 @@ mod tests {
             .value(U256::from(1000))
             .build();
 
-        // PoolTransaction::cost() returns &U256::ZERO for Tempo
+        // PoolTransaction::cost() returns &U256::ZERO for Magnus
         assert_eq!(*tx.cost(), U256::ZERO);
     }
 }

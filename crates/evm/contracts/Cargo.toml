@@ -1,6 +1,6 @@
 [package]
 name = "magnus-contracts"
-description = "Tempo blockchain contract bindings and ABI definitions"
+description = "Magnus blockchain contract bindings and ABI definitions"
 
 version = "1.6.0"
 edition.workspace = true

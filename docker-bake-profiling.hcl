@@ -37,7 +37,7 @@ target "_common" {
   platforms = ["linux/amd64", "linux/arm64"]
 }
 
-target "tempo" {
+target "magnus" {
   inherits = ["_common", "docker-metadata"]
-  target = "tempo"
+  target = "magnus"
 }

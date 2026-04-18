@@ -1,6 +1,6 @@
 [package]
 name = "magnus-ext"
-description = "Extension dispatch and management for the Tempo CLI"
+description = "Extension dispatch and management for the Magnus CLI"
 
 version.workspace = true
 edition.workspace = true

@@ -68,7 +68,7 @@ use magnus_primitives::{
 use tokio::sync::{Mutex, broadcast};
 
 /// Placeholder constant for `eth_getBalance` calls because the native token balance is N/A on
-/// Tempo.
+/// Magnus.
 pub const NATIVE_BALANCE_PLACEHOLDER: U256 =
     uint!(4242424242424242424242424242424242424242424242424242424242424242424242424242_U256);
 
@@ -79,12 +79,12 @@ pub const NATIVE_BALANCE_PLACEHOLDER: U256 =
 /// being added to the channel to prevent DoS attacks.
 pub const SUBBLOCK_TX_CHANNEL_CAPACITY: usize = 10_000;
 
-/// Tempo `Eth` API implementation.
+/// Magnus `Eth` API implementation.
 ///
 /// This type provides the functionality for handling `eth_` related requests.
 ///
 /// This wraps a default `Eth` implementation, and provides additional functionality where the
-/// Tempo spec deviates from the default ethereum spec, e.g. gas estimation denominated in
+/// Magnus spec deviates from the default ethereum spec, e.g. gas estimation denominated in
 /// `feeToken`
 ///
 /// This type implements the [`FullEthApi`](reth_rpc_eth_api::helpers::FullEthApi) by implemented
@@ -411,7 +411,7 @@ impl<N: FullNodeTypes<Types = MagnusNode>> EthTransactions for MagnusEthApi<N> {
     }
 }
 
-/// Converter for Tempo receipts.
+/// Converter for Magnus receipts.
 #[derive(Debug, Clone)]
 #[expect(clippy::type_complexity)]
 pub struct MagnusReceiptConverter {

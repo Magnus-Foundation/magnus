@@ -4,14 +4,14 @@
 //! signature type constraints, and expiry. The main key (address zero) retains full control
 //! and is the only key allowed to authorize, revoke, or update other keys.
 //!
-//! [Account keychain]: <https://docs.tempo.xyz/protocol/transactions/AccountKeychain>
+//! [Account keychain]: <https://docs.magnus.xyz/protocol/transactions/AccountKeychain>
 
 pub mod dispatch;
 
 use std::collections::HashSet;
 
 use alloy::sol_types::SolCall;
-use magnus_contracts::precompiles::{AccountKeychainError, AccountKeychainEvent, ITIP20};
+use magnus_contracts::precompiles::{AccountKeychainError, AccountKeychainEvent, IMIP20};
 pub use magnus_contracts::precompiles::{
     IAccountKeychain,
     IAccountKeychain::{
@@ -27,21 +27,21 @@ use crate::{
     ACCOUNT_KEYCHAIN_ADDRESS,
     error::Result,
     storage::{Handler, Mapping, Set},
-    tip20_factory::TIP20Factory,
+    mip20_factory::MIP20Factory,
 };
 use alloy::primitives::{Address, B256, FixedBytes, TxKind, U256, keccak256};
 use magnus_precompiles_macros::{Storable, contract};
 
-/// Allowed TIP-20 selectors for recipient-constrained rules.
-const TIP20_TRANSFER_SELECTOR: [u8; 4] = ITIP20::transferCall::SELECTOR;
-const TIP20_APPROVE_SELECTOR: [u8; 4] = ITIP20::approveCall::SELECTOR;
-const TIP20_TRANSFER_WITH_MEMO_SELECTOR: [u8; 4] = ITIP20::transferWithMemoCall::SELECTOR;
+/// Allowed MIP-20 selectors for recipient-constrained rules.
+const MIP20_TRANSFER_SELECTOR: [u8; 4] = IMIP20::transferCall::SELECTOR;
+const MIP20_APPROVE_SELECTOR: [u8; 4] = IMIP20::approveCall::SELECTOR;
+const MIP20_TRANSFER_WITH_MEMO_SELECTOR: [u8; 4] = IMIP20::transferWithMemoCall::SELECTOR;
 
 #[inline]
 pub fn is_constrained_tip20_selector(selector: [u8; 4]) -> bool {
     matches!(
         selector,
-        TIP20_TRANSFER_SELECTOR | TIP20_APPROVE_SELECTOR | TIP20_TRANSFER_WITH_MEMO_SELECTOR
+        MIP20_TRANSFER_SELECTOR | MIP20_APPROVE_SELECTOR | MIP20_TRANSFER_WITH_MEMO_SELECTOR
     )
 }
 
@@ -129,14 +129,14 @@ pub struct SelectorScope {
 /// Per-token spending limit state.
 ///
 /// `remaining` stays in the first slot so the legacy `spending_limits` layout remains intact.
-/// It remains `U256` for the same reason, even though T3 caps `max` to TIP-20's `u128` supply
+/// It remains `U256` for the same reason, even though T3 caps `max` to MIP-20's `u128` supply
 /// range and runtime logic maintains `remaining <= max` for periodic limits.
 /// T3+ extends the same row with period metadata in later slots.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Storable)]
 pub struct SpendingLimitState {
     /// Remaining amount currently available to spend.
     pub remaining: U256,
-    /// Maximum amount allowed per period, capped to TIP-20's `u128` supply range.
+    /// Maximum amount allowed per period, capped to MIP-20's `u128` supply range.
     pub max: u128,
     /// Duration of each period in seconds. `0` means non-periodic.
     pub period: u64,
@@ -234,7 +234,7 @@ impl AccountKeychain {
             _ => return Err(AccountKeychainError::invalid_signature_type().into()),
         };
 
-        // TIP-1011 fields are hardfork-gated at T3, so reject them before mutating state.
+        // MIP-1011 fields are hardfork-gated at T3, so reject them before mutating state.
         let allowed_call_configs = if is_t3 {
             if config.enforceLimits {
                 let mut seen_tokens = HashSet::with_capacity(config.limits.len());
@@ -883,7 +883,7 @@ impl AccountKeychain {
         let mut is_tip20 = || -> Result<bool> {
             match cached_is_tip20 {
                 Some(v) => Ok(v),
-                None => Ok(*cached_is_tip20.insert(TIP20Factory::new().is_tip20(target)?)),
+                None => Ok(*cached_is_tip20.insert(MIP20Factory::new().is_tip20(target)?)),
             }
         };
 
@@ -1301,7 +1301,7 @@ mod tests {
     use crate::{
         error::MagnusPrecompileError,
         storage::{StorageCtx, hashmap::HashMapStorageProvider},
-        test_util::TIP20Setup,
+        test_util::MIP20Setup,
     };
     use alloy::primitives::{Address, B256, TxKind, U256};
     use revm::state::Bytecode;
@@ -2014,14 +2014,14 @@ mod tests {
             assert_eq!(
                 keychain.keys[account][key_id].read()?,
                 AuthorizedKey::default(),
-                "pre-T3 invalid TIP-1011 fields must not leave behind a key"
+                "pre-T3 invalid MIP-1011 fields must not leave behind a key"
             );
 
             let limit_key = AccountKeychain::spending_limit_key(account, key_id);
             assert_eq!(
                 keychain.spending_limits[limit_key][token].read()?,
                 SpendingLimitState::default(),
-                "pre-T3 invalid TIP-1011 fields must not initialize limits"
+                "pre-T3 invalid MIP-1011 fields must not initialize limits"
             );
 
             Ok(())
@@ -3563,12 +3563,12 @@ mod tests {
                     Some(&[CallScope {
                         target: undeployed_tip20,
                         selectorRules: vec![SelectorRule {
-                            selector: TIP20_TRANSFER_SELECTOR.into(),
+                            selector: MIP20_TRANSFER_SELECTOR.into(),
                             recipients: vec![recipient],
                         }],
                     }]),
                 )
-                .expect_err("unexpected success for undeployed TIP-20 target");
+                .expect_err("unexpected success for undeployed MIP-20 target");
 
             match err {
                 MagnusPrecompileError::AccountKeychainError(
@@ -3595,7 +3595,7 @@ mod tests {
             keychain.initialize()?;
             keychain.set_transaction_key(Address::ZERO)?;
             keychain.set_tx_origin(account)?;
-            TIP20Setup::path_usd(account).apply()?;
+            MIP20Setup::path_usd(account).apply()?;
 
             keychain.authorize_key(
                 account,
@@ -4086,7 +4086,7 @@ mod tests {
                     scopes: vec![CallScope {
                         target,
                         selectorRules: vec![SelectorRule {
-                            selector: TIP20_TRANSFER_SELECTOR.into(),
+                            selector: MIP20_TRANSFER_SELECTOR.into(),
                             recipients: vec![],
                         }],
                     }],
@@ -4103,7 +4103,7 @@ mod tests {
             assert_eq!(scopes.scopes[0].selectorRules.len(), 1);
             assert_eq!(
                 *scopes.scopes[0].selectorRules[0].selector,
-                TIP20_TRANSFER_SELECTOR
+                MIP20_TRANSFER_SELECTOR
             );
             assert!(scopes.scopes[0].selectorRules[0].recipients.is_empty());
 
@@ -4111,7 +4111,7 @@ mod tests {
                 account,
                 key_id,
                 &TxKind::Call(target),
-                &TIP20_TRANSFER_SELECTOR,
+                &MIP20_TRANSFER_SELECTOR,
             );
             assert!(allow.is_ok());
 
@@ -4135,7 +4135,7 @@ mod tests {
                     account,
                     key_id,
                     &TxKind::Call(target),
-                    &TIP20_TRANSFER_SELECTOR,
+                    &MIP20_TRANSFER_SELECTOR,
                 )
                 .expect_err("unexpected success for removed target scope");
             assert_call_not_allowed(denied);
@@ -4218,7 +4218,7 @@ mod tests {
             keychain.initialize()?;
             keychain.set_transaction_key(Address::ZERO)?;
             keychain.set_tx_origin(account)?;
-            TIP20Setup::path_usd(account).apply()?;
+            MIP20Setup::path_usd(account).apply()?;
 
             keychain.authorize_key(
                 account,
@@ -4242,7 +4242,7 @@ mod tests {
                 Some(&[CallScope {
                     target,
                     selectorRules: vec![SelectorRule {
-                        selector: TIP20_TRANSFER_SELECTOR.into(),
+                        selector: MIP20_TRANSFER_SELECTOR.into(),
                         recipients: vec![allowed_recipient],
                     }],
                 }]),
@@ -4261,7 +4261,7 @@ mod tests {
                 account,
                 key_id,
                 &TxKind::Call(target),
-                &make_calldata(TIP20_TRANSFER_SELECTOR, allowed_recipient),
+                &make_calldata(MIP20_TRANSFER_SELECTOR, allowed_recipient),
             );
             assert!(allow.is_ok());
 
@@ -4270,7 +4270,7 @@ mod tests {
                     account,
                     key_id,
                     &TxKind::Call(target),
-                    &make_calldata(TIP20_TRANSFER_SELECTOR, denied_recipient),
+                    &make_calldata(MIP20_TRANSFER_SELECTOR, denied_recipient),
                 )
                 .expect_err("unexpected success for denied recipient");
             assert_call_not_allowed(denied);

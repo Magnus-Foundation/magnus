@@ -9,7 +9,7 @@ use std::sync::Arc;
 use magnus_chainspec::MagnusChainSpec;
 use magnus_primitives::MagnusHeader;
 
-/// Assembler for Tempo blocks.
+/// Assembler for Magnus blocks.
 #[derive(Debug, Clone)]
 pub struct MagnusBlockAssembler {
     pub(crate) inner: EthBlockAssembler<MagnusChainSpec>,
@@ -214,7 +214,7 @@ mod tests {
         assert_eq!(block.header.inner.beneficiary, Address::repeat_byte(0x01));
         assert_eq!(block.header.inner.state_root, state_root);
 
-        // Verify Tempo-specific header fields
+        // Verify Magnus-specific header fields
         assert_eq!(block.header.general_gas_limit, general_gas_limit);
         assert_eq!(block.header.shared_gas_limit, shared_gas_limit);
         assert_eq!(block.header.timestamp_millis_part, timestamp_millis_part);

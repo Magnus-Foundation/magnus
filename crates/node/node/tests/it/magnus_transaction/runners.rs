@@ -1867,7 +1867,7 @@ pub(super) async fn run_fee_payer_cosign_scenario<E: TestEnv>(env: &mut E) -> ey
     let user_addr = user_signer.address();
 
     let fee_payer_balance_before =
-        magnus_precompiles::tip20::ITIP20::new(DEFAULT_FEE_TOKEN, env.provider())
+        magnus_precompiles::mip20::IMIP20::new(DEFAULT_FEE_TOKEN, env.provider())
             .balanceOf(fee_payer_addr)
             .call()
             .await?;
@@ -2717,7 +2717,7 @@ pub(super) async fn run_create_contract_address_scenario<E: TestEnv>(
 /// instead of returning raw hex revert data.
 ///
 /// Before the fix, `fill_transaction` delegated to `inner.fill_transaction` which routed
-/// estimation errors through `EthApiError` and skipped Tempo's `from_revert` implementation.
+/// estimation errors through `EthApiError` and skipped Magnus's `from_revert` implementation.
 /// This caused raw selectors (e.g. `0x832f98b5...`) to be returned instead of decoded error
 /// names like `InsufficientBalance(...)`.
 pub(super) async fn run_fill_transaction_error_decoding_scenario<E: TestEnv>(
@@ -2725,7 +2725,7 @@ pub(super) async fn run_fill_transaction_error_decoding_scenario<E: TestEnv>(
 ) -> eyre::Result<()> {
     println!("\n=== eth_fillTransaction error decoding regression ===\n");
 
-    // Use an unfunded address so a TIP-20 transfer reverts with InsufficientBalance.
+    // Use an unfunded address so a MIP-20 transfer reverts with InsufficientBalance.
     let unfunded_addr = Address::random();
     let recipient = Address::random();
 

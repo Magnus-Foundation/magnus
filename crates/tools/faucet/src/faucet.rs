@@ -6,9 +6,9 @@ use async_trait::async_trait;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc, types::error::INTERNAL_ERROR_CODE};
 use reth_rpc_server_types::result::rpc_err;
 use magnus_alloy::MagnusNetwork;
-use magnus_precompiles::tip20::ITIP20;
+use magnus_precompiles::mip20::IMIP20;
 
-#[rpc(server, namespace = "tempo")]
+#[rpc(server, namespace = "magnus")]
 pub trait MagnusFaucetExtApi {
     #[method(name = "fundAddress")]
     async fn fund_address(&self, address: Address) -> RpcResult<Vec<B256>>;
@@ -39,7 +39,7 @@ impl MagnusFaucetExtApiServer for MagnusFaucetExt {
     async fn fund_address(&self, address: Address) -> RpcResult<Vec<B256>> {
         let mut tx_hashes = Vec::new();
         for token in &self.faucet_token_addresses {
-            let tx_hash = *ITIP20::new(*token, &self.provider)
+            let tx_hash = *IMIP20::new(*token, &self.provider)
                 .mint(address, self.funding_amount)
                 .send()
                 .await

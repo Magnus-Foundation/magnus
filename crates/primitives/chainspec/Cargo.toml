@@ -1,6 +1,6 @@
 [package]
 name = "magnus-chainspec"
-description = "Tempo hardfork configuration and chain specification helpers"
+description = "Magnus hardfork configuration and chain specification helpers"
 
 version = "1.5.3"
 edition.workspace = true

@@ -13,7 +13,7 @@ pub trait MagnusOperatorApi {
     async fn peers(&self) -> RpcResult<Vec<PeerInfo>>;
 }
 
-/// Tempo-specific operator RPCs that can be enabled without exposing the full `admin_` namespace.
+/// Magnus-specific operator RPCs that can be enabled without exposing the full `admin_` namespace.
 #[derive(Debug)]
 pub struct MagnusOperatorRpc<N, ChainSpec, Pool> {
     admin_api: AdminApi<N, ChainSpec, Pool>,

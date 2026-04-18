@@ -23,9 +23,9 @@ use std::{
     time::Instant,
 };
 use magnus_chainspec::MagnusChainSpec;
-use magnus_contracts::precompiles::{IAccountKeychain, IFeeManager, ITIP20, ITIP403Registry};
+use magnus_contracts::precompiles::{IAccountKeychain, IFeeManager, IMIP20, IMIP403Registry};
 use magnus_precompiles::{
-    ACCOUNT_KEYCHAIN_ADDRESS, TIP_FEE_MANAGER_ADDRESS, TIP403_REGISTRY_ADDRESS,
+    ACCOUNT_KEYCHAIN_ADDRESS, TIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS,
 };
 use magnus_primitives::{MagnusAddressExt, MagnusHeader, MagnusPrimitives};
 use tracing::{debug, error};
@@ -61,9 +61,9 @@ pub struct MagnusPoolUpdates {
     /// Uses a set since a user can emit multiple events in the same block; we only need to
     /// process each user once. No cleanup needed as this is ephemeral per-block data.
     pub user_token_changes: HashSet<Address>,
-    /// TIP403 blacklist additions: (policy_id, account).
+    /// MIP403 blacklist additions: (policy_id, account).
     pub blacklist_additions: Vec<(u64, Address)>,
-    /// TIP403 whitelist removals: (policy_id, account).
+    /// MIP403 whitelist removals: (policy_id, account).
     pub whitelist_removals: Vec<(u64, Address)>,
     /// Fee token pause state changes: (token, is_paused).
     pub pause_events: Vec<(Address, bool)>,
@@ -73,7 +73,7 @@ pub struct MagnusPoolUpdates {
     pub transfer_policy_updates: HashSet<Address>,
     /// Fee token balance changes keyed by token.
     ///
-    /// We only track the debited `from` account from TIP20 `Transfer` logs because credits to the
+    /// We only track the debited `from` account from MIP20 `Transfer` logs because credits to the
     /// `to` account cannot make an already-admitted transaction newly invalid.
     pub fee_balance_changes: AddressMap<HashSet<Address>>,
     /// Keychain transactions that were included in the block, decrementing spending limits.
@@ -144,15 +144,15 @@ impl MagnusPoolUpdates {
                     updates.user_token_changes.insert(event.user);
                 }
             }
-            // TIP403 blacklist additions and whitelist removals
-            else if log.address == TIP403_REGISTRY_ADDRESS {
-                if let Ok(event) = ITIP403Registry::BlacklistUpdated::decode_log(log)
+            // MIP403 blacklist additions and whitelist removals
+            else if log.address == MIP403_REGISTRY_ADDRESS {
+                if let Ok(event) = IMIP403Registry::BlacklistUpdated::decode_log(log)
                     && event.restricted
                 {
                     updates
                         .blacklist_additions
                         .push((event.policyId, event.account));
-                } else if let Ok(event) = ITIP403Registry::WhitelistUpdated::decode_log(log)
+                } else if let Ok(event) = IMIP403Registry::WhitelistUpdated::decode_log(log)
                     && !event.allowed
                 {
                     updates
@@ -162,11 +162,11 @@ impl MagnusPoolUpdates {
             }
             // Fee token pause events and balance changes
             else if log.address.is_tip20() {
-                if let Ok(event) = ITIP20::PauseStateUpdate::decode_log(log) {
+                if let Ok(event) = IMIP20::PauseStateUpdate::decode_log(log) {
                     updates.pause_events.push((log.address, event.isPaused));
-                } else if ITIP20::TransferPolicyUpdate::decode_log(log).is_ok() {
+                } else if IMIP20::TransferPolicyUpdate::decode_log(log).is_ok() {
                     updates.transfer_policy_updates.insert(log.address);
-                } else if let Ok(event) = ITIP20::Transfer::decode_log(log) {
+                } else if let Ok(event) = IMIP20::Transfer::decode_log(log) {
                     updates
                         .fee_balance_changes
                         .entry(log.address)
@@ -356,7 +356,7 @@ impl Default for PendingStalenessTracker {
     }
 }
 
-/// Unified maintenance task for the Tempo transaction pool.
+/// Unified maintenance task for the Magnus transaction pool.
 ///
 /// Handles:
 /// - Evicting expired AA transactions (`valid_before <= tip_timestamp`)
@@ -1031,7 +1031,7 @@ mod tests {
             let from = Address::random();
             let to = Address::random();
             let amount = U256::from(42_u64);
-            let log_data = ITIP20::Transfer { from, to, amount }.into_log_data();
+            let log_data = IMIP20::Transfer { from, to, amount }.into_log_data();
             let log =
                 Log::new_unchecked(fee_token, log_data.topics().to_vec(), log_data.data.clone());
             let receipt = MagnusReceipt {
@@ -1050,18 +1050,18 @@ mod tests {
                     .fee_balance_changes
                     .get(&fee_token)
                     .is_some_and(|accounts| accounts.len() == 1 && accounts.contains(&from)),
-                "TIP20 transfer logs should only mark the debited sender as balance-changed"
+                "MIP20 transfer logs should only mark the debited sender as balance-changed"
             );
             assert!(updates.has_invalidation_events());
         }
 
-        /// TransferPolicyUpdate events are parsed from TIP20 token logs.
+        /// TransferPolicyUpdate events are parsed from MIP20 token logs.
         #[test]
         fn extracts_transfer_policy_updates() {
             let fee_token = magnus_precompiles::PATH_USD_ADDRESS;
             let updater = Address::random();
             let new_policy_id = 42u64;
-            let log_data = ITIP20::TransferPolicyUpdate {
+            let log_data = IMIP20::TransferPolicyUpdate {
                 updater,
                 newPolicyId: new_policy_id,
             }
@@ -1090,12 +1090,12 @@ mod tests {
         fn transfer_policy_updates_deduplicates_by_token() {
             let fee_token = magnus_precompiles::PATH_USD_ADDRESS;
 
-            let log_data_1 = ITIP20::TransferPolicyUpdate {
+            let log_data_1 = IMIP20::TransferPolicyUpdate {
                 updater: Address::random(),
                 newPolicyId: 1,
             }
             .into_log_data();
-            let log_data_2 = ITIP20::TransferPolicyUpdate {
+            let log_data_2 = IMIP20::TransferPolicyUpdate {
                 updater: Address::random(),
                 newPolicyId: 2,
             }

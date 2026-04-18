@@ -11,9 +11,9 @@ use utils::*;
 
 #[test]
 fn test_tip403_registry_layout() {
-    use magnus_precompiles::tip403_registry::{__packing_policy_record::*, slots};
+    use magnus_precompiles::mip403_registry::{__packing_policy_record::*, slots};
 
-    let sol_path = testdata("tip403_registry.sol");
+    let sol_path = testdata("mip403_registry.sol");
     let solc_layout = load_solc_layout(&sol_path);
 
     // Verify top-level fields
@@ -32,7 +32,7 @@ fn test_tip403_registry_layout() {
 
     // Verify `PolicyData` struct members (nested in PolicyRecord.base)
     {
-        use magnus_precompiles::tip403_registry::__packing_policy_data::*;
+        use magnus_precompiles::mip403_registry::__packing_policy_data::*;
         let rust_policy_data = struct_fields!(base_slot, policy_type, admin);
         if let Err(errors) =
             compare_nested_struct_type(&solc_layout, "PolicyData", &rust_policy_data)
@@ -43,7 +43,7 @@ fn test_tip403_registry_layout() {
 
     // Verify `CompoundPolicyData` struct members (nested in PolicyRecord.compound)
     {
-        use magnus_precompiles::tip403_registry::__packing_compound_policy_data::*;
+        use magnus_precompiles::mip403_registry::__packing_compound_policy_data::*;
         let rust_compound = struct_fields!(
             base_slot,
             sender_policy_id,
@@ -141,9 +141,9 @@ fn test_stablecoin_dex_layout() {
 
 #[test]
 fn test_tip20_layout() {
-    use magnus_precompiles::tip20::{rewards::__packing_user_reward_info::*, slots};
+    use magnus_precompiles::mip20::{rewards::__packing_user_reward_info::*, slots};
 
-    let sol_path = testdata("tip20.sol");
+    let sol_path = testdata("mip20.sol");
     let solc_layout = load_solc_layout(&sol_path);
 
     // Verify top-level fields
@@ -151,7 +151,7 @@ fn test_tip20_layout() {
         // RolesAuth
         roles,
         role_admins,
-        // TIP20 Metadata
+        // MIP20 Metadata
         name,
         symbol,
         currency,
@@ -160,17 +160,17 @@ fn test_tip20_layout() {
         quote_token,
         next_quote_token,
         transfer_policy_id,
-        // TIP20 Token
+        // MIP20 Token
         total_supply,
         balances,
         allowances,
-        // EIP-2612 permit nonces (TIP-1004)
+        // EIP-2612 permit nonces (MIP-1004)
         permit_nonces,
         paused,
         supply_cap,
         // Unused slot, kept for storage layout compatibility
         _salts,
-        // TIP20 Rewards
+        // MIP20 Rewards
         global_reward_per_token,
         opted_in_supply,
         user_reward_info
@@ -219,21 +219,21 @@ fn export_all_storage_constants() {
         })
     };
 
-    // TIP403 Registry
+    // MIP403 Registry
     {
-        use magnus_precompiles::tip403_registry::{__packing_policy_record::*, slots};
+        use magnus_precompiles::mip403_registry::{__packing_policy_record::*, slots};
 
         let fields = layout_fields!(policy_id_counter, policy_records, policy_set);
         let base_slot = slots::POLICY_RECORDS;
         let policy_record_struct = struct_fields!(base_slot, base, compound);
 
         let policy_data_struct = {
-            use magnus_precompiles::tip403_registry::__packing_policy_data::*;
+            use magnus_precompiles::mip403_registry::__packing_policy_data::*;
             struct_fields!(base_slot, policy_type, admin)
         };
 
         let compound_policy_data_struct = {
-            use magnus_precompiles::tip403_registry::__packing_compound_policy_data::*;
+            use magnus_precompiles::mip403_registry::__packing_compound_policy_data::*;
             struct_fields!(
                 base_slot,
                 sender_policy_id,
@@ -243,7 +243,7 @@ fn export_all_storage_constants() {
         };
 
         all_constants.insert(
-            "tip403_registry".to_string(),
+            "mip403_registry".to_string(),
             json!({
                 "fields": fields.iter().map(field_to_json).collect::<Vec<_>>(),
                 "structs": {
@@ -330,15 +330,15 @@ fn export_all_storage_constants() {
         );
     }
 
-    // TIP20 Token
+    // MIP20 Token
     {
-        use magnus_precompiles::tip20::{rewards::__packing_user_reward_info::*, slots};
+        use magnus_precompiles::mip20::{rewards::__packing_user_reward_info::*, slots};
 
         let fields = layout_fields!(
             // RolesAuth
             roles,
             role_admins,
-            // TIP20 Metadata
+            // MIP20 Metadata
             name,
             symbol,
             currency,
@@ -347,17 +347,17 @@ fn export_all_storage_constants() {
             quote_token,
             next_quote_token,
             transfer_policy_id,
-            // TIP20 Token
+            // MIP20 Token
             total_supply,
             balances,
             allowances,
-            // EIP-2612 permit nonces (TIP-1004)
+            // EIP-2612 permit nonces (MIP-1004)
             permit_nonces,
             paused,
             supply_cap,
             // Unused slot, kept for storage layout compatibility
             _salts,
-            // TIP20 Rewards
+            // MIP20 Rewards
             global_reward_per_token,
             opted_in_supply,
             user_reward_info
@@ -372,7 +372,7 @@ fn export_all_storage_constants() {
         );
 
         all_constants.insert(
-            "tip20".to_string(),
+            "mip20".to_string(),
             json!({
                 "fields": fields.iter().map(field_to_json).collect::<Vec<_>>(),
                 "structs": {

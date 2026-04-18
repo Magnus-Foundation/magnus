@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Prometheus metrics proxy that fetches from a local tempo node and
+Prometheus metrics proxy that fetches from a local magnus node and
 re-exposes with additional benchmark labels.
 
 Reads labels from a JSON file (updated by bench orchestration between runs)
 and injects them into every Prometheus metric line.
 
-Returns empty 200 when tempo is not running (clean Grafana gaps).
+Returns empty 200 when magnus is not running (clean Grafana gaps).
 
 Ported from reth's bench-metrics-proxy.py with upstream changed to :9001.
 """
@@ -33,7 +33,7 @@ def inject_labels(metrics_bytes, label_str, label_names):
     """Inject labels into Prometheus text format.
 
     Operates on bytes and uses simple string ops instead of regex
-    for speed on large payloads (tempo exposes thousands of metrics).
+    for speed on large payloads (magnus exposes thousands of metrics).
 
     Skips injecting into lines that already contain any of the label names
     to avoid duplicate labels (which Prometheus rejects).
@@ -173,7 +173,7 @@ class MetricsHandler(BaseHTTPRequestHandler):
             resp = urlopen(self.server.upstream, timeout=2)
             metrics = resp.read()
         except (URLError, ConnectionError, OSError):
-            # tempo not running — return empty 200
+            # magnus not running — return empty 200
             self._send(b"")
             return
 
@@ -243,7 +243,7 @@ def main():
     parser.add_argument("--labels", default="/tmp/bench-metrics-labels.json",
                         help="Path to JSON file with labels to inject (default: /tmp/bench-metrics-labels.json)")
     parser.add_argument("--upstream", default="http://127.0.0.1:9001/",
-                        help="Upstream tempo metrics URL (default: http://127.0.0.1:9001/)")
+                        help="Upstream magnus metrics URL (default: http://127.0.0.1:9001/)")
 
     bind_group = parser.add_mutually_exclusive_group()
     bind_group.add_argument("--bind", default=None,

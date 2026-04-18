@@ -26,7 +26,7 @@ use magnus_primitives::MagnusHeader;
 pub const SYSTEM_TX_COUNT: usize = 1;
 pub const SYSTEM_TX_ADDRESSES: [Address; SYSTEM_TX_COUNT] = [Address::ZERO];
 
-/// Tempo genesis info extracted from genesis extra_fields
+/// Magnus genesis info extracted from genesis extra_fields
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MagnusGenesisInfo {
@@ -60,7 +60,7 @@ pub struct MagnusGenesisInfo {
 }
 
 impl MagnusGenesisInfo {
-    /// Extract Tempo genesis info from genesis extra_fields
+    /// Extract Magnus genesis info from genesis extra_fields
     fn extract_from(genesis: &Genesis) -> Self {
         genesis
             .config
@@ -89,11 +89,11 @@ impl MagnusGenesisInfo {
     }
 }
 
-/// Tempo chain specification parser.
+/// Magnus chain specification parser.
 #[derive(Debug, Clone, Default)]
 pub struct MagnusChainSpecParser;
 
-/// Chains supported by Tempo. First value should be used as the default.
+/// Chains supported by Magnus. First value should be used as the default.
 pub const SUPPORTED_CHAINS: &[&str] = &["mainnet", "moderato", "testnet"];
 
 /// Clap value parser for [`ChainSpec`]s.
@@ -136,7 +136,7 @@ pub static MODERATO: LazyLock<Arc<MagnusChainSpec>> = LazyLock::new(|| {
     let genesis: Genesis = serde_json::from_str(include_str!("./genesis/moderato.json"))
         .expect("`./genesis/moderato.json` must be present and deserializable");
     MagnusChainSpec::from_genesis(genesis)
-        .with_default_follow_url("wss://rpc.moderato.tempo.xyz")
+        .with_default_follow_url("wss://rpc.moderato.magnus.xyz")
         .into()
 });
 
@@ -144,11 +144,11 @@ pub static PRESTO: LazyLock<Arc<MagnusChainSpec>> = LazyLock::new(|| {
     let genesis: Genesis = serde_json::from_str(include_str!("./genesis/presto.json"))
         .expect("`./genesis/presto.json` must be present and deserializable");
     MagnusChainSpec::from_genesis(genesis)
-        .with_default_follow_url("wss://rpc.presto.tempo.xyz")
+        .with_default_follow_url("wss://rpc.presto.magnus.xyz")
         .into()
 });
 
-/// Development chainspec with funded dev accounts and activated tempo hardforks
+/// Development chainspec with funded dev accounts and activated magnus hardforks
 ///
 /// `cargo x generate-genesis -o dev.json --accounts 10 --no-dkg-in-genesis`
 pub static DEV: LazyLock<Arc<MagnusChainSpec>> = LazyLock::new(|| {
@@ -157,7 +157,7 @@ pub static DEV: LazyLock<Arc<MagnusChainSpec>> = LazyLock::new(|| {
     MagnusChainSpec::from_genesis(genesis).into()
 });
 
-/// Tempo chain spec type.
+/// Magnus chain spec type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MagnusChainSpec {
     /// [`ChainSpec`].
@@ -175,7 +175,7 @@ impl MagnusChainSpec {
 
     /// Converts the given [`Genesis`] into a [`MagnusChainSpec`].
     pub fn from_genesis(genesis: Genesis) -> Self {
-        // Extract Tempo genesis info from extra_fields
+        // Extract Magnus genesis info from extra_fields
         let info = MagnusGenesisInfo::extract_from(&genesis);
 
         // Create base chainspec from genesis (already has ordered Ethereum hardforks)
@@ -285,7 +285,7 @@ impl EthChainSpec for MagnusChainSpec {
     }
 
     fn display_hardforks(&self) -> Box<dyn core::fmt::Display> {
-        // filter only tempo hardforks
+        // filter only magnus hardforks
         let magnus_forks = self.inner.hardforks.forks_iter().filter(|(fork, _)| {
             !EthereumHardfork::VARIANTS
                 .iter()
@@ -375,7 +375,7 @@ mod tests {
         let chainspec = super::MagnusChainSpecParser::parse("mainnet")
             .expect("the mainnet chainspec must always be well formed");
 
-        // Should be able to query Tempo hardfork activation through trait
+        // Should be able to query Magnus hardfork activation through trait
         let activation = chainspec.magnus_fork_activation(MagnusHardfork::T0);
         assert_eq!(activation, ForkCondition::Timestamp(0));
     }
@@ -385,7 +385,7 @@ mod tests {
         let chainspec = super::MagnusChainSpecParser::parse("mainnet")
             .expect("the mainnet chainspec must always be well formed");
 
-        // Tempo hardforks should be queryable from inner.hardforks via Hardforks trait
+        // Magnus hardforks should be queryable from inner.hardforks via Hardforks trait
         let activation = chainspec.fork(MagnusHardfork::T0);
         assert_eq!(activation, ForkCondition::Timestamp(0));
 

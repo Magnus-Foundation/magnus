@@ -1,6 +1,6 @@
 # Publishing Crates
 
-Publishes `tempo-contracts`, `tempo-primitives`, and `tempo-alloy` to crates.io with all reth-specific code and dependencies removed.
+Publishes `magnus-contracts`, `magnus-primitives`, and `magnus-alloy` to crates.io with all reth-specific code and dependencies removed.
 
 ## Usage
 
@@ -12,15 +12,15 @@ Publishes `tempo-contracts`, `tempo-primitives`, and `tempo-alloy` to crates.io 
 
 ## Architecture
 
-All Reth-specific code in `tempo-primitives` lives in `crates/primitives/src/reth_compat/`, gated behind `#[cfg(feature = "reth")]`. This creates a clean deletion boundary — the publish script deletes that directory, strips remaining `cfg_attr` annotations from struct definitions, sanitizes `Cargo.toml` files, and publishes.
+All Reth-specific code in `magnus-primitives` lives in `crates/primitives/src/reth_compat/`, gated behind `#[cfg(feature = "reth")]`. This creates a clean deletion boundary — the publish script deletes that directory, strips remaining `cfg_attr` annotations from struct definitions, sanitizes `Cargo.toml` files, and publishes.
 
-In `tempo-alloy`, reth-specific code lives in `rpc/reth_compat.rs`, gated behind `#[cfg(feature = "reth")]`. The publish script deletes `reth_compat.rs`, removes the cfg-gated `mod reth_compat;` declaration from `rpc/mod.rs`, strips reth/internal dependencies from `Cargo.toml`, and publishes.
+In `magnus-alloy`, reth-specific code lives in `rpc/reth_compat.rs`, gated behind `#[cfg(feature = "reth")]`. The publish script deletes `reth_compat.rs`, removes the cfg-gated `mod reth_compat;` declaration from `rpc/mod.rs`, strips reth/internal dependencies from `Cargo.toml`, and publishes.
 
 ## Pipeline
 
 1. copy to tmpdir
 2. delete reth_compat modules (primitives dir + alloy file)
-3. sanitize_source.py ── strip reth/tempo cfg attrs from .rs files
+3. sanitize_source.py ── strip reth/magnus cfg attrs from .rs files
 4. sanitize_toml.py ──── strip reth deps/features from Cargo.toml
 5. cargo check + cargo check --all-features
 6. pre-resolve validation ── grep for forbidden leftovers while workspace/path markers are still visible
@@ -43,8 +43,8 @@ Orchestrator. Copies the 3 crates to a temp directory, runs the sanitization pip
 - No `reth-*` dependencies in any published manifest
 - No internal path-only workspace crates (dynamically discovered from workspace root)
 - No forbidden feature definitions (`reth`, `reth-codec`, `serde-bincode-compat`, `rpc`)
-- No reth-gated `cfg` attrs in `tempo-primitives` source
-- No reth-gated `cfg` attrs in `tempo-alloy` source
+- No reth-gated `cfg` attrs in `magnus-primitives` source
+- No reth-gated `cfg` attrs in `magnus-alloy` source
 
 **Post-resolve validation** (after concrete versions replace workspace refs):
 - No `workspace = true`, `path =`, or `git =` in any published `Cargo.toml`
@@ -62,14 +62,14 @@ Strips reth/node-specific code from `.rs` files using two strategies:
 - **Directory-wide scan** for `cfg_attr` patterns — walks all `.rs` files under `src/` and strips matching attributes wherever they appear. No hardcoded file lists; adding a new struct with reth derives requires no script update. Pre-scans to count expected matches, then asserts exact deletion counts post-mutation.
 - **Simple line deletion** for alloy — removes the cfg-gated `mod reth_compat;` declaration from `rpc/mod.rs` (the file itself is already deleted by the shell script).
 
-**`tempo-primitives` edits:**
+**`magnus-primitives` edits:**
 - Removes `#[cfg(feature = "reth")] mod reth_compat;` and `pub use reth_compat::TempoReceipt;` from `lib.rs`
 - Removes `#[cfg(not(feature = "reth"))]` gate from the `TempoReceipt` type alias in `lib.rs`
 - Removes `#[cfg_attr(feature = "reth-codec", derive(reth_codecs::Compact))]` from any file
 - Removes `#[cfg_attr(test, reth_codecs::add_arbitrary_tests(...))]` from any file (single- and multi-line)
 - Removes `#[cfg(feature = "rpc")]` impl blocks from `envelope.rs`
 
-**`tempo-alloy` edits:**
+**`magnus-alloy` edits:**
 - Deletes the cfg-gated `mod reth_compat;` declaration from `rpc/mod.rs` (file already deleted by shell script)
 
 ### `sanitize_toml.py`
@@ -78,14 +78,14 @@ Transforms `Cargo.toml` files. Uses depth-aware brace/bracket tracking for robus
 
 **`sanitize_base <toml> <version> [ws_toml]`** — Resolves workspace package fields (`version`, `edition`, `rust-version`, `license`) to concrete values read from the workspace root `Cargo.toml`. Removes `[lints]` section and `publish.workspace = true`.
 
-**`sanitize_primitives <toml>`** — Removes reth-specific content from `tempo-primitives` manifest:
+**`sanitize_primitives <toml>`** — Removes reth-specific content from `magnus-primitives` manifest:
 - Feature blocks: `reth`, `reth-codec`, `serde-bincode-compat`, `rpc`
 - Dependencies: `reth-*`, `modular-bitfield`, `alloy-rpc-types-eth`, `alloy-network` (including dot-notation like `reth-codecs.workspace = true`)
 - Auto-strips orphaned feature entries (`"dep?/feature"`, `"dep/feature"`, `"dep:dep"`) referencing any removed dependency — no manual regex needed when adding new reth-gated deps
 
-**`sanitize_alloy <toml> <ws_toml>`** — Removes reth/internal content from `tempo-alloy` manifest:
-- Dependencies: `reth-*`, all internal path-only workspace crates (dynamically discovered from workspace root, except `tempo-contracts`/`tempo-primitives`/`tempo-alloy`)
-- Strips `"rpc"` from `tempo-primitives` features (the `rpc` feature is stripped from primitives during publish)
+**`sanitize_alloy <toml> <ws_toml>`** — Removes reth/internal content from `magnus-alloy` manifest:
+- Dependencies: `reth-*`, all internal path-only workspace crates (dynamically discovered from workspace root, except `magnus-contracts`/`magnus-primitives`/`magnus-alloy`)
+- Strips `"rpc"` from `magnus-primitives` features (the `rpc` feature is stripped from primitives during publish)
 
 **`resolve_deps <toml> <ws_toml>`** — Replaces `workspace = true` references with concrete versions parsed from the workspace root. Preserves `default-features = false` (from both workspace and local specs), `features`, `optional`, and `package` flags. Uses depth-aware multi-line collection. Fails immediately if a dep has no version (git-only or missing).
 

@@ -47,7 +47,7 @@ impl Provider for SchemeProvider {
     /// Always returned `None`.
     ///
     /// While we are using bls12-381 threshold cryptography, the constant term
-    /// of the public polynomial can change in a full re-dkg and so tempo can
+    /// of the public polynomial can change in a full re-dkg and so magnus can
     /// never verify certificates from all epochs.
     fn all(&self) -> Option<Arc<Self::Scheme>> {
         None

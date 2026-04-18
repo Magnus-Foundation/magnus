@@ -60,11 +60,11 @@ impl FaucetArgs {
     pub fn addresses(&self) -> Vec<Address> {
         self.token_addresses
             .clone()
-            .expect("No TIP20 token addresses provided")
+            .expect("No MIP20 token addresses provided")
     }
 
     pub fn amount(&self) -> U256 {
-        self.amount.expect("No TIP20 token amount provided")
+        self.amount.expect("No MIP20 token amount provided")
     }
 
     pub fn provider(&self) -> DynProvider<MagnusNetwork> {

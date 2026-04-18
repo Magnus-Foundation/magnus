@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Patches a Foundry checkout to resolve tempo-* crates from a local Tempo
+# Patches a Foundry checkout to resolve magnus-* crates from a local Magnus
 # checkout instead of git/crates-io. Used by both GitHub Actions (specs.yml)
 # and the Argo invariant-tests workflow.
 #
@@ -8,7 +8,7 @@
 #   scripts/patch-foundry-cargo.sh <tempo_root> <foundry_root>
 #
 # Example (GHA – repos side-by-side):
-#   scripts/patch-foundry-cargo.sh "$GITHUB_WORKSPACE/tempo" "$GITHUB_WORKSPACE/foundry"
+#   scripts/patch-foundry-cargo.sh "$GITHUB_WORKSPACE/magnus" "$GITHUB_WORKSPACE/foundry"
 #
 # Example (Argo – /workspace layout):
 #   /workspace/scripts/patch-foundry-cargo.sh /workspace /workspace/foundry
@@ -22,7 +22,7 @@ MAGNUS_CARGO="$MAGNUS_ROOT/Cargo.toml"
 FOUNDRY_CARGO="$FOUNDRY_ROOT/Cargo.toml"
 
 if [[ ! -f "$MAGNUS_CARGO" ]]; then
-  echo "ERROR: Tempo Cargo.toml not found at $MAGNUS_CARGO" >&2
+  echo "ERROR: Magnus Cargo.toml not found at $MAGNUS_CARGO" >&2
   exit 1
 fi
 if [[ ! -f "$FOUNDRY_CARGO" ]]; then
@@ -31,17 +31,17 @@ if [[ ! -f "$FOUNDRY_CARGO" ]]; then
 fi
 
 # Already patched – nothing to do
-if grep -q '^\[patch\."https://github.com/tempoxyz/tempo"\]' "$FOUNDRY_CARGO"; then
-  echo "Foundry Cargo.toml already contains tempo git patch section – skipping."
+if grep -q '^\[patch\."https://github.com/Magnus-Foundation/magnus"\]' "$FOUNDRY_CARGO"; then
+  echo "Foundry Cargo.toml already contains magnus git patch section – skipping."
   exit 0
 fi
 
-# ── 1. Discover tempo-* workspace crates that have local paths ──────────────
+# ── 1. Discover magnus-* workspace crates that have local paths ──────────────
 PATCHES="$({
   awk '
     /^\[workspace.dependencies\]/ { in_section = 1; next }
     in_section && /^\[/ { exit }
-    in_section && $1 ~ /^tempo-/ && index($0, "path = \"") {
+    in_section && $1 ~ /^magnus-/ && index($0, "path = \"") {
       split($0, path_parts, /path = "/)
       split(path_parts[2], rest, /"/)
       print $1 "\t" rest[1]
@@ -50,13 +50,13 @@ PATCHES="$({
 })"
 
 if [[ -z "$PATCHES" ]]; then
-  echo "ERROR: No path-based tempo-* workspace dependencies found in $MAGNUS_CARGO" >&2
+  echo "ERROR: No path-based magnus-* workspace dependencies found in $MAGNUS_CARGO" >&2
   exit 1
 fi
 
-# ── 2. Patch [patch."https://github.com/tempoxyz/tempo"] ────────────────────
+# ── 2. Patch [patch."https://github.com/Magnus-Foundation/magnus"] ────────────────────
 {
-  printf '\n[patch."https://github.com/tempoxyz/tempo"]\n'
+  printf '\n[patch."https://github.com/Magnus-Foundation/magnus"]\n'
   while IFS=$'\t' read -r crate path; do
     [[ -n "$crate" ]] || continue
     printf '%s = { path = "%s/%s" }\n' "$crate" "$MAGNUS_ROOT" "$path"
@@ -64,7 +64,7 @@ fi
 } >> "$FOUNDRY_CARGO"
 
 # ── 3. Patch [patch.crates-io] ──────────────────────────────────────────────
-# Upstream foundry pins some tempo crates to git revisions in [patch.crates-io].
+# Upstream foundry pins some magnus crates to git revisions in [patch.crates-io].
 # Replace those with local paths so Cargo doesn't conflict.
 while IFS=$'\t' read -r crate path; do
   [[ -n "$crate" ]] || continue
@@ -82,11 +82,11 @@ sed -n '/^\[patch\./,$p' "$FOUNDRY_CARGO"
 # ── 4. Re-resolve the lockfile ──────────────────────────────────────────────
 (cd "$FOUNDRY_ROOT" && cargo update)
 
-if grep -q '^source = "git+https://github.com/tempoxyz/tempo?rev=' "$FOUNDRY_ROOT/Cargo.lock"; then
-  echo "ERROR: Tempo git sources still present in Cargo.lock after patching:" >&2
-  grep '^source = "git+https://github.com/tempoxyz/tempo?rev=' "$FOUNDRY_ROOT/Cargo.lock" >&2
-  echo "Expected all Tempo crates to resolve locally after patching" >&2
+if grep -q '^source = "git+https://github.com/Magnus-Foundation/magnus?rev=' "$FOUNDRY_ROOT/Cargo.lock"; then
+  echo "ERROR: Magnus git sources still present in Cargo.lock after patching:" >&2
+  grep '^source = "git+https://github.com/Magnus-Foundation/magnus?rev=' "$FOUNDRY_ROOT/Cargo.lock" >&2
+  echo "Expected all Magnus crates to resolve locally after patching" >&2
   exit 1
 fi
 
-echo "Foundry patched successfully – all tempo crates resolve from $MAGNUS_ROOT"
+echo "Foundry patched successfully – all magnus crates resolve from $MAGNUS_ROOT"

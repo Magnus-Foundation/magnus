@@ -2,10 +2,10 @@
 <br>
 
 <p align="center">
-  <a href="https://tempo.xyz">
+  <a href="https://magnus.xyz">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/tempoxyz/.github/refs/heads/main/assets/combomark-dark.svg">
-      <img alt="tempo combomark" src="https://raw.githubusercontent.com/tempoxyz/.github/refs/heads/main/assets/combomark-bright.svg" width="auto" height="120">
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Magnus-Foundation/.github/refs/heads/main/assets/combomark-dark.svg">
+      <img alt="magnus combomark" src="https://raw.githubusercontent.com/Magnus-Foundation/.github/refs/heads/main/assets/combomark-bright.svg" width="auto" height="120">
     </picture>
   </a>
 </p>
@@ -13,28 +13,28 @@
 <br>
 <br>
 
-# Tempo
+# Magnus
 
 The blockchain for payments at scale.
 
-[Tempo](https://docs.tempo.xyz/) is a blockchain designed specifically for stablecoin payments. Its architecture focuses on high throughput, low cost, and features that financial institutions, payment service providers, and fintech platforms expect from modern payment infrastructure.
+[Magnus](https://docs.magnus.xyz/) is a blockchain designed specifically for stablecoin payments. Its architecture focuses on high throughput, low cost, and features that financial institutions, payment service providers, and fintech platforms expect from modern payment infrastructure.
 
-You can get started today by integrating with the [Tempo testnet](https://docs.tempo.xyz/quickstart/integrate-tempo), [building on Tempo](https://docs.tempo.xyz/guide/use-accounts), [running a Tempo node](https://docs.tempo.xyz/guide/node), reading the [Tempo protocol specs](https://docs.tempo.xyz/protocol) or by [building with Tempo SDKs](https://docs.tempo.xyz/sdk).
+You can get started today by integrating with the [Magnus testnet](https://docs.magnus.xyz/quickstart/integrate-magnus), [building on Magnus](https://docs.magnus.xyz/guide/use-accounts), [running a Magnus node](https://docs.magnus.xyz/guide/node), reading the [Magnus protocol specs](https://docs.magnus.xyz/protocol) or by [building with Magnus SDKs](https://docs.magnus.xyz/sdk).
 
-## What makes Tempo different
+## What makes Magnus different
 
-- [TIP‑20 token standard](https://docs.tempo.xyz/protocol/tip20/overview) (enshrined ERC‑20 extensions)
+- [MIP‑20 token standard](https://docs.magnus.xyz/protocol/tip20/overview) (enshrined ERC‑20 extensions)
 
-  - Predictable payment throughput via dedicated payment lanes reserved for TIP‑20 transfers (eliminates noisy‑neighbor contention).
+  - Predictable payment throughput via dedicated payment lanes reserved for MIP‑20 transfers (eliminates noisy‑neighbor contention).
   - Native reconciliation with on‑transfer memos and commitment patterns (hash/locator) for off‑chain PII and large data.
-  - Built‑in compliance through [TIP‑403 Policy Registry](https://docs.tempo.xyz/protocol/tip403/overview): single policy shared across multiple tokens, updated once and enforced everywhere.
+  - Built‑in compliance through [MIP‑403 Policy Registry](https://docs.magnus.xyz/protocol/tip403/overview): single policy shared across multiple tokens, updated once and enforced everywhere.
 
-- Low, predictable fees in [stablecoins](https://docs.tempo.xyz/learn/stablecoins)
+- Low, predictable fees in [stablecoins](https://docs.magnus.xyz/learn/stablecoins)
 
-  - Users pay gas directly in USD-stablecoins at launch; the [Fee AMM](https://docs.tempo.xyz/protocol/fees/fee-amm#fee-amm-overview) automatically converts to the validator’s preferred stablecoin.
-  - TIP‑20 transfers target sub‑millidollar costs (<$0.001).
+  - Users pay gas directly in USD-stablecoins at launch; the [Fee AMM](https://docs.magnus.xyz/protocol/fees/fee-amm#fee-amm-overview) automatically converts to the validator’s preferred stablecoin.
+  - MIP‑20 transfers target sub‑millidollar costs (<$0.001).
 
-- [Tempo Transactions](https://docs.tempo.xyz/guide/tempo-transaction) (native “smart accounts”)
+- [Magnus Transactions](https://docs.magnus.xyz/guide/magnus-transaction) (native “smart accounts”)
 
   - Batched payments: atomic multi‑operation payouts (payroll, settlements, refunds).
   - Fee sponsorship: apps can pay users' gas to streamline onboarding and flows.
@@ -51,63 +51,63 @@ You can get started today by integrating with the [Tempo testnet](https://docs.t
   - On‑chain FX and non‑USD stablecoin support for direct on‑chain liquidity; pay fees in more currencies.
   - Native private token standard: opt‑in privacy for balances/transfers coexisting with issuer compliance and auditability.
 
-## What makes Tempo familiar
+## What makes Magnus familiar
 
 - Fully compatible with the Ethereum Virtual Machine (EVM), targeting the Osaka hardfork.
 - Deploy and interact with smart contracts using the same tools, languages, and frameworks used on Ethereum, such as Solidity, Foundry, and Hardhat.
 - All Ethereum JSON-RPC methods work out of the box.
 
-While the execution environment mirrors Ethereum's, Tempo introduces some differences optimized for payments, described [here](https://docs.tempo.xyz/quickstart/evm-compatibility).
+While the execution environment mirrors Ethereum's, Magnus introduces some differences optimized for payments, described [here](https://docs.magnus.xyz/quickstart/evm-compatibility).
 
 ## Getting Started
 
 ### As a user
 
-You can connect to Tempo's public testnet using the following details:
+You can connect to Magnus's public testnet using the following details:
 
 | Property           | Value                              |
 | ------------------ | ---------------------------------- |
-| **Network Name**   | Tempo Testnet (Moderato)           |
+| **Network Name**   | Magnus Testnet (Moderato)           |
 | **Currency**       | `USD`                              |
 | **Chain ID**       | `42431`                            |
-| **HTTP URL**       | `https://rpc.moderato.tempo.xyz`   |
-| **WebSocket URL**  | `wss://rpc.moderato.tempo.xyz`     |
-| **Block Explorer** | `https://explore.tempo.xyz`        |
+| **HTTP URL**       | `https://rpc.moderato.magnus.xyz`   |
+| **WebSocket URL**  | `wss://rpc.moderato.magnus.xyz`     |
+| **Block Explorer** | `https://explore.magnus.xyz`        |
 
-Next, grab some stablecoins to test with from Tempo's [Faucet](https://docs.tempo.xyz/quickstart/faucet#faucet).
+Next, grab some stablecoins to test with from Magnus's [Faucet](https://docs.magnus.xyz/quickstart/faucet#faucet).
 
 Alternatively, use [`cast`](https://github.com/foundry-rs/foundry):
 
 ```bash
-cast rpc tempo_fundAddress <ADDRESS> --rpc-url https://rpc.moderato.tempo.xyz
+cast rpc tempo_fundAddress <ADDRESS> --rpc-url https://rpc.moderato.magnus.xyz
 ```
 
 ### As an operator
 
 We provide three different installation paths: installing a pre-built binary, building from source or using our provided Docker image.
 
-- [Pre-built Binary](https://docs.tempo.xyz/guide/node/installation#pre-built-binary)
-- [Build from Source](https://docs.tempo.xyz/guide/node/installation#build-from-source)
-- [Docker](https://docs.tempo.xyz/guide/node/installation#docker)
+- [Pre-built Binary](https://docs.magnus.xyz/guide/node/installation#pre-built-binary)
+- [Build from Source](https://docs.magnus.xyz/guide/node/installation#build-from-source)
+- [Docker](https://docs.magnus.xyz/guide/node/installation#docker)
 
-See the [Tempo documentation](https://docs.tempo.xyz/guide/node) for instructions on how to install and run Tempo.
+See the [Magnus documentation](https://docs.magnus.xyz/guide/node) for instructions on how to install and run Magnus.
 
 ### As a developer
 
-Tempo has several SDKs to help you get started building on Tempo:
+Magnus has several SDKs to help you get started building on Magnus:
 
-- [TypeScript](https://docs.tempo.xyz/sdk/typescript)
-- [Rust](https://docs.tempo.xyz/sdk/rust)
-- [Go](https://docs.tempo.xyz/sdk/go)
-- [Foundry](https://docs.tempo.xyz/sdk/foundry)
+- [TypeScript](https://docs.magnus.xyz/sdk/typescript)
+- [Rust](https://docs.magnus.xyz/sdk/rust)
+- [Go](https://docs.magnus.xyz/sdk/go)
+- [Foundry](https://docs.magnus.xyz/sdk/foundry)
 
 Want to contribute?
 
 First, clone the repository:
 
 ```
-git clone https://github.com/tempoxyz/tempo
-cd tempo
+git clone https://github.com/Magnus-Foundation/magnus
+cd magnus
 ```
 
 Next, install [`just`](https://github.com/casey/just?tab=readme-ov-file#packages).
@@ -118,7 +118,7 @@ Install the dependencies:
 just
 ```
 
-Build Tempo:
+Build Magnus:
 
 ```bash
 just build-all
@@ -138,11 +138,11 @@ just localnet
 
 ## Contributing
 
-Our contributor guidelines can be found in [`CONTRIBUTING.md`](https://github.com/tempoxyz/tempo?tab=contributing-ov-file).
+Our contributor guidelines can be found in [`CONTRIBUTING.md`](https://github.com/Magnus-Foundation/magnus?tab=contributing-ov-file).
 
 ## Security
 
-See [`SECURITY.md`](https://github.com/tempoxyz/tempo?tab=security-ov-file). Note: Tempo is still undergoing audit and does not have an active bug bounty. Submissions will not be eligible for a bounty until audits have concluded.
+See [`SECURITY.md`](https://github.com/Magnus-Foundation/magnus?tab=security-ov-file). Note: Magnus is still undergoing audit and does not have an active bug bounty. Submissions will not be eligible for a bounty until audits have concluded.
 
 ## License
 
@@ -152,3 +152,14 @@ Licensed under either of [Apache License](./LICENSE-APACHE), Version
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in these crates by you, as defined in the Apache-2.0 license,
 shall be dual licensed as above, without any additional terms or conditions.
+
+## Heritage
+
+Magnus is a hard fork of [Tempo](https://github.com/tempoxyz/tempo) at SHA
+`786c8ce34`. The Tempo project — created by Stripe with consensus work by
+Commonware — provided the foundation for consensus, EVM integration, and the
+overall node architecture. Tempo and Stripe copyright lines remain in
+[`LICENSE-MIT`](./LICENSE-MIT) and [`LICENSE-APACHE`](./LICENSE-APACHE) per the
+MIT/Apache-2.0 attribution requirements. Magnus extends this foundation with
+payments, gateway, and bridge subsystems described in the project's design
+docs.

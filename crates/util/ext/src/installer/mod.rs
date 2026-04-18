@@ -203,7 +203,7 @@ impl Installer {
 
     /// Removes an extension's binary and skill files.
     pub(crate) fn remove(&self, extension: &str, dry_run: bool) -> Result<(), InstallerError> {
-        let binary = format!("tempo-{extension}");
+        let binary = format!("magnus-{extension}");
         self.remove_binary(&binary, dry_run)?;
         remove_skill(extension, dry_run);
         Ok(())
@@ -218,7 +218,7 @@ impl Installer {
         dry_run: bool,
         quiet: bool,
     ) -> Result<ResolvedInstall, InstallerError> {
-        let binary = format!("tempo-{extension}");
+        let binary = format!("magnus-{extension}");
 
         let manifest_loc = source
             .manifest
@@ -297,7 +297,7 @@ impl Installer {
             .parent()
             .expect("dst must have a parent directory");
         let mut tmp = tempfile::Builder::new()
-            .prefix(".tempo-install-")
+            .prefix(".magnus-install-")
             .tempfile_in(dst_dir)?;
         // Write through the open handle to avoid sharing violations on
         // Windows (fs::copy would try to re-open the file for writing).

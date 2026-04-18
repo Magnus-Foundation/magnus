@@ -28,7 +28,7 @@ use std::sync::OnceLock;
 /// (secp256k1, P256, Webauthn, Keychain) and provides cached hashes.
 #[derive(Clone, Debug)]
 pub struct AASigned {
-    /// The inner Tempo transaction
+    /// The inner Magnus transaction
     tx: MagnusTransaction,
     /// The signature (can be secp256k1, P256, Webauthn, Keychain)
     signature: MagnusSignature,
@@ -338,7 +338,7 @@ impl alloy_consensus::transaction::SignerRecoverable for AASigned {
     fn recover_signer_unchecked(
         &self,
     ) -> Result<alloy_primitives::Address, alloy_consensus::crypto::RecoveryError> {
-        // For Tempo transactions, verified and unverified recovery are the same
+        // For Magnus transactions, verified and unverified recovery are the same
         // since signature verification happens during recover_signer
         self.recover_signer()
     }
@@ -437,7 +437,7 @@ mod serde_impl {
 
         #[test]
         fn test_serde_output() {
-            // Create a simple Tempo transaction
+            // Create a simple Magnus transaction
             let tx = MagnusTransaction {
                 chain_id: 1337,
                 fee_token: None,
@@ -562,7 +562,7 @@ mod tests {
         // trie_hash equals hash
         assert_eq!(signed.trie_hash(), *signed.hash());
 
-        // fallback_decode returns error (Tempo txs must be typed)
+        // fallback_decode returns error (Magnus txs must be typed)
         let fallback_result = AASigned::fallback_decode(&mut [].as_ref());
         assert!(fallback_result.is_err());
 

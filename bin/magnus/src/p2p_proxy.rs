@@ -36,7 +36,7 @@ use magnus_primitives::{MagnusHeader, MagnusPrimitives, MagnusTxEnvelope};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info};
 
-/// Tempo-specific network primitives for the proxy node.
+/// Magnus-specific network primitives for the proxy node.
 type MagnusNetPrimitives = BasicNetworkPrimitives<MagnusPrimitives, MagnusTxEnvelope>;
 type MagnusRpcBlock = <MagnusNetwork as Network>::BlockResponse;
 
@@ -689,7 +689,7 @@ mod tests {
     use alloy::{consensus::BlockHeader, primitives::Sealable};
     use reth_eth_wire_types::GetBlockHeaders;
 
-    const MODERATO_RPC: &str = "https://rpc.moderato.tempo.xyz";
+    const MODERATO_RPC: &str = "https://rpc.moderato.magnus.xyz";
 
     fn moderato_provider() -> impl Provider<MagnusNetwork> {
         ProviderBuilder::new_with_network::<MagnusNetwork>()

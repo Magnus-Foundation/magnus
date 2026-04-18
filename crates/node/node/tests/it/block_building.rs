@@ -12,11 +12,11 @@ use alloy_primitives::Bytes;
 use alloy_rpc_types_eth::TransactionRequest;
 use reth_node_api::BuiltPayload;
 use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
-use magnus_contracts::precompiles::{IFeeManager, IRolesAuth, ITIP20, ITIP20Factory, ITIPFeeAMM};
+use magnus_contracts::precompiles::{IFeeManager, IRolesAuth, IMIP20, IMIP20Factory, ITIPFeeAMM};
 use magnus_node::node::MagnusNode;
 use magnus_precompiles::{
-    PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, TIP20_FACTORY_ADDRESS,
-    tip_fee_manager::amm::compute_amount_out, tip20::ISSUER_ROLE,
+    PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS,
+    tip_fee_manager::amm::compute_amount_out, mip20::ISSUER_ROLE,
 };
 use magnus_primitives::{MagnusTxEnvelope, transaction::calc_gas_balance_spending};
 
@@ -26,11 +26,11 @@ async fn setup_token_manual<P>(
     provider: &P,
     sender: &alloy::signers::local::PrivateKeySigner,
     chain_id: u64,
-) -> eyre::Result<ITIP20::ITIP20Instance<P>>
+) -> eyre::Result<IMIP20::IMIP20Instance<P>>
 where
     P: Provider + Clone,
 {
-    let factory = ITIP20Factory::new(TIP20_FACTORY_ADDRESS, provider.clone());
+    let factory = IMIP20Factory::new(MIP20_FACTORY_ADDRESS, provider.clone());
     let sender_address = sender.address();
     let signer = EthereumWallet::from(sender.clone());
 
@@ -80,7 +80,7 @@ where
         .find(|r| !r.inner.logs().is_empty())
         .ok_or_else(|| eyre::eyre!("No receipt with logs found"))?;
     let event =
-        ITIP20Factory::TokenCreated::decode_log(&token_create_receipt.inner.logs()[1].inner)?;
+        IMIP20Factory::TokenCreated::decode_log(&token_create_receipt.inner.logs()[1].inner)?;
     let token_addr = event.token;
 
     // Grant issuer role
@@ -91,7 +91,7 @@ where
     node.advance_block().await?;
 
     // Mint tokens
-    let token = ITIP20::ITIP20Instance::new(token_addr, provider.clone());
+    let token = IMIP20::IMIP20Instance::new(token_addr, provider.clone());
     let mint_tx = token.mint(sender_address, U256::from(1_000_000));
     let mint_bytes = sign_and_encode(mint_tx.into_transaction_request(), 2).await?;
     node.rpc.inject_tx(mint_bytes).await?;
@@ -145,7 +145,7 @@ async fn inject_payment_txs_from_sender<P>(
     node: &mut reth_e2e_test_utils::NodeHelperType<MagnusNode>,
     provider: &P,
     sender: &alloy::signers::local::PrivateKeySigner,
-    token: &ITIP20::ITIP20Instance<P>,
+    token: &IMIP20::IMIP20Instance<P>,
     chain_id: u64,
     count: usize,
 ) -> eyre::Result<()>
@@ -647,7 +647,7 @@ async fn test_payload_fees_account_for_amm_haircut() -> eyre::Result<()> {
         &mut setup.node,
         &user_signer,
         chain_id,
-        ITIP20::new(PATH_USD_ADDRESS, user_provider.clone())
+        IMIP20::new(PATH_USD_ADDRESS, user_provider.clone())
             .transfer(Address::random(), U256::from(1))
             .into_transaction_request(),
         5,

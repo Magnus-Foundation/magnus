@@ -17,10 +17,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked,id=cargo-
     --mount=type=cache,target=$SCCACHE_DIR,sharing=locked,id=sccache-${TARGETARCH} \
     RUSTFLAGS="-C link-arg=-fuse-ld=mold ${EXTRA_RUSTFLAGS}" \
     cargo build --profile ${RUST_PROFILE} \
-        --bin tempo --features "${RUST_FEATURES}" \
-        --bin tempo-bench \
-        --bin tempo-sidecar \
-        --bin tempo-xtask
+        --bin magnus --features "${RUST_FEATURES}" \
+        --bin magnus-bench \
+        --bin magnus-sidecar \
+        --bin magnus-xtask
 
 FROM debian:bookworm-slim AS base
 
@@ -30,29 +30,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /data
 
-# tempo
-FROM base AS tempo
+# magnus
+FROM base AS magnus
 ARG RUST_PROFILE=profiling
-COPY --from=builder /app/target/${RUST_PROFILE}/tempo /usr/local/bin/tempo
-ENTRYPOINT ["/usr/local/bin/tempo"]
+COPY --from=builder /app/target/${RUST_PROFILE}/magnus /usr/local/bin/magnus
+ENTRYPOINT ["/usr/local/bin/magnus"]
 
-# tempo-sidecar
-FROM base AS tempo-sidecar
+# magnus-sidecar
+FROM base AS magnus-sidecar
 ARG RUST_PROFILE=profiling
-COPY --from=builder /app/target/${RUST_PROFILE}/tempo-sidecar /usr/local/bin/tempo-sidecar
-ENTRYPOINT ["/usr/local/bin/tempo-sidecar"]
+COPY --from=builder /app/target/${RUST_PROFILE}/magnus-sidecar /usr/local/bin/magnus-sidecar
+ENTRYPOINT ["/usr/local/bin/magnus-sidecar"]
 
-# tempo-xtask
-FROM base AS tempo-xtask
+# magnus-xtask
+FROM base AS magnus-xtask
 ARG RUST_PROFILE=profiling
-COPY --from=builder /app/target/${RUST_PROFILE}/tempo-xtask /usr/local/bin/tempo-xtask
-ENTRYPOINT ["/usr/local/bin/tempo-xtask"]
+COPY --from=builder /app/target/${RUST_PROFILE}/magnus-xtask /usr/local/bin/magnus-xtask
+ENTRYPOINT ["/usr/local/bin/magnus-xtask"]
 
-# tempo-bench (needs nushell)
+# magnus-bench (needs nushell)
 FROM --platform=$TARGETPLATFORM ghcr.io/nushell/nushell:0.108.0-bookworm AS nushell
 
-FROM base AS tempo-bench
+FROM base AS magnus-bench
 ARG RUST_PROFILE=profiling
 COPY --from=nushell /usr/bin/nu /usr/bin/nu
-COPY --from=builder /app/target/${RUST_PROFILE}/tempo-bench /usr/local/bin/tempo-bench
-ENTRYPOINT ["/usr/local/bin/tempo-bench"]
+COPY --from=builder /app/target/${RUST_PROFILE}/magnus-bench /usr/local/bin/magnus-bench
+ENTRYPOINT ["/usr/local/bin/magnus-bench"]

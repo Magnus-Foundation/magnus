@@ -411,7 +411,7 @@ mod tests {
             eth_attrs.parent_beacon_block_root
         );
 
-        // Tempo-specific defaults
+        // Magnus-specific defaults
         assert_eq!(magnus_attrs.timestamp_millis_part(), 0);
         assert_eq!(magnus_attrs.extra_data(), &Bytes::default());
         assert!(!magnus_attrs.is_interrupted());

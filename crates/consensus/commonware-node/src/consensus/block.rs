@@ -1,6 +1,6 @@
-//! The foundational datastructure the Tempo network comes to consensus over.
+//! The foundational datastructure the Magnus network comes to consensus over.
 //!
-//! The Tempo [`Block`] at its core is just a thin wrapper around an Ethereum
+//! The Magnus [`Block`] at its core is just a thin wrapper around an Ethereum
 //! block.
 
 use alloy_consensus::BlockHeader as _;
@@ -20,7 +20,7 @@ use reth_node_core::primitives::SealedBlock;
 
 use crate::consensus::Digest;
 
-/// A Tempo block.
+/// A Magnus block.
 ///
 // XXX: This is a refinement type around a reth [`SealedBlock`]
 // to hold the trait implementations required by commonwarexyz. Uses
@@ -348,7 +348,7 @@ mod tests {
     // 3. notarized write -> stable hex (necessary? good to guard against commonware xyz changes?)
     // 4. finalized write -> stable hex (necessary? good to guard against commonware xyz changes?)
 
-    // TODO: Bring back this unit test; preferably with some flavour of tempo reth block.
+    // TODO: Bring back this unit test; preferably with some flavour of magnus reth block.
     //
     // use commonware_codec::{Read as _, Write as _};
     // use reth_chainspec::ChainSpec;

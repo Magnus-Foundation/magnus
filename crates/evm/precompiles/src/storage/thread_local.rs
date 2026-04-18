@@ -232,11 +232,11 @@ impl StorageCtx {
     }
 
     /// Recovers the signer address from an ECDSA signature and charges ecrecover gas.
-    /// As per [TIP-1004], it only accepts `v` values of `27` or `28` (no `0`/`1` normalization).
+    /// As per [MIP-1004], it only accepts `v` values of `27` or `28` (no `0`/`1` normalization).
     ///
     /// Returns `Ok(None)` on invalid signatures; callers map to domain-specific errors.
     ///
-    /// [TIP-1004]: <https://github.com/tempoxyz/tempo/blob/main/tips/tip-1004.md#signature-validation>
+    /// [MIP-1004]: <https://github.com/Magnus-Foundation/magnus/blob/main/mips/mip-1004.md#signature-validation>
     pub fn recover_signer(&self, digest: B256, v: u8, r: B256, s: B256) -> Result<Option<Address>> {
         Self::try_with_storage(|storage| storage.recover_signer(digest, v, r, s))
     }
@@ -443,7 +443,7 @@ impl StorageCtx {
 
     /// NOTE: assumes storage tests always use the `HashMapStorageProvider`
     ///
-    /// USAGE: `TIP20Setup` clears events of the configured contract when
+    /// USAGE: `MIP20Setup` clears events of the configured contract when
     /// `apply()` is called only if `clear_events()` was explicitly set.
     pub fn clear_events(&mut self, address: Address) {
         self.as_hashmap().clear_events(address);

@@ -1,4 +1,4 @@
-//! xtask is a Swiss army knife of tools that help with running and testing tempo.
+//! xtask is a Swiss army knife of tools that help with running and testing magnus.
 use std::net::SocketAddr;
 
 use crate::{

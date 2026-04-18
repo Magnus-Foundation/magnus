@@ -1,4 +1,4 @@
-//! Tempo payload types.
+//! Magnus payload types.
 
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -19,12 +19,12 @@ use reth_primitives_traits::{AlloyBlockHeader as _, SealedBlock};
 use serde::{Deserialize, Serialize};
 use magnus_primitives::{Block, MagnusPrimitives};
 
-/// Payload types for Tempo node.
+/// Payload types for Magnus node.
 #[derive(Debug, Clone, Copy, Default)]
 #[non_exhaustive]
 pub struct MagnusPayloadTypes;
 
-/// Built payload type for Tempo node.
+/// Built payload type for Magnus node.
 ///
 /// Wraps [`EthBuiltPayload`] and optionally includes the executed block data
 /// to enable the engine tree fast path (skipping re-execution for self-built payloads).
@@ -69,7 +69,7 @@ impl BuiltPayload for MagnusBuiltPayload {
     }
 }
 
-/// Execution data for Tempo node. Simply wraps a sealed block.
+/// Execution data for Magnus node. Simply wraps a sealed block.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MagnusExecutionData {
     /// The built block.

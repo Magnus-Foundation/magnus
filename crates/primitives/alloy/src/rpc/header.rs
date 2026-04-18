@@ -5,7 +5,7 @@ use alloy_rpc_types_eth::Header;
 use serde::{Deserialize, Serialize};
 use magnus_primitives::MagnusHeader;
 
-/// Tempo RPC header response type.
+/// Magnus RPC header response type.
 #[derive(Debug, Clone, Serialize, Deserialize, derive_more::Deref, derive_more::DerefMut)]
 #[serde(rename_all = "camelCase")]
 pub struct MagnusHeaderResponse {

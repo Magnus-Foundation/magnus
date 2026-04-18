@@ -39,17 +39,17 @@ monitor_blocks() {
 # Function to stop a validator
 stop_validator() {
   local validator_id="$1"
-  echo "Stopping tempo-validator-$validator_id..."
-  docker stop "tempo-validator-$validator_id" >/dev/null
-  echo "  Stopped tempo-validator-$validator_id"
+  echo "Stopping magnus-validator-$validator_id..."
+  docker stop "magnus-validator-$validator_id" >/dev/null
+  echo "  Stopped magnus-validator-$validator_id"
 }
 
 # Function to start a validator
 start_validator() {
   local validator_id="$1"
-  echo "Starting tempo-validator-$validator_id..."
-  docker start "tempo-validator-$validator_id" >/dev/null
-  echo "  Started tempo-validator-$validator_id"
+  echo "Starting magnus-validator-$validator_id..."
+  docker start "magnus-validator-$validator_id" >/dev/null
+  echo "  Started magnus-validator-$validator_id"
 }
 
 # Function to start background transaction generation

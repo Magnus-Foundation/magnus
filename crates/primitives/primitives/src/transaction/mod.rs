@@ -13,7 +13,7 @@ pub use tt_signature::{
 };
 
 pub use alloy_eips::eip7702::Authorization;
-pub use envelope::{TIP20_PAYMENT_PREFIX, MagnusTxEnvelope, MagnusTxType, MagnusTypedTransaction};
+pub use envelope::{MIP20_PAYMENT_PREFIX, MagnusTxEnvelope, MagnusTxType, MagnusTypedTransaction};
 pub use key_authorization::{
     CallScope, KeyAuthorization, KeyAuthorizationChainIdError, SelectorRule,
     SignedKeyAuthorization, TokenLimit,
@@ -27,17 +27,17 @@ pub use tt_signed::AASigned;
 
 use alloy_primitives::{U256, uint};
 
-/// Scaling factor for converting gas prices (attodollars) to TIP-20 token amounts (microdollars).
+/// Scaling factor for converting gas prices (attodollars) to MIP-20 token amounts (microdollars).
 ///
 /// This factor is 10^12, which converts from attodollars (10^-18 USD) to microdollars (10^-6 USD):
 /// - Gas prices are in attodollars at 10^-18 USD precision
-/// - TIP-20 tokens use 6 decimals (microdollars at 10^-6 USD precision)
+/// - MIP-20 tokens use 6 decimals (microdollars at 10^-6 USD precision)
 /// - Conversion: attodollars / 10^12 = microdollars
 pub const MAGNUS_GAS_PRICE_SCALING_FACTOR: U256 = uint!(1_000_000_000_000_U256);
 
-/// Calculates gas balance spending in TIP-20 token units (microdollars).
+/// Calculates gas balance spending in MIP-20 token units (microdollars).
 ///
-/// Takes gas parameters in attodollars and converts to microdollars (TIP-20 token units).
+/// Takes gas parameters in attodollars and converts to microdollars (MIP-20 token units).
 /// Formula: (gas_limit × gas_price) / 10^12 = microdollars
 pub fn calc_gas_balance_spending(gas_limit: u64, gas_price: u128) -> U256 {
     U256::from(gas_limit)

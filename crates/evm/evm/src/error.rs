@@ -1,4 +1,4 @@
-//! Error types for Tempo EVM operations.
+//! Error types for Magnus EVM operations.
 
 use reth_consensus::ConsensusError;
 

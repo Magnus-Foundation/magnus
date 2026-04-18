@@ -103,7 +103,7 @@ def count_matches_in_dir(directory, pattern, flags=re.MULTILINE):
 
 
 def sanitize_primitives(prim_dir):
-    """Strip all reth-specific code from tempo-primitives source files."""
+    """Strip all reth-specific code from magnus-primitives source files."""
     src = f"{prim_dir}/src"
 
     # ── lib.rs ─────────────────────────────────────────────────────────────
@@ -274,7 +274,7 @@ def _strip_rust_strings(line):
 
 
 def sanitize_chainspec(chainspec_dir):
-    """Strip reth-gated code from tempo-chainspec source files."""
+    """Strip reth-gated code from magnus-chainspec source files."""
     lib_rs = f"{chainspec_dir}/src/lib.rs"
 
     # Delete #![cfg_attr(all(not(test), feature = "reth"), warn(unused_crate_dependencies))]
@@ -290,7 +290,7 @@ def sanitize_chainspec(chainspec_dir):
 
 
 def sanitize_alloy(alloy_dir):
-    """Strip node-internal code from tempo-alloy source files.
+    """Strip node-internal code from magnus-alloy source files.
 
     The reth_compat.rs file is already deleted by the shell script (publish-crates.sh).
     This function removes the cfg-gated `mod reth_compat;` declaration from rpc/mod.rs

@@ -6,4 +6,4 @@ native Payment Engine subsystem of the Magnus L1: typed payment operations
 book, settlement tiers, and the multilateral netting engine.
 
 Implementation is a follow-up spec. Do not add code here as part of the
-Tempo → Magnus rename refactor.
+Magnus rename refactor.

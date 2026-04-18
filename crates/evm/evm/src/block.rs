@@ -80,9 +80,9 @@ impl ReceiptBuilder for MagnusReceiptBuilder {
     }
 }
 
-/// The result of executing a Tempo transaction.
+/// The result of executing a Magnus transaction.
 ///
-/// This is an extension of [`EthTxResult`] with context necessary for committing a Tempo transaction.
+/// This is an extension of [`EthTxResult`] with context necessary for committing a Magnus transaction.
 #[derive(Debug)]
 pub(crate) struct MagnusTxResult<H> {
     /// Inner transaction execution result.
@@ -110,9 +110,9 @@ impl<H> TxResult for MagnusTxResult<H> {
     }
 }
 
-/// Block executor for Tempo.
+/// Block executor for Magnus.
 ///
-/// Wraps an inner [`EthBlockExecutor`] and layers Tempo-specific block execution
+/// Wraps an inner [`EthBlockExecutor`] and layers Magnus-specific block execution
 /// logic on top: section-based transaction ordering ([`BlockSection`]), subblock
 /// validation, shared/non-shared gas accounting, and gas incentive tracking.
 pub(crate) struct MagnusBlockExecutor<'a, DB: Database, I> {
@@ -400,7 +400,7 @@ where
                 }
                 BlockSection::GasIncentive => Ok(BlockSection::GasIncentive),
                 BlockSection::System { .. } => {
-                    trace!(target: "tempo::block", tx_hash = ?*tx.tx_hash(), "Rejecting: regular transaction after system transaction");
+                    trace!(target: "magnus::block", tx_hash = ?*tx.tx_hash(), "Rejecting: regular transaction after system transaction");
                     Err(BlockValidationError::msg(
                         "regular transaction can't follow system transaction",
                     ))

@@ -5,7 +5,7 @@ use revm::{
     context_interface::block::BlobExcessGasAndPrice,
 };
 
-/// Tempo block environment.
+/// Magnus block environment.
 #[derive(Debug, Clone, Default, PartialEq, derive_more::Deref, derive_more::DerefMut)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MagnusBlockEnv {

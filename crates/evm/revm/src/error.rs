@@ -1,13 +1,13 @@
-//! Tempo-specific transaction validation errors.
+//! Magnus-specific transaction validation errors.
 
 use alloy_evm::error::InvalidTxError;
 use alloy_primitives::{Address, U256};
 use revm::context::result::{EVMError, ExecutionResult, HaltReason, InvalidTransaction};
 use magnus_primitives::transaction::{KeyAuthorizationChainIdError, KeychainVersionError};
 
-/// Tempo-specific invalid transaction errors.
+/// Magnus-specific invalid transaction errors.
 ///
-/// This enum extends the standard Ethereum [`InvalidTransaction`] with Tempo-specific
+/// This enum extends the standard Ethereum [`InvalidTransaction`] with Magnus-specific
 /// validation errors that occur during transaction processing.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, thiserror::Error)]
 pub enum MagnusInvalidTransaction {
@@ -34,10 +34,10 @@ pub enum MagnusInvalidTransaction {
     #[error("fee payer cannot resolve to sender")]
     SelfSponsoredFeePayer,
 
-    // Tempo transaction errors
+    // Magnus transaction errors
     /// Transaction cannot be included before validAfter timestamp.
     ///
-    /// Tempo transactions can specify a validAfter field to restrict when they can be included.
+    /// Magnus transactions can specify a validAfter field to restrict when they can be included.
     #[error(
         "transaction not valid yet: current block timestamp {current} < validAfter {valid_after}"
     )]
@@ -50,7 +50,7 @@ pub enum MagnusInvalidTransaction {
 
     /// Transaction cannot be included after validBefore timestamp.
     ///
-    /// Tempo transactions can specify a validBefore field to restrict when they can be included.
+    /// Magnus transactions can specify a validBefore field to restrict when they can be included.
     #[error("transaction expired: current block timestamp {current} >= validBefore {valid_before}")]
     ValidBefore {
         /// The current block timestamp.
@@ -102,8 +102,8 @@ pub enum MagnusInvalidTransaction {
     #[error("value transfer not allowed")]
     ValueTransferNotAllowed,
 
-    /// Value transfer in Tempo Transaction not allowed.
-    #[error("value transfer in Tempo Transaction not allowed")]
+    /// Value transfer in Magnus Transaction not allowed.
+    #[error("value transfer in Magnus Transaction not allowed")]
     ValueTransferNotAllowedInAATx,
 
     /// Failed to recover access key address from signature.
@@ -215,7 +215,7 @@ pub enum MagnusInvalidTransaction {
     #[error(transparent)]
     CollectFeePreTx(#[from] FeePaymentError),
 
-    /// Tempo transaction validation error from validate_calls().
+    /// Magnus transaction validation error from validate_calls().
     ///
     /// This wraps validation errors from the shared validate_calls function.
     #[error("{0}")]
@@ -386,7 +386,7 @@ impl<DBError> From<FeePaymentError> for EVMError<DBError, MagnusInvalidTransacti
     }
 }
 
-/// Tempo-specific halt reason.
+/// Magnus-specific halt reason.
 ///
 /// Used to extend basic [`HaltReason`] with an edge case of a subblock transaction fee payment error.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, derive_more::From)]

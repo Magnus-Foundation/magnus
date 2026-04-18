@@ -1,17 +1,17 @@
-# Tempo
+# Magnus
 
-Tempo is a blockchain node built on [Reth SDK](https://github.com/paradigmxyz/reth).
+Magnus is a blockchain node built on [Reth SDK](https://github.com/paradigmxyz/reth).
 
 ## Pull Requests
 
-## TIPs (Tempo Improvement Proposals)
+## MIPs (Magnus Improvement Proposals)
 
-When creating a new TIP:
+When creating a new MIP:
 
-- Branch: `tip/XXXX` where `XXXX` is the next available TIP number (check `tips/` directory and existing branches).
-- File: `tips/tip-XXXX.md` matching the branch number.
-- Follow the template in `tips/tip_template.md`.
-- Follow the process and quality gates in `tips/tip-0000.md`.
+- Branch: `mip/XXXX` where `XXXX` is the next available MIP number (check `mips/` directory and existing branches).
+- File: `mips/mip-XXXX.md` matching the branch number.
+- Follow the template in `mips/mip_template.md`.
+- Follow the process and quality gates in `mips/mip-0000.md`.
 
 ### Titles
 
@@ -26,7 +26,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/) with an optiona
 **Scope** (optional): crate or area, e.g. `evm`, `consensus`, `rpc`, `tip-1017`
 
 Examples:
-- `fix(rpc): correct gas estimation for TIP-20 transfers`
+- `fix(rpc): correct gas estimation for MIP-20 transfers`
 - `perf: batch trie updates to reduce cursor overhead`
 - `feat(consensus): add checkpoint guard for batched state ops`
 
@@ -37,7 +37,7 @@ Keep it short. Say what changed and why — nothing more.
 **Do:**
 - Write 1–3 sentences summarizing the change
 - Explain _why_ if the diff doesn't make it obvious
-- Link related issues or TIPs
+- Link related issues or MIPs
 - Include benchmark numbers for perf changes
 
 **Don't:**

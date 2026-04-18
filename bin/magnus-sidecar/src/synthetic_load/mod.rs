@@ -13,7 +13,7 @@ use alloy::{
 use eyre::Context;
 use rand_distr::{Distribution, Exp, Zipf};
 use reqwest::Url;
-use magnus_precompiles::{TIP_FEE_MANAGER_ADDRESS, tip_fee_manager::IFeeManager, tip20::ITIP20};
+use magnus_precompiles::{TIP_FEE_MANAGER_ADDRESS, tip_fee_manager::IFeeManager, mip20::IMIP20};
 use magnus_telemetry_util::error_field;
 use tracing::{debug, info, warn};
 
@@ -94,10 +94,10 @@ impl SyntheticLoadGenerator {
             info!(
                 %sender,
                 %recipient,
-                "sending tip20 tokens"
+                "sending mip20 tokens"
             );
 
-            let token = ITIP20::new(*token, provider.clone());
+            let token = IMIP20::new(*token, provider.clone());
             if let Err(e) = token
                 .transfer(*recipient, U256::from(10))
                 .from(*sender)
@@ -108,7 +108,7 @@ impl SyntheticLoadGenerator {
                     %sender,
                     %recipient,
                     err = error_field(&e),
-                    "failed to transfer tip20 token"
+                    "failed to transfer mip20 token"
                 );
             }
 

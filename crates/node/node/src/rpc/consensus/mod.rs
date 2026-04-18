@@ -53,7 +53,7 @@ pub trait MagnusConsensusApi {
     ) -> RpcResult<IdentityTransitionResponse>;
 }
 
-/// Tempo consensus RPC implementation.
+/// Magnus consensus RPC implementation.
 #[derive(Debug, Clone)]
 pub struct MagnusConsensusRpc<I> {
     consensus_feed: I,

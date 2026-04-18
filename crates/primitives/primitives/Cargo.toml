@@ -1,6 +1,6 @@
 [package]
 name = "magnus-primitives"
-description = "Tempo primitive types"
+description = "Magnus primitive types"
 
 version = "1.6.0"
 edition.workspace = true

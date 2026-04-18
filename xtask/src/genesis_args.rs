@@ -43,7 +43,7 @@ use magnus_contracts::{
     ARACHNID_CREATE2_FACTORY_ADDRESS, CREATEX_ADDRESS, MULTICALL3_ADDRESS, PERMIT2_ADDRESS,
     PERMIT2_SALT, SAFE_DEPLOYER_ADDRESS,
     contracts::{ARACHNID_CREATE2_FACTORY_BYTECODE, CreateX, Multicall3, SafeDeployer},
-    precompiles::{ITIP20Factory, IValidatorConfigV2},
+    precompiles::{IMIP20Factory, IValidatorConfigV2},
 };
 use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
 use magnus_evm::evm::{MagnusEvm, MagnusEvmFactory};
@@ -56,9 +56,9 @@ use magnus_precompiles::{
     stablecoin_dex::StablecoinDEX,
     storage::{ContractStorage, StorageCtx},
     tip_fee_manager::{IFeeManager, TipFeeManager},
-    tip20::{ISSUER_ROLE, ITIP20, TIP20Token},
-    tip20_factory::TIP20Factory,
-    tip403_registry::TIP403Registry,
+    mip20::{ISSUER_ROLE, IMIP20, MIP20Token},
+    mip20_factory::MIP20Factory,
+    mip403_registry::MIP403Registry,
     validator_config_v2::ValidatorConfigV2,
 };
 
@@ -240,7 +240,7 @@ impl GenesisArgs {
             })
             .collect::<eyre::Result<Vec<Address>>>()?;
 
-        // system contracts/precompiles must be initialized bottom up, if an init function (e.g. mint_pairwise_liquidity) uses another system contract/precompiles internally (tip403 registry), the registry must be initialized first.
+        // system contracts/precompiles must be initialized bottom up, if an init function (e.g. mint_pairwise_liquidity) uses another system contract/precompiles internally (mip403 registry), the registry must be initialized first.
 
         let pathusd_admin = self.pathusd_admin.unwrap_or_else(|| addresses[0]);
         let validator_admin = self.validator_admin.unwrap_or_else(|| addresses[0]);
@@ -252,8 +252,8 @@ impl GenesisArgs {
         println!("Initializing registry");
         initialize_registry(&mut evm)?;
 
-        // Initialize TIP20Factory once before creating any tokens
-        println!("Initializing TIP20Factory");
+        // Initialize MIP20Factory once before creating any tokens
+        println!("Initializing MIP20Factory");
         initialize_tip20_factory(&mut evm)?;
 
         println!("Creating pathUSD through factory");
@@ -261,7 +261,7 @@ impl GenesisArgs {
 
         let (alpha_token_address, beta_token_address, theta_token_address) =
             if !self.no_extra_tokens {
-                println!("Initializing TIP20 tokens");
+                println!("Initializing MIP20 tokens");
                 let alpha = create_and_mint_token(
                     "AlphaUSD",
                     "AlphaUSD",
@@ -402,7 +402,7 @@ impl GenesisArgs {
         println!("Initializing account keychain");
         initialize_account_keychain(&mut evm)?;
 
-        println!("Initializing TIP20 registry");
+        println!("Initializing MIP20 registry");
         initialize_address_registry(&mut evm)?;
 
         if self.t3_time == 0 {
@@ -541,7 +541,7 @@ impl GenesisArgs {
         chain_config
             .extra_fields
             .insert_value("t4Time".to_string(), self.t4_time)?;
-        let mut extra_data = Bytes::from_static(b"tempo-genesis");
+        let mut extra_data = Bytes::from_static(b"magnus-genesis");
 
         if let Some(consensus_config) = &consensus_config {
             if self.no_dkg_in_genesis {
@@ -626,7 +626,7 @@ fn deploy_permit2(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     Ok(())
 }
 
-/// Initializes the TIP20Factory contract (should be called once before creating any tokens)
+/// Initializes the MIP20Factory contract (should be called once before creating any tokens)
 fn initialize_tip20_factory(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(
@@ -634,12 +634,12 @@ fn initialize_tip20_factory(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Resu
         &ctx.block,
         &ctx.cfg,
         &ctx.tx,
-        || TIP20Factory::new().initialize(),
+        || MIP20Factory::new().initialize(),
     )?;
     Ok(())
 }
 
-/// Creates pathUSD as the first TIP20 token at a reserved address.
+/// Creates pathUSD as the first MIP20 token at a reserved address.
 /// pathUSD is not created via factory since it's at a reserved address.
 fn create_path_usd_token(
     admin: Address,
@@ -654,7 +654,7 @@ fn create_path_usd_token(
         &ctx.cfg,
         &ctx.tx,
         || {
-            TIP20Factory::new().create_token_reserved_address(
+            MIP20Factory::new().create_token_reserved_address(
                 PATH_USD_ADDRESS,
                 "pathUSD",
                 "pathUSD",
@@ -664,7 +664,7 @@ fn create_path_usd_token(
             )?;
 
             // Initialize pathUSD directly (not via factory) since it's at a reserved address.
-            let mut token = TIP20Token::from_address(PATH_USD_ADDRESS)
+            let mut token = MIP20Token::from_address(PATH_USD_ADDRESS)
                 .expect("Could not create pathUSD token instance");
             token.grant_role_internal(admin, *ISSUER_ROLE)?;
 
@@ -673,7 +673,7 @@ fn create_path_usd_token(
                 token
                     .mint(
                         admin,
-                        ITIP20::mintCall {
+                        IMIP20::mintCall {
                             to: *recipient,
                             amount: U256::from(amount_per_recipient),
                         },
@@ -691,7 +691,7 @@ enum SaltOrAddress {
     Address(Address),
 }
 
-/// Creates a TIP20 token through the factory (factory must already be initialized)
+/// Creates a MIP20 token through the factory (factory must already be initialized)
 #[expect(clippy::too_many_arguments)]
 fn create_and_mint_token(
     symbol: &str,
@@ -711,19 +711,19 @@ fn create_and_mint_token(
         &ctx.cfg,
         &ctx.tx,
         || {
-            let mut factory = TIP20Factory::new();
+            let mut factory = MIP20Factory::new();
             assert!(
                 factory
                     .is_initialized()
                     .expect("Could not check factory initialization"),
-                "TIP20Factory must be initialized before creating tokens"
+                "MIP20Factory must be initialized before creating tokens"
             );
 
             let token_address = match salt_or_address {
                 SaltOrAddress::Salt(salt) => factory
                     .create_token(
                         admin,
-                        ITIP20Factory::createTokenCall {
+                        IMIP20Factory::createTokenCall {
                             name: name.into(),
                             symbol: symbol.into(),
                             currency: currency.into(),
@@ -746,12 +746,12 @@ fn create_and_mint_token(
             };
 
             let mut token =
-                TIP20Token::from_address(token_address).expect("Could not create token instance");
+                MIP20Token::from_address(token_address).expect("Could not create token instance");
             token.grant_role_internal(admin, *ISSUER_ROLE)?;
 
             let result = token.set_supply_cap(
                 admin,
-                ITIP20::setSupplyCapCall {
+                IMIP20::setSupplyCapCall {
                     newSupplyCap: U256::from(u128::MAX),
                 },
             );
@@ -760,7 +760,7 @@ fn create_and_mint_token(
             token
                 .mint(
                     admin,
-                    ITIP20::mintCall {
+                    IMIP20::mintCall {
                         to: admin,
                         amount: mint_amount,
                     },
@@ -771,7 +771,7 @@ fn create_and_mint_token(
                 token
                     .mint(
                         admin,
-                        ITIP20::mintCall {
+                        IMIP20::mintCall {
                             to: *address,
                             amount: U256::from(u64::MAX),
                         },
@@ -836,7 +836,7 @@ fn initialize_fee_manager(
     );
 }
 
-/// Initializes the [`TIP403Registry`] contract.
+/// Initializes the [`MIP403Registry`] contract.
 fn initialize_registry(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     let ctx = evm.ctx_mut();
     StorageCtx::enter_evm(
@@ -844,7 +844,7 @@ fn initialize_registry(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Result<()
         &ctx.block,
         &ctx.cfg,
         &ctx.tx,
-        || TIP403Registry::new().initialize(),
+        || MIP403Registry::new().initialize(),
     )?;
 
     Ok(())

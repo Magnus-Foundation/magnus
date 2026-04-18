@@ -18,16 +18,16 @@ use std::{
 };
 use magnus_chainspec::hardfork::MagnusHardforks;
 use magnus_evm::MagnusStateAccess;
-use magnus_precompiles::{error::MagnusPrecompileError, tip20::TIP20Token};
+use magnus_precompiles::{error::MagnusPrecompileError, mip20::MIP20Token};
 use magnus_primitives::MagnusAddressExt;
 
 /// keccak256("Transfer(address,address,uint256)")
 static TRANSFER_TOPIC: LazyLock<B256> =
     LazyLock::new(|| keccak256(b"Transfer(address,address,uint256)"));
 
-/// TIP-20 token metadata returned alongside simulation results.
+/// MIP-20 token metadata returned alongside simulation results.
 ///
-/// `decimals` is omitted because all TIP-20 tokens use a fixed decimal count.
+/// `decimals` is omitted because all MIP-20 tokens use a fixed decimal count.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tip20TokenMetadata {
@@ -39,20 +39,20 @@ pub struct Tip20TokenMetadata {
 /// Response for `magnus_simulateV1`.
 ///
 /// Wraps the standard `eth_simulateV1` response with a top-level `tokenMetadata` map
-/// containing TIP-20 token info for all tokens involved in transfer logs.
+/// containing MIP-20 token info for all tokens involved in transfer logs.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MagnusSimulateV1Response<B> {
     /// Standard simulation results (one per simulated block).
     pub blocks: Vec<SimulatedBlock<B>>,
-    /// Token metadata for TIP-20 addresses that appear in Transfer logs.
+    /// Token metadata for MIP-20 addresses that appear in Transfer logs.
     pub token_metadata: BTreeMap<Address, Tip20TokenMetadata>,
 }
 
-#[rpc(server, namespace = "tempo")]
+#[rpc(server, namespace = "magnus")]
 pub trait MagnusSimulateApi {
     /// Simulates transactions like `eth_simulateV1` but enriches the response with
-    /// TIP-20 token metadata for all tokens involved in Transfer events.
+    /// MIP-20 token metadata for all tokens involved in Transfer events.
     ///
     /// This eliminates the need for a second roundtrip to fetch token symbols/decimals
     /// after simulation.
@@ -78,7 +78,7 @@ impl<N: FullNodeTypes<Types = MagnusNode>> MagnusSimulate<N> {
     }
 }
 
-/// Extract TIP-20 addresses from the simulation request's call targets.
+/// Extract MIP-20 addresses from the simulation request's call targets.
 ///
 /// This allows metadata resolution to start before simulation completes.
 fn extract_tip20_targets(
@@ -123,7 +123,7 @@ impl<N: FullNodeTypes<Types = MagnusNode>> MagnusSimulateApiServer for MagnusSim
         >,
         block: Option<alloy_eips::BlockId>,
     ) -> RpcResult<MagnusSimulateV1Response<RpcBlock<magnus_alloy::MagnusNetwork>>> {
-        // Pre-extract TIP-20 addresses from call targets so we can start
+        // Pre-extract MIP-20 addresses from call targets so we can start
         // metadata resolution concurrently with the simulation.
         let prefetched = extract_tip20_targets(&payload);
 
@@ -138,7 +138,7 @@ impl<N: FullNodeTypes<Types = MagnusNode>> MagnusSimulateApiServer for MagnusSim
             err
         })?;
 
-        // Scan simulation logs for any additional TIP-20 addresses not in the
+        // Scan simulation logs for any additional MIP-20 addresses not in the
         // prefetched set (e.g. tokens touched indirectly via contract calls).
         let mut extra = HashSet::new();
         for sim_block in &blocks {
@@ -169,7 +169,7 @@ impl<N: FullNodeTypes<Types = MagnusNode>> MagnusSimulateApiServer for MagnusSim
 }
 
 impl<N: FullNodeTypes<Types = MagnusNode>> MagnusSimulate<N> {
-    /// Resolves TIP-20 token metadata for the given addresses using state at the target block.
+    /// Resolves MIP-20 token metadata for the given addresses using state at the target block.
     async fn resolve_token_metadata(
         &self,
         addresses: Vec<Address>,
@@ -207,7 +207,7 @@ impl<N: FullNodeTypes<Types = MagnusNode>> MagnusSimulate<N> {
                 let mut metadata = BTreeMap::new();
                 for addr in &addresses {
                     let result = db.with_read_only_storage_ctx(spec, || {
-                        let token = TIP20Token::from_address(*addr)?;
+                        let token = MIP20Token::from_address(*addr)?;
                         Ok::<_, MagnusPrecompileError>((
                             token.name()?,
                             token.symbol()?,
@@ -230,7 +230,7 @@ impl<N: FullNodeTypes<Types = MagnusNode>> MagnusSimulate<N> {
                             tracing::warn!(
                                 token = %addr,
                                 error = %e,
-                                "failed to resolve TIP-20 metadata, skipping"
+                                "failed to resolve MIP-20 metadata, skipping"
                             );
                         }
                     }

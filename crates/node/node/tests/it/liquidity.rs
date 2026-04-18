@@ -5,7 +5,7 @@ use alloy::{
     sol_types::SolCall,
 };
 use alloy_eips::Encodable2718;
-use magnus_contracts::precompiles::{IFeeManager::setUserTokenCall, ITIP20};
+use magnus_contracts::precompiles::{IFeeManager::setUserTokenCall, IMIP20};
 use magnus_precompiles::DEFAULT_FEE_TOKEN;
 use magnus_primitives::{MagnusTransaction, MagnusTxEnvelope, transaction::magnus_transaction::Call};
 
@@ -39,7 +39,7 @@ async fn test_block_building_insufficient_fee_amm_liquidity() -> eyre::Result<()
     let validator_token_addr = DEFAULT_FEE_TOKEN;
 
     let fee_amm = ITIPFeeAMM::new(TIP_FEE_MANAGER_ADDRESS, provider.clone());
-    let validator_token = ITIP20::new(validator_token_addr, provider.clone());
+    let validator_token = IMIP20::new(validator_token_addr, provider.clone());
 
     let liquidity_amount = U256::from(10_000_000);
 

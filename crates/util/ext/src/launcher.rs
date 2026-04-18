@@ -1,4 +1,4 @@
-//! Routes `tempo <extension>` to the right binary, handles auto-install
+//! Routes `magnus <extension>` to the right binary, handles auto-install
 //! of missing extensions, and provides built-in commands (add/update/remove).
 
 use crate::{
@@ -15,7 +15,7 @@ use std::{
     process::Command,
 };
 
-const BASE_URL: &str = "https://cli.tempo.xyz";
+const BASE_URL: &str = "https://cli.magnus.xyz";
 const PUBLIC_KEY: &str = "RWTtoEUPuapAfh06rC7BZLjm1hG40/lsVAA/2afN88FZ8/Fdk97LzJDf";
 
 #[derive(Debug, thiserror::Error)]
@@ -34,7 +34,7 @@ pub enum LauncherError {
 }
 
 /// Parses arguments and dispatches to built-in commands (add/update/remove/list)
-/// or extension subcommands. This is the entry point for the `tempo` CLI.
+/// or extension subcommands. This is the entry point for the `magnus` CLI.
 pub fn run<I, T>(args: I) -> Result<i32, LauncherError>
 where
     I: IntoIterator<Item = T>,
@@ -69,10 +69,10 @@ where
     }
 }
 
-/// Extension manager for the Tempo CLI.
+/// Extension manager for the Magnus CLI.
 #[derive(Parser, Debug)]
 #[command(
-    name = "tempo",
+    name = "magnus",
     disable_version_flag = true,
     disable_help_subcommand = true
 )]
@@ -83,19 +83,19 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Install an extension (e.g., `tempo add wallet`).
-    #[command(after_help = "Examples:\n  tempo add wallet\n  tempo add wallet 0.2.0")]
+    /// Install an extension (e.g., `magnus add wallet`).
+    #[command(after_help = "Examples:\n  magnus add wallet\n  magnus add wallet 0.2.0")]
     Add(ManagementArgs),
 
-    /// Update tempo and/or extensions. Without arguments, updates tempo
+    /// Update magnus and/or extensions. Without arguments, updates magnus
     /// itself via tempoup and then updates all installed extensions.
     #[command(
-        after_help = "Examples:\n  tempo update          # update tempo + all extensions\n  tempo update wallet   # update a single extension"
+        after_help = "Examples:\n  magnus update          # update magnus + all extensions\n  magnus update wallet   # update a single extension"
     )]
     Update(UpdateArgs),
 
     /// Remove an extension.
-    #[command(after_help = "Example: tempo remove wallet")]
+    #[command(after_help = "Example: magnus remove wallet")]
     Remove(RemoveArgs),
 
     /// List installed extensions.
@@ -129,7 +129,7 @@ struct ManagementArgs {
 
 #[derive(Parser, Debug)]
 struct UpdateArgs {
-    /// Extension name. If omitted, updates tempo itself and all installed extensions.
+    /// Extension name. If omitted, updates magnus itself and all installed extensions.
     extension: Option<String>,
 
     /// Version to install (e.g., 0.2.0). Only valid with an extension name.
@@ -158,11 +158,11 @@ struct RemoveArgs {
     dry_run: bool,
 }
 
-/// Runs `tempoup` to update the tempo binary itself.
+/// Runs `tempoup` to update the magnus binary itself.
 ///
 /// Passes `MAGNUS_BIN_DIR` so tempoup installs into the same directory as the
 /// running binary. If tempoup is not found on `PATH`, it is installed first
-/// via `https://tempo.xyz/install`.
+/// via `https://magnus.xyz/install`.
 fn run_tempoup(bin_dir: &Path) -> Result<bool, LauncherError> {
     let status = match Command::new("tempoup")
         .env("MAGNUS_BIN_DIR", bin_dir)
@@ -173,7 +173,7 @@ fn run_tempoup(bin_dir: &Path) -> Result<bool, LauncherError> {
             println!("tempoup not found, installing...");
             let install_status = Command::new("sh")
                 .arg("-c")
-                .arg("curl -fsSL https://tempo.xyz/install | bash")
+                .arg("curl -fsSL https://magnus.xyz/install | bash")
                 .env("MAGNUS_BIN_DIR", bin_dir)
                 .status()?;
             if !install_status.success() {
@@ -188,10 +188,10 @@ fn run_tempoup(bin_dir: &Path) -> Result<bool, LauncherError> {
     Ok(status.success())
 }
 
-/// Internal dispatcher that holds the directory of the running `tempo` binary
+/// Internal dispatcher that holds the directory of the running `magnus` binary
 /// and implements all built-in and extension subcommands.
 struct Launcher {
-    /// Directory containing the `tempo` binary, used to co-locate extensions.
+    /// Directory containing the `magnus` binary, used to co-locate extensions.
     exe_dir: Option<PathBuf>,
 }
 
@@ -232,9 +232,9 @@ impl Launcher {
         Ok(0)
     }
 
-    /// Handles `tempo update [extension]`.
+    /// Handles `magnus update [extension]`.
     ///
-    /// Without an extension name, updates tempo itself via `tempoup` and then
+    /// Without an extension name, updates magnus itself via `tempoup` and then
     /// updates all installed extensions. With an extension name, only updates
     /// that extension (and unpins it). With an explicit version, behaves like
     /// `add`.
@@ -283,13 +283,13 @@ impl Launcher {
             match Installer::check_latest_version(&source, installed_version) {
                 Ok(Some(latest)) => {
                     println!(
-                        "dry-run: would update tempo-{extension} from {} to {latest}",
+                        "dry-run: would update magnus-{extension} from {} to {latest}",
                         installed_version.unwrap_or("none")
                     );
                 }
                 Ok(None) => {
                     println!(
-                        "dry-run: tempo-{extension} is already at the latest version ({})",
+                        "dry-run: magnus-{extension} is already at the latest version ({})",
                         installed_version.unwrap_or("unknown")
                     );
                 }
@@ -303,9 +303,9 @@ impl Launcher {
         match installer.install_if_changed(&extension, &source, installed_version)? {
             Some(result) => {
                 if installed_version.is_some_and(|v| !v.is_empty()) {
-                    println!("Updated tempo-{extension} to {}", result.version);
+                    println!("Updated magnus-{extension} to {}", result.version);
                 } else {
-                    println!("Installed tempo-{extension} {}", result.version);
+                    println!("Installed magnus-{extension} {}", result.version);
                 }
                 let mut registry = registry;
                 registry.record_check(&extension, &result.version, false, &result.description);
@@ -313,7 +313,7 @@ impl Launcher {
             }
             None => {
                 println!(
-                    "tempo-{extension} is already at the latest version ({})",
+                    "magnus-{extension} is already at the latest version ({})",
                     installed_version.unwrap_or("unknown")
                 );
                 let mut registry = registry;
@@ -325,17 +325,17 @@ impl Launcher {
         Ok(0)
     }
 
-    /// Updates tempo itself via `tempoup`, then updates all installed extensions.
+    /// Updates magnus itself via `tempoup`, then updates all installed extensions.
     fn handle_update_all(&self, dry_run: bool) -> Result<i32, LauncherError> {
         let installer = Installer::from_env(self.exe_dir.as_deref())?;
 
-        // 1. Update tempo itself via tempoup.
+        // 1. Update magnus itself via tempoup.
         if dry_run {
-            println!("dry-run: update tempo via tempoup");
+            println!("dry-run: update magnus via tempoup");
         } else {
-            println!("Updating tempo...");
+            println!("Updating magnus...");
             if !run_tempoup(&installer.bin_dir)? {
-                tracing::error!("tempo update failed");
+                tracing::error!("magnus update failed");
             }
         }
 
@@ -357,7 +357,7 @@ impl Launcher {
 
         for (name, installed_version, pinned) in &extensions {
             if *pinned {
-                println!("Skipping tempo-{name} (pinned at {installed_version})");
+                println!("Skipping magnus-{name} (pinned at {installed_version})");
                 continue;
             }
 
@@ -373,7 +373,7 @@ impl Launcher {
 
             match installer.install_if_changed(name, &source, Some(installed_version)) {
                 Ok(Some(result)) => {
-                    println!("Updated tempo-{name} to {}", result.version);
+                    println!("Updated magnus-{name} to {}", result.version);
                     updated_registry.record_check(
                         name,
                         &result.version,
@@ -430,7 +430,7 @@ impl Launcher {
         if entries.is_empty() {
             println!("No extensions installed.");
             println!();
-            println!("Run `tempo add <extension>` to install one.");
+            println!("Run `magnus add <extension>` to install one.");
             return Ok(0);
         }
 
@@ -472,8 +472,8 @@ impl Launcher {
         }
         tracing::debug!("extension={extension}");
 
-        let binary_name = format!("tempo-{extension}");
-        let display_name = format!("tempo {extension}");
+        let binary_name = format!("magnus-{extension}");
+        let display_name = format!("magnus {extension}");
         let child_args = &ext_args[1..];
 
         if let Some(binary) = self.find_binary(&binary_name) {
@@ -508,7 +508,7 @@ impl Launcher {
         let manifest = manifest_url(extension, None);
         tracing::debug!("auto-install manifest={manifest}");
 
-        let binary_name = format!("tempo-{extension}");
+        let binary_name = format!("magnus-{extension}");
 
         let installer = Installer::from_env(self.exe_dir.as_deref())?;
         match installer.install(
@@ -544,7 +544,7 @@ impl Launcher {
     /// but a corrupt registry is surfaced to the caller.
     fn maybe_auto_update(&self, extension: &str) -> Result<(), LauncherError> {
         // MAGNUS_HOME indicates a managed or test environment where updates
-        // should be explicit (via `tempo update`), not automatic.
+        // should be explicit (via `magnus update`), not automatic.
         if env::var_os("MAGNUS_HOME").is_some() {
             return Ok(());
         }
@@ -580,7 +580,7 @@ impl Launcher {
                 Installer::check_latest_version(&source, installed_version)
             {
                 eprintln!(
-                    "tempo-{extension} {new_version} available (pinned to {}; run `tempo update {extension}` to upgrade)",
+                    "magnus-{extension} {new_version} available (pinned to {}; run `magnus update {extension}` to upgrade)",
                     installed_version.unwrap_or("unknown")
                 );
             }
@@ -589,7 +589,7 @@ impl Launcher {
             match installer.install_if_changed(extension, &source, installed_version) {
                 Ok(Some(result)) => {
                     if installed_version.is_some_and(|v| !v.is_empty()) {
-                        eprintln!("updated tempo-{extension} to {}", result.version);
+                        eprintln!("updated magnus-{extension} to {}", result.version);
                     }
                     registry.record_check(extension, &result.version, false, &result.description);
                 }
@@ -684,18 +684,18 @@ fn release_public_key() -> String {
 
 /// Builds the manifest URL for an extension, optionally pinned to a version.
 ///
-/// Strips `tempo-` and `v` prefixes from the extension name and version respectively
-/// to avoid double-prefixing (e.g. `tempo add tempo-wallet` resolves correctly).
+/// Strips `magnus-` and `v` prefixes from the extension name and version respectively
+/// to avoid double-prefixing (e.g. `magnus add magnus-wallet` resolves correctly).
 fn manifest_url(extension: &str, version: Option<&str>) -> String {
     let base = base_url();
     let base = base.trim_end_matches('/');
-    let extension = extension.strip_prefix("tempo-").unwrap_or(extension);
+    let extension = extension.strip_prefix("magnus-").unwrap_or(extension);
     match version {
         Some(v) => {
             let v = v.strip_prefix('v').unwrap_or(v);
-            format!("{base}/extensions/tempo-{extension}/v{v}/manifest.json")
+            format!("{base}/extensions/magnus-{extension}/v{v}/manifest.json")
         }
-        None => format!("{base}/extensions/tempo-{extension}/manifest.json"),
+        None => format!("{base}/extensions/magnus-{extension}/manifest.json"),
     }
 }
 
@@ -736,7 +736,7 @@ fn is_valid_extension_name(name: &str) -> bool {
 /// Prints a user-facing hint when an unknown subcommand has no matching extension.
 fn print_missing_install_hint(extension: &str) {
     println!("Unknown command '{extension}' and no compatible extension found.");
-    println!("Run: tempo add {extension}");
+    println!("Run: magnus add {extension}");
 }
 
 #[cfg(test)]
@@ -751,7 +751,7 @@ mod tests {
     #[test]
     fn runtime_manifest_url_policy_enforces_https_or_local() {
         assert!(is_allowed_manifest_url(
-            "https://cli.tempo.xyz/tempo-wallet/manifest.json"
+            "https://cli.magnus.xyz/magnus-wallet/manifest.json"
         ));
         assert!(is_allowed_manifest_url("file:///tmp/manifest.json"));
         assert!(is_allowed_manifest_url("./manifest.json"));
@@ -768,30 +768,30 @@ mod tests {
         let _guard = EnvGuard::new("MAGNUS_EXT_BASE_URL");
         assert_eq!(
             manifest_url("wallet", None),
-            "https://cli.tempo.xyz/extensions/tempo-wallet/manifest.json"
+            "https://cli.magnus.xyz/extensions/magnus-wallet/manifest.json"
         );
 
         assert_eq!(
             manifest_url("wallet", Some("0.2.0")),
-            "https://cli.tempo.xyz/extensions/tempo-wallet/v0.2.0/manifest.json"
+            "https://cli.magnus.xyz/extensions/magnus-wallet/v0.2.0/manifest.json"
         );
 
         assert_eq!(
             manifest_url("wallet", Some("v0.2.0")),
-            "https://cli.tempo.xyz/extensions/tempo-wallet/v0.2.0/manifest.json",
+            "https://cli.magnus.xyz/extensions/magnus-wallet/v0.2.0/manifest.json",
             "v-prefix should not be doubled"
         );
 
         assert_eq!(
-            manifest_url("tempo-wallet", None),
-            "https://cli.tempo.xyz/extensions/tempo-wallet/manifest.json",
-            "tempo- prefix should not be doubled"
+            manifest_url("magnus-wallet", None),
+            "https://cli.magnus.xyz/extensions/magnus-wallet/manifest.json",
+            "magnus- prefix should not be doubled"
         );
 
         assert_eq!(
-            manifest_url("tempo-wallet", Some("0.2.0")),
-            "https://cli.tempo.xyz/extensions/tempo-wallet/v0.2.0/manifest.json",
-            "tempo- prefix should not be doubled with version"
+            manifest_url("magnus-wallet", Some("0.2.0")),
+            "https://cli.magnus.xyz/extensions/magnus-wallet/v0.2.0/manifest.json",
+            "magnus- prefix should not be doubled with version"
         );
     }
 
@@ -822,7 +822,7 @@ mod tests {
 
     #[test]
     fn parse_add_extension_only() {
-        let cli = parse(&["tempo", "add", "wallet"]);
+        let cli = parse(&["magnus", "add", "wallet"]);
         match cli.command {
             Commands::Add(ref args) => {
                 assert_eq!(args.extension, "wallet");
@@ -836,7 +836,7 @@ mod tests {
 
     #[test]
     fn parse_add_extension_and_version() {
-        let cli = parse(&["tempo", "add", "wallet", "1.0.0"]);
+        let cli = parse(&["magnus", "add", "wallet", "1.0.0"]);
         match cli.command {
             Commands::Add(ref args) => {
                 assert_eq!(args.extension, "wallet");
@@ -848,7 +848,7 @@ mod tests {
 
     #[test]
     fn parse_add_with_dry_run() {
-        let cli = parse(&["tempo", "add", "wallet", "--dry-run"]);
+        let cli = parse(&["magnus", "add", "wallet", "--dry-run"]);
         match cli.command {
             Commands::Add(ref args) => assert!(args.dry_run),
             _ => panic!("expected Add"),
@@ -858,7 +858,7 @@ mod tests {
     #[test]
     fn parse_add_with_manifest() {
         let cli = parse(&[
-            "tempo",
+            "magnus",
             "add",
             "wallet",
             "--release-manifest",
@@ -877,7 +877,7 @@ mod tests {
 
     #[test]
     fn parse_add_with_public_key() {
-        let cli = parse(&["tempo", "add", "wallet", "--release-public-key", "abc123"]);
+        let cli = parse(&["magnus", "add", "wallet", "--release-public-key", "abc123"]);
         match cli.command {
             Commands::Add(ref args) => {
                 assert_eq!(args.public_key, Some("abc123".to_string()));
@@ -888,19 +888,19 @@ mod tests {
 
     #[test]
     fn parse_list() {
-        let cli = parse(&["tempo", "list"]);
+        let cli = parse(&["magnus", "list"]);
         assert!(matches!(cli.command, Commands::List));
     }
 
     #[test]
     fn parse_remove() {
-        let cli = parse(&["tempo", "remove", "wallet"]);
+        let cli = parse(&["magnus", "remove", "wallet"]);
         assert!(matches!(cli.command, Commands::Remove(_)));
     }
 
     #[test]
     fn parse_update_with_extension() {
-        let cli = parse(&["tempo", "update", "wallet"]);
+        let cli = parse(&["magnus", "update", "wallet"]);
         match cli.command {
             Commands::Update(ref args) => {
                 assert_eq!(args.extension.as_deref(), Some("wallet"));
@@ -912,7 +912,7 @@ mod tests {
 
     #[test]
     fn parse_update_no_args() {
-        let cli = parse(&["tempo", "update"]);
+        let cli = parse(&["magnus", "update"]);
         match cli.command {
             Commands::Update(ref args) => {
                 assert!(args.extension.is_none());
@@ -923,22 +923,22 @@ mod tests {
 
     #[test]
     fn parse_add_missing_extension() {
-        let _ = parse_err(&["tempo", "add"]);
+        let _ = parse_err(&["magnus", "add"]);
     }
 
     #[test]
     fn parse_add_unknown_flag() {
-        let _ = parse_err(&["tempo", "add", "wallet", "--unknown"]);
+        let _ = parse_err(&["magnus", "add", "wallet", "--unknown"]);
     }
 
     #[test]
     fn parse_add_manifest_missing_value() {
-        let _ = parse_err(&["tempo", "add", "wallet", "--release-manifest"]);
+        let _ = parse_err(&["magnus", "add", "wallet", "--release-manifest"]);
     }
 
     #[test]
     fn parse_external_subcommand() {
-        let cli = parse(&["tempo", "wallet", "--help"]);
+        let cli = parse(&["magnus", "wallet", "--help"]);
         match cli.command {
             Commands::Extension(ref args) => {
                 assert_eq!(args[0], "wallet");
@@ -950,7 +950,7 @@ mod tests {
 
     #[test]
     fn parse_external_subcommand_preserves_all_args() {
-        let cli = parse(&["tempo", "wallet", "login", "--verbose", "extra"]);
+        let cli = parse(&["magnus", "wallet", "login", "--verbose", "extra"]);
         match cli.command {
             Commands::Extension(ref args) => {
                 assert_eq!(args.len(), 4);
@@ -965,12 +965,12 @@ mod tests {
 
     #[test]
     fn parse_add_too_many_positional() {
-        let _ = parse_err(&["tempo", "add", "wallet", "1.0.0", "extra"]);
+        let _ = parse_err(&["magnus", "add", "wallet", "1.0.0", "extra"]);
     }
 
     #[test]
     fn parse_remove_extension_only() {
-        let cli = parse(&["tempo", "remove", "wallet"]);
+        let cli = parse(&["magnus", "remove", "wallet"]);
         match cli.command {
             Commands::Remove(ref args) => {
                 assert_eq!(args.extension, "wallet");
@@ -982,7 +982,7 @@ mod tests {
 
     #[test]
     fn parse_remove_with_dry_run() {
-        let cli = parse(&["tempo", "remove", "wallet", "--dry-run"]);
+        let cli = parse(&["magnus", "remove", "wallet", "--dry-run"]);
         match cli.command {
             Commands::Remove(ref args) => assert!(args.dry_run),
             _ => panic!("expected Remove"),
@@ -991,12 +991,12 @@ mod tests {
 
     #[test]
     fn parse_remove_rejects_manifest_flag() {
-        let _ = parse_err(&["tempo", "remove", "wallet", "--release-manifest", "url"]);
+        let _ = parse_err(&["magnus", "remove", "wallet", "--release-manifest", "url"]);
     }
 
     #[test]
     fn parse_remove_rejects_version() {
-        let _ = parse_err(&["tempo", "remove", "wallet", "1.0.0"]);
+        let _ = parse_err(&["magnus", "remove", "wallet", "1.0.0"]);
     }
 
     #[test]
@@ -1034,7 +1034,7 @@ mod tests {
         let _guard = EnvGuard::set("MAGNUS_EXT_BASE_URL", "https://custom.example.com/");
         assert_eq!(
             manifest_url("wallet", None),
-            "https://custom.example.com/extensions/tempo-wallet/manifest.json"
+            "https://custom.example.com/extensions/magnus-wallet/manifest.json"
         );
     }
 
@@ -1044,7 +1044,7 @@ mod tests {
         let _guard = EnvGuard::set("MAGNUS_EXT_BASE_URL", "https://example.com///");
         assert_eq!(
             manifest_url("wallet", None),
-            "https://example.com/extensions/tempo-wallet/manifest.json"
+            "https://example.com/extensions/magnus-wallet/manifest.json"
         );
     }
 

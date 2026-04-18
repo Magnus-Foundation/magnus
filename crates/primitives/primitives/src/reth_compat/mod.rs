@@ -1,4 +1,4 @@
-//! Reth-specific trait implementations for Tempo primitives.
+//! Reth-specific trait implementations for Magnus primitives.
 //!
 //! This module consolidates all `reth`/`reth-codec`/`serde-bincode-compat` trait
 //! implementations so they can be cleanly removed when publishing crates
@@ -10,7 +10,7 @@ use reth_primitives_traits::NodePrimitives;
 
 use crate::{Block, BlockBody, MagnusHeader, MagnusPrimitives, MagnusTxEnvelope, MagnusTxType};
 
-/// Tempo receipt.
+/// Magnus receipt.
 ///
 /// Re-export from `reth_ethereum_primitives` so that the rest of the workspace crates see a single
 /// type that satisfies both alloy trait bounds and reth trait bounds.

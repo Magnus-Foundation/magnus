@@ -14,11 +14,11 @@ mod pool;
 mod simulate;
 mod stablecoin_dex;
 mod magnus_transaction;
-mod tip20;
-mod tip20_factory;
-mod tip20_gas_fees;
-mod tip_fee_amm;
-mod tip_fee_manager;
+mod mip20;
+mod mip20_factory;
+mod mip20_gas_fees;
+mod mip_fee_amm;
+mod mip_fee_manager;
 mod utils;
 
 use magnus_node as _;

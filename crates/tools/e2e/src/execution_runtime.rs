@@ -1,4 +1,4 @@
-//! The environment to launch tempo execution nodes in.
+//! The environment to launch magnus execution nodes in.
 use std::{
     net::{IpAddr, SocketAddr},
     path::{Path, PathBuf},
@@ -68,7 +68,7 @@ use crate::{ConsensusNodeConfig, TestingNode};
 const ADMIN_INDEX: u32 = 0;
 const VALIDATOR_START_INDEX: u32 = 1;
 
-/// Same mnemonic as used in the imported test-genesis and in the `tempo-node` integration tests.
+/// Same mnemonic as used in the imported test-genesis and in the `magnus-node` integration tests.
 pub const TEST_MNEMONIC: &str = "test test test test test test test test test test test junk";
 
 #[derive(Default, Debug)]
@@ -286,7 +286,7 @@ impl ExecutionNodeConfigGenerator {
 
 /// An execution runtime wrapping a thread running a [`tokio::runtime::Runtime`].
 ///
-/// This is needed to spawn tempo execution nodes, which require a tokio runtime.
+/// This is needed to spawn magnus execution nodes, which require a tokio runtime.
 ///
 /// The commonware itself is launched in their
 /// [`commonware_runtime::deterministic`] and so this extra effort is necessary.
@@ -843,7 +843,7 @@ pub fn genesis() -> Genesis {
     serde_json::from_str(include_str!("../../../node/node/tests/assets/test-genesis.json")).unwrap()
 }
 
-/// Launches a tempo execution node.
+/// Launches a magnus execution node.
 ///
 /// Difference compared to starting the node through the binary:
 ///

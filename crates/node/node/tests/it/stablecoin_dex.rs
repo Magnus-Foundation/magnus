@@ -4,7 +4,7 @@ use alloy::{
 };
 use magnus_contracts::precompiles::{
     IStablecoinDEX,
-    ITIP20::{self, ITIP20Instance},
+    IMIP20::{self, IMIP20Instance},
 };
 use magnus_precompiles::{
     PATH_USD_ADDRESS, STABLECOIN_DEX_ADDRESS, stablecoin_dex::MIN_ORDER_AMOUNT,
@@ -27,7 +27,7 @@ async fn test_bids() -> eyre::Result<()> {
         .connect_http(http_url.clone());
 
     let base = setup_test_token(provider.clone(), caller).await?;
-    let quote = ITIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    let quote = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
 
     let account_data: Vec<_> = (1..=10)
         .map(|i| {
@@ -67,7 +67,7 @@ async fn test_bids() -> eyre::Result<()> {
         let account_provider = ProviderBuilder::new()
             .wallet(signer.clone())
             .connect_http(http_url.clone());
-        let quote = ITIP20::new(*quote.address(), account_provider);
+        let quote = IMIP20::new(*quote.address(), account_provider);
         pending.push(
             quote
                 .approve(STABLECOIN_DEX_ADDRESS, U256::MAX)
@@ -179,7 +179,7 @@ async fn test_asks() -> eyre::Result<()> {
         .connect_http(http_url.clone());
 
     let base = setup_test_token(provider.clone(), caller).await?;
-    let quote = ITIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    let quote = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
 
     let account_data: Vec<_> = (1..=3)
         .map(|i| {
@@ -213,7 +213,7 @@ async fn test_asks() -> eyre::Result<()> {
         let account_provider = ProviderBuilder::new()
             .wallet(signer.clone())
             .connect_http(http_url.clone());
-        let base = ITIP20::new(*base.address(), account_provider);
+        let base = IMIP20::new(*base.address(), account_provider);
         pending.push(
             base.approve(STABLECOIN_DEX_ADDRESS, U256::MAX)
                 .send()
@@ -340,7 +340,7 @@ async fn test_cancel_orders() -> eyre::Result<()> {
         .connect_http(http_url.clone());
 
     let base = setup_test_token(provider.clone(), caller).await?;
-    let quote = ITIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    let quote = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
 
     let account_data: Vec<_> = (1..=10)
         .map(|i| {
@@ -373,7 +373,7 @@ async fn test_cancel_orders() -> eyre::Result<()> {
         let account_provider = ProviderBuilder::new()
             .wallet(signer.clone())
             .connect_http(http_url.clone());
-        let quote = ITIP20::new(*quote.address(), account_provider);
+        let quote = IMIP20::new(*quote.address(), account_provider);
         pending.push(
             quote
                 .approve(STABLECOIN_DEX_ADDRESS, U256::MAX)
@@ -451,7 +451,7 @@ async fn test_multi_hop_swap() -> eyre::Result<()> {
         .connect_http(http_url.clone());
 
     // Setup tokens: pathUSD (token_id=0) <- USDC (token_id=2) and pathUSD <- EURC (token_id=3)
-    let linking_usd = ITIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    let linking_usd = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
     let usdc = setup_test_token(provider.clone(), caller).await?; // This will be token_id=2
     let eurc = setup_test_token(provider.clone(), caller).await?; // This will be token_id=3
 
@@ -487,9 +487,9 @@ async fn test_multi_hop_swap() -> eyre::Result<()> {
     let alice_provider = ProviderBuilder::new()
         .wallet(alice_signer.clone())
         .connect_http(http_url.clone());
-    let alice_usdc = ITIP20::new(*usdc.address(), alice_provider.clone());
-    let alice_eurc = ITIP20::new(*eurc.address(), alice_provider.clone());
-    let alice_linking_usd = ITIP20::new(*linking_usd.address(), alice_provider.clone());
+    let alice_usdc = IMIP20::new(*usdc.address(), alice_provider.clone());
+    let alice_eurc = IMIP20::new(*eurc.address(), alice_provider.clone());
+    let alice_linking_usd = IMIP20::new(*linking_usd.address(), alice_provider.clone());
 
     let mut pending = vec![];
     pending.push(
@@ -534,7 +534,7 @@ async fn test_multi_hop_swap() -> eyre::Result<()> {
     let bob_provider = ProviderBuilder::new()
         .wallet(bob_signer)
         .connect_http(http_url.clone());
-    let bob_usdc = ITIP20::new(*usdc.address(), bob_provider.clone());
+    let bob_usdc = IMIP20::new(*usdc.address(), bob_provider.clone());
     let tx = bob_usdc
         .approve(STABLECOIN_DEX_ADDRESS, U256::MAX)
         .send()
@@ -544,9 +544,9 @@ async fn test_multi_hop_swap() -> eyre::Result<()> {
     // Check Bob's balances before swap
     let bob_exchange = IStablecoinDEX::new(STABLECOIN_DEX_ADDRESS, bob_provider.clone());
     let bob_usdc_before = bob_usdc.balanceOf(bob).call().await?;
-    let bob_eurc = ITIP20::new(*eurc.address(), bob_provider.clone());
+    let bob_eurc = IMIP20::new(*eurc.address(), bob_provider.clone());
     let bob_eurc_before = bob_eurc.balanceOf(bob).call().await?;
-    let bob_linking_usd = ITIP20::new(*linking_usd.address(), bob_provider);
+    let bob_linking_usd = IMIP20::new(*linking_usd.address(), bob_provider);
     let bob_linking_usd_wallet_before = bob_linking_usd.balanceOf(bob).call().await?;
     let bob_linking_usd_exchange_before = bob_exchange
         .balanceOf(bob, *linking_usd.address())
@@ -628,7 +628,7 @@ async fn test_place_rejects_order_below_dust_limit() -> eyre::Result<()> {
         .connect_http(http_url.clone());
 
     let base = setup_test_token(provider.clone(), caller).await?;
-    let quote = ITIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    let quote = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
 
     // Pair is auto-created on first place() call
     let exchange = IStablecoinDEX::new(STABLECOIN_DEX_ADDRESS, provider.clone());
@@ -720,7 +720,7 @@ async fn test_place_flip_rejects_order_below_dust_limit() -> eyre::Result<()> {
         .connect_http(http_url.clone());
 
     let base = setup_test_token(provider.clone(), caller).await?;
-    let quote = ITIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    let quote = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
 
     // Pair is auto-created on first place() call
     let exchange = IStablecoinDEX::new(STABLECOIN_DEX_ADDRESS, provider.clone());

@@ -1,4 +1,4 @@
-//! Tempo transaction pool implementation.
+//! Magnus transaction pool implementation.
 
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -8,10 +8,10 @@ pub mod validator;
 
 pub use transaction::{KeychainSubject, RevokedKeys, SpendingLimitUpdates};
 
-// Tempo pool module with 2D nonce support
+// Magnus pool module with 2D nonce support
 pub mod magnus_pool;
 
-// The main Tempo transaction pool type that handles both protocol and 2D nonces
+// The main Magnus transaction pool type that handles both protocol and 2D nonces
 pub use magnus_pool::MagnusTransactionPool;
 
 pub mod amm;

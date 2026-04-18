@@ -5,7 +5,7 @@
 
 set -e
 
-ETH_RPC_URL="https://eng:zealous-mayer@rpc-adagietto.tempoxyz.dev"
+ETH_RPC_URL="https://eng:zealous-mayer@rpc-adagietto.Magnus-Foundation.dev"
 
 echo "Testing fee-amm with predeployed tokens..."
 

@@ -2,12 +2,12 @@
 set -e
 
 # Tempoup bootstrap installer
-# Downloads tempoup and tempo to ~/.tempo/bin
+# Downloads tempoup and magnus to ~/.magnus/bin
 
-MAGNUS_DIR="${MAGNUS_DIR:-$HOME/.tempo}"
+MAGNUS_DIR="${MAGNUS_DIR:-$HOME/.magnus}"
 BIN_DIR="${MAGNUS_BIN_DIR:-$MAGNUS_DIR/bin}"
 ENV_FILE="$MAGNUS_DIR/env"
-TEMPOUP_URL="https://raw.githubusercontent.com/tempoxyz/tempo/main/tempoup/tempoup"
+TEMPOUP_URL="https://raw.githubusercontent.com/Magnus-Foundation/magnus/main/tempoup/tempoup"
 
 # Color output
 GREEN='\033[0;32m'
@@ -67,14 +67,14 @@ main() {
 
     # Create env file that can be sourced to set PATH (POSIX shells)
     cat > "$ENV_FILE" <<'ENVEOF'
-# tempo shell setup
-export PATH="$HOME/.tempo/bin:$PATH"
+# magnus shell setup
+export PATH="$HOME/.magnus/bin:$PATH"
 ENVEOF
 
     # Create env file for fish shell
     cat > "$ENV_FILE.fish" <<'ENVEOF'
-# tempo shell setup
-fish_add_path -g $HOME/.tempo/bin
+# magnus shell setup
+fish_add_path -g $HOME/.magnus/bin
 ENVEOF
 
     # Add BIN_DIR to PATH for current session
@@ -83,8 +83,8 @@ ENVEOF
     # Configure shell profiles
     configure_shell
 
-    # Run tempoup to install tempo binary
-    info "Running tempoup to install tempo..."
+    # Run tempoup to install magnus binary
+    info "Running tempoup to install magnus..."
     echo ""
 
     MAGNUS_BIN_DIR="$BIN_DIR" "$BIN_DIR/tempoup"
@@ -155,24 +155,24 @@ configure_shell() {
         echo >> "$cfg"
         echo "# Added by tempoup installer" >> "$cfg"
         echo "$source_line" >> "$cfg"
-        info "Added tempo to PATH in $cfg"
+        info "Added magnus to PATH in $cfg"
         modified=1
     done
 
     # Configure fish shell
-    local fish_config="${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/tempo.fish"
+    local fish_config="${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/magnus.fish"
     if [[ -d "$(dirname "$fish_config")" ]] || [[ "$(basename "$SHELL")" == "fish" ]]; then
         if [[ ! -f "$fish_config" ]] || ! grep -qF "$ENV_FILE.fish" "$fish_config" 2>/dev/null; then
             mkdir -p "$(dirname "$fish_config")"
             echo "# Added by tempoup installer" > "$fish_config"
             echo "source $ENV_FILE.fish" >> "$fish_config"
-            info "Added tempo to PATH in $fish_config"
+            info "Added magnus to PATH in $fish_config"
             modified=1
         fi
     fi
 
     if [[ $modified -eq 0 ]]; then
-        info "Tempo is already in your shell config"
+        info "Magnus is already in your shell config"
     fi
 }
 

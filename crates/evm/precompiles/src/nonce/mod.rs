@@ -1,7 +1,7 @@
 //! 2D nonce management precompile and expiring nonce replay protection,
-//! enabling concurrent transaction execution as part of [Tempo Transactions].
+//! enabling concurrent transaction execution as part of [Magnus Transactions].
 //!
-//! [Tempo Transactions]: <https://docs.tempo.xyz/protocol/transactions>
+//! [Magnus Transactions]: <https://docs.magnus.xyz/protocol/transactions>
 
 pub mod dispatch;
 

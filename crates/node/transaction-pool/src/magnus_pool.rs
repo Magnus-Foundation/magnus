@@ -1,4 +1,4 @@
-// Tempo transaction pool that implements Reth's TransactionPool trait
+// Magnus transaction pool that implements Reth's TransactionPool trait
 // Routes protocol nonces (nonce_key=0) to Reth pool
 // Routes user nonces (nonce_key>0) to minimal 2D nonce pool
 
@@ -38,13 +38,13 @@ use magnus_precompiles::{
     account_keychain::AccountKeychain,
     error::Result as MagnusPrecompileResult,
     storage::Handler,
-    tip20::TIP20Token,
-    tip403_registry::{REJECT_ALL_POLICY_ID, TIP403Registry},
+    mip20::MIP20Token,
+    mip403_registry::{REJECT_ALL_POLICY_ID, MIP403Registry},
 };
 use magnus_primitives::Block;
 use magnus_revm::MagnusStateAccess;
 
-/// Tempo transaction pool that routes based on nonce_key
+/// Magnus transaction pool that routes based on nonce_key
 pub struct MagnusTransactionPool<Client> {
     /// Vanilla pool for all standard transactions and AA transactions with regular nonce.
     protocol_pool: Pool<
@@ -108,7 +108,7 @@ where
     /// 3. **Validator token changes**: Transactions that would fail due to insufficient
     ///    liquidity in the new (user_token, validator_token) AMM pool
     /// 4. **Fee payer balance changes**: Transactions whose fee payer no longer has enough
-    ///    balance in the resolved fee token after a TIP20 transfer
+    ///    balance in the resolved fee token after a MIP20 transfer
     ///
     /// All checks are combined into one scan to avoid iterating the pool multiple times
     /// per block.
@@ -147,7 +147,7 @@ where
         let spec = self.client().chain_spec().magnus_hardfork_at(tip_timestamp);
 
         // Cache policy lookups per fee token to avoid redundant storage reads.
-        // For compound policies (TIP-1015), the cache stores all sub-policy IDs
+        // For compound policies (MIP-1015), the cache stores all sub-policy IDs
         // so eviction matches events emitted with sub-policy IDs.
         let mut policy_cache: AddressMap<Vec<u64>> = AddressMap::default();
 
@@ -265,7 +265,7 @@ where
             }
 
             // Check 3b: Fee payer balance changes.
-            // When a TIP20 transfer changes a fee payer's balance, pending transactions for that
+            // When a MIP20 transfer changes a fee payer's balance, pending transactions for that
             // (fee_token, fee_payer) pair may no longer be executable.
             if !updates.fee_balance_changes.is_empty()
                 && let Some(ref mut provider) = state_provider
@@ -308,7 +308,7 @@ where
 
             // Check 4: Blacklisted fee payers
             // Only check AA transactions with a fee token (non-AA transactions don't have
-            // a fee payer that can be blacklisted via TIP403)
+            // a fee payer that can be blacklisted via MIP403)
             if !updates.blacklist_additions.is_empty()
                 && let Some(ref mut provider) = state_provider
                 && let Some(fee_token) = tx.transaction.inner().fee_token()
@@ -463,7 +463,7 @@ where
                             .map(|auths| self.protocol_pool.inner().get_sender_ids(auths)),
                     };
 
-                    // Get the active Tempo hardfork for expiring nonce handling
+                    // Get the active Magnus hardfork for expiring nonce handling
                     let tip_timestamp = self
                         .protocol_pool
                         .validator()
@@ -1184,7 +1184,7 @@ pub(crate) fn exceeds_spending_limit(
 /// Returns the set of policy IDs that can affect fee_payer authorization for a token.
 ///
 /// For simple policies the set contains just the policy ID. For compound policies
-/// (TIP-1015) it contains both the compound root and the sender sub-policy, since
+/// (MIP-1015) it contains both the compound root and the sender sub-policy, since
 /// fee transfer authorization checks `fee_payer` via `AuthRole::Sender`.
 /// `recipient_policy_id` and `mint_recipient_policy_id` are excluded — they govern
 /// other roles and cannot invalidate a fee_payer's transactions.
@@ -1199,7 +1199,7 @@ fn get_sender_policy_ids(
     }
 
     provider.with_read_only_storage_ctx(spec, || {
-        let policy_id = TIP20Token::from_address(fee_token)
+        let policy_id = MIP20Token::from_address(fee_token)
             .and_then(|t| t.transfer_policy_id())
             .ok()
             .filter(|&id| id != REJECT_ALL_POLICY_ID)?;
@@ -1207,7 +1207,7 @@ fn get_sender_policy_ids(
         let mut ids = vec![policy_id];
 
         // For compound policies, include only the sender sub-policy ID.
-        let registry = TIP403Registry::new();
+        let registry = MIP403Registry::new();
         if let Ok(data) = registry.policy_records[policy_id].base.read()
             && data.is_compound()
             && let Ok(compound) = registry.policy_records[policy_id].compound.read()
@@ -1227,7 +1227,7 @@ fn get_sender_policy_ids(
 ///
 /// For simple (non-compound) policies, the transfer policy applies symmetrically to both
 /// sender and recipient, so the set contains just the policy ID. For compound policies
-/// (TIP-1015) it contains both the compound root and the recipient sub-policy, since
+/// (MIP-1015) it contains both the compound root and the recipient sub-policy, since
 /// fee transfer authorization checks the fee manager via `AuthRole::Recipient`.
 ///
 /// Unlike `get_sender_policy_ids` this is uncached — it's only called on the rare path
@@ -1238,14 +1238,14 @@ fn get_recipient_policy_ids(
     spec: MagnusHardfork,
 ) -> Option<Vec<u64>> {
     provider.with_read_only_storage_ctx(spec, || {
-        let policy_id = TIP20Token::from_address(fee_token)
+        let policy_id = MIP20Token::from_address(fee_token)
             .and_then(|t| t.transfer_policy_id())
             .ok()
             .filter(|&id| id != REJECT_ALL_POLICY_ID)?;
 
         let mut ids = vec![policy_id];
 
-        let registry = TIP403Registry::new();
+        let registry = MIP403Registry::new();
         if let Ok(data) = registry.policy_records[policy_id].base.read()
             && data.is_compound()
             && let Ok(compound) = registry.policy_records[policy_id].compound.read()
@@ -1278,13 +1278,13 @@ mod tests {
         hardfork::MagnusHardfork,
         spec::{MODERATO, MAGNUS_T1_TX_GAS_LIMIT_CAP},
     };
-    use magnus_contracts::precompiles::ITIP403Registry;
+    use magnus_contracts::precompiles::IMIP403Registry;
     use magnus_evm::MagnusEvmConfig;
     use magnus_precompiles::{
         PATH_USD_ADDRESS,
         account_keychain::{AccountKeychain, AuthorizedKey, SpendingLimitState},
-        tip20::slots as tip20_slots,
-        tip403_registry::{CompoundPolicyData, PolicyData, TIP403Registry},
+        mip20::slots as mip20_slots,
+        mip403_registry::{CompoundPolicyData, PolicyData, MIP403Registry},
     };
     use magnus_primitives::{Block, MagnusHeader, MagnusPrimitives, MagnusTxEnvelope};
 
@@ -1346,17 +1346,17 @@ mod tests {
             uint!(0x5553440000000000000000000000000000000000000000000000000000000006_U256);
         let transfer_policy_id_packed =
             uint!(0x0000000000000000000000010000000000000000000000000000000000000000_U256);
-        let balance_slot = TIP20Token::from_address(fee_token)
-            .expect("fee token must be a valid TIP20 token")
+        let balance_slot = MIP20Token::from_address(fee_token)
+            .expect("fee token must be a valid MIP20 token")
             .balances[account]
             .slot();
 
         provider.add_account(
             fee_token,
             ExtendedAccount::new(0, U256::ZERO).extend_storage([
-                (tip20_slots::CURRENCY.into(), usd_currency_value),
+                (mip20_slots::CURRENCY.into(), usd_currency_value),
                 (
-                    tip20_slots::TRANSFER_POLICY_ID.into(),
+                    mip20_slots::TRANSFER_POLICY_ID.into(),
                     transfer_policy_id_packed,
                 ),
                 (balance_slot.into(), balance),
@@ -1480,25 +1480,25 @@ mod tests {
             magnus_chainspec::spec::MODERATO.clone(),
         ));
 
-        // Set up TIP20 token with transfer_policy_id = compound_policy_id
+        // Set up MIP20 token with transfer_policy_id = compound_policy_id
         let transfer_policy_id_packed =
-            U256::from(compound_policy_id) << (tip20_slots::TRANSFER_POLICY_ID_OFFSET * 8);
+            U256::from(compound_policy_id) << (mip20_slots::TRANSFER_POLICY_ID_OFFSET * 8);
         provider.add_account(
             fee_token,
             ExtendedAccount::new(0, U256::ZERO).extend_storage([(
-                tip20_slots::TRANSFER_POLICY_ID.into(),
+                mip20_slots::TRANSFER_POLICY_ID.into(),
                 transfer_policy_id_packed,
             )]),
         );
 
-        // Set up TIP403 registry with compound policy pointing to sub-policies
+        // Set up MIP403 registry with compound policy pointing to sub-policies
         provider
             .setup_storage(MagnusHardfork::default(), || {
-                let mut registry = TIP403Registry::new();
+                let mut registry = MIP403Registry::new();
                 registry.policy_records[compound_policy_id]
                     .base
                     .write(PolicyData {
-                        policy_type: ITIP403Registry::PolicyType::COMPOUND as u8,
+                        policy_type: IMIP403Registry::PolicyType::COMPOUND as u8,
                         admin: Address::ZERO,
                     })?;
                 registry.policy_records[compound_policy_id]
@@ -1542,22 +1542,22 @@ mod tests {
         ));
 
         let transfer_policy_id_packed =
-            U256::from(compound_policy_id) << (tip20_slots::TRANSFER_POLICY_ID_OFFSET * 8);
+            U256::from(compound_policy_id) << (mip20_slots::TRANSFER_POLICY_ID_OFFSET * 8);
         provider.add_account(
             fee_token,
             ExtendedAccount::new(0, U256::ZERO).extend_storage([(
-                tip20_slots::TRANSFER_POLICY_ID.into(),
+                mip20_slots::TRANSFER_POLICY_ID.into(),
                 transfer_policy_id_packed,
             )]),
         );
 
         provider
             .setup_storage(MagnusHardfork::default(), || {
-                let mut registry = TIP403Registry::new();
+                let mut registry = MIP403Registry::new();
                 registry.policy_records[compound_policy_id]
                     .base
                     .write(PolicyData {
-                        policy_type: ITIP403Registry::PolicyType::COMPOUND as u8,
+                        policy_type: IMIP403Registry::PolicyType::COMPOUND as u8,
                         admin: Address::ZERO,
                     })?;
                 registry.policy_records[compound_policy_id]
@@ -1600,22 +1600,22 @@ mod tests {
         ));
 
         let transfer_policy_id_packed =
-            U256::from(compound_policy_id) << (tip20_slots::TRANSFER_POLICY_ID_OFFSET * 8);
+            U256::from(compound_policy_id) << (mip20_slots::TRANSFER_POLICY_ID_OFFSET * 8);
         provider.add_account(
             fee_token,
             ExtendedAccount::new(0, U256::ZERO).extend_storage([(
-                tip20_slots::TRANSFER_POLICY_ID.into(),
+                mip20_slots::TRANSFER_POLICY_ID.into(),
                 transfer_policy_id_packed,
             )]),
         );
 
         provider
             .setup_storage(MagnusHardfork::default(), || {
-                let mut registry = TIP403Registry::new();
+                let mut registry = MIP403Registry::new();
                 registry.policy_records[compound_policy_id]
                     .base
                     .write(PolicyData {
-                        policy_type: ITIP403Registry::PolicyType::COMPOUND as u8,
+                        policy_type: IMIP403Registry::PolicyType::COMPOUND as u8,
                         admin: Address::ZERO,
                     })?;
                 registry.policy_records[compound_policy_id]
@@ -1654,22 +1654,22 @@ mod tests {
         ));
 
         let transfer_policy_id_packed =
-            U256::from(compound_policy_id) << (tip20_slots::TRANSFER_POLICY_ID_OFFSET * 8);
+            U256::from(compound_policy_id) << (mip20_slots::TRANSFER_POLICY_ID_OFFSET * 8);
         provider.add_account(
             fee_token,
             ExtendedAccount::new(0, U256::ZERO).extend_storage([(
-                tip20_slots::TRANSFER_POLICY_ID.into(),
+                mip20_slots::TRANSFER_POLICY_ID.into(),
                 transfer_policy_id_packed,
             )]),
         );
 
         provider
             .setup_storage(MagnusHardfork::default(), || {
-                let mut registry = TIP403Registry::new();
+                let mut registry = MIP403Registry::new();
                 registry.policy_records[compound_policy_id]
                     .base
                     .write(PolicyData {
-                        policy_type: ITIP403Registry::PolicyType::COMPOUND as u8,
+                        policy_type: IMIP403Registry::PolicyType::COMPOUND as u8,
                         admin: Address::ZERO,
                     })?;
                 registry.policy_records[compound_policy_id]
@@ -1711,22 +1711,22 @@ mod tests {
         ));
 
         let transfer_policy_id_packed =
-            U256::from(simple_policy_id) << (tip20_slots::TRANSFER_POLICY_ID_OFFSET * 8);
+            U256::from(simple_policy_id) << (mip20_slots::TRANSFER_POLICY_ID_OFFSET * 8);
         provider.add_account(
             fee_token,
             ExtendedAccount::new(0, U256::ZERO).extend_storage([(
-                tip20_slots::TRANSFER_POLICY_ID.into(),
+                mip20_slots::TRANSFER_POLICY_ID.into(),
                 transfer_policy_id_packed,
             )]),
         );
 
         provider
             .setup_storage(MagnusHardfork::default(), || {
-                let mut registry = TIP403Registry::new();
+                let mut registry = MIP403Registry::new();
                 registry.policy_records[simple_policy_id]
                     .base
                     .write(PolicyData {
-                        policy_type: ITIP403Registry::PolicyType::BLACKLIST as u8,
+                        policy_type: IMIP403Registry::PolicyType::BLACKLIST as u8,
                         admin: Address::ZERO,
                     })
             })

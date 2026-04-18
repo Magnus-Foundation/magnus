@@ -1,4 +1,4 @@
-//! Tempo primitive types
+//! Magnus primitive types
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
@@ -29,23 +29,23 @@ extern crate alloc;
 
 use once_cell as _;
 
-/// Tempo block.
+/// Magnus block.
 pub type Block = alloy_consensus::Block<MagnusTxEnvelope, MagnusHeader>;
 
-/// Tempo block body.
+/// Magnus block body.
 pub type BlockBody = alloy_consensus::BlockBody<MagnusTxEnvelope, MagnusHeader>;
 
 #[cfg(feature = "reth")]
 mod reth_compat;
 
-/// Tempo receipt.
+/// Magnus receipt.
 /// Implements reth trait bounds when the `reth` feature is enabled.
 #[cfg(feature = "reth")]
 pub use reth_compat::MagnusReceipt;
 #[cfg(not(feature = "reth"))]
 pub type MagnusReceipt<L = alloy_primitives::Log> = alloy_consensus::EthereumReceipt<MagnusTxType, L>;
 
-/// Marker type for Tempo node primitives.
+/// Marker type for Magnus node primitives.
 /// Implements [`reth_primitives_traits::NodePrimitives`] when the `reth` feature is enabled.
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 #[non_exhaustive]

@@ -33,7 +33,7 @@ async fn test_tempo_simulate_v1() -> eyre::Result<()> {
         .get_receipt()
         .await?;
 
-    // Construct a TIP20 call and insert into calls
+    // Construct a MIP20 call and insert into calls
     let recipient = Address::random();
     let calldata = token.transfer(recipient, mint_amount).calldata().clone();
 
@@ -63,7 +63,7 @@ async fn test_tempo_simulate_v1() -> eyre::Result<()> {
     assert_eq!(meta.symbol, "TEST");
     assert_eq!(meta.currency, "USD");
 
-    // Construct a call that does not target TIP20
+    // Construct a call that does not target MIP20
     let payload = json!({
         "blockStateCalls": [{
             "calls": [{
@@ -79,7 +79,7 @@ async fn test_tempo_simulate_v1() -> eyre::Result<()> {
 
     assert!(
         response.token_metadata.is_empty(),
-        "expected empty token metadata for non-TIP-20 simulation"
+        "expected empty token metadata for non-MIP-20 simulation"
     );
 
     Ok(())

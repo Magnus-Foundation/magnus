@@ -3,17 +3,17 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
 use magnus_precompiles::{
     storage::{StorageCtx, hashmap::HashMapStorageProvider},
-    test_util::TIP20Setup,
-    tip20::{ISSUER_ROLE, ITIP20, PAUSE_ROLE, UNPAUSE_ROLE},
-    tip403_registry::{AuthRole, ITIP403Registry, TIP403Registry},
+    test_util::MIP20Setup,
+    mip20::{ISSUER_ROLE, IMIP20, PAUSE_ROLE, UNPAUSE_ROLE},
+    mip403_registry::{AuthRole, IMIP403Registry, MIP403Registry},
 };
 
-fn tip20_metadata(c: &mut Criterion) {
-    c.bench_function("tip20_name", |b| {
+fn mip20_metadata(c: &mut Criterion) {
+    c.bench_function("mip20_name", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
 
@@ -25,11 +25,11 @@ fn tip20_metadata(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip20_symbol", |b| {
+    c.bench_function("mip20_symbol", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
 
@@ -41,11 +41,11 @@ fn tip20_metadata(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip20_decimals", |b| {
+    c.bench_function("mip20_decimals", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
 
@@ -57,11 +57,11 @@ fn tip20_metadata(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip20_currency", |b| {
+    c.bench_function("mip20_currency", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
 
@@ -73,19 +73,19 @@ fn tip20_metadata(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip20_total_supply", |b| {
+    c.bench_function("mip20_total_supply", |b| {
         let admin = Address::from([0u8; 20]);
         let user = Address::from([1u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             let _ = token.grant_role_internal(admin, *ISSUER_ROLE);
             token
                 .mint(
                     admin,
-                    ITIP20::mintCall {
+                    IMIP20::mintCall {
                         to: user,
                         amount: U256::from(1000),
                     },
@@ -101,20 +101,20 @@ fn tip20_metadata(c: &mut Criterion) {
     });
 }
 
-fn tip20_view(c: &mut Criterion) {
-    c.bench_function("tip20_balance_of", |b| {
+fn mip20_view(c: &mut Criterion) {
+    c.bench_function("mip20_balance_of", |b| {
         let admin = Address::from([0u8; 20]);
         let user = Address::from([1u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             let _ = token.grant_role_internal(admin, *ISSUER_ROLE);
             token
                 .mint(
                     admin,
-                    ITIP20::mintCall {
+                    IMIP20::mintCall {
                         to: user,
                         amount: U256::from(1000),
                     },
@@ -123,26 +123,26 @@ fn tip20_view(c: &mut Criterion) {
 
             b.iter(|| {
                 let token = black_box(&mut token);
-                let call = black_box(ITIP20::balanceOfCall { account: user });
+                let call = black_box(IMIP20::balanceOfCall { account: user });
                 let result = token.balance_of(call).unwrap();
                 black_box(result);
             });
         });
     });
 
-    c.bench_function("tip20_allowance", |b| {
+    c.bench_function("mip20_allowance", |b| {
         let admin = Address::from([0u8; 20]);
         let owner = Address::from([1u8; 20]);
         let spender = Address::from([2u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             token
                 .approve(
                     owner,
-                    ITIP20::approveCall {
+                    IMIP20::approveCall {
                         spender,
                         amount: U256::from(500),
                     },
@@ -151,18 +151,18 @@ fn tip20_view(c: &mut Criterion) {
 
             b.iter(|| {
                 let token = black_box(&mut token);
-                let call = black_box(ITIP20::allowanceCall { owner, spender });
+                let call = black_box(IMIP20::allowanceCall { owner, spender });
                 let result = token.allowance(call).unwrap();
                 black_box(result);
             });
         });
     });
 
-    c.bench_function("tip20_supply_cap", |b| {
+    c.bench_function("mip20_supply_cap", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
 
@@ -174,11 +174,11 @@ fn tip20_view(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip20_paused", |b| {
+    c.bench_function("mip20_paused", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
 
@@ -190,11 +190,11 @@ fn tip20_view(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip20_transfer_policy_id", |b| {
+    c.bench_function("mip20_transfer_policy_id", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
 
@@ -207,13 +207,13 @@ fn tip20_view(c: &mut Criterion) {
     });
 }
 
-fn tip20_mutate(c: &mut Criterion) {
-    c.bench_function("tip20_mint", |b| {
+fn mip20_mutate(c: &mut Criterion) {
+    c.bench_function("mip20_mint", |b| {
         let admin = Address::from([0u8; 20]);
         let user = Address::from([1u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             let _ = token.grant_role_internal(admin, *ISSUER_ROLE);
@@ -222,17 +222,17 @@ fn tip20_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let token = black_box(&mut token);
                 let admin = black_box(admin);
-                let call = black_box(ITIP20::mintCall { to: user, amount });
+                let call = black_box(IMIP20::mintCall { to: user, amount });
                 token.mint(admin, call).unwrap();
             });
         });
     });
 
-    c.bench_function("tip20_burn", |b| {
+    c.bench_function("mip20_burn", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             let _ = token.grant_role_internal(admin, *ISSUER_ROLE);
@@ -240,7 +240,7 @@ fn tip20_mutate(c: &mut Criterion) {
             token
                 .mint(
                     admin,
-                    ITIP20::mintCall {
+                    IMIP20::mintCall {
                         to: admin,
                         amount: U256::from(u128::MAX),
                     },
@@ -251,19 +251,19 @@ fn tip20_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let token = black_box(&mut token);
                 let admin = black_box(admin);
-                let call = black_box(ITIP20::burnCall { amount });
+                let call = black_box(IMIP20::burnCall { amount });
                 token.burn(admin, call).unwrap();
             });
         });
     });
 
-    c.bench_function("tip20_approve", |b| {
+    c.bench_function("mip20_approve", |b| {
         let admin = Address::from([0u8; 20]);
         let owner = Address::from([1u8; 20]);
         let spender = Address::from([2u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
 
@@ -271,20 +271,20 @@ fn tip20_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let token = black_box(&mut token);
                 let owner = black_box(owner);
-                let call = black_box(ITIP20::approveCall { spender, amount });
+                let call = black_box(IMIP20::approveCall { spender, amount });
                 let result = token.approve(owner, call).unwrap();
                 black_box(result);
             });
         });
     });
 
-    c.bench_function("tip20_transfer", |b| {
+    c.bench_function("mip20_transfer", |b| {
         let admin = Address::from([0u8; 20]);
         let from = Address::from([1u8; 20]);
         let to = Address::from([2u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             let _ = token.grant_role_internal(admin, *ISSUER_ROLE);
@@ -292,7 +292,7 @@ fn tip20_mutate(c: &mut Criterion) {
             token
                 .mint(
                     admin,
-                    ITIP20::mintCall {
+                    IMIP20::mintCall {
                         to: from,
                         amount: U256::from(u128::MAX),
                     },
@@ -303,21 +303,21 @@ fn tip20_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let token = black_box(&mut token);
                 let from = black_box(from);
-                let call = black_box(ITIP20::transferCall { to, amount });
+                let call = black_box(IMIP20::transferCall { to, amount });
                 let result = token.transfer(from, call).unwrap();
                 black_box(result);
             });
         });
     });
 
-    c.bench_function("tip20_transfer_from", |b| {
+    c.bench_function("mip20_transfer_from", |b| {
         let admin = Address::from([0u8; 20]);
         let owner = Address::from([1u8; 20]);
         let spender = Address::from([2u8; 20]);
         let recipient = Address::from([3u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             let _ = token.grant_role_internal(admin, *ISSUER_ROLE);
@@ -325,7 +325,7 @@ fn tip20_mutate(c: &mut Criterion) {
             token
                 .mint(
                     admin,
-                    ITIP20::mintCall {
+                    IMIP20::mintCall {
                         to: owner,
                         amount: U256::from(u128::MAX),
                     },
@@ -334,7 +334,7 @@ fn tip20_mutate(c: &mut Criterion) {
             token
                 .approve(
                     owner,
-                    ITIP20::approveCall {
+                    IMIP20::approveCall {
                         spender,
                         amount: U256::from(u128::MAX),
                     },
@@ -346,7 +346,7 @@ fn tip20_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let token = black_box(&mut token);
                 let spender = black_box(spender);
-                let call = black_box(ITIP20::transferFromCall {
+                let call = black_box(IMIP20::transferFromCall {
                     from: owner,
                     to: recipient,
                     amount,
@@ -357,14 +357,14 @@ fn tip20_mutate(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip20_transfer_with_memo", |b| {
+    c.bench_function("mip20_transfer_with_memo", |b| {
         let admin = Address::from([0u8; 20]);
         let from = Address::from([1u8; 20]);
         let to = Address::from([2u8; 20]);
         let memo = FixedBytes::<32>::random();
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             let _ = token.grant_role_internal(admin, *ISSUER_ROLE);
@@ -372,7 +372,7 @@ fn tip20_mutate(c: &mut Criterion) {
             token
                 .mint(
                     admin,
-                    ITIP20::mintCall {
+                    IMIP20::mintCall {
                         to: from,
                         amount: U256::from(u128::MAX),
                     },
@@ -383,17 +383,17 @@ fn tip20_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let token = black_box(&mut token);
                 let from = black_box(from);
-                let call = black_box(ITIP20::transferWithMemoCall { to, amount, memo });
+                let call = black_box(IMIP20::transferWithMemoCall { to, amount, memo });
                 token.transfer_with_memo(from, call).unwrap();
             });
         });
     });
 
-    c.bench_function("tip20_pause", |b| {
+    c.bench_function("mip20_pause", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             let _ = token.grant_role_internal(admin, *PAUSE_ROLE);
@@ -401,17 +401,17 @@ fn tip20_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let token = black_box(&mut token);
                 let admin = black_box(admin);
-                let call = black_box(ITIP20::pauseCall {});
+                let call = black_box(IMIP20::pauseCall {});
                 token.pause(admin, call).unwrap();
             });
         });
     });
 
-    c.bench_function("tip20_unpause", |b| {
+    c.bench_function("mip20_unpause", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             let _ = token.grant_role_internal(admin, *UNPAUSE_ROLE);
@@ -419,17 +419,17 @@ fn tip20_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let token = black_box(&mut token);
                 let admin = black_box(admin);
-                let call = black_box(ITIP20::unpauseCall {});
+                let call = black_box(IMIP20::unpauseCall {});
                 token.unpause(admin, call).unwrap();
             });
         });
     });
 
-    c.bench_function("tip20_set_supply_cap", |b| {
+    c.bench_function("mip20_set_supply_cap", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             let counter = U256::from(10000);
@@ -437,7 +437,7 @@ fn tip20_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let token = black_box(&mut token);
                 let admin = black_box(admin);
-                let call = black_box(ITIP20::setSupplyCapCall {
+                let call = black_box(IMIP20::setSupplyCapCall {
                     newSupplyCap: counter,
                 });
                 token.set_supply_cap(admin, call).unwrap();
@@ -445,11 +445,11 @@ fn tip20_mutate(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip20_change_transfer_policy_id", |b| {
+    c.bench_function("mip20_change_transfer_policy_id", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut token = TIP20Setup::create("TestToken", "TEST", admin)
+            let mut token = MIP20Setup::create("TestToken", "TEST", admin)
                 .apply()
                 .unwrap();
             let policy_id = 2;
@@ -457,7 +457,7 @@ fn tip20_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let token = black_box(&mut token);
                 let admin = black_box(admin);
-                let call = black_box(ITIP20::changeTransferPolicyIdCall {
+                let call = black_box(IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: policy_id,
                 });
                 token.change_transfer_policy_id(admin, call).unwrap();
@@ -466,18 +466,18 @@ fn tip20_mutate(c: &mut Criterion) {
     });
 }
 
-fn tip20_factory_mutate(c: &mut Criterion) {
-    c.bench_function("tip20_factory_create_token", |b| {
+fn mip20_factory_mutate(c: &mut Criterion) {
+    c.bench_function("mip20_factory_create_token", |b| {
         let sender = Address::from([1u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
             // Setup pathUSD first
-            TIP20Setup::path_usd(sender).apply().unwrap();
+            MIP20Setup::path_usd(sender).apply().unwrap();
             let mut counter = 0u64;
 
             b.iter(|| {
                 counter += 1;
-                let result = TIP20Setup::create("Test", "TEST", sender)
+                let result = MIP20Setup::create("Test", "TEST", sender)
                     .with_salt(FixedBytes::from(U256::from(counter)))
                     .apply()
                     .unwrap();
@@ -487,11 +487,11 @@ fn tip20_factory_mutate(c: &mut Criterion) {
     });
 }
 
-fn tip403_registry_view(c: &mut Criterion) {
-    c.bench_function("tip403_registry_policy_id_counter", |b| {
+fn mip403_registry_view(c: &mut Criterion) {
+    c.bench_function("mip403_registry_policy_id_counter", |b| {
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
 
             b.iter(|| {
                 let registry = black_box(&mut registry);
@@ -501,24 +501,24 @@ fn tip403_registry_view(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip403_registry_policy_data", |b| {
+    c.bench_function("mip403_registry_policy_data", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
             let policy_id = registry
                 .create_policy(
                     admin,
-                    ITIP403Registry::createPolicyCall {
+                    IMIP403Registry::createPolicyCall {
                         admin,
-                        policyType: ITIP403Registry::PolicyType::WHITELIST,
+                        policyType: IMIP403Registry::PolicyType::WHITELIST,
                     },
                 )
                 .unwrap();
 
             b.iter(|| {
                 let registry = black_box(&mut registry);
-                let call = black_box(ITIP403Registry::policyDataCall {
+                let call = black_box(IMIP403Registry::policyDataCall {
                     policyId: policy_id,
                 });
                 let result = registry.policy_data(call).unwrap();
@@ -527,18 +527,18 @@ fn tip403_registry_view(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip403_registry_is_authorized", |b| {
+    c.bench_function("mip403_registry_is_authorized", |b| {
         let admin = Address::from([0u8; 20]);
         let user = Address::from([1u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
             let policy_id = registry
                 .create_policy(
                     admin,
-                    ITIP403Registry::createPolicyCall {
+                    IMIP403Registry::createPolicyCall {
                         admin,
-                        policyType: ITIP403Registry::PolicyType::WHITELIST,
+                        policyType: IMIP403Registry::PolicyType::WHITELIST,
                     },
                 )
                 .unwrap();
@@ -556,19 +556,19 @@ fn tip403_registry_view(c: &mut Criterion) {
     });
 }
 
-fn tip403_registry_mutate(c: &mut Criterion) {
-    c.bench_function("tip403_registry_create_policy", |b| {
+fn mip403_registry_mutate(c: &mut Criterion) {
+    c.bench_function("mip403_registry_create_policy", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
 
             b.iter(|| {
                 let registry = black_box(&mut registry);
                 let admin = black_box(admin);
-                let call = black_box(ITIP403Registry::createPolicyCall {
+                let call = black_box(IMIP403Registry::createPolicyCall {
                     admin,
-                    policyType: ITIP403Registry::PolicyType::WHITELIST,
+                    policyType: IMIP403Registry::PolicyType::WHITELIST,
                 });
                 let result = registry.create_policy(admin, call).unwrap();
                 black_box(result);
@@ -576,21 +576,21 @@ fn tip403_registry_mutate(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip403_registry_create_policy_with_accounts", |b| {
+    c.bench_function("mip403_registry_create_policy_with_accounts", |b| {
         let admin = Address::from([0u8; 20]);
         let account1 = Address::from([1u8; 20]);
         let account2 = Address::from([2u8; 20]);
         let accounts = vec![account1, account2];
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
 
             b.iter(|| {
                 let registry = black_box(&mut registry);
                 let admin = black_box(admin);
-                let call = black_box(ITIP403Registry::createPolicyWithAccountsCall {
+                let call = black_box(IMIP403Registry::createPolicyWithAccountsCall {
                     admin,
-                    policyType: ITIP403Registry::PolicyType::WHITELIST,
+                    policyType: IMIP403Registry::PolicyType::WHITELIST,
                     accounts: accounts.clone(),
                 });
                 let result = registry.create_policy_with_accounts(admin, call).unwrap();
@@ -599,17 +599,17 @@ fn tip403_registry_mutate(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip403_registry_set_policy_admin", |b| {
+    c.bench_function("mip403_registry_set_policy_admin", |b| {
         let admin = Address::from([0u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
             let policy_id = registry
                 .create_policy(
                     admin,
-                    ITIP403Registry::createPolicyCall {
+                    IMIP403Registry::createPolicyCall {
                         admin,
-                        policyType: ITIP403Registry::PolicyType::WHITELIST,
+                        policyType: IMIP403Registry::PolicyType::WHITELIST,
                     },
                 )
                 .unwrap();
@@ -617,7 +617,7 @@ fn tip403_registry_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let registry = black_box(&mut registry);
                 let admin = black_box(admin);
-                let call = black_box(ITIP403Registry::setPolicyAdminCall {
+                let call = black_box(IMIP403Registry::setPolicyAdminCall {
                     policyId: policy_id,
                     admin,
                 });
@@ -626,18 +626,18 @@ fn tip403_registry_mutate(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip403_registry_modify_policy_whitelist", |b| {
+    c.bench_function("mip403_registry_modify_policy_whitelist", |b| {
         let admin = Address::from([0u8; 20]);
         let user = Address::from([1u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
             let policy_id = registry
                 .create_policy(
                     admin,
-                    ITIP403Registry::createPolicyCall {
+                    IMIP403Registry::createPolicyCall {
                         admin,
-                        policyType: ITIP403Registry::PolicyType::WHITELIST,
+                        policyType: IMIP403Registry::PolicyType::WHITELIST,
                     },
                 )
                 .unwrap();
@@ -645,7 +645,7 @@ fn tip403_registry_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let registry = black_box(&mut registry);
                 let admin = black_box(admin);
-                let call = black_box(ITIP403Registry::modifyPolicyWhitelistCall {
+                let call = black_box(IMIP403Registry::modifyPolicyWhitelistCall {
                     policyId: policy_id,
                     account: user,
                     allowed: true,
@@ -655,18 +655,18 @@ fn tip403_registry_mutate(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("tip403_registry_modify_policy_blacklist", |b| {
+    c.bench_function("mip403_registry_modify_policy_blacklist", |b| {
         let admin = Address::from([0u8; 20]);
         let user = Address::from([1u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
             let policy_id = registry
                 .create_policy(
                     admin,
-                    ITIP403Registry::createPolicyCall {
+                    IMIP403Registry::createPolicyCall {
                         admin,
-                        policyType: ITIP403Registry::PolicyType::BLACKLIST,
+                        policyType: IMIP403Registry::PolicyType::BLACKLIST,
                     },
                 )
                 .unwrap();
@@ -674,7 +674,7 @@ fn tip403_registry_mutate(c: &mut Criterion) {
             b.iter(|| {
                 let registry = black_box(&mut registry);
                 let admin = black_box(admin);
-                let call = black_box(ITIP403Registry::modifyPolicyBlacklistCall {
+                let call = black_box(IMIP403Registry::modifyPolicyBlacklistCall {
                     policyId: policy_id,
                     account: user,
                     restricted: true,
@@ -687,11 +687,11 @@ fn tip403_registry_mutate(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    tip20_metadata,
-    tip20_view,
-    tip20_mutate,
-    tip20_factory_mutate,
-    tip403_registry_view,
-    tip403_registry_mutate
+    mip20_metadata,
+    mip20_view,
+    mip20_mutate,
+    mip20_factory_mutate,
+    mip403_registry_view,
+    mip403_registry_mutate
 );
 criterion_main!(benches);

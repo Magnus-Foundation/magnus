@@ -14,7 +14,7 @@ pub mod tokens_by_address;
 
 #[rpc(server, namespace = "token")]
 pub trait MagnusTokenApi {
-    /// Gets paginated role change history for TIP-20 tokens on Tempo.
+    /// Gets paginated role change history for MIP-20 tokens on Magnus.
     ///
     /// Tracks role grants and revocations from the RoleMembershipUpdated event for audit trails and compliance monitoring.
     ///
@@ -25,13 +25,13 @@ pub trait MagnusTokenApi {
         params: PaginationParams<RoleHistoryFilters>,
     ) -> RpcResult<RoleHistoryResponse>;
 
-    /// Gets paginated TIP-20 tokens on Tempo.
+    /// Gets paginated MIP-20 tokens on Magnus.
     ///
     /// Uses cursor-based pagination for stable iteration through tokens.
     #[method(name = "getTokens")]
     async fn tokens(&self, params: PaginationParams<TokensFilters>) -> RpcResult<TokensResponse>;
 
-    /// Gets paginated TIP-20 tokens associated with an account address on Tempo.
+    /// Gets paginated MIP-20 tokens associated with an account address on Magnus.
     ///
     /// Returns tokens where the account has a balance or specific roles.
     ///

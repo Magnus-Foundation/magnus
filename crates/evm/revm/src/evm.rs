@@ -12,10 +12,10 @@ use revm::{
 };
 use magnus_chainspec::hardfork::MagnusHardfork;
 
-/// The Tempo EVM context type.
+/// The Magnus EVM context type.
 pub type MagnusContext<DB> = Context<MagnusBlockEnv, MagnusTxEnv, CfgEnv<MagnusHardfork>, DB>;
 
-/// MagnusEvm extends the Evm with Tempo specific types and logic.
+/// MagnusEvm extends the Evm with Magnus specific types and logic.
 #[derive(Debug, derive_more::Deref, derive_more::DerefMut)]
 #[expect(clippy::type_complexity)]
 pub struct MagnusEvm<DB: Database, I> {
@@ -53,7 +53,7 @@ pub struct MagnusEvm<DB: Database, I> {
 }
 
 impl<DB: Database, I> MagnusEvm<DB, I> {
-    /// Create a new Tempo EVM.
+    /// Create a new Magnus EVM.
     pub fn new(ctx: MagnusContext<DB>, inspector: I) -> Self {
         let precompiles = magnus_precompiles::magnus_precompiles(&ctx.cfg);
 
@@ -66,7 +66,7 @@ impl<DB: Database, I> MagnusEvm<DB, I> {
         })
     }
 
-    /// Inner helper function to create a new Tempo EVM with empty logs.
+    /// Inner helper function to create a new Magnus EVM with empty logs.
     #[inline]
     #[expect(clippy::type_complexity)]
     fn new_inner(
@@ -234,8 +234,8 @@ mod tests {
         AuthorizedKey, NONCE_PRECOMPILE_ADDRESS, PATH_USD_ADDRESS,
         nonce::NonceManager,
         storage::{Handler, StorageCtx, evm::EvmPrecompileStorageProvider},
-        test_util::TIP20Setup,
-        tip20::{ITIP20, TIP20Token},
+        test_util::MIP20Setup,
+        mip20::{IMIP20, MIP20Token},
     };
     use magnus_primitives::{
         MagnusTransaction,
@@ -309,12 +309,12 @@ mod tests {
     }
 
     /// Create an EVM with T1C hardfork enabled and a funded account.
-    /// This applies TIP-1000 gas params via `magnus_gas_params()`.
+    /// This applies MIP-1000 gas params via `magnus_gas_params()`.
     fn create_funded_evm_t1(address: Address) -> MagnusEvm<CacheDB<EmptyDB>, ()> {
         let db = CacheDB::new(EmptyDB::new());
         let mut cfg = CfgEnv::<MagnusHardfork>::default();
         cfg.spec = MagnusHardfork::T1C;
-        // Apply TIP-1000 gas params for T1C hardfork
+        // Apply MIP-1000 gas params for T1C hardfork
         cfg.gas_params = magnus_gas_params(MagnusHardfork::T1C);
 
         let ctx = Context::mainnet()
@@ -672,7 +672,7 @@ mod tests {
         let internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut storage = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
 
-        _ = StorageCtx::enter(&mut storage, || TIP20Setup::path_usd(Address::ZERO).apply())?;
+        _ = StorageCtx::enter(&mut storage, || MIP20Setup::path_usd(Address::ZERO).apply())?;
         drop(storage);
 
         let contract = Address::random();
@@ -714,11 +714,11 @@ mod tests {
 
     #[test]
     fn test_inspector_calls() -> eyre::Result<()> {
-        // This test calls TIP20 setSupplyCap which emits a SupplyCapUpdate log event
+        // This test calls MIP20 setSupplyCap which emits a SupplyCapUpdate log event
         let caller = Address::repeat_byte(0x01);
         let contract = Address::repeat_byte(0x42);
 
-        let input_bytes = ITIP20::setSupplyCapCall {
+        let input_bytes = IMIP20::setSupplyCapCall {
             newSupplyCap: U256::from(100),
         }
         .abi_encode();
@@ -767,9 +767,9 @@ mod tests {
 
         let bytecode = Bytecode::new_raw(bytecode_bytes.into());
 
-        // Set up EVM with TIP20 infrastructure
+        // Set up EVM with MIP20 infrastructure
         let mut evm = create_evm_with_inspector(CountInspector::new());
-        // Set up TIP20 using the storage context pattern
+        // Set up MIP20 using the storage context pattern
         {
             let ctx = &mut evm.ctx;
             let internals =
@@ -777,7 +777,7 @@ mod tests {
 
             let mut storage = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
             StorageCtx::enter(&mut storage, || {
-                TIP20Setup::path_usd(caller)
+                MIP20Setup::path_usd(caller)
                     .with_issuer(caller)
                     .with_admin(contract) // Grant admin role to contract so it can call setSupplyCap
                     .apply()
@@ -806,9 +806,9 @@ mod tests {
 
         assert!(result.result.is_success());
 
-        // Verify that a SupplyCapUpdate log was emitted by the TIP20 precompile
+        // Verify that a SupplyCapUpdate log was emitted by the MIP20 precompile
         assert_eq!(result.result.logs().len(), 3);
-        // Log should be from TIP20_FACTORY
+        // Log should be from MIP20_FACTORY
         assert_eq!(result.result.logs()[0].address, PATH_USD_ADDRESS);
 
         // Get the inspector and verify counts
@@ -828,13 +828,13 @@ mod tests {
         // Should have 2 call ends
         assert_eq!(inspector.call_end_count(), 2);
 
-        // ==================== Multi-call Tempo transaction test ====================
-        // Test inspector with a Tempo transaction that has multiple calls
+        // ==================== Multi-call Magnus transaction test ====================
+        // Test inspector with a Magnus transaction that has multiple calls
 
         let key_pair = P256KeyPair::random();
         let magnus_caller = key_pair.address;
 
-        // Create signed authorization for Tempo tx
+        // Create signed authorization for Magnus tx
         let signed_auth = key_pair.create_signed_authorization(Address::repeat_byte(0x42))?;
 
         // Create a transaction with 3 calls to identity precompile
@@ -865,7 +865,7 @@ mod tests {
         // Verify inspector tracked all 3 calls
         let multi_inspector = &multi_evm.inspector;
 
-        // Multi-call Tempo transactions execute each call as a separate frame
+        // Multi-call Magnus transactions execute each call as a separate frame
         // call_count = 3 (one for each identity precompile call)
         assert_eq!(multi_inspector.call_count(), 3,);
         assert_eq!(multi_inspector.call_end_count(), 3,);
@@ -882,7 +882,7 @@ mod tests {
         let mut evm = create_funded_evm(caller);
         evm.block.basefee = 100_000_000_000;
 
-        // Set up TIP20 first (required for fee token validation)
+        // Set up MIP20 first (required for fee token validation)
         let block = MagnusBlockEnv::default();
         let ctx = &mut evm.ctx;
         let internals = EvmInternals::new(&mut ctx.journaled_state, &block, &ctx.cfg, &ctx.tx);
@@ -890,7 +890,7 @@ mod tests {
             EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
 
         StorageCtx::enter(&mut provider, || {
-            TIP20Setup::path_usd(caller)
+            MIP20Setup::path_usd(caller)
                 .with_issuer(caller)
                 .with_mint(caller, U256::from(100_000))
                 .apply()
@@ -915,7 +915,7 @@ mod tests {
             EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
 
         let slot = StorageCtx::enter(&mut provider, || {
-            TIP20Token::from_address(PATH_USD_ADDRESS)?.balances[caller].read()
+            MIP20Token::from_address(PATH_USD_ADDRESS)?.balances[caller].read()
         })?;
         drop(provider);
 
@@ -931,7 +931,7 @@ mod tests {
             EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
 
         let slot = StorageCtx::enter(&mut provider, || {
-            TIP20Token::from_address(PATH_USD_ADDRESS)?.balances[caller].read()
+            MIP20Token::from_address(PATH_USD_ADDRESS)?.balances[caller].read()
         })?;
         drop(provider);
 
@@ -960,7 +960,7 @@ mod tests {
             EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
 
         let slot = StorageCtx::enter(&mut provider, || {
-            TIP20Token::from_address(PATH_USD_ADDRESS)?.balances[caller].read()
+            MIP20Token::from_address(PATH_USD_ADDRESS)?.balances[caller].read()
         })?;
         drop(provider);
 
@@ -969,7 +969,7 @@ mod tests {
         Ok(())
     }
 
-    /// Test creating and executing a Tempo transaction with:
+    /// Test creating and executing a Magnus transaction with:
     /// - WebAuthn signature
     /// - Authorization list (aa_auth_list)
     /// - Two calls to the identity precompile (0x04)
@@ -1053,9 +1053,9 @@ mod tests {
         let result = evm.transact_commit(tx_env)?;
         assert!(result.is_success());
 
-        // Test a transaction with a failing call to TIP20 contract with wrong input
+        // Test a transaction with a failing call to MIP20 contract with wrong input
         let tx_fail = TxBuilder::new()
-            .call(PATH_USD_ADDRESS, &[0x01, 0x02]) // Too short for TIP20
+            .call(PATH_USD_ADDRESS, &[0x01, 0x02]) // Too short for MIP20
             .nonce(2)
             .build();
 
@@ -1125,7 +1125,7 @@ mod tests {
 
         let mut evm = create_funded_evm_t3(caller);
 
-        // Set up TIP20 for fee payment.
+        // Set up MIP20 for fee payment.
         let block = MagnusBlockEnv::default();
         {
             let ctx = &mut evm.ctx;
@@ -1133,7 +1133,7 @@ mod tests {
             let mut provider = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
 
             StorageCtx::enter(&mut provider, || {
-                TIP20Setup::path_usd(caller)
+                MIP20Setup::path_usd(caller)
                     .with_issuer(caller)
                     .with_mint(caller, U256::from(10_000_000))
                     .apply()
@@ -1184,7 +1184,7 @@ mod tests {
             let mut provider = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
 
             StorageCtx::enter(&mut provider, || {
-                TIP20Setup::path_usd(caller)
+                MIP20Setup::path_usd(caller)
                     .with_issuer(caller)
                     .with_mint(caller, U256::from(10_000_000))
                     .apply()
@@ -1192,7 +1192,7 @@ mod tests {
         }
 
         let transfer_to = Address::repeat_byte(0xaa);
-        let transfer_input = ITIP20::transferCall {
+        let transfer_input = IMIP20::transferCall {
             to: transfer_to,
             amount: U256::from(1_u64),
         }
@@ -1202,7 +1202,7 @@ mod tests {
             .with_allowed_calls(vec![magnus_primitives::transaction::CallScope {
                 target: PATH_USD_ADDRESS,
                 selector_rules: vec![magnus_primitives::transaction::SelectorRule {
-                    selector: ITIP20::transferCall::SELECTOR,
+                    selector: IMIP20::transferCall::SELECTOR,
                     recipients: Vec::new(),
                 }],
             }]);
@@ -1261,7 +1261,7 @@ mod tests {
         Ok(())
     }
 
-    /// Test that Tempo transaction time window validation works correctly.
+    /// Test that Magnus transaction time window validation works correctly.
     /// Tests `valid_after` and `valid_before` fields against block timestamp.
     #[test]
     fn test_tempo_tx_time_window() -> eyre::Result<()> {
@@ -1420,7 +1420,7 @@ mod tests {
         Ok(())
     }
 
-    /// Test executing a Tempo transaction where the first call is a Create kind.
+    /// Test executing a Magnus transaction where the first call is a Create kind.
     /// This should succeed as CREATE is allowed as the first call.
     #[test]
     fn test_tempo_tx_create_first_call() -> eyre::Result<()> {
@@ -1449,7 +1449,7 @@ mod tests {
         Ok(())
     }
 
-    /// Test that a Tempo transaction fails when CREATE is the second call.
+    /// Test that a Magnus transaction fails when CREATE is the second call.
     /// CREATE must be the first call if used.
     #[test]
     fn test_tempo_tx_create_second_call_fails() -> eyre::Result<()> {
@@ -1670,7 +1670,7 @@ mod tests {
         Ok(())
     }
 
-    // ==================== TIP-1000 EVM Configuration Tests ====================
+    // ==================== MIP-1000 EVM Configuration Tests ====================
 
     /// Test that MagnusEvm preserves initial fields when using with_inspector.
     #[test]
@@ -1689,7 +1689,7 @@ mod tests {
 
     /// Test AA transaction gas usage for simple identity precompile call.
     /// This establishes a baseline for gas comparison.
-    /// Uses T1 hardfork for TIP-1000 gas costs.
+    /// Uses T1 hardfork for MIP-1000 gas costs.
     #[test]
     fn test_aa_tx_gas_baseline_identity_call() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
@@ -1710,7 +1710,7 @@ mod tests {
         let result = evm.transact_commit(tx_env)?;
         assert!(result.is_success());
 
-        // With T1 TIP-1000: new account cost (250k) + base intrinsic (21k) + WebAuthn (~3.4k) + calldata
+        // With T1 MIP-1000: new account cost (250k) + base intrinsic (21k) + WebAuthn (~3.4k) + calldata
         let gas_used = result.tx_gas_used();
         assert_eq!(
             gas_used, 278738,
@@ -1721,8 +1721,8 @@ mod tests {
     }
 
     /// Test AA transaction gas usage with SSTORE to a new storage slot.
-    /// This tests TIP-1000's increased SSTORE cost (250,000 gas for new slot).
-    /// Uses T1 hardfork for TIP-1000 gas costs.
+    /// This tests MIP-1000's increased SSTORE cost (250,000 gas for new slot).
+    /// Uses T1 hardfork for MIP-1000 gas costs.
     #[test]
     fn test_aa_tx_gas_sstore_new_slot() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
@@ -1755,7 +1755,7 @@ mod tests {
         let result = evm.transact_commit(tx_env)?;
         assert!(result.is_success(), "SSTORE transaction should succeed");
 
-        // With TIP-1000: new account (250k) + SSTORE to new slot (250k) + base costs
+        // With MIP-1000: new account (250k) + SSTORE to new slot (250k) + base costs
         let gas_used = result.tx_gas_used();
         assert_eq!(
             gas_used, 530863,
@@ -1767,7 +1767,7 @@ mod tests {
 
     /// Test AA transaction gas usage with SSTORE to an existing storage slot (warm).
     /// Warm SSTORE should be much cheaper than cold SSTORE to a new slot.
-    /// Uses T1 hardfork for TIP-1000 gas costs.
+    /// Uses T1 hardfork for MIP-1000 gas costs.
     #[test]
     fn test_aa_tx_gas_sstore_warm_slot() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
@@ -1820,7 +1820,7 @@ mod tests {
     }
 
     /// Test AA transaction gas comparison: multiple SSTORE operations.
-    /// Uses T1 hardfork for TIP-1000 gas costs.
+    /// Uses T1 hardfork for MIP-1000 gas costs.
     #[test]
     fn test_aa_tx_gas_multiple_sstores() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
@@ -1857,7 +1857,7 @@ mod tests {
             "Multiple SSTORE transaction should succeed"
         );
 
-        // With TIP-1000: new account (250k) + 2 SSTOREs to new slots (2 * 250k) = 750k + base
+        // With MIP-1000: new account (250k) + 2 SSTOREs to new slots (2 * 250k) = 750k + base
         let gas_used = result.tx_gas_used();
         assert_eq!(gas_used, 783069, "T1 multiple SSTOREs gas should be exact");
 
@@ -1865,8 +1865,8 @@ mod tests {
     }
 
     /// Test AA transaction gas for contract creation (CREATE).
-    /// TIP-1000 increases TX create cost to 500,000 and new account cost to 250,000.
-    /// Uses T1 hardfork for TIP-1000 gas costs.
+    /// MIP-1000 increases TX create cost to 500,000 and new account cost to 250,000.
+    /// Uses T1 hardfork for MIP-1000 gas costs.
     #[test]
     fn test_aa_tx_gas_create_contract() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
@@ -1889,7 +1889,7 @@ mod tests {
         let result = evm.transact_commit(tx_env)?;
         assert!(result.is_success(), "CREATE transaction should succeed");
 
-        // With TIP-1000: CREATE cost (500k) + new account for sender (250k) + base costs
+        // With MIP-1000: CREATE cost (500k) + new account for sender (250k) + base costs
         let gas_used = result.tx_gas_used();
         assert_eq!(gas_used, 778720, "T1 CREATE contract gas should be exact");
 
@@ -1898,7 +1898,7 @@ mod tests {
 
     /// Test AA transaction gas for CREATE with 2D nonce (nonce_key != 0).
     /// When caller account nonce is 0, an additional 250k gas is charged for account creation.
-    /// Uses T1 hardfork for TIP-1000 gas costs.
+    /// Uses T1 hardfork for MIP-1000 gas costs.
     #[test]
     fn test_aa_tx_gas_create_with_2d_nonce() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
@@ -1937,7 +1937,7 @@ mod tests {
         let result1 = evm.transact_commit(tx_env1)?;
         assert!(result1.is_success(), "CREATE with 2D nonce should succeed");
 
-        // With TIP-1000: CREATE cost (500k) + new account (250k) + 2D nonce sender creation (250k) + base
+        // With MIP-1000: CREATE cost (500k) + new account (250k) + 2D nonce sender creation (250k) + base
         assert_eq!(
             result1.tx_gas_used(),
             1028720,
@@ -1965,7 +1965,7 @@ mod tests {
             "Second CREATE with 2D nonce should succeed"
         );
 
-        // With TIP-1000: CREATE cost (500k) + new account (250k) + base (no extra 250k since caller.nonce != 0)
+        // With MIP-1000: CREATE cost (500k) + new account (250k) + base (no extra 250k since caller.nonce != 0)
         assert_eq!(
             result2.tx_gas_used(),
             778720,
@@ -2043,7 +2043,7 @@ mod tests {
     }
 
     /// Test gas comparison between single call and multiple calls.
-    /// Uses T1 hardfork for TIP-1000 gas costs.
+    /// Uses T1 hardfork for MIP-1000 gas costs.
     #[test]
     fn test_aa_tx_gas_single_vs_multiple_calls() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
@@ -2095,7 +2095,7 @@ mod tests {
     }
 
     /// Test AA transaction gas with SLOAD operation (cold vs warm access).
-    /// Uses T1 hardfork for TIP-1000 gas costs.
+    /// Uses T1 hardfork for MIP-1000 gas costs.
     #[test]
     fn test_aa_tx_gas_sload_cold_vs_warm() -> eyre::Result<()> {
         let key_pair = P256KeyPair::random();
@@ -2142,7 +2142,7 @@ mod tests {
         Ok(())
     }
 
-    // ==================== End TIP-1000 Tests ====================
+    // ==================== End MIP-1000 Tests ====================
 
     /// Test system call functions and inspector management.
     /// Tests `system_call_one_with_caller`, `inspect_one_system_call_with_caller`, and `set_inspector`.
@@ -2222,7 +2222,7 @@ mod tests {
         // Create a T1 EVM (the fix only applies to T1)
         let mut evm = create_funded_evm_t1(caller);
 
-        // Set up TIP20 for fee payment
+        // Set up MIP20 for fee payment
         let block = MagnusBlockEnv::default();
         {
             let ctx = &mut evm.ctx;
@@ -2230,7 +2230,7 @@ mod tests {
             let mut provider = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
 
             StorageCtx::enter(&mut provider, || {
-                TIP20Setup::path_usd(caller)
+                MIP20Setup::path_usd(caller)
                     .with_issuer(caller)
                     .with_mint(caller, U256::from(10_000_000))
                     .apply()
@@ -2381,7 +2381,7 @@ mod tests {
     /// bug and verifies the T1B fix.
     ///
     /// **The bug (T1):** An AA CREATE transaction with a KeyAuthorization runs
-    /// `authorize_key` in a gas-metered precompile call. TIP-1000 SSTORE costs
+    /// `authorize_key` in a gas-metered precompile call. MIP-1000 SSTORE costs
     /// (250k) easily exceed the remaining gas after intrinsic deduction, causing
     /// OutOfGas. The handler then sets `evm.initial_gas = u64::MAX`, which
     /// short-circuits execution before `make_create_frame` bumps the protocol
@@ -2423,13 +2423,13 @@ mod tests {
                 let ctx = &mut evm.ctx;
                 let internals =
                     EvmInternals::new(&mut ctx.journaled_state, &block, &ctx.cfg, &ctx.tx);
-                // Use default cfg for TIP20 setup — the test infrastructure's
+                // Use default cfg for MIP20 setup — the test infrastructure's
                 // `is_initialized` check uses an unsafe `as_hashmap()` cast that
                 // only works with default gas params.
                 let mut provider =
                     EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
                 StorageCtx::enter(&mut provider, || {
-                    TIP20Setup::path_usd(caller)
+                    MIP20Setup::path_usd(caller)
                         .with_issuer(caller)
                         .with_mint(caller, U256::from(100_000_000))
                         .apply()
@@ -2510,7 +2510,7 @@ mod tests {
     ///
     /// **The bug (T1):** The handler charges both a heuristic intrinsic gas
     /// estimate AND the metered precompile gas (`evm.initial_gas += gas_used`),
-    /// resulting in a double charge. With TIP-1000 SSTORE at 250k, a simple
+    /// resulting in a double charge. With MIP-1000 SSTORE at 250k, a simple
     /// KeyAuthorization (0 limits) costs ~530k on T1 instead of ~280k.
     ///
     /// **The fix (T1B):** Only the intrinsic gas is charged; the precompile runs
@@ -2544,7 +2544,7 @@ mod tests {
                 let mut provider =
                     EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
                 StorageCtx::enter(&mut provider, || {
-                    TIP20Setup::path_usd(caller)
+                    MIP20Setup::path_usd(caller)
                         .with_issuer(caller)
                         .with_mint(caller, U256::from(100_000_000))
                         .apply()

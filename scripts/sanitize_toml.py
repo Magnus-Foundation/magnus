@@ -357,17 +357,17 @@ def main():
         # Remove reth dependency lines
         text = strip_dep_lines(text, lambda n: n.startswith('reth-'))
         # Remove internal non-publishable deps (path-only workspace crates, except
-        # the crates we're publishing: tempo-contracts and tempo-primitives)
+        # the crates we're publishing: magnus-contracts and magnus-primitives)
         ws_toml_path = sys.argv[3]
         _, _, ws_path_deps, _, _ = parse_workspace_deps(ws_toml_path)
-        publish_keep = {'tempo-contracts', 'tempo-primitives', 'tempo-chainspec', 'tempo-alloy'}
+        publish_keep = {'magnus-contracts', 'magnus-primitives', 'magnus-chainspec', 'magnus-alloy'}
         internal_deps = ws_path_deps - publish_keep
         text = strip_dep_lines(text, lambda n: n in internal_deps)
 
         # Strip the `reth` feature block
         text = strip_feature_blocks(text, ['reth'])
 
-        # Strip "rpc" from tempo-primitives features (rpc feature is stripped during publish)
+        # Strip "rpc" from magnus-primitives features (rpc feature is stripped during publish)
         text = re.sub(r', "rpc"', '', text)
         text = re.sub(r'"rpc", ', '', text)
 
@@ -512,7 +512,7 @@ def main():
         existing += '\n[workspace.dependencies]\n'
         existing += filtered + '\n'
         for crate in sorted(publish_crates):
-            dirname = crate.removeprefix('tempo-')
+            dirname = crate.removeprefix('magnus-')
             parts = [f'path = "{dirname}"']
             if crate in ws_no_default:
                 parts.append('default-features = false')

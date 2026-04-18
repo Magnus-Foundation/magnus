@@ -9,7 +9,7 @@ use magnus_contracts::precompiles::{
         TokenLimit as AbiTokenLimit, removeAllowedCallsCall, revokeKeyCall, setAllowedCallsCall,
         updateSpendingLimitCall,
     },
-    ITIP20, authorizeKeyCall, legacyAuthorizeKeyCall,
+    IMIP20, authorizeKeyCall, legacyAuthorizeKeyCall,
 };
 use magnus_primitives::{
     SignatureType,
@@ -155,7 +155,7 @@ impl From<KeyRestrictions> for AbiKeyRestrictions {
     }
 }
 
-/// Builder for constructing a [`CallScope`] with ergonomic helpers for common TIP-20 selectors.
+/// Builder for constructing a [`CallScope`] with ergonomic helpers for common MIP-20 selectors.
 ///
 /// # Examples
 ///
@@ -206,7 +206,7 @@ impl CallScopeBuilder {
     /// Allow `transfer(address,uint256)` calls, optionally restricted to the given recipients.
     pub fn transfer(mut self, recipients: Vec<Address>) -> Self {
         self.selector_rules.push(SelectorRule {
-            selector: ITIP20::transferCall::SELECTOR,
+            selector: IMIP20::transferCall::SELECTOR,
             recipients,
         });
         self
@@ -215,7 +215,7 @@ impl CallScopeBuilder {
     /// Allow `transferWithMemo(address,uint256,bytes32)` calls, optionally restricted to the given recipients.
     pub fn transfer_with_memo(mut self, recipients: Vec<Address>) -> Self {
         self.selector_rules.push(SelectorRule {
-            selector: ITIP20::transferWithMemoCall::SELECTOR,
+            selector: IMIP20::transferWithMemoCall::SELECTOR,
             recipients,
         });
         self
@@ -224,7 +224,7 @@ impl CallScopeBuilder {
     /// Allow `approve(address,uint256)` calls, optionally restricted to the given spenders.
     pub fn approve(mut self, recipients: Vec<Address>) -> Self {
         self.selector_rules.push(SelectorRule {
-            selector: ITIP20::approveCall::SELECTOR,
+            selector: IMIP20::approveCall::SELECTOR,
             recipients,
         });
         self
@@ -510,13 +510,13 @@ mod tests {
         assert_eq!(scope.selector_rules.len(), 2);
         assert_eq!(
             scope.selector_rules[0].selector,
-            ITIP20::transferCall::SELECTOR
+            IMIP20::transferCall::SELECTOR
         );
         assert_eq!(scope.selector_rules[0].recipients, vec![recipient]);
 
         assert_eq!(
             scope.selector_rules[1].selector,
-            ITIP20::approveCall::SELECTOR
+            IMIP20::approveCall::SELECTOR
         );
         assert!(scope.selector_rules[1].recipients.is_empty());
     }
@@ -645,7 +645,7 @@ mod tests {
 
         // Build valid transfer(address,uint256) calldata
         let mut input = Vec::new();
-        input.extend_from_slice(&ITIP20::transferCall::SELECTOR);
+        input.extend_from_slice(&IMIP20::transferCall::SELECTOR);
         // recipient as ABI-encoded address (left-padded to 32 bytes)
         input.extend_from_slice(&[0u8; 12]);
         input.extend_from_slice(allowed.as_slice());
@@ -656,7 +656,7 @@ mod tests {
 
         // Same selector but different recipient
         let mut bad_input = Vec::new();
-        bad_input.extend_from_slice(&ITIP20::transferCall::SELECTOR);
+        bad_input.extend_from_slice(&IMIP20::transferCall::SELECTOR);
         bad_input.extend_from_slice(&[0u8; 12]);
         bad_input.extend_from_slice(denied.as_slice());
         bad_input.extend_from_slice(&[0u8; 32]);
@@ -673,7 +673,7 @@ mod tests {
         ]);
 
         // Selector only, no recipient word
-        let input = ITIP20::transferCall::SELECTOR.to_vec();
+        let input = IMIP20::transferCall::SELECTOR.to_vec();
         assert!(!r.is_call_allowed(&token, &input));
     }
 
@@ -686,7 +686,7 @@ mod tests {
             .with_allowed_calls(vec![CallScopeBuilder::new(token).transfer(vec![]).build()]);
 
         let mut input = Vec::new();
-        input.extend_from_slice(&ITIP20::transferCall::SELECTOR);
+        input.extend_from_slice(&IMIP20::transferCall::SELECTOR);
         input.extend_from_slice(&[0u8; 12]);
         input.extend_from_slice(anyone.as_slice());
         input.extend_from_slice(&[0u8; 32]);

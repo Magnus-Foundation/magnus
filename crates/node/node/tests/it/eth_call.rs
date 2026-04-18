@@ -18,12 +18,12 @@ use reth_evm::revm::interpreter::instructions::utility::IntoU256;
 use magnus_chainspec::{hardfork::MagnusHardfork, spec::MAGNUS_T1_BASE_FEE};
 use magnus_contracts::precompiles::{
     IFeeManager,
-    ITIP20::{self, transferCall},
+    IMIP20::{self, transferCall},
     ITIPFeeAMM, IValidatorConfig, UnknownFunctionSelector,
 };
 use magnus_precompiles::{
-    PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS, error::MagnusPrecompileError, storage::ContractStorage,
-    tip20::TIP20Token, validator_config::ValidatorConfig,
+    PATH_USD_ADDRESS, MIP20_FACTORY_ADDRESS, error::MagnusPrecompileError, storage::ContractStorage,
+    mip20::MIP20Token, validator_config::ValidatorConfig,
 };
 use test_case::test_case;
 
@@ -167,8 +167,8 @@ async fn test_eth_trace_call(schedule: ForkSchedule) -> eyre::Result<()> {
 
     let token_storage_diff = token_diff.storage.clone();
     // Assert sender token balance has changed
-    let slot = TIP20Token::from_address(token_address)
-        .expect("valid TIP20 address")
+    let slot = MIP20Token::from_address(token_address)
+        .expect("valid MIP20 address")
         .balances[caller]
         .slot();
     let sender_balance = token_storage_diff
@@ -184,8 +184,8 @@ async fn test_eth_trace_call(schedule: ForkSchedule) -> eyre::Result<()> {
     assert_eq!(to.into_u256(), U256::ZERO);
 
     // Assert recipient token balance is changed
-    let slot = TIP20Token::from_address(token_address)
-        .expect("valid TIP20 address")
+    let slot = MIP20Token::from_address(token_address)
+        .expect("valid MIP20 address")
         .balances[recipient]
         .slot();
     let recipient_balance = token_storage_diff
@@ -250,16 +250,16 @@ async fn test_eth_get_logs(schedule: ForkSchedule) -> eyre::Result<()> {
 
     // NOTE: this currently reflects the event emission from the reference contract. Double check
     // this is the expected behavior
-    let transfer_event = ITIP20::Transfer::decode_log(&logs[0].inner)?;
+    let transfer_event = IMIP20::Transfer::decode_log(&logs[0].inner)?;
     assert_eq!(transfer_event.from, Address::ZERO);
     assert_eq!(transfer_event.to, caller);
     assert_eq!(transfer_event.amount, mint_amount);
 
-    let mint_event = ITIP20::Mint::decode_log(&logs[1].inner)?;
+    let mint_event = IMIP20::Mint::decode_log(&logs[1].inner)?;
     assert_eq!(mint_event.to, caller);
     assert_eq!(mint_event.amount, mint_amount);
 
-    let transfer_event = ITIP20::Transfer::decode_log(&logs[2].inner)?;
+    let transfer_event = IMIP20::Transfer::decode_log(&logs[2].inner)?;
     assert_eq!(transfer_event.from, caller);
     assert_eq!(transfer_event.to, recipient);
     assert_eq!(transfer_event.amount, mint_amount);
@@ -292,7 +292,7 @@ async fn test_eth_estimate_gas(schedule: ForkSchedule) -> eyre::Result<()> {
 
     let gas = provider.estimate_gas(tx.clone()).await?;
     // gas estimation is calldata dependent, but should be consistent with same calldata
-    // TIP-1000 (T1): gas includes 250k new account cost when nonce=0
+    // MIP-1000 (T1): gas includes 250k new account cost when nonce=0
     let expected_gas = if schedule.is_active(MagnusHardfork::T3) {
         551540
     } else {
@@ -650,7 +650,7 @@ async fn test_unknown_selector_error_via_rpc(schedule: ForkSchedule) -> eyre::Re
     calldata.extend_from_slice(&[0u8; 64]);
 
     let tx = TransactionRequest::default()
-        .to(TIP20_FACTORY_ADDRESS)
+        .to(MIP20_FACTORY_ADDRESS)
         .input(TransactionInput::new(Bytes::from(calldata)));
 
     // The call should fail with UnknownFunctionSelector containing the unknown selector
@@ -718,8 +718,8 @@ async fn test_tip20_name_state_override_no_oom() -> eyre::Result<()> {
     let provider = ProviderBuilder::new().connect_http(setup.http_url);
     let tx = TransactionRequest::default()
         .to(PATH_USD_ADDRESS)
-        .input(TransactionInput::new(ITIP20::nameCall::SELECTOR.into()));
-    let name_slot = B256::from(U256::from(2)); // slot 2 in TIP20Token layout
+        .input(TransactionInput::new(IMIP20::nameCall::SELECTOR.into()));
+    let name_slot = B256::from(U256::from(2)); // slot 2 in MIP20Token layout
 
     // -- overflow: decoded len > u32::MAX → Panic(UnderOverflow) revert --
     // 0x0008000000000001 → LSB=1 (long string), decoded len = 0x0004000000000000

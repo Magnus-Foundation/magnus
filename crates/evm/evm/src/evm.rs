@@ -51,7 +51,7 @@ impl EvmFactory for MagnusEvmFactory {
     }
 }
 
-/// Tempo EVM implementation.
+/// Magnus EVM implementation.
 ///
 /// This is a wrapper type around the `revm` ethereum evm with optional [`Inspector`] (tracing)
 /// support. [`Inspector`] support is configurable at runtime because it's part of the underlying
@@ -406,7 +406,7 @@ mod tests {
         assert!(result.result.is_success());
     }
 
-    // ==================== TIP-1000 EVM Configuration Tests ====================
+    // ==================== MIP-1000 EVM Configuration Tests ====================
 
     /// Helper to create EvmEnv with a specific hardfork spec.
     fn evm_env_with_spec(
@@ -419,12 +419,12 @@ mod tests {
     }
 
     /// Test that MagnusEvm applies custom gas params via `magnus_gas_params()`.
-    /// This verifies the [TIP-1000] gas parameter override mechanism.
+    /// This verifies the [MIP-1000] gas parameter override mechanism.
     ///
-    /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
+    /// [MIP-1000]: <https://docs.magnus.xyz/protocol/mips/mip-1000>
     #[test]
     fn test_tempo_evm_applies_gas_params() {
-        // Create EVM with T1 hardfork to get TIP-1000 gas params
+        // Create EVM with T1 hardfork to get MIP-1000 gas params
         let evm = MagnusEvm::new(EmptyDB::default(), evm_env_with_spec(MagnusHardfork::T1));
 
         // Verify gas params were applied (check a known T1 override)
@@ -438,10 +438,10 @@ mod tests {
     }
 
     /// Test that MagnusEvm respects the gas limit cap passed in via EvmEnv.
-    /// Note: The 30M [TIP-1000] gas cap is set in ConfigureEvm::evm_env(), not here.
+    /// Note: The 30M [MIP-1000] gas cap is set in ConfigureEvm::evm_env(), not here.
     /// This test verifies that MagnusEvm::new() preserves the cap from the input.
     ///
-    /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
+    /// [MIP-1000]: <https://docs.magnus.xyz/protocol/mips/mip-1000>
     #[test]
     fn test_tempo_evm_respects_gas_cap() {
         let mut env = evm_env_with_spec(MagnusHardfork::T1);
@@ -493,7 +493,7 @@ mod tests {
         let evm = MagnusEvm::new(EmptyDB::default(), evm_env_with_spec(MagnusHardfork::T1));
         let gas_params = &evm.ctx().cfg.gas_params;
 
-        // Verify TIP-1000 state creation cost increases
+        // Verify MIP-1000 state creation cost increases
         assert_eq!(
             gas_params.get(GasId::sstore_set_without_load_cost()),
             250_000,

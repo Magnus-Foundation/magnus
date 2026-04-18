@@ -1,4 +1,4 @@
-//! Tempo consensus implementation.
+//! Magnus consensus implementation.
 
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -34,10 +34,10 @@ pub const ALLOWED_FUTURE_BLOCK_TIME_MILLIS: u64 = 0;
 /// shared_gas_limit = block_gas_limit / MAGNUS_SHARED_GAS_DIVISOR
 pub const MAGNUS_SHARED_GAS_DIVISOR: u64 = 10;
 
-/// Maximum extra data size for Tempo blocks.
+/// Maximum extra data size for Magnus blocks.
 pub const MAGNUS_MAXIMUM_EXTRA_DATA_SIZE: usize = 10 * 1_024; // 10KiB
 
-/// Tempo consensus implementation.
+/// Magnus consensus implementation.
 #[derive(Debug, Clone)]
 pub struct MagnusConsensus {
     /// Inner Ethereum consensus.

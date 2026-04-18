@@ -420,8 +420,8 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
     use alloy::sol_types::SolCall;
-    use magnus_contracts::precompiles::{ITIP20, ITIP403Registry};
-    use magnus_precompiles::{TIP_FEE_MANAGER_ADDRESS, TIP403_REGISTRY_ADDRESS};
+    use magnus_contracts::precompiles::{IMIP20, IMIP403Registry};
+    use magnus_precompiles::{TIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS};
 
     reth_tracing::init_test_tracing();
 
@@ -456,20 +456,20 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
         calls: vec![
             // Call 1: create a whitelist policy
             Call {
-                to: TxKind::Call(TIP403_REGISTRY_ADDRESS),
+                to: TxKind::Call(MIP403_REGISTRY_ADDRESS),
                 value: U256::ZERO,
-                input: ITIP403Registry::createPolicyCall {
+                input: IMIP403Registry::createPolicyCall {
                     admin: admin_signer.address(),
-                    policyType: ITIP403Registry::PolicyType::WHITELIST,
+                    policyType: IMIP403Registry::PolicyType::WHITELIST,
                 }
                 .abi_encode()
                 .into(),
             },
             // Call 2: whitelist the chosen sender
             Call {
-                to: TxKind::Call(TIP403_REGISTRY_ADDRESS),
+                to: TxKind::Call(MIP403_REGISTRY_ADDRESS),
                 value: U256::ZERO,
-                input: ITIP403Registry::modifyPolicyWhitelistCall {
+                input: IMIP403Registry::modifyPolicyWhitelistCall {
                     policyId: new_policy_id,
                     account: whitelisted_addr,
                     allowed: true,
@@ -479,9 +479,9 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
             },
             // Call 3: whitelist the fee manager (recipient of fee transfers)
             Call {
-                to: TxKind::Call(TIP403_REGISTRY_ADDRESS),
+                to: TxKind::Call(MIP403_REGISTRY_ADDRESS),
                 value: U256::ZERO,
-                input: ITIP403Registry::modifyPolicyWhitelistCall {
+                input: IMIP403Registry::modifyPolicyWhitelistCall {
                     policyId: new_policy_id,
                     account: TIP_FEE_MANAGER_ADDRESS,
                     allowed: true,
@@ -493,7 +493,7 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
             Call {
                 to: TxKind::Call(DEFAULT_FEE_TOKEN),
                 value: U256::ZERO,
-                input: ITIP20::changeTransferPolicyIdCall {
+                input: IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: new_policy_id,
                 }
                 .abi_encode()

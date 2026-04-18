@@ -141,7 +141,7 @@ impl StablecoinDEXError {
         Self::IdenticalTokens(IStablecoinDEX::IdenticalTokens {})
     }
 
-    /// Creates an error when a token address is not a valid TIP20 token.
+    /// Creates an error when a token address is not a valid MIP20 token.
     pub const fn invalid_token() -> Self {
         Self::InvalidToken(IStablecoinDEX::InvalidToken {})
     }

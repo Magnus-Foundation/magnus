@@ -1,11 +1,11 @@
 # tempoup
 
-Official installer for [Tempo](https://tempo.xyz) - a blockchain for payments at scale.
+Official installer for [Magnus](https://magnus.xyz) - a blockchain for payments at scale.
 
 ## Quick Install
 
 ```bash
-curl -L https://tempo.xyz/install | bash
+curl -L https://magnus.xyz/install | bash
 ```
 
 ## Usage
@@ -26,7 +26,7 @@ tempoup --help           # Show help
 
 ## Installation Directory
 
-Default: `~/.tempo/bin/`
+Default: `~/.magnus/bin/`
 
 Customize with `MAGNUS_DIR` environment variable:
 ```bash
@@ -35,7 +35,7 @@ MAGNUS_DIR=/custom/path tempoup
 
 ## Updating
 
-### Update Tempo Binary
+### Update Magnus Binary
 
 Simply run tempoup again:
 
@@ -61,7 +61,7 @@ This will:
 ## Uninstalling
 
 ```bash
-rm -rf ~/.tempo
+rm -rf ~/.magnus
 ```
 
 Then remove the PATH export from your shell configuration file (`~/.zshenv`, `~/.bashrc`, `~/.config/fish/config.fish`, etc.).

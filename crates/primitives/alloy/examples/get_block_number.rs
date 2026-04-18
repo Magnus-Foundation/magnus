@@ -1,4 +1,4 @@
-//! Get the current block number from the Tempo network.
+//! Get the current block number from the Magnus network.
 //!
 //! Run with: `cargo run --example get_block_number`
 

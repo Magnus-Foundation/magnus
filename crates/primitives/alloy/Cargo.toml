@@ -1,6 +1,6 @@
 [package]
 name = "magnus-alloy"
-description = "Tempo extensions of Alloy"
+description = "Magnus extensions of Alloy"
 
 version = "1.6.0"
 edition.workspace = true

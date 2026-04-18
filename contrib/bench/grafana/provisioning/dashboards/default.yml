@@ -1,7 +1,7 @@
 apiVersion: 1
 
 providers:
-  - name: 'Tempo Benchmarks'
+  - name: 'Magnus Benchmarks'
     orgId: 1
     folder: ''
     folderUid: ''

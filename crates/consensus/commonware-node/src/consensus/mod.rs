@@ -1,4 +1,4 @@
-//! Mainly aliases to define consensus within tempo.
+//! Mainly aliases to define consensus within magnus.
 
 pub(crate) mod application;
 pub(crate) mod block;

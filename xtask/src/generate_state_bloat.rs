@@ -1,6 +1,6 @@
-//! State bloat generation tool for generating large TIP20 storage state files.
+//! State bloat generation tool for generating large MIP20 storage state files.
 //!
-//! Generates a binary file containing TIP20 storage slots (total_supply + balances)
+//! Generates a binary file containing MIP20 storage slots (total_supply + balances)
 //! that can be loaded during genesis initialization to create a bloated state.
 //!
 //! Uses chunked streaming to keep memory bounded regardless of target file size.
@@ -23,8 +23,8 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-use magnus_precompiles::tip20::tip20_slots;
-use magnus_primitives::transaction::TIP20_PAYMENT_PREFIX;
+use magnus_precompiles::mip20::mip20_slots;
+use magnus_primitives::transaction::MIP20_PAYMENT_PREFIX;
 
 /// Magic bytes for the state bloat binary format (8 bytes)
 const MAGIC: &[u8; 8] = b"TEMPOSB\x00";
@@ -51,7 +51,7 @@ pub(crate) struct GenerateStateBloat {
     size: u64,
 
     /// Token IDs to generate storage for (can be specified multiple times)
-    /// Uses reserved TIP20 addresses: 0x20C0...{token_id}
+    /// Uses reserved MIP20 addresses: 0x20C0...{token_id}
     #[arg(short, long, default_values_t = vec![0u64])]
     token: Vec<u64>,
 
@@ -145,7 +145,7 @@ impl GenerateStateBloat {
         let total_supply = balance_value * U256::from(total_accounts);
         let balance_bytes = balance_value.to_be_bytes::<32>();
         let total_supply_bytes = total_supply.to_be_bytes::<32>();
-        let total_supply_slot_bytes = tip20_slots::TOTAL_SUPPLY.to_be_bytes::<32>();
+        let total_supply_slot_bytes = mip20_slots::TOTAL_SUPPLY.to_be_bytes::<32>();
 
         // Step 4: Stream-write the binary file in chunks
         let file = File::create(&out).wrap_err("failed to create output file")?;
@@ -183,7 +183,7 @@ impl GenerateStateBloat {
                     } else {
                         derive_address_fast(&seed, i as u64)
                     };
-                    compute_mapping_slot(addr, tip20_slots::BALANCES).to_be_bytes::<32>()
+                    compute_mapping_slot(addr, mip20_slots::BALANCES).to_be_bytes::<32>()
                 })
                 .collect();
 
@@ -230,11 +230,11 @@ impl GenerateStateBloat {
     }
 }
 
-/// Compute a reserved TIP20 token address from a token ID.
-/// Reserved addresses use the TIP20 prefix with the token ID in the last 8 bytes.
+/// Compute a reserved MIP20 token address from a token ID.
+/// Reserved addresses use the MIP20 prefix with the token ID in the last 8 bytes.
 fn token_address(token_id: u64) -> Address {
     let mut bytes = [0u8; 20];
-    bytes[..12].copy_from_slice(&TIP20_PAYMENT_PREFIX);
+    bytes[..12].copy_from_slice(&MIP20_PAYMENT_PREFIX);
     bytes[12..].copy_from_slice(&token_id.to_be_bytes());
     Address::from(bytes)
 }
@@ -315,17 +315,17 @@ mod tests {
         let addr: Address = "0x1234567890123456789012345678901234567890"
             .parse()
             .unwrap();
-        let slot = compute_mapping_slot(addr, tip20_slots::BALANCES);
+        let slot = compute_mapping_slot(addr, mip20_slots::BALANCES);
 
         // The slot should be deterministic
-        let slot2 = compute_mapping_slot(addr, tip20_slots::BALANCES);
+        let slot2 = compute_mapping_slot(addr, mip20_slots::BALANCES);
         assert_eq!(slot, slot2);
 
         // Different addresses should produce different slots
         let other_addr: Address = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd"
             .parse()
             .unwrap();
-        let other_slot = compute_mapping_slot(other_addr, tip20_slots::BALANCES);
+        let other_slot = compute_mapping_slot(other_addr, mip20_slots::BALANCES);
         assert_ne!(slot, other_slot);
     }
 

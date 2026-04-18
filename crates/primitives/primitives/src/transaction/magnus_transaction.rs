@@ -14,7 +14,7 @@ use alloy_primitives::{Address, B256, Bytes, ChainId, Signature, TxKind, U256, k
 use alloy_rlp::{Buf, BufMut, Decodable, EMPTY_STRING_CODE, Encodable};
 use core::num::NonZeroU64;
 
-/// Tempo transaction type byte (0x76)
+/// Magnus transaction type byte (0x76)
 pub const MAGNUS_TX_TYPE_ID: u8 = 0x76;
 
 /// Magic byte for the fee payer signature
@@ -183,7 +183,7 @@ impl Decodable for Call {
     }
 }
 
-/// Tempo transaction following the Tempo spec.
+/// Magnus transaction following the Magnus spec.
 ///
 /// This transaction type supports:
 /// - Multiple signature types (secp256k1, P256, WebAuthn)
@@ -254,12 +254,12 @@ pub struct MagnusTransaction {
     /// The authorization must be signed with the root key, the tx can be signed by the Keychain signature.
     pub key_authorization: Option<SignedKeyAuthorization>,
 
-    /// Authorization list (EIP-7702 style with Tempo signatures)
+    /// Authorization list (EIP-7702 style with Magnus signatures)
     #[cfg_attr(feature = "serde", serde(rename = "aaAuthorizationList"))]
     pub magnus_authorization_list: Vec<MagnusSignedAuthorization>,
 }
 
-/// Validates the calls list structure for Tempo transactions.
+/// Validates the calls list structure for Magnus transactions.
 ///
 /// This is a shared validation function used by both `MagnusTransaction::validate()`
 /// and the revm handler's `validate_env()` to ensure consistent validation.

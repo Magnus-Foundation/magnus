@@ -159,7 +159,7 @@ mod tests {
             Some(&pk),
             &sk,
             Cursor::new(data),
-            Some("file:tempo-wallet-darwin-arm64\tversion:v1.0.0"),
+            Some("file:magnus-wallet-darwin-arm64\tversion:v1.0.0"),
             None,
         )
         .unwrap();
@@ -168,11 +168,11 @@ mod tests {
         let verify_pk = decode_public_key(&pk.to_base64()).unwrap();
         assert!(
             verify_signature(
-                "tempo-wallet",
+                "magnus-wallet",
                 data,
                 &sig_str,
                 &verify_pk,
-                &["file:tempo-wallet-darwin-arm64", "version:v1.0.0"],
+                &["file:magnus-wallet-darwin-arm64", "version:v1.0.0"],
             )
             .is_ok()
         );
@@ -186,7 +186,7 @@ mod tests {
             Some(&pk),
             &sk,
             Cursor::new(data),
-            Some("file:tempo-mpp-darwin-arm64\tversion:v1.0.0"),
+            Some("file:magnus-mpp-darwin-arm64\tversion:v1.0.0"),
             None,
         )
         .unwrap();
@@ -195,11 +195,11 @@ mod tests {
         let verify_pk = decode_public_key(&pk.to_base64()).unwrap();
         assert!(matches!(
             verify_signature(
-                "tempo-wallet",
+                "magnus-wallet",
                 data,
                 &sig_str,
                 &verify_pk,
-                &["file:tempo-wallet-darwin-arm64", "version:v1.0.0"],
+                &["file:magnus-wallet-darwin-arm64", "version:v1.0.0"],
             ),
             Err(InstallerError::TrustedCommentMismatch { .. })
         ));
@@ -213,7 +213,7 @@ mod tests {
             Some(&pk),
             &sk,
             Cursor::new(data),
-            Some("file:tempo-wallet-darwin-arm64\tversion:v1.0.0"),
+            Some("file:magnus-wallet-darwin-arm64\tversion:v1.0.0"),
             None,
         )
         .unwrap();
@@ -222,11 +222,11 @@ mod tests {
         let verify_pk = decode_public_key(&pk.to_base64()).unwrap();
         assert!(matches!(
             verify_signature(
-                "tempo-wallet",
+                "magnus-wallet",
                 data,
                 &sig_str,
                 &verify_pk,
-                &["file:tempo-wallet-darwin-arm64", "version:v2.0.0"],
+                &["file:magnus-wallet-darwin-arm64", "version:v2.0.0"],
             ),
             Err(InstallerError::TrustedCommentMismatch { .. })
         ));

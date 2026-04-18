@@ -1,6 +1,6 @@
 [package]
 name = "magnus"
-description = "Tempo node implementation"
+description = "Magnus node implementation"
 default-run = "magnus"
 
 version.workspace = true

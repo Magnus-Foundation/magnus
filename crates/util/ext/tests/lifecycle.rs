@@ -71,7 +71,7 @@ impl Fixture {
     }
 
     fn binary_path(&self, extension: &str) -> PathBuf {
-        self.bin_dir().join(format!("tempo-{extension}"))
+        self.bin_dir().join(format!("magnus-{extension}"))
     }
 
     /// Create a signed extension with a dummy binary and publish a manifest
@@ -100,10 +100,10 @@ impl Fixture {
         let ext_dir = self
             .base_dir
             .join("extensions")
-            .join(format!("tempo-{extension}"));
+            .join(format!("magnus-{extension}"));
         fs::create_dir_all(&ext_dir).unwrap();
 
-        let binary_content = format!("#!/bin/sh\necho tempo-{extension} {version}\n");
+        let binary_content = format!("#!/bin/sh\necho magnus-{extension} {version}\n");
         let binary_path = ext_dir.join(&platform_key);
         fs::write(&binary_path, &binary_content).unwrap();
 
@@ -139,7 +139,7 @@ impl Fixture {
 
         let manifest_json = serde_json::to_string_pretty(&manifest).unwrap();
         fs::write(ext_dir.join("manifest.json"), &manifest_json).unwrap();
-        // Also write a versioned manifest so `tempo add <ext> <version>` works.
+        // Also write a versioned manifest so `magnus add <ext> <version>` works.
         let v = version.strip_prefix('v').unwrap_or(version);
         let versioned_dir = ext_dir.join(format!("v{v}"));
         fs::create_dir_all(&versioned_dir).unwrap();
@@ -154,11 +154,11 @@ impl Fixture {
         let target_dir = self
             .base_dir
             .join("extensions")
-            .join(format!("tempo-{target_ext}"));
+            .join(format!("magnus-{target_ext}"));
         let source_dir = self
             .base_dir
             .join("extensions")
-            .join(format!("tempo-{source_ext}"));
+            .join(format!("magnus-{source_ext}"));
         fs::create_dir_all(&target_dir).unwrap();
 
         // Read the source binary and its signature from the source manifest.
@@ -198,10 +198,10 @@ impl Fixture {
         let ext_dir = self
             .base_dir
             .join("extensions")
-            .join(format!("tempo-{extension}"));
+            .join(format!("magnus-{extension}"));
         fs::create_dir_all(&ext_dir).unwrap();
 
-        let binary_content = format!("#!/bin/sh\necho tempo-{extension} {version}\n");
+        let binary_content = format!("#!/bin/sh\necho magnus-{extension} {version}\n");
         let binary_path = ext_dir.join(&platform_key);
         fs::write(&binary_path, &binary_content).unwrap();
 
@@ -233,10 +233,10 @@ impl Fixture {
         let ext_dir = self
             .base_dir
             .join("extensions")
-            .join(format!("tempo-{extension}"));
+            .join(format!("magnus-{extension}"));
         fs::create_dir_all(&ext_dir).unwrap();
 
-        let binary_content = format!("#!/bin/sh\necho tempo-{extension} {version}\n");
+        let binary_content = format!("#!/bin/sh\necho magnus-{extension} {version}\n");
 
         let sig_box = minisign::sign(
             Some(&self.pk),
@@ -345,7 +345,7 @@ fn platform_binary_name(extension: &str) -> String {
     } else {
         "unknown"
     };
-    format!("tempo-{extension}-{os}-{arch}")
+    format!("magnus-{extension}-{os}-{arch}")
 }
 
 fn sha256_hex(data: &[u8]) -> String {
@@ -362,7 +362,7 @@ fn add_installs_extension() {
     let fix = Fixture::new();
     fix.publish_extension("testpkg", "1.0.0");
 
-    let code = fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    let code = fix.run(&["magnus", "add", "testpkg"]).unwrap();
     assert_eq!(code, 0);
     assert!(fix.binary_path("testpkg").exists());
 }
@@ -373,7 +373,7 @@ fn add_dry_run_does_not_install() {
     let fix = Fixture::new();
     fix.publish_extension("testpkg", "1.0.0");
 
-    let code = fix.run(&["tempo", "add", "testpkg", "--dry-run"]).unwrap();
+    let code = fix.run(&["magnus", "add", "testpkg", "--dry-run"]).unwrap();
     assert_eq!(code, 0);
     assert!(!fix.binary_path("testpkg").exists());
 }
@@ -384,11 +384,11 @@ fn remove_deletes_binary() {
     let fix = Fixture::new();
     fix.publish_extension("testpkg", "1.0.0");
 
-    fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg"]).unwrap();
     assert!(fix.binary_path("testpkg").exists());
     assert!(fix.installed_version("testpkg").is_some());
 
-    let code = fix.run(&["tempo", "remove", "testpkg"]).unwrap();
+    let code = fix.run(&["magnus", "remove", "testpkg"]).unwrap();
     assert_eq!(code, 0);
     assert!(!fix.binary_path("testpkg").exists());
     assert!(
@@ -403,12 +403,12 @@ fn update_reinstalls_extension() {
     let fix = Fixture::new();
     fix.publish_extension("testpkg", "1.0.0");
 
-    fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg"]).unwrap();
     fix.record_installed_version("testpkg", "1.0.0");
     let before = fs::read(fix.binary_path("testpkg")).unwrap();
 
     fix.publish_extension("testpkg", "2.0.0");
-    fix.run(&["tempo", "update", "testpkg"]).unwrap();
+    fix.run(&["magnus", "update", "testpkg"]).unwrap();
 
     let after = fs::read(fix.binary_path("testpkg")).unwrap();
     assert_ne!(before, after, "binary should change after update");
@@ -419,7 +419,7 @@ fn add_rejects_invalid_extension_name() {
     let _lock = lock();
     let fix = Fixture::new();
 
-    let result = fix.run(&["tempo", "add", "../evil"]);
+    let result = fix.run(&["magnus", "add", "../evil"]);
     assert!(result.is_err());
 }
 
@@ -428,7 +428,7 @@ fn add_unknown_extension_fails_gracefully() {
     let _lock = lock();
     let fix = Fixture::new();
 
-    let result = fix.run(&["tempo", "add", "nonexistent"]);
+    let result = fix.run(&["magnus", "add", "nonexistent"]);
     assert!(result.is_err());
 }
 
@@ -438,12 +438,12 @@ fn add_with_explicit_manifest() {
     let fix = Fixture::new();
     fix.publish_extension("testpkg", "1.0.0");
 
-    let manifest_path = fix.base_dir.join("extensions/tempo-testpkg/manifest.json");
+    let manifest_path = fix.base_dir.join("extensions/magnus-testpkg/manifest.json");
     let manifest_url = format!("file://{}", manifest_path.display());
 
     let code = fix
         .run(&[
-            "tempo",
+            "magnus",
             "add",
             "testpkg",
             "--release-manifest",
@@ -463,22 +463,22 @@ fn full_lifecycle() {
 
     // 1. Install
     fix.publish_extension("lifecycle", "1.0.0");
-    assert_eq!(fix.run(&["tempo", "add", "lifecycle"]).unwrap(), 0);
+    assert_eq!(fix.run(&["magnus", "add", "lifecycle"]).unwrap(), 0);
     assert!(fix.binary_path("lifecycle").exists());
     fix.record_installed_version("lifecycle", "1.0.0");
 
     // 2. Update to newer version
     fix.publish_extension("lifecycle", "2.0.0");
-    assert_eq!(fix.run(&["tempo", "update", "lifecycle"]).unwrap(), 0);
+    assert_eq!(fix.run(&["magnus", "update", "lifecycle"]).unwrap(), 0);
     let content = fs::read_to_string(fix.binary_path("lifecycle")).unwrap();
     assert!(content.contains("2.0.0"));
 
     // 3. Remove
-    assert_eq!(fix.run(&["tempo", "remove", "lifecycle"]).unwrap(), 0);
+    assert_eq!(fix.run(&["magnus", "remove", "lifecycle"]).unwrap(), 0);
     assert!(!fix.binary_path("lifecycle").exists());
 
     // 4. Re-add
-    assert_eq!(fix.run(&["tempo", "add", "lifecycle"]).unwrap(), 0);
+    assert_eq!(fix.run(&["magnus", "add", "lifecycle"]).unwrap(), 0);
     assert!(fix.binary_path("lifecycle").exists());
 }
 
@@ -491,11 +491,11 @@ fn update_rejects_downgrade() {
 
     // Install v2.0.0, then try to "update" to v1.0.0.
     fix.publish_extension("testpkg", "2.0.0");
-    fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg"]).unwrap();
     fix.record_installed_version("testpkg", "2.0.0");
 
     fix.publish_extension("testpkg", "1.0.0");
-    fix.run(&["tempo", "update", "testpkg"]).unwrap();
+    fix.run(&["magnus", "update", "testpkg"]).unwrap();
 
     // Binary should still be v2.0.0 content.
     let content = fs::read_to_string(fix.binary_path("testpkg")).unwrap();
@@ -511,11 +511,11 @@ fn update_skips_same_version() {
     let fix = Fixture::new();
 
     fix.publish_extension("testpkg", "1.0.0");
-    fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg"]).unwrap();
     fix.record_installed_version("testpkg", "1.0.0");
 
     // "Update" when manifest has the same version — should be a no-op.
-    let code = fix.run(&["tempo", "update", "testpkg"]).unwrap();
+    let code = fix.run(&["magnus", "update", "testpkg"]).unwrap();
     assert_eq!(code, 0);
 }
 
@@ -525,12 +525,12 @@ fn update_normalizes_v_prefix() {
     let fix = Fixture::new();
 
     fix.publish_extension("testpkg", "v2.0.0");
-    fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg"]).unwrap();
     fix.record_installed_version("testpkg", "v2.0.0");
 
     // Manifest says "2.0.0" (no v prefix) — same version, should skip.
     fix.publish_extension("testpkg", "2.0.0");
-    fix.run(&["tempo", "update", "testpkg"]).unwrap();
+    fix.run(&["magnus", "update", "testpkg"]).unwrap();
 
     let content = fs::read_to_string(fix.binary_path("testpkg")).unwrap();
     assert!(
@@ -546,12 +546,12 @@ fn update_non_semver_different_version_reinstalls() {
 
     // Install with a non-semver version string.
     fix.publish_extension("testpkg", "nightly-2025-01-01");
-    fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg"]).unwrap();
     fix.record_installed_version("testpkg", "nightly-2025-01-01");
 
     // Publish a different non-semver version — should reinstall.
     fix.publish_extension("testpkg", "nightly-2025-03-09");
-    fix.run(&["tempo", "update", "testpkg"]).unwrap();
+    fix.run(&["magnus", "update", "testpkg"]).unwrap();
 
     let content = fs::read_to_string(fix.binary_path("testpkg")).unwrap();
     assert!(
@@ -566,11 +566,11 @@ fn update_non_semver_same_version_skips() {
     let fix = Fixture::new();
 
     fix.publish_extension("testpkg", "nightly-2025-01-01");
-    fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg"]).unwrap();
     fix.record_installed_version("testpkg", "nightly-2025-01-01");
 
     // Same non-semver version — should be a no-op.
-    let code = fix.run(&["tempo", "update", "testpkg"]).unwrap();
+    let code = fix.run(&["magnus", "update", "testpkg"]).unwrap();
     assert_eq!(code, 0);
 }
 
@@ -586,11 +586,11 @@ fn tampered_binary_rejected() {
     let platform_key = platform_binary_name("tampered");
     let binary_path = fix
         .base_dir
-        .join("extensions/tempo-tampered")
+        .join("extensions/magnus-tampered")
         .join(&platform_key);
     fs::write(&binary_path, "TAMPERED CONTENT").unwrap();
 
-    let result = fix.run(&["tempo", "add", "tampered"]);
+    let result = fix.run(&["magnus", "add", "tampered"]);
     assert!(result.is_err(), "tampered binary should be rejected");
     assert!(!fix.binary_path("tampered").exists());
 }
@@ -605,7 +605,7 @@ fn wrong_key_rejected() {
     let other_kp = KeyPair::generate_unencrypted_keypair().unwrap();
     unsafe { env::set_var("MAGNUS_EXT_PUBLIC_KEY", other_kp.pk.to_base64()) };
 
-    let result = fix.run(&["tempo", "add", "testpkg"]);
+    let result = fix.run(&["magnus", "add", "testpkg"]);
     assert!(result.is_err(), "wrong key should be rejected");
     assert!(!fix.binary_path("testpkg").exists());
 }
@@ -616,7 +616,7 @@ fn missing_signature_rejected() {
     let fix = Fixture::new();
     fix.publish_unsigned("nosig", "1.0.0");
 
-    let result = fix.run(&["tempo", "add", "nosig"]);
+    let result = fix.run(&["magnus", "add", "nosig"]);
     assert!(result.is_err(), "unsigned binary should be rejected");
     assert!(!fix.binary_path("nosig").exists());
 }
@@ -632,11 +632,11 @@ fn cross_extension_substitution_rejected() {
     fix.publish_extension("mpp", "1.0.0");
 
     // Create a wallet manifest that points to the mpp binary (with mpp's
-    // valid signature). The trusted comment says "file:tempo-mpp-..." but
-    // the installer expects "file:tempo-wallet-...".
+    // valid signature). The trusted comment says "file:magnus-mpp-..." but
+    // the installer expects "file:magnus-wallet-...".
     fix.publish_cross_substitution("wallet", "1.0.0", "mpp");
 
-    let result = fix.run(&["tempo", "add", "wallet"]);
+    let result = fix.run(&["magnus", "add", "wallet"]);
     assert!(
         result.is_err(),
         "cross-extension substitution should be rejected"
@@ -652,7 +652,7 @@ fn wrong_trusted_comment_rejected() {
     // Publish with an incorrect trusted comment.
     fix.publish_extension_with_comment("testpkg", "1.0.0", "file:wrong-name");
 
-    let result = fix.run(&["tempo", "add", "testpkg"]);
+    let result = fix.run(&["magnus", "add", "testpkg"]);
     assert!(result.is_err(), "wrong trusted comment should be rejected");
     assert!(!fix.binary_path("testpkg").exists());
 }
@@ -665,7 +665,7 @@ fn http_download_url_rejected() {
     let fix = Fixture::new();
     fix.publish_with_http_url("httptest", "1.0.0");
 
-    let result = fix.run(&["tempo", "add", "httptest"]);
+    let result = fix.run(&["magnus", "add", "httptest"]);
     assert!(result.is_err(), "http:// download URL should be rejected");
     assert!(!fix.binary_path("httptest").exists());
 }
@@ -679,7 +679,7 @@ fn failed_update_preserves_existing_binary() {
 
     // Install a good v1.
     fix.publish_extension("preserved", "1.0.0");
-    fix.run(&["tempo", "add", "preserved"]).unwrap();
+    fix.run(&["magnus", "add", "preserved"]).unwrap();
     fix.record_installed_version("preserved", "1.0.0");
     let original = fs::read(fix.binary_path("preserved")).unwrap();
 
@@ -688,12 +688,12 @@ fn failed_update_preserves_existing_binary() {
     let platform_key = platform_binary_name("preserved");
     let binary_path = fix
         .base_dir
-        .join("extensions/tempo-preserved")
+        .join("extensions/magnus-preserved")
         .join(&platform_key);
     fs::write(&binary_path, "TAMPERED").unwrap();
 
     // Update should fail.
-    let _ = fix.run(&["tempo", "update", "preserved"]);
+    let _ = fix.run(&["magnus", "update", "preserved"]);
 
     // Original binary must survive.
     assert!(fix.binary_path("preserved").exists());
@@ -709,7 +709,7 @@ fn add_rejects_http_manifest_url() {
     let fix = Fixture::new();
 
     let result = fix.run(&[
-        "tempo",
+        "magnus",
         "add",
         "testpkg",
         "--release-manifest",
@@ -727,7 +727,7 @@ fn add_rejects_ftp_manifest_url() {
     let fix = Fixture::new();
 
     let result = fix.run(&[
-        "tempo",
+        "magnus",
         "add",
         "testpkg",
         "--release-manifest",
@@ -745,7 +745,7 @@ fn add_rejects_data_manifest_url() {
     let fix = Fixture::new();
 
     let result = fix.run(&[
-        "tempo",
+        "magnus",
         "add",
         "testpkg",
         "--release-manifest",
@@ -769,11 +769,11 @@ fn failed_install_does_not_pollute_state() {
     let platform_key = platform_binary_name("statepkg");
     let binary_path = fix
         .base_dir
-        .join("extensions/tempo-statepkg")
+        .join("extensions/magnus-statepkg")
         .join(&platform_key);
     fs::write(&binary_path, "TAMPERED").unwrap();
 
-    let _ = fix.run(&["tempo", "add", "statepkg"]);
+    let _ = fix.run(&["magnus", "add", "statepkg"]);
 
     // extensions.json should either not exist or not contain statepkg.
     let state_path = fix.home.join("extensions.json");
@@ -798,7 +798,7 @@ fn remove_nonexistent_extension_succeeds() {
     let fix = Fixture::new();
 
     // Removing an extension that was never installed should succeed.
-    let code = fix.run(&["tempo", "remove", "ghost"]).unwrap();
+    let code = fix.run(&["magnus", "remove", "ghost"]).unwrap();
     assert_eq!(code, 0);
 }
 
@@ -808,11 +808,11 @@ fn remove_dry_run_preserves_binary() {
     let fix = Fixture::new();
 
     fix.publish_extension("drytest", "1.0.0");
-    fix.run(&["tempo", "add", "drytest"]).unwrap();
+    fix.run(&["magnus", "add", "drytest"]).unwrap();
     assert!(fix.binary_path("drytest").exists());
 
     let code = fix
-        .run(&["tempo", "remove", "drytest", "--dry-run"])
+        .run(&["magnus", "remove", "drytest", "--dry-run"])
         .unwrap();
     assert_eq!(code, 0);
     assert!(
@@ -831,14 +831,14 @@ fn remove_clears_registry_entry() {
     let fix = Fixture::new();
 
     fix.publish_extension("regtest", "1.0.0");
-    fix.run(&["tempo", "add", "regtest"]).unwrap();
+    fix.run(&["magnus", "add", "regtest"]).unwrap();
     assert_eq!(
         fix.installed_version("regtest").as_deref(),
         Some("1.0.0"),
         "add should record version in registry"
     );
 
-    fix.run(&["tempo", "remove", "regtest"]).unwrap();
+    fix.run(&["magnus", "remove", "regtest"]).unwrap();
     assert!(
         fix.installed_version("regtest").is_none(),
         "remove should clear the registry entry so list no longer shows it"
@@ -846,7 +846,7 @@ fn remove_clears_registry_entry() {
 
     // Re-add should work cleanly after remove.
     fix.publish_extension("regtest", "2.0.0");
-    fix.run(&["tempo", "add", "regtest"]).unwrap();
+    fix.run(&["magnus", "add", "regtest"]).unwrap();
     assert_eq!(
         fix.installed_version("regtest").as_deref(),
         Some("2.0.0"),
@@ -862,16 +862,16 @@ fn update_with_explicit_manifest() {
     let fix = Fixture::new();
 
     fix.publish_extension("testpkg", "1.0.0");
-    fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg"]).unwrap();
     fix.record_installed_version("testpkg", "1.0.0");
 
     fix.publish_extension("testpkg", "2.0.0");
-    let manifest_path = fix.base_dir.join("extensions/tempo-testpkg/manifest.json");
+    let manifest_path = fix.base_dir.join("extensions/magnus-testpkg/manifest.json");
     let manifest_url = format!("file://{}", manifest_path.display());
 
     let code = fix
         .run(&[
-            "tempo",
+            "magnus",
             "update",
             "testpkg",
             "--release-manifest",
@@ -896,7 +896,7 @@ fn update_rejects_invalid_extension_name() {
     let _lock = lock();
     let fix = Fixture::new();
 
-    let result = fix.run(&["tempo", "update", "../evil"]);
+    let result = fix.run(&["magnus", "update", "../evil"]);
     assert!(
         result.is_err(),
         "update should reject invalid extension names"
@@ -911,7 +911,7 @@ fn add_with_version_pins_extension() {
     let fix = Fixture::new();
     fix.publish_extension("testpkg", "1.0.0");
 
-    let code = fix.run(&["tempo", "add", "testpkg", "1.0.0"]).unwrap();
+    let code = fix.run(&["magnus", "add", "testpkg", "1.0.0"]).unwrap();
     assert_eq!(code, 0);
     assert!(fix.is_pinned("testpkg"), "explicit version should pin");
 }
@@ -922,7 +922,7 @@ fn add_without_version_does_not_pin() {
     let fix = Fixture::new();
     fix.publish_extension("testpkg", "1.0.0");
 
-    let code = fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    let code = fix.run(&["magnus", "add", "testpkg"]).unwrap();
     assert_eq!(code, 0);
     assert!(!fix.is_pinned("testpkg"), "no version should not pin");
 }
@@ -934,12 +934,12 @@ fn update_unpins_extension() {
 
     // Install pinned v1.
     fix.publish_extension("testpkg", "1.0.0");
-    fix.run(&["tempo", "add", "testpkg", "1.0.0"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg", "1.0.0"]).unwrap();
     assert!(fix.is_pinned("testpkg"));
 
     // Update to latest — should unpin.
     fix.publish_extension("testpkg", "2.0.0");
-    fix.run(&["tempo", "update", "testpkg"]).unwrap();
+    fix.run(&["magnus", "update", "testpkg"]).unwrap();
     assert!(!fix.is_pinned("testpkg"), "update should unpin");
 }
 
@@ -949,7 +949,7 @@ fn add_records_version_in_registry() {
     let fix = Fixture::new();
     fix.publish_extension("testpkg", "1.0.0");
 
-    fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg"]).unwrap();
     assert_eq!(
         fix.installed_version("testpkg").as_deref(),
         Some("1.0.0"),
@@ -966,10 +966,10 @@ fn list_shows_installed_extensions() {
 
     fix.publish_extension("alpha", "1.0.0");
     fix.publish_extension("beta", "2.0.0");
-    fix.run(&["tempo", "add", "alpha"]).unwrap();
-    fix.run(&["tempo", "add", "beta"]).unwrap();
+    fix.run(&["magnus", "add", "alpha"]).unwrap();
+    fix.run(&["magnus", "add", "beta"]).unwrap();
 
-    let code = fix.run(&["tempo", "list"]).unwrap();
+    let code = fix.run(&["magnus", "list"]).unwrap();
     assert_eq!(code, 0);
 }
 
@@ -978,7 +978,7 @@ fn list_succeeds_with_no_extensions() {
     let _lock = lock();
     let fix = Fixture::new();
 
-    let code = fix.run(&["tempo", "list"]).unwrap();
+    let code = fix.run(&["magnus", "list"]).unwrap();
     assert_eq!(code, 0);
 }
 
@@ -988,10 +988,10 @@ fn list_shows_pinned_status() {
     let fix = Fixture::new();
 
     fix.publish_extension("testpkg", "1.0.0");
-    fix.run(&["tempo", "add", "testpkg", "1.0.0"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg", "1.0.0"]).unwrap();
     assert!(fix.is_pinned("testpkg"));
 
-    let code = fix.run(&["tempo", "list"]).unwrap();
+    let code = fix.run(&["magnus", "list"]).unwrap();
     assert_eq!(code, 0);
 }
 
@@ -1006,7 +1006,7 @@ fn corrupt_registry_blocks_add() {
     // Write invalid JSON to the registry file.
     fs::write(fix.home.join("extensions.json"), "NOT VALID JSON").unwrap();
 
-    let err = fix.run(&["tempo", "add", "testpkg"]).unwrap_err();
+    let err = fix.run(&["magnus", "add", "testpkg"]).unwrap_err();
     let msg = err.to_string();
     assert!(
         msg.contains("registry corrupt"),
@@ -1019,12 +1019,12 @@ fn corrupt_registry_blocks_update() {
     let _lock = lock();
     let fix = Fixture::new();
     fix.publish_extension("testpkg", "1.0.0");
-    fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg"]).unwrap();
 
     // Corrupt the registry after a successful install.
     fs::write(fix.home.join("extensions.json"), "{bad json}").unwrap();
 
-    let err = fix.run(&["tempo", "update", "testpkg"]).unwrap_err();
+    let err = fix.run(&["magnus", "update", "testpkg"]).unwrap_err();
     let msg = err.to_string();
     assert!(msg.contains("registry corrupt"), "got: {msg}");
 }
@@ -1036,7 +1036,7 @@ fn corrupt_registry_blocks_update_all() {
 
     fs::write(fix.home.join("extensions.json"), "<<<").unwrap();
 
-    let err = fix.run(&["tempo", "update"]).unwrap_err();
+    let err = fix.run(&["magnus", "update"]).unwrap_err();
     let msg = err.to_string();
     assert!(msg.contains("registry corrupt"), "got: {msg}");
 }
@@ -1046,11 +1046,11 @@ fn corrupt_registry_blocks_remove() {
     let _lock = lock();
     let fix = Fixture::new();
     fix.publish_extension("testpkg", "1.0.0");
-    fix.run(&["tempo", "add", "testpkg"]).unwrap();
+    fix.run(&["magnus", "add", "testpkg"]).unwrap();
 
     fs::write(fix.home.join("extensions.json"), "oops").unwrap();
 
-    let err = fix.run(&["tempo", "remove", "testpkg"]).unwrap_err();
+    let err = fix.run(&["magnus", "remove", "testpkg"]).unwrap_err();
     let msg = err.to_string();
     assert!(msg.contains("registry corrupt"), "got: {msg}");
 }
@@ -1062,7 +1062,7 @@ fn corrupt_registry_blocks_list() {
 
     fs::write(fix.home.join("extensions.json"), "~").unwrap();
 
-    let err = fix.run(&["tempo", "list"]).unwrap_err();
+    let err = fix.run(&["magnus", "list"]).unwrap_err();
     let msg = err.to_string();
     assert!(msg.contains("registry corrupt"), "got: {msg}");
 }
@@ -1074,7 +1074,7 @@ fn corrupt_registry_error_contains_path() {
 
     fs::write(fix.home.join("extensions.json"), "garbage").unwrap();
 
-    let err = fix.run(&["tempo", "list"]).unwrap_err();
+    let err = fix.run(&["magnus", "list"]).unwrap_err();
     let msg = err.to_string();
     let expected = fix.home.join("extensions.json").display().to_string();
     assert!(
@@ -1089,16 +1089,16 @@ fn missing_registry_allows_all_commands() {
     let fix = Fixture::new();
 
     // No extensions.json exists — all commands should succeed.
-    assert_eq!(fix.run(&["tempo", "list"]).unwrap(), 0);
-    assert_eq!(fix.run(&["tempo", "update"]).unwrap(), 0);
+    assert_eq!(fix.run(&["magnus", "list"]).unwrap(), 0);
+    assert_eq!(fix.run(&["magnus", "update"]).unwrap(), 0);
 
     // Add should work fine with no prior registry.
     fix.publish_extension("testpkg", "1.0.0");
-    assert_eq!(fix.run(&["tempo", "add", "testpkg"]).unwrap(), 0);
+    assert_eq!(fix.run(&["magnus", "add", "testpkg"]).unwrap(), 0);
     assert_eq!(fix.installed_version("testpkg").as_deref(), Some("1.0.0"));
 
     // Remove should also work.
-    assert_eq!(fix.run(&["tempo", "remove", "testpkg"]).unwrap(), 0);
+    assert_eq!(fix.run(&["magnus", "remove", "testpkg"]).unwrap(), 0);
 }
 
 #[test]
@@ -1115,6 +1115,6 @@ fn corrupt_registry_during_auto_install_is_non_fatal() {
 
     // The command doesn't error — it installs the binary, fails to record in
     // the registry, and the error is swallowed by handle_extension's catch-all.
-    let code = fix.run(&["tempo", "testpkg"]).unwrap();
+    let code = fix.run(&["magnus", "testpkg"]).unwrap();
     assert_eq!(code, 1, "should fall through to 'not found' hint");
 }

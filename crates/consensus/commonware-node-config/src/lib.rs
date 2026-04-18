@@ -1,4 +1,4 @@
-//! Definitions to read and write a tempo consensus configuration.
+//! Definitions to read and write a magnus consensus configuration.
 
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]

@@ -2,7 +2,7 @@ use reth_ethereum::node::core::version::RethCliVersionConsts;
 use reth_node_core::version::try_init_version_metadata;
 use std::{borrow::Cow, env};
 
-/// Sets version information for Tempo globally.
+/// Sets version information for Magnus globally.
 ///
 /// The version information is read by the CLI.
 pub fn init_version_metadata() {
@@ -10,7 +10,7 @@ pub fn init_version_metadata() {
         .expect("Version metadata should be generated in `build.rs`");
 }
 
-/// The version information for Tempo.
+/// The version information for Magnus.
 pub fn version_metadata() -> RethCliVersionConsts {
     RethCliVersionConsts {
         name_client: Cow::Borrowed("Magnus"),
@@ -37,5 +37,5 @@ pub fn version_metadata() -> RethCliVersionConsts {
 }
 
 fn extra_data() -> String {
-    format!("tempo/v{}/{}", env!("CARGO_PKG_VERSION"), env::consts::OS)
+    format!("magnus/v{}/{}", env!("CARGO_PKG_VERSION"), env::consts::OS)
 }

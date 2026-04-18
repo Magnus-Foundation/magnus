@@ -13,7 +13,7 @@ pub trait MagnusAdminApi {
     async fn validator_key(&self) -> RpcResult<Option<B256>>;
 }
 
-/// Tempo-specific `admin_` namespace extensions.
+/// Magnus-specific `admin_` namespace extensions.
 #[derive(Debug, Clone)]
 pub struct MagnusAdminApi {
     validator_key: Option<B256>,

@@ -65,7 +65,7 @@ const RESERVED: &[&str] = &["address", "storage", "msg_sender"];
 ///
 /// ```ignore
 /// #[contract]
-/// pub struct TIP20Token {
+/// pub struct MIP20Token {
 ///     pub name: String,
 ///     pub symbol: String,
 ///     total_supply: U256,

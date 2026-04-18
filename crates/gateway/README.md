@@ -6,4 +6,4 @@ gateway registry, fiat rail integrations (VietQR, M-Pesa, UPI, PIX,
 etc.), and settlement attestation.
 
 Implementation is a follow-up spec. Do not add code here as part of the
-Tempo → Magnus rename refactor.
+Magnus rename refactor.

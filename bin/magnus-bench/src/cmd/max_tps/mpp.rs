@@ -110,7 +110,7 @@ pub(super) async fn setup(
             let provider = provider.clone();
             let owner = signer.address();
             async move {
-                let token = ITIP20Instance::new(fee_token, provider);
+                let token = IMIP20Instance::new(fee_token, provider);
                 let allowance = token.allowance(owner, channel_address).call().await.ok()?;
                 if allowance == U256::ZERO {
                     Some(Box::pin(

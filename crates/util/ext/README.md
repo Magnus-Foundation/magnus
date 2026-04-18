@@ -1,16 +1,16 @@
-# tempo-ext
+# magnus-ext
 
-Extension dispatch and lifecycle management for the Tempo CLI.
+Extension dispatch and lifecycle management for the Magnus CLI.
 
-When a user runs `tempo wallet`, this crate locates the `tempo-wallet` binary, auto-installs it if missing, and dispatches the command. Built-in subcommands (`add`, `update`, `remove`) manage extension installation with signature verification and downgrade prevention.
+When a user runs `magnus wallet`, this crate locates the `magnus-wallet` binary, auto-installs it if missing, and dispatches the command. Built-in subcommands (`add`, `update`, `remove`) manage extension installation with signature verification and downgrade prevention.
 
 ## Architecture
 
 ```
-tempo <extension> [args...]     →  find or auto-install binary, then exec
-tempo add <extension> [version] →  download, verify, install
-tempo update <extension>        →  install only if manifest version is newer
-tempo remove <extension>        →  delete binary and skill files
+magnus <extension> [args...]     →  find or auto-install binary, then exec
+magnus add <extension> [version] →  download, verify, install
+magnus update <extension>        →  install only if manifest version is newer
+magnus remove <extension>        →  delete binary and skill files
 ```
 
 **Modules:**
@@ -24,8 +24,8 @@ tempo remove <extension>        →  delete binary and skill files
 Extensions are published as a JSON manifest at a well-known URL:
 
 ```
-https://cli.tempo.xyz/extensions/tempo-{name}/manifest.json         # latest
-https://cli.tempo.xyz/extensions/tempo-{name}/v{version}/manifest.json  # pinned
+https://cli.magnus.xyz/extensions/magnus-{name}/manifest.json         # latest
+https://cli.magnus.xyz/extensions/magnus-{name}/v{version}/manifest.json  # pinned
 ```
 
 Schema:
@@ -34,8 +34,8 @@ Schema:
 {
   "version": "1.2.0",
   "binaries": {
-    "tempo-wallet-darwin-arm64": {
-      "url": "https://cdn.example.com/tempo-wallet-darwin-arm64",
+    "magnus-wallet-darwin-arm64": {
+      "url": "https://cdn.example.com/magnus-wallet-darwin-arm64",
       "sha256": "b94d27b9...",
       "signature": "untrusted comment: ...\nRWT..."
     }
@@ -46,7 +46,7 @@ Schema:
 }
 ```
 
-Binary keys follow the `tempo-{name}-{os}-{arch}` convention (`darwin`/`linux`/`windows`, `arm64`/`amd64`). The `skill`, `skill_sha256`, and `skill_signature` fields are optional.
+Binary keys follow the `magnus-{name}-{os}-{arch}` convention (`darwin`/`linux`/`windows`, `arm64`/`amd64`). The `skill`, `skill_sha256`, and `skill_signature` fields are optional.
 
 ## Security
 
@@ -58,14 +58,14 @@ Every binary and skill file must have a valid [minisign](https://jedisct1.github
 
 After signature verification, the trusted comment is checked against the expected artifact identity:
 
-- Binaries: `file:tempo-{name}-{os}-{arch}`
-- Skills: `skill:tempo-{name}`
+- Binaries: `file:magnus-{name}-{os}-{arch}`
+- Skills: `skill:magnus-{name}`
 
 This prevents an attacker from taking a validly-signed binary for one extension and substituting it into another extension's manifest.
 
 ### Downgrade prevention
 
-`tempo update` only installs if the manifest version is strictly newer (semver comparison). Non-semver versions fall back to string equality — skip if identical, reinstall if different.
+`magnus update` only installs if the manifest version is strictly newer (semver comparison). Non-semver versions fall back to string equality — skip if identical, reinstall if different.
 
 ### URL scheme enforcement
 
@@ -81,7 +81,7 @@ Binary and manifest download URLs must use `https://` or `file://`. Any other sc
 ## Testing
 
 ```bash
-cargo test -p tempo-ext
+cargo test -p magnus-ext
 ```
 
 Integration tests in `tests/lifecycle.rs` exercise the full add → update → remove lifecycle against locally-signed binaries using `file://` URLs. No network access required.

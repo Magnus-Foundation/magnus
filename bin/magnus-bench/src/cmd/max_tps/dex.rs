@@ -2,7 +2,7 @@ use super::*;
 use alloy::providers::DynProvider;
 use indicatif::ProgressIterator;
 use magnus_contracts::precompiles::{IStablecoinDEX, PATH_USD_ADDRESS};
-use magnus_precompiles::tip20::U128_MAX;
+use magnus_precompiles::mip20::U128_MAX;
 
 /// This method performs a one-time setup for sending a lot of transactions:
 /// * Deploys the specified number of user tokens.
@@ -21,7 +21,7 @@ pub(super) async fn setup(
         .ok_or_eyre("No signer providers found")?;
     let caller = signer.address();
 
-    info!(user_tokens, "Creating TIP-20 tokens");
+    info!(user_tokens, "Creating MIP-20 tokens");
     let progress = ProgressBar::new(user_tokens as u64 + 1);
     // Create quote token
     let quote_token = setup_test_token(provider.clone(), caller, PATH_USD_ADDRESS).await?;
@@ -70,7 +70,7 @@ pub(super) async fn setup(
 
     // Mint user tokens to each signer
     let mint_amount = U128_MAX / U256::from(signer_providers.len());
-    info!(%mint_amount, "Minting TIP-20 tokens");
+    info!(%mint_amount, "Minting MIP-20 tokens");
     join_all(
         signer_providers
             .iter()
@@ -89,7 +89,7 @@ pub(super) async fn setup(
         max_concurrent_transactions,
     )
     .await
-    .context("Failed to mint TIP-20 tokens")?;
+    .context("Failed to mint MIP-20 tokens")?;
 
     // Approve for each signer quote token and each user token to spend by exchange
     info!("Approving tokens");
@@ -98,7 +98,7 @@ pub(super) async fn setup(
             .iter()
             .flat_map(|(_, provider)| {
                 all_token_addresses.iter().copied().map(move |token| {
-                    let token = ITIP20Instance::new(token, provider.clone());
+                    let token = IMIP20Instance::new(token, provider.clone());
                     Box::pin(async move {
                         let tx = token.approve(STABLECOIN_DEX_ADDRESS, U256::MAX);
                         tx.send().await
@@ -110,7 +110,7 @@ pub(super) async fn setup(
         max_concurrent_transactions,
     )
     .await
-    .context("Failed to approve TIP-20 tokens")?;
+    .context("Failed to approve MIP-20 tokens")?;
 
     // Place flip orders of `order_amount` with tick `tick_over` and flip tick `tick_under` for each signer and each token
     let order_amount = 1000000000000u128;
@@ -141,15 +141,15 @@ pub(super) async fn setup(
     Ok((*quote_token.address(), user_token_addresses))
 }
 
-/// Creates a test TIP20 token with issuer role granted to the provided address.
+/// Creates a test MIP20 token with issuer role granted to the provided address.
 async fn setup_test_token(
     provider: DynProvider<MagnusNetwork>,
     admin: Address,
     quote_token: Address,
-) -> eyre::Result<ITIP20Instance<DynProvider<MagnusNetwork>, MagnusNetwork>>
+) -> eyre::Result<IMIP20Instance<DynProvider<MagnusNetwork>, MagnusNetwork>>
 where
 {
-    let factory = ITIP20Factory::new(TIP20_FACTORY_ADDRESS, provider.clone());
+    let factory = IMIP20Factory::new(MIP20_FACTORY_ADDRESS, provider.clone());
     let salt = alloy::primitives::B256::random();
     let receipt = factory
         .createToken(
@@ -165,14 +165,14 @@ where
         .get_receipt()
         .await?;
     let event = receipt
-        .decoded_log::<ITIP20Factory::TokenCreated>()
+        .decoded_log::<IMIP20Factory::TokenCreated>()
         .ok_or_eyre("Token creation event not found")?;
     assert_receipt(receipt)
         .await
-        .context("Failed to create TIP-20 token")?;
+        .context("Failed to create MIP-20 token")?;
 
     let token_addr = event.token;
-    let token = ITIP20::new(token_addr, provider.clone());
+    let token = IMIP20::new(token_addr, provider.clone());
     let roles = IRolesAuth::new(*token.address(), provider);
     let grant_role_receipt = roles
         .grantRole(*ISSUER_ROLE, admin)

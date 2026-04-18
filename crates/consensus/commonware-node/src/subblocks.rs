@@ -96,7 +96,7 @@ pub(crate) struct Actor<TContext> {
     time_to_build_subblock: Duration,
     /// How often to broadcast subblocks to the current proposer.
     subblock_broadcast_interval: Duration,
-    /// The epoch strategy used by tempo.
+    /// The epoch strategy used by magnus.
     epoch_strategy: FixedEpocher,
 
     /// Current consensus tip. Includes highest observed round, digest and certificate.

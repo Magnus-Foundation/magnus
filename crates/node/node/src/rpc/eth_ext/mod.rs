@@ -9,7 +9,7 @@ pub use transactions::TransactionsFilter;
 
 #[rpc(server, namespace = "eth")]
 pub trait MagnusEthExtApi {
-    /// Gets paginated transactions on Tempo with flexible filtering and sorting.
+    /// Gets paginated transactions on Magnus with flexible filtering and sorting.
     ///
     /// Uses cursor-based pagination for stable iteration through transactions.
     #[method(name = "getTransactions")]

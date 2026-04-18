@@ -3,7 +3,7 @@
 //! Run with: `cargo run --example get_balance`
 
 use alloy::{primitives::address, providers::ProviderBuilder};
-use magnus_alloy::{MagnusNetwork, contracts::precompiles::ITIP20};
+use magnus_alloy::{MagnusNetwork, contracts::precompiles::IMIP20};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .connect(&std::env::var("RPC_URL").expect("No RPC URL set"))
         .await?;
 
-    let balance = ITIP20::new(
+    let balance = IMIP20::new(
         address!("0x20c0000000000000000000000000000000000001"), // Alpha USD
         &provider,
     )

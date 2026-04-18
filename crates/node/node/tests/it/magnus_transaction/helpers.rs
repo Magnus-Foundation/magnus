@@ -1,4 +1,4 @@
-//! Shared helper functions for Tempo transaction integration tests.
+//! Shared helper functions for Magnus transaction integration tests.
 //!
 //! Provides transaction construction, signing (secp256k1 / P256 / WebAuthn),
 //! key authorization, funding, and assertion utilities used by both the
@@ -23,7 +23,7 @@ use reth_transaction_pool::TransactionPool;
 use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 use magnus_contracts::precompiles::DEFAULT_FEE_TOKEN;
 use magnus_node::rpc::MagnusTransactionRequest;
-use magnus_precompiles::tip20::ITIP20::{self, transferCall};
+use magnus_precompiles::mip20::IMIP20::{self, transferCall};
 use magnus_primitives::{
     SignatureType, MagnusTransaction, MagnusTxEnvelope,
     transaction::{
@@ -57,7 +57,7 @@ fn decoded_tempo_rpc_error_message(err: &RpcError<TransportErrorKind>) -> Option
         .map(|decoded| format!("execution reverted: {}", decoded.error))
 }
 
-/// Returns a decoded Tempo revert message when possible, else the original RPC error string.
+/// Returns a decoded Magnus revert message when possible, else the original RPC error string.
 pub(super) fn magnus_rpc_error_message(err: &RpcError<TransportErrorKind>) -> String {
     decoded_tempo_rpc_error_message(err).unwrap_or_else(|| err.to_string())
 }
@@ -68,7 +68,7 @@ pub(super) fn rpc_error_contains_reason(err: &RpcError<TransportErrorKind>, reas
         .contains(&reason.to_ascii_lowercase())
 }
 
-/// Normalizes Tempo revert errors so tests do not depend on server-side formatting.
+/// Normalizes Magnus revert errors so tests do not depend on server-side formatting.
 pub(super) fn normalize_tempo_rpc_error(err: RpcError<TransportErrorKind>) -> eyre::Report {
     decoded_tempo_rpc_error_message(&err).map_or_else(|| err.into(), eyre::Report::msg)
 }
@@ -304,7 +304,7 @@ pub(crate) fn create_allowed_call_scopes(
     allowed_recipient: Address,
 ) -> Option<Vec<CallScope>> {
     let rule = |recipients| SelectorRule {
-        selector: ITIP20::transferCall::SELECTOR,
+        selector: IMIP20::transferCall::SELECTOR,
         recipients,
     };
 
@@ -670,7 +670,7 @@ pub(crate) fn sign_aa_tx_with_webauthn_access_key(
 
 // ===== Call Creation Helper Functions =====
 
-/// Helper to create a TIP20 transfer call for a given token
+/// Helper to create a MIP20 transfer call for a given token
 pub(super) fn create_transfer_call(token: Address, to: Address, amount: U256) -> Call {
     Call {
         to: token.into(),
@@ -679,14 +679,14 @@ pub(super) fn create_transfer_call(token: Address, to: Address, amount: U256) ->
     }
 }
 
-/// Helper to create a TIP20 balanceOf call (useful as a benign call for key authorization txs)
+/// Helper to create a MIP20 balanceOf call (useful as a benign call for key authorization txs)
 pub(super) fn create_balance_of_call(account: Address) -> Call {
     use alloy::sol_types::SolCall;
 
     Call {
         to: DEFAULT_FEE_TOKEN.into(),
         value: U256::ZERO,
-        input: ITIP20::balanceOfCall { account }.abi_encode().into(),
+        input: IMIP20::balanceOfCall { account }.abi_encode().into(),
     }
 }
 
@@ -882,7 +882,7 @@ pub(crate) async fn configure_fee_payer_context(
 
     let fee_payer_addr = fee_payer_signer.address();
     let token = tx.fee_token.unwrap_or(DEFAULT_FEE_TOKEN);
-    let balance_before = ITIP20::new(token, provider)
+    let balance_before = IMIP20::new(token, provider)
         .balanceOf(fee_payer_addr)
         .call()
         .await?;
@@ -902,7 +902,7 @@ pub(crate) async fn assert_token_balance(
     expected: U256,
     msg: &str,
 ) -> eyre::Result<()> {
-    let bal = ITIP20::new(token, provider).balanceOf(who).call().await?;
+    let bal = IMIP20::new(token, provider).balanceOf(who).call().await?;
     assert_eq!(bal, expected, "{msg}");
     Ok(())
 }
@@ -960,7 +960,7 @@ pub(crate) async fn assert_fee_payer_spent(
 
     let expected_cost = calc_gas_balance_spending(gas_used, effective_gas_price);
 
-    let balance_after = ITIP20::new(fee_payer.token, provider)
+    let balance_after = IMIP20::new(fee_payer.token, provider)
         .balanceOf(fee_payer.addr)
         .call()
         .await?;
@@ -1321,7 +1321,7 @@ pub(crate) fn assert_fill_request_expectations(
 mod tests {
     use super::*;
     use alloy::sol_types::SolInterface;
-    use magnus_contracts::precompiles::TIP20Error;
+    use magnus_contracts::precompiles::MIP20Error;
 
     #[test]
     fn normalize_tempo_rpc_error_decodes_raw_revert_data() {
@@ -1329,7 +1329,7 @@ mod tests {
             "832f98b5000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f424000000000000000000000000020c0000000000000000000000000000000000000"
         );
         let expected_revert_hex = hex::encode(expected_revert_bytes);
-        let revert_data = TIP20Error::InsufficientBalance(ITIP20::InsufficientBalance {
+        let revert_data = MIP20Error::InsufficientBalance(IMIP20::InsufficientBalance {
             available: U256::ZERO,
             required: U256::from(1_000_000u64),
             token: DEFAULT_FEE_TOKEN,
@@ -1352,14 +1352,14 @@ mod tests {
 
         assert!(
             rpc_error_contains_reason(&err, "InsufficientBalance"),
-            "client-side revert decoding should recognize Tempo precompile errors"
+            "client-side revert decoding should recognize Magnus precompile errors"
         );
 
         let normalized = normalize_tempo_rpc_error(err).to_string();
         assert!(
             normalized.contains("execution reverted:")
                 && normalized.contains("InsufficientBalance"),
-            "normalized error should prefer decoded Tempo revert, got: {normalized}"
+            "normalized error should prefer decoded Magnus revert, got: {normalized}"
         );
     }
 }

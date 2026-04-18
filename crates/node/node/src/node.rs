@@ -51,7 +51,7 @@ use magnus_transaction_pool::{
     },
 };
 
-/// Tempo node CLI arguments.
+/// Magnus node CLI arguments.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, clap::Args)]
 pub struct MagnusNodeArgs {
     /// Maximum allowed `valid_after` offset for AA txs.
@@ -59,7 +59,7 @@ pub struct MagnusNodeArgs {
     pub aa_valid_after_max_secs: u64,
 
     /// Maximum number of authorizations allowed in an AA transaction.
-    #[arg(long = "txpool.max-tempo-authorizations", default_value_t = DEFAULT_MAX_TEMPO_AUTHORIZATIONS)]
+    #[arg(long = "txpool.max-magnus-authorizations", default_value_t = DEFAULT_MAX_TEMPO_AUTHORIZATIONS)]
     pub max_tempo_authorizations: usize,
 
     /// Enable state provider metrics for the payload builder.
@@ -102,7 +102,7 @@ pub struct MagnusNode {
 }
 
 impl MagnusNode {
-    /// Create new instance of a Tempo node
+    /// Create new instance of a Magnus node
     pub fn new(args: &MagnusNodeArgs, validator_key: Option<B256>) -> Self {
         Self {
             pool_builder: args.pool_builder(),
@@ -111,7 +111,7 @@ impl MagnusNode {
         }
     }
 
-    /// Returns a [`ComponentsBuilder`] configured for a regular Tempo node.
+    /// Returns a [`ComponentsBuilder`] configured for a regular Magnus node.
     pub fn components<Node>(
         pool_builder: MagnusPoolBuilder,
         payload_builder_builder: MagnusPayloadBuilderBuilder,
@@ -379,7 +379,7 @@ where
     }
 }
 
-/// A basic Tempo transaction pool.
+/// A basic Magnus transaction pool.
 ///
 /// This contains various settings that can be configured and take precedence over the node's
 /// config.
@@ -471,10 +471,10 @@ where
 
         spawn_maintenance_tasks(ctx, transaction_pool.clone(), &pool_config)?;
 
-        // Spawn unified Tempo pool maintenance task
+        // Spawn unified Magnus pool maintenance task
         // This consolidates: expired AA txs, 2D nonce updates, AMM cache, and keychain revocations
         ctx.task_executor().spawn_critical_task(
-            "txpool maintenance - tempo pool",
+            "txpool maintenance - magnus pool",
             magnus_transaction_pool::maintain::maintain_tempo_pool(transaction_pool.clone()),
         );
 

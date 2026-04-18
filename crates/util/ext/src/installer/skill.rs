@@ -41,7 +41,7 @@ pub(super) fn install_skill(
     dry_run: bool,
     quiet: bool,
 ) {
-    let skill_dir_name = format!("tempo-{extension}");
+    let skill_dir_name = format!("magnus-{extension}");
 
     if dry_run {
         println!("dry-run: install skill from {url}");
@@ -51,7 +51,7 @@ pub(super) fn install_skill(
     let content = match download_skill(url) {
         Ok(content) => content,
         Err(err) => {
-            tracing::warn!("skill download failed for tempo-{extension}: {err}");
+            tracing::warn!("skill download failed for magnus-{extension}: {err}");
             return;
         }
     };
@@ -59,14 +59,14 @@ pub(super) fn install_skill(
     if let Some(expected) = expected_sha256 {
         let actual = sha256_hex(content.as_bytes());
         if actual != expected.to_lowercase() {
-            tracing::warn!("skill checksum mismatch for tempo-{extension}, skipping");
+            tracing::warn!("skill checksum mismatch for magnus-{extension}, skipping");
             return;
         }
-        tracing::debug!("skill checksum ok for tempo-{extension}");
+        tracing::debug!("skill checksum ok for magnus-{extension}");
     }
 
-    let skill_name = format!("tempo-{extension} skill");
-    let expected_comment = format!("skill:tempo-{extension}");
+    let skill_name = format!("magnus-{extension} skill");
+    let expected_comment = format!("skill:magnus-{extension}");
     let version_comment = format!("version:{version}");
     match encoded_signature {
         Some(sig) => {
@@ -80,10 +80,10 @@ pub(super) fn install_skill(
                 tracing::warn!("{err}, skipping skill install");
                 return;
             }
-            tracing::debug!("skill signature ok for tempo-{extension}");
+            tracing::debug!("skill signature ok for magnus-{extension}");
         }
         None => {
-            tracing::warn!("skill signature missing for tempo-{extension}, skipping skill install");
+            tracing::warn!("skill signature missing for magnus-{extension}, skipping skill install");
             return;
         }
     }
@@ -91,7 +91,7 @@ pub(super) fn install_skill(
     let home = match home_dir() {
         Some(h) => h,
         None => {
-            tracing::warn!("skill install skipped for tempo-{extension}: home directory not found");
+            tracing::warn!("skill install skipped for magnus-{extension}: home directory not found");
             return;
         }
     };
@@ -113,7 +113,7 @@ pub(super) fn install_skill(
 
     if !quiet && !installed_names.is_empty() {
         println!(
-            "installed tempo-{extension} skill to {} agent(s): {}",
+            "installed magnus-{extension} skill to {} agent(s): {}",
             installed_names.len(),
             installed_names.join(", ")
         );
@@ -135,7 +135,7 @@ fn download_skill(url: &str) -> Result<String, InstallerError> {
 
 /// Removes an extension's skill directory from all detected coding assistants.
 pub(super) fn remove_skill(extension: &str, dry_run: bool) {
-    let skill_dir_name = format!("tempo-{extension}");
+    let skill_dir_name = format!("magnus-{extension}");
 
     let home = match home_dir() {
         Some(h) => h,

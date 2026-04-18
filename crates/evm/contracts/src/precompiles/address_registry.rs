@@ -4,13 +4,13 @@ pub use IAddressRegistry::{
 use alloy_primitives::Address;
 
 crate::sol! {
-    /// [TIP-1022] virtual address registry interface.
+    /// [MIP-1022] virtual address registry interface.
     ///
     /// Allows EOAs and contracts to register as virtual-address masters via a
     /// 32-bit proof-of-work and provides resolution of virtual addresses back to
     /// their registered master.
     ///
-    /// [TIP-1022]: <https://docs.tempo.xyz/protocol/tip1022>
+    /// [MIP-1022]: <https://docs.magnus.xyz/protocol/mip1022>
     #[derive(Debug, PartialEq, Eq)]
     #[sol(abi)]
     interface IAddressRegistry {

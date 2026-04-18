@@ -1,6 +1,6 @@
 [package]
 name = "magnus-faucet"
-description = "Faucet RPC module for dispensing TIP20 tokens"
+description = "Faucet RPC module for dispensing MIP20 tokens"
 
 version.workspace = true
 edition.workspace = true

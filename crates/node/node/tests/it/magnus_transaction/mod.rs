@@ -1,4 +1,4 @@
-//! Tempo transaction integration tests.
+//! Magnus transaction integration tests.
 //!
 //! ## Generic tests (run on both localnet and testnet via `TestEnv`)
 //!

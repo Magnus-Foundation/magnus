@@ -1,4 +1,4 @@
-//! Tempo precompile implementations.
+//! Magnus precompile implementations.
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -14,10 +14,10 @@ pub mod address_registry;
 pub mod nonce;
 pub mod signature_verifier;
 pub mod stablecoin_dex;
-pub mod tip20;
-pub mod tip20_factory;
-pub mod tip403_registry;
-pub mod tip_fee_manager;
+pub mod mip20;
+pub mod mip20_factory;
+pub mod mip403_registry;
+pub mod mip_fee_manager;
 pub mod validator_config;
 pub mod validator_config_v2;
 
@@ -27,8 +27,8 @@ pub mod test_util;
 use crate::{
     account_keychain::AccountKeychain, address_registry::AddressRegistry, nonce::NonceManager,
     signature_verifier::SignatureVerifier, stablecoin_dex::StablecoinDEX, storage::StorageCtx,
-    tip_fee_manager::TipFeeManager, tip20::TIP20Token, tip20_factory::TIP20Factory,
-    tip403_registry::TIP403Registry, validator_config::ValidatorConfig,
+    tip_fee_manager::TipFeeManager, mip20::MIP20Token, mip20_factory::MIP20Factory,
+    mip403_registry::MIP403Registry, validator_config::ValidatorConfig,
     validator_config_v2::ValidatorConfigV2,
 };
 use magnus_chainspec::hardfork::MagnusHardfork;
@@ -52,7 +52,7 @@ use revm::{
 pub use magnus_contracts::precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS, ADDRESS_REGISTRY_ADDRESS, DEFAULT_FEE_TOKEN,
     NONCE_PRECOMPILE_ADDRESS, PATH_USD_ADDRESS, SIGNATURE_VERIFIER_ADDRESS, STABLECOIN_DEX_ADDRESS,
-    TIP_FEE_MANAGER_ADDRESS, TIP20_FACTORY_ADDRESS, TIP403_REGISTRY_ADDRESS,
+    TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS, MIP403_REGISTRY_ADDRESS,
     VALIDATOR_CONFIG_ADDRESS, VALIDATOR_CONFIG_V2_ADDRESS,
 };
 
@@ -75,7 +75,7 @@ pub fn input_cost(calldata_len: usize) -> u64 {
         .saturating_mul(INPUT_PER_WORD_COST as usize) as u64
 }
 
-/// Trait implemented by all Tempo precompile contract types.
+/// Trait implemented by all Magnus precompile contract types.
 ///
 /// Precompiles must provide a dispatcher that decodes the 4-byte function selector from calldata,
 /// ABI-decodes the arguments, and routes to the corresponding method.
@@ -91,10 +91,10 @@ pub trait Precompile {
     fn call(&mut self, calldata: &[u8], msg_sender: Address) -> PrecompileResult;
 }
 
-/// Returns the full Tempo precompiles for the given config.
+/// Returns the full Magnus precompiles for the given config.
 ///
 /// Pre-T1C hardforks use Prague precompiles, T1C+ uses Osaka precompiles.
-/// Tempo-specific precompiles are also registered via [`extend_tempo_precompiles`].
+/// Magnus-specific precompiles are also registered via [`extend_tempo_precompiles`].
 pub fn magnus_precompiles(cfg: &CfgEnv<MagnusHardfork>) -> PrecompilesMap {
     let spec = if cfg.spec.is_t1c() {
         cfg.spec.into()
@@ -106,9 +106,9 @@ pub fn magnus_precompiles(cfg: &CfgEnv<MagnusHardfork>) -> PrecompilesMap {
     precompiles
 }
 
-/// Registers Tempo-specific precompiles into an existing [`PrecompilesMap`] by installing a
-/// lookup function that matches addresses to their precompile: TIP-20 tokens (by prefix),
-/// TIP20Factory, TIP403Registry, TipFeeManager, StablecoinDEX, NonceManager, ValidatorConfig,
+/// Registers Magnus-specific precompiles into an existing [`PrecompilesMap`] by installing a
+/// lookup function that matches addresses to their precompile: MIP-20 tokens (by prefix),
+/// MIP20Factory, MIP403Registry, TipFeeManager, StablecoinDEX, NonceManager, ValidatorConfig,
 /// AccountKeychain, and ValidatorConfigV2. Each precompile is wrapped via the `magnus_precompile!`
 /// macro which enforces direct-call-only (no delegatecall) and sets up the storage context.
 pub fn extend_tempo_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<MagnusHardfork>) {
@@ -116,13 +116,13 @@ pub fn extend_tempo_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<M
 
     precompiles.set_precompile_lookup(move |address: &Address| {
         if address.is_tip20() {
-            Some(TIP20Token::create_precompile(*address, &cfg))
-        } else if *address == TIP20_FACTORY_ADDRESS {
-            Some(TIP20Factory::create_precompile(&cfg))
+            Some(MIP20Token::create_precompile(*address, &cfg))
+        } else if *address == MIP20_FACTORY_ADDRESS {
+            Some(MIP20Factory::create_precompile(&cfg))
         } else if *address == ADDRESS_REGISTRY_ADDRESS && cfg.spec.is_t3() {
             Some(AddressRegistry::create_precompile(&cfg))
-        } else if *address == TIP403_REGISTRY_ADDRESS {
-            Some(TIP403Registry::create_precompile(&cfg))
+        } else if *address == MIP403_REGISTRY_ADDRESS {
+            Some(MIP403Registry::create_precompile(&cfg))
         } else if *address == TIP_FEE_MANAGER_ADDRESS {
             Some(TipFeeManager::create_precompile(&cfg))
         } else if *address == STABLECOIN_DEX_ADDRESS {
@@ -189,25 +189,25 @@ impl AddressRegistry {
     }
 }
 
-impl TIP403Registry {
+impl MIP403Registry {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<MagnusHardfork>) -> DynPrecompile {
-        magnus_precompile!("TIP403Registry", cfg, |input| { Self::new() })
+        magnus_precompile!("MIP403Registry", cfg, |input| { Self::new() })
     }
 }
 
-impl TIP20Factory {
+impl MIP20Factory {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<MagnusHardfork>) -> DynPrecompile {
-        magnus_precompile!("TIP20Factory", cfg, |input| { Self::new() })
+        magnus_precompile!("MIP20Factory", cfg, |input| { Self::new() })
     }
 }
 
-impl TIP20Token {
+impl MIP20Token {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(address: Address, cfg: &CfgEnv<MagnusHardfork>) -> DynPrecompile {
-        magnus_precompile!("TIP20Token", cfg, |input| {
-            Self::from_address(address).expect("TIP20 prefix already verified")
+        magnus_precompile!("MIP20Token", cfg, |input| {
+            Self::from_address(address).expect("MIP20 prefix already verified")
         })
     }
 }
@@ -438,7 +438,7 @@ mod tests {
     use super::*;
     use crate::{
         storage::{StorageCtx, hashmap::HashMapStorageProvider},
-        tip20::TIP20Token,
+        mip20::MIP20Token,
     };
     use alloy::primitives::{Address, Bytes, U256, bytes};
     use alloy_evm::{
@@ -450,13 +450,13 @@ mod tests {
         database::{CacheDB, EmptyDB},
         state::{AccountInfo, Bytecode},
     };
-    use magnus_contracts::precompiles::{ITIP20, UnknownFunctionSelector};
+    use magnus_contracts::precompiles::{IMIP20, UnknownFunctionSelector};
 
     #[test]
     fn test_precompile_delegatecall() {
         let cfg = CfgEnv::<MagnusHardfork>::default();
-        let precompile = magnus_precompile!("TIP20Token", &cfg, |input| {
-            TIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
+        let precompile = magnus_precompile!("MIP20Token", &cfg, |input| {
+            MIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
         });
 
         let db = CacheDB::new(EmptyDB::new());
@@ -495,8 +495,8 @@ mod tests {
     fn test_precompile_static_call() {
         let cfg = CfgEnv::<MagnusHardfork>::default();
         let tx = TxEnv::default();
-        let precompile = magnus_precompile!("TIP20Token", &cfg, |input| {
-            TIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
+        let precompile = magnus_precompile!("MIP20Token", &cfg, |input| {
+            MIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
         });
 
         let token_address = PATH_USD_ADDRESS;
@@ -531,7 +531,7 @@ mod tests {
 
         // Static calls into mutating functions should fail
         let result = call_static(Bytes::from(
-            ITIP20::transferCall {
+            IMIP20::transferCall {
                 to: Address::random(),
                 amount: U256::from(100),
             }
@@ -543,7 +543,7 @@ mod tests {
 
         // Static calls into mutate void functions should fail
         let result = call_static(Bytes::from(
-            ITIP20::approveCall {
+            IMIP20::approveCall {
                 spender: Address::random(),
                 amount: U256::from(100),
             }
@@ -555,7 +555,7 @@ mod tests {
 
         // Static calls into view functions should succeed
         let result = call_static(Bytes::from(
-            ITIP20::balanceOfCall {
+            IMIP20::balanceOfCall {
                 account: Address::random(),
             }
             .abi_encode(),
@@ -573,8 +573,8 @@ mod tests {
             let mut cfg = CfgEnv::<MagnusHardfork>::default();
             cfg.set_spec_and_mainnet_gas_params(spec);
             let tx = TxEnv::default();
-            let precompile = magnus_precompile!("TIP20Token", &cfg, |input| {
-                TIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
+            let precompile = magnus_precompile!("MIP20Token", &cfg, |input| {
+                MIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
             });
 
             let mut db = CacheDB::new(EmptyDB::new());
@@ -740,18 +740,18 @@ mod tests {
         cfg.set_spec_and_mainnet_gas_params(MagnusHardfork::T3);
         let precompiles = magnus_precompiles(&cfg);
 
-        // TIP20Factory should be registered
-        let factory_precompile = precompiles.get(&TIP20_FACTORY_ADDRESS);
+        // MIP20Factory should be registered
+        let factory_precompile = precompiles.get(&MIP20_FACTORY_ADDRESS);
         assert!(
             factory_precompile.is_some(),
-            "TIP20Factory should be registered"
+            "MIP20Factory should be registered"
         );
 
-        // TIP403Registry should be registered
-        let registry_precompile = precompiles.get(&TIP403_REGISTRY_ADDRESS);
+        // MIP403Registry should be registered
+        let registry_precompile = precompiles.get(&MIP403_REGISTRY_ADDRESS);
         assert!(
             registry_precompile.is_some(),
-            "TIP403Registry should be registered"
+            "MIP403Registry should be registered"
         );
 
         // TipFeeManager should be registered
@@ -803,14 +803,14 @@ mod tests {
             "SignatureVerifier should be registered at T3"
         );
 
-        // TIP20 tokens with prefix should be registered
-        let tip20_precompile = precompiles.get(&PATH_USD_ADDRESS);
+        // MIP20 tokens with prefix should be registered
+        let mip20_precompile = precompiles.get(&PATH_USD_ADDRESS);
         assert!(
-            tip20_precompile.is_some(),
-            "TIP20 tokens should be registered"
+            mip20_precompile.is_some(),
+            "MIP20 tokens should be registered"
         );
 
-        // Random address without TIP20 prefix should NOT be registered
+        // Random address without MIP20 prefix should NOT be registered
         let random_address = Address::random();
         let random_precompile = precompiles.get(&random_address);
         assert!(

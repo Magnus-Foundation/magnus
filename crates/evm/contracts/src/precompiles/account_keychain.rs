@@ -229,7 +229,7 @@ impl AccountKeychainError {
         Self::SpendingLimitExceeded(IAccountKeychain::SpendingLimitExceeded {})
     }
 
-    /// Creates an error for spending limits that exceed the TIP-20 u128 supply cap.
+    /// Creates an error for spending limits that exceed the MIP-20 u128 supply cap.
     pub const fn invalid_spending_limit() -> Self {
         Self::InvalidSpendingLimit(IAccountKeychain::InvalidSpendingLimit {})
     }

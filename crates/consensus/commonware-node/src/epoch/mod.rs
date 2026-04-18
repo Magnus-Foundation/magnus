@@ -1,4 +1,4 @@
-//! Epoch logic used by tempo.
+//! Epoch logic used by magnus.
 //!
 //! All logic is written with the assumption that there are at least 3 heights
 //! per epoch. Having less heights per epoch will not immediately break the

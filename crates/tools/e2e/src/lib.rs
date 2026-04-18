@@ -1,6 +1,6 @@
 //! e2e tests using the [`commonware_runtime::deterministic`].
 //!
-//! This crate mimics how a full tempo node is run in production but runs the
+//! This crate mimics how a full magnus node is run in production but runs the
 //! consensus engine in a deterministic runtime while maintaining a tokio
 //! async environment to launch execution nodes.
 //!

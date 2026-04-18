@@ -478,7 +478,7 @@ impl KeychainSignature {
     /// Returns `keccak256(0x04 || sig_hash || user_address)`.
     /// The `0x04` domain separator ([`SIGNATURE_TYPE_KEYCHAIN_V2`]) prevents
     /// cross-scheme signature confusion, following the same pattern as
-    /// EIP-7702 (`0x05`) and Tempo fee-payer signatures (`0x78`).
+    /// EIP-7702 (`0x05`) and Magnus fee-payer signatures (`0x78`).
     pub fn signing_hash(sig_hash: B256, user_address: Address) -> B256 {
         let mut buf = [0u8; 53]; // 1 + 32 + 20
         buf[0] = SIGNATURE_TYPE_KEYCHAIN_V2;
@@ -788,7 +788,7 @@ fn verify_p256_signature_with_aws_lc(
 
     let signature = concat::<64>(&[r, s]);
 
-    // Tempo verifies already-computed 32-byte message digests.
+    // Magnus verifies already-computed 32-byte message digests.
     // Switching to message-based aws-lc verifier would hash again and change consensus behavior.
     let digest = AwsLcDigest::import_less_safe(message_hash.as_slice(), &AwsLcSha256)
         .map_err(|_| "Invalid P256 message digest")?;
@@ -819,7 +819,7 @@ fn verify_p256_signature_with_p256(
     let signature = P256Signature::from_slice(&concat::<64>(&[r, s]))
         .map_err(|_| "Invalid P256 signature encoding")?;
 
-    // Tempo verifies already-computed 32-byte message digests.
+    // Magnus verifies already-computed 32-byte message digests.
     verifying_key
         .verify_prehash(message_hash.as_slice(), &signature)
         .map_err(|_| "P256 signature verification failed")
@@ -924,9 +924,9 @@ fn verify_webauthn_data_internal(
         // If ED flag is not set, exactly 37 bytes (no extensions)
         MIN_AUTH_DATA_LEN
     } else {
-        // ED flag must NOT be set, as Tempo AA doesn't support extensions
+        // ED flag must NOT be set, as Magnus AA doesn't support extensions
         // NOTE: If we ever want to support extensions, we will have to parse CBOR data
-        return Err("ED flag must not be set, as Tempo doesn't support extensions");
+        return Err("ED flag must not be set, as Magnus doesn't support extensions");
     };
 
     let authenticator_data = &webauthn_data[..auth_data_len];

@@ -6,8 +6,8 @@ use crate::{
     PATH_USD_ADDRESS, Precompile, Result,
     address_registry::{AddressRegistry, IAddressRegistry},
     storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
-    tip20::{self, ITIP20, TIP20Token},
-    tip20_factory::{self, TIP20Factory},
+    mip20::{self, IMIP20, MIP20Token},
+    mip20_factory::{self, MIP20Factory},
 };
 use alloy::{
     primitives::{Address, B256, U256, address, hex_literal::hex},
@@ -15,8 +15,8 @@ use alloy::{
 };
 use revm::precompile::PrecompileError;
 #[cfg(any(test, feature = "test-utils"))]
-use magnus_contracts::precompiles::TIP20Error;
-use magnus_contracts::precompiles::{TIP20_FACTORY_ADDRESS, UnknownFunctionSelector};
+use magnus_contracts::precompiles::MIP20Error;
+use magnus_contracts::precompiles::{MIP20_FACTORY_ADDRESS, UnknownFunctionSelector};
 use magnus_primitives::{MasterId, MagnusAddressExt, UserTag};
 
 /// Checks that all selectors in an interface have dispatch handlers.
@@ -99,7 +99,7 @@ enum Action {
     /// Ensure pathUSD (token 0) is deployed and configure it.
     PathUSD,
 
-    /// Create and configure a new token using the TIP20Factory.
+    /// Create and configure a new token using the MIP20Factory.
     CreateToken {
         name: &'static str,
         symbol: &'static str,
@@ -109,7 +109,7 @@ enum Action {
     ConfigureToken { address: Address },
 }
 
-/// Helper for TIP20 token setup in tests.
+/// Helper for MIP20 token setup in tests.
 ///
 /// Supports creating new tokens, configuring pathUSD, or modifying existing tokens.
 /// Uses a chainable API for role grants, minting, approvals, and rewards.
@@ -118,23 +118,23 @@ enum Action {
 ///
 /// ```ignore
 /// // Initialize and configure pathUSD
-/// TIP20Setup::path_usd(admin)
+/// MIP20Setup::path_usd(admin)
 ///     .with_issuer(admin)
 ///     .apply()?;
 ///
 /// // Create a new token
-/// let token = TIP20Setup::new("MyToken", "MTK", admin)
+/// let token = MIP20Setup::new("MyToken", "MTK", admin)
 ///     .with_mint(user, amount)
 ///     .apply()?;
 ///
 /// // Configure an existing token
-/// TIP20Setup::from_address(token_address, admin)
+/// MIP20Setup::from_address(token_address, admin)
 ///     .with_mint(user, amount)
 ///     .apply()?;
 /// ```
 #[derive(Default)]
 #[cfg(any(test, feature = "test-utils"))]
-pub struct TIP20Setup {
+pub struct MIP20Setup {
     action: Action,
     quote_token: Option<Address>,
     admin: Option<Address>,
@@ -148,7 +148,7 @@ pub struct TIP20Setup {
 }
 
 #[cfg(any(test, feature = "test-utils"))]
-impl TIP20Setup {
+impl MIP20Setup {
     /// Configure pathUSD (token 0).
     pub fn path_usd(admin: Address) -> Self {
         Self {
@@ -158,7 +158,7 @@ impl TIP20Setup {
         }
     }
 
-    /// Create a new token via factory. Ensures that `pathUSD` and `TIP20Factory` are initialized.
+    /// Create a new token via factory. Ensures that `pathUSD` and `MIP20Factory` are initialized.
     ///
     /// Defaults to `currency: "USD"`, `quote_token: pathUSD`
     pub fn create(name: &'static str, symbol: &'static str, admin: Address) -> Self {
@@ -221,7 +221,7 @@ impl TIP20Setup {
 
     /// Grant ISSUER_ROLE to an account.
     pub fn with_issuer(self, account: Address) -> Self {
-        self.with_role(account, *tip20::ISSUER_ROLE)
+        self.with_role(account, *mip20::ISSUER_ROLE)
     }
 
     /// Grant an arbitrary role to an account.
@@ -257,9 +257,9 @@ impl TIP20Setup {
     }
 
     /// Initialize pathUSD if needed and return it.
-    fn path_usd_inner(&self) -> Result<TIP20Token> {
+    fn path_usd_inner(&self) -> Result<MIP20Token> {
         if is_initialized(PATH_USD_ADDRESS)? {
-            return TIP20Token::from_address(PATH_USD_ADDRESS);
+            return MIP20Token::from_address(PATH_USD_ADDRESS);
         }
 
         let admin = self
@@ -275,20 +275,20 @@ impl TIP20Setup {
             admin,
         )?;
 
-        TIP20Token::from_address(PATH_USD_ADDRESS)
+        MIP20Token::from_address(PATH_USD_ADDRESS)
     }
 
-    /// Returns the [`TIP20Factory`], initializing it if not yet deployed.
-    pub fn factory() -> Result<TIP20Factory> {
-        let mut factory = TIP20Factory::new();
-        if !is_initialized(TIP20_FACTORY_ADDRESS)? {
+    /// Returns the [`MIP20Factory`], initializing it if not yet deployed.
+    pub fn factory() -> Result<MIP20Factory> {
+        let mut factory = MIP20Factory::new();
+        if !is_initialized(MIP20_FACTORY_ADDRESS)? {
             factory.initialize()?;
         }
         Ok(factory)
     }
 
-    /// Applies the configuration and returns the fully configured [`TIP20Token`].
-    pub fn apply(self) -> Result<TIP20Token> {
+    /// Applies the configuration and returns the fully configured [`MIP20Token`].
+    pub fn apply(self) -> Result<MIP20Token> {
         let mut token = match self.action.clone() {
             Action::PathUSD => self.path_usd_inner()?,
             Action::CreateToken {
@@ -304,7 +304,7 @@ impl TIP20Setup {
                 let salt = self.salt.unwrap_or_else(B256::random);
                 let token_address = factory.create_token(
                     admin,
-                    tip20_factory::ITIP20Factory::createTokenCall {
+                    mip20_factory::IMIP20Factory::createTokenCall {
                         name: name.to_string(),
                         symbol: symbol.to_string(),
                         currency,
@@ -313,14 +313,14 @@ impl TIP20Setup {
                         salt,
                     },
                 )?;
-                TIP20Token::from_address(token_address)?
+                MIP20Token::from_address(token_address)?
             }
             Action::ConfigureToken { address } => {
                 assert!(
                     is_initialized(address)?,
                     "token not initialized, use `fn create` instead"
                 );
-                TIP20Token::from_address(address)?
+                MIP20Token::from_address(address)?
             }
         };
 
@@ -334,17 +334,17 @@ impl TIP20Setup {
             let admin = self.admin.unwrap_or_else(|| {
                 get_tip20_admin(token.address()).expect("unable to get token admin")
             });
-            token.mint(admin, ITIP20::mintCall { to, amount })?;
+            token.mint(admin, IMIP20::mintCall { to, amount })?;
         }
 
         // Apply approvals
         for (owner, spender, amount) in self.approvals {
-            token.approve(owner, ITIP20::approveCall { spender, amount })?;
+            token.approve(owner, IMIP20::approveCall { spender, amount })?;
         }
 
         // Apply reward opt-ins
         for user in self.reward_opt_ins {
-            token.set_reward_recipient(user, ITIP20::setRewardRecipientCall { recipient: user })?;
+            token.set_reward_recipient(user, IMIP20::setRewardRecipientCall { recipient: user })?;
         }
 
         // Distribute rewards
@@ -352,7 +352,7 @@ impl TIP20Setup {
             let admin = self.admin.unwrap_or_else(|| {
                 get_tip20_admin(token.address()).expect("unable to get token admin")
             });
-            token.distribute_reward(admin, ITIP20::distributeRewardCall { amount })?;
+            token.distribute_reward(admin, IMIP20::distributeRewardCall { amount })?;
         }
 
         if self.clear_events {
@@ -368,10 +368,10 @@ impl TIP20Setup {
         assert!(result.is_err_and(|err| err == expected));
     }
 
-    /// Applies the configuration and asserts it fails with the given [`TIP20Error`].
-    pub fn expect_tip20_err(self, expected: TIP20Error) {
+    /// Applies the configuration and asserts it fails with the given [`MIP20Error`].
+    pub fn expect_tip20_err(self, expected: MIP20Error) {
         let result = self.apply();
-        assert!(result.is_err_and(|err| err == MagnusPrecompileError::TIP20(expected)));
+        assert!(result.is_err_and(|err| err == MagnusPrecompileError::MIP20(expected)));
     }
 }
 
@@ -381,20 +381,20 @@ fn is_initialized(address: Address) -> Result<bool> {
     crate::storage::StorageCtx.has_bytecode(address)
 }
 
-/// Looks up the admin of a TIP-20 token by scanning `TokenCreated` events from the factory.
+/// Looks up the admin of a MIP-20 token by scanning `TokenCreated` events from the factory.
 #[cfg(any(test, feature = "test-utils"))]
 fn get_tip20_admin(token: Address) -> Option<Address> {
     use alloy::{primitives::Log, sol_types::SolEvent};
-    use magnus_contracts::precompiles::ITIP20Factory;
+    use magnus_contracts::precompiles::IMIP20Factory;
 
-    let events = StorageCtx.get_events(TIP20_FACTORY_ADDRESS);
+    let events = StorageCtx.get_events(MIP20_FACTORY_ADDRESS);
     for log_data in events {
         let log = Log::new_unchecked(
-            TIP20_FACTORY_ADDRESS,
+            MIP20_FACTORY_ADDRESS,
             log_data.topics().to_vec(),
             log_data.data.clone(),
         );
-        if let Ok(event) = ITIP20Factory::TokenCreated::decode_log(&log)
+        if let Ok(event) = IMIP20Factory::TokenCreated::decode_log(&log)
             && event.token == token
         {
             return Some(event.admin);
@@ -452,7 +452,7 @@ pub fn gen_word_from(values: &[&str]) -> U256 {
     U256::from_be_bytes(slot_bytes)
 }
 
-// ────────────────── TIP-1022 Virtual Address Helpers ──────────────────
+// ────────────────── MIP-1022 Virtual Address Helpers ──────────────────
 
 /// Pre-computed (address, salt) pair satisfying the 32-bit PoW.
 /// Uses the standard test mnemonic index-0 address so it works in both unit and integration tests.

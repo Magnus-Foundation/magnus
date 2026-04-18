@@ -1,27 +1,27 @@
-# Tempo Alloy
+# Magnus Alloy
 
-Tempo types for [Alloy](https://alloy.rs).
+Magnus types for [Alloy](https://alloy.rs).
 
 ## Getting Started
 
-To use `tempo-alloy`, add the crate as a dependency in your `Cargo.toml` file:
+To use `magnus-alloy`, add the crate as a dependency in your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-tempo-alloy = { git = "https://github.com/tempoxyz/tempo" }
+magnus-alloy = { git = "https://github.com/Magnus-Foundation/magnus" }
 ```
 
-If you need the Reth RPC conversion/compatibility impls used by Tempo node-side code,
+If you need the Reth RPC conversion/compatibility impls used by Magnus node-side code,
 enable the `reth` feature explicitly:
 
 ```toml
 [dependencies]
-tempo-alloy = { git = "https://github.com/tempoxyz/tempo", features = ["reth"] }
+magnus-alloy = { git = "https://github.com/Magnus-Foundation/magnus", features = ["reth"] }
 ```
 
 ## Development Status
 
-`tempo-alloy` is currently in development and is not yet ready for production use.
+`magnus-alloy` is currently in development and is not yet ready for production use.
 
 ## Usage
 
@@ -36,12 +36,12 @@ use tempo_alloy::TempoNetwork;
 
 async fn build_provider() -> Result<impl Provider<TempoNetwork>, TransportError> {
     ProviderBuilder::new_with_network::<TempoNetwork>()
-        .connect("https://rpc.moderato.tempo.xyz")
+        .connect("https://rpc.moderato.magnus.xyz")
         .await
 }
 ```
 
-This crate also exposes bindings for all Tempo precompiles, such as [TIP20](https://docs.tempo.xyz/protocol/tip20/overview):
+This crate also exposes bindings for all Magnus precompiles, such as [MIP20](https://docs.magnus.xyz/protocol/tip20/overview):
 
 ```rust,no_run
 use alloy::{
@@ -75,11 +75,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-See the [examples directory](https://github.com/tempoxyz/tempo/tree/main/crates/alloy/examples) for additional runnable code samples.
+See the [examples directory](https://github.com/Magnus-Foundation/magnus/tree/main/crates/alloy/examples) for additional runnable code samples.
 
 ## Provider Extensions
 
-`tempo-alloy` also exposes Tempo-specific provider helpers for fixed-address precompiles:
+`magnus-alloy` also exposes Magnus-specific provider helpers for fixed-address precompiles:
 
 ```rust,no_run
 use alloy::{
@@ -90,7 +90,7 @@ use tempo_alloy::{TempoNetwork, provider::ext::TempoProviderExt};
 
 async fn keychain_example() -> Result<(), Box<dyn std::error::Error>> {
     let provider = ProviderBuilder::new_with_network::<TempoNetwork>()
-        .connect("https://rpc.moderato.tempo.xyz")
+        .connect("https://rpc.moderato.magnus.xyz")
         .await?;
 
     let account = address!("0x1111111111111111111111111111111111111111");

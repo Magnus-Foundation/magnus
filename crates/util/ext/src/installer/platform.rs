@@ -7,10 +7,10 @@ use std::{
 
 use crate::installer::error::InstallerError;
 
-/// Builds the platform-specific binary name (e.g. `tempo-wallet-darwin-arm64`).
+/// Builds the platform-specific binary name (e.g. `magnus-wallet-darwin-arm64`).
 pub(super) fn platform_binary_name(extension: &str) -> String {
     let (os, arch) = platform_tuple();
-    format!("tempo-{extension}-{os}-{arch}")
+    format!("magnus-{extension}-{os}-{arch}")
 }
 
 fn platform_tuple() -> (&'static str, &'static str) {
@@ -101,33 +101,33 @@ mod tests {
     fn platform_binary_name_format() {
         let name = platform_binary_name("wallet");
         assert!(
-            name.starts_with("tempo-wallet-"),
-            "expected prefix 'tempo-wallet-', got: {name}"
+            name.starts_with("magnus-wallet-"),
+            "expected prefix 'magnus-wallet-', got: {name}"
         );
 
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-        assert_eq!(name, "tempo-wallet-darwin-arm64");
+        assert_eq!(name, "magnus-wallet-darwin-arm64");
 
         #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
-        assert_eq!(name, "tempo-wallet-darwin-amd64");
+        assert_eq!(name, "magnus-wallet-darwin-amd64");
 
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-        assert_eq!(name, "tempo-wallet-linux-arm64");
+        assert_eq!(name, "magnus-wallet-linux-arm64");
 
         #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-        assert_eq!(name, "tempo-wallet-linux-amd64");
+        assert_eq!(name, "magnus-wallet-linux-amd64");
     }
 
     #[test]
     fn executable_name_passthrough() {
-        assert_eq!(executable_name("tempo-wallet"), "tempo-wallet");
+        assert_eq!(executable_name("magnus-wallet"), "magnus-wallet");
     }
 
     #[test]
     fn binary_candidates_single() {
         assert_eq!(
-            binary_candidates("tempo-wallet"),
-            vec!["tempo-wallet".to_string()]
+            binary_candidates("magnus-wallet"),
+            vec!["magnus-wallet".to_string()]
         );
     }
 
@@ -181,7 +181,7 @@ mod tests {
     fn find_in_path_finds_binary() {
         let _lock = ENV_MUTEX.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
-        let bin_path = dir.path().join("test-tempo-binary");
+        let bin_path = dir.path().join("test-magnus-binary");
         fs::write(&bin_path, "fake binary").unwrap();
         {
             use std::os::unix::fs::PermissionsExt;
@@ -196,7 +196,7 @@ mod tests {
         );
         unsafe { std::env::set_var("PATH", &new_path) };
 
-        let found = find_in_path("test-tempo-binary");
+        let found = find_in_path("test-magnus-binary");
         assert_eq!(found, Some(bin_path));
 
         match original {

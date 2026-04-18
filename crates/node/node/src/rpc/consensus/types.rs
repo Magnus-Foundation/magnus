@@ -18,7 +18,7 @@ pub struct CertifiedBlock {
     /// Hex-encoded full notarization or finalization.
     pub certificate: String,
 
-    /// The Tempo block.
+    /// The Magnus block.
     pub block: Block,
 }
 

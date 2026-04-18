@@ -9,13 +9,13 @@ use magnus_chainspec::{MagnusChainSpec, hardfork::MagnusHardforks};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ForkSchedule {
-    /// Ordered list of Tempo-specific forks (excludes Genesis and Ethereum forks).
+    /// Ordered list of Magnus-specific forks (excludes Genesis and Ethereum forks).
     pub schedule: Vec<ForkInfo>,
-    /// Name of the latest active Tempo fork at the chain head.
+    /// Name of the latest active Magnus fork at the chain head.
     pub active: String,
 }
 
-/// Information about a single Tempo fork.
+/// Information about a single Magnus fork.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ForkInfo {
@@ -31,9 +31,9 @@ pub struct ForkInfo {
     pub fork_id: Option<String>,
 }
 
-#[rpc(server, namespace = "tempo")]
+#[rpc(server, namespace = "magnus")]
 pub trait MagnusForkScheduleApi {
-    /// Returns the Tempo fork schedule and the currently active fork.
+    /// Returns the Magnus fork schedule and the currently active fork.
     #[method(name = "forkSchedule")]
     async fn fork_schedule(&self) -> RpcResult<ForkSchedule>;
 }
@@ -76,7 +76,7 @@ where
             .ok_or_else(|| internal_err("head header not found"))?;
         let head_timestamp = header.timestamp();
 
-        // Only Tempo forks (exclude Ethereum hardforks and Genesis).
+        // Only Magnus forks (exclude Ethereum hardforks and Genesis).
         let schedule = chain_spec
             .forks_iter()
             .filter(|(fork, _)| {

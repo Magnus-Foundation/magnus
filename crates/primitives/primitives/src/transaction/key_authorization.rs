@@ -17,7 +17,7 @@ use core::num::NonZeroU64;
 #[cfg_attr(feature = "reth-codec", derive(reth_codecs::Compact))]
 #[cfg_attr(test, reth_codecs::add_arbitrary_tests(compact, rlp))]
 pub struct TokenLimit {
-    /// TIP20 token address
+    /// MIP20 token address
     pub token: Address,
 
     /// Maximum spending amount for this token (enforced over the key's lifetime)
@@ -197,7 +197,7 @@ pub struct KeyAuthorization {
     #[cfg_attr(feature = "serde", serde(with = "serde_nonzero_quantity_opt"))]
     pub expiry: Option<NonZeroU64>,
 
-    /// TIP20 spending limits for this key.
+    /// MIP20 spending limits for this key.
     /// - `None` (RLP 0x80) = unlimited spending (no limits enforced)
     /// - `Some([])` = no spending allowed (enforce_limits=true but no tokens allowed)
     /// - `Some([TokenLimit{...}])` = specific limits enforced

@@ -12,7 +12,7 @@ const MILLIS_TIMESTAMP: u8 = 0x4F;
 /// Gas cost for [`MILLIS_TIMESTAMP`] instruction. Same as other opcodes accessing block information.
 const MILLIS_TIMESTAMP_GAS_COST: u64 = 2;
 
-/// Alias for Tempo-specific [`InstructionContext`].
+/// Alias for Magnus-specific [`InstructionContext`].
 type MagnusInstructionContext<'a, DB> = InstructionContext<'a, MagnusContext<DB>, EthInterpreter>;
 
 /// Opcode returning current timestamp in milliseconds.
@@ -20,7 +20,7 @@ fn millis_timestamp<DB: Database>(context: MagnusInstructionContext<'_, DB>) {
     push!(context.interpreter, context.host.block.timestamp_millis());
 }
 
-/// Returns configured instructions table for Tempo.
+/// Returns configured instructions table for Magnus.
 pub(crate) fn magnus_instructions<DB: Database>(
     spec: MagnusHardfork,
 ) -> EthInstructions<EthInterpreter, MagnusContext<DB>> {

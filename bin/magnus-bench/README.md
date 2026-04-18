@@ -1,21 +1,21 @@
-# `tempo-bench`
+# `magnus-bench`
 
-`tempo-bench` is benchmarking suite for Tempo node components.
+`magnus-bench` is benchmarking suite for Magnus node components.
 
 ## Installation
 
-Install `tempo` and `tempo-bench`
+Install `magnus` and `magnus-bench`
 
 ```bash
-cargo install --path bin/tempo-bench --profile maxperf
-cargo install --path bin/tempo --profile maxperf
+cargo install --path bin/magnus-bench --profile maxperf
+cargo install --path bin/magnus --profile maxperf
 
 ```
 
 ### Overview
 
 ```
-Usage: tempo-bench <COMMAND>
+Usage: magnus-bench <COMMAND>
 
 Commands:
   run-max-tps       Run maximum TPS throughput benchmarking
@@ -31,7 +31,7 @@ Options:
 High throughput tx load testing
 
 ```
-Usage: tempo-bench run-max-tps [OPTIONS] --tps <TPS>
+Usage: magnus-bench run-max-tps [OPTIONS] --tps <TPS>
 
 Options:
   -t, --tps <TPS>
@@ -87,8 +87,8 @@ Options:
       --benchmark-mode <BENCHMARK_MODE>
           Benchmark mode for metadata (e.g., "max_tps", "stress_test")
 
-      --tip20-weight <TIP20_WEIGHT>
-          A weight that determines the likelihood of generating a TIP-20 transfer transaction
+      --tip20-weight <MIP20_WEIGHT>
+          A weight that determines the likelihood of generating a MIP-20 transfer transaction
 
           [default: 1]
 
@@ -125,7 +125,7 @@ Options:
       --use-2d-nonces
           Use 2D nonces instead of expiring nonces.
 
-          By default, tempo-bench uses expiring nonces (TIP-1009) which use a circular buffer
+          By default, magnus-bench uses expiring nonces (MIP-1009) which use a circular buffer
           for replay protection, avoiding state bloat. Use this flag to switch to 2D nonces.
 
       --use-standard-nonces
@@ -143,31 +143,31 @@ Options:
 Run 15 second benchmark with 20k TPS:
 
 ```bash
-tempo-bench run-max-tps --duration 15 --tps 20000
+magnus-bench run-max-tps --duration 15 --tps 20000
 ```
 
 Run benchmark on MacOS:
 
 ```bash
-tempo-bench run-max-tps --duration 15 --tps 20000 --disable-thread-pinning
+magnus-bench run-max-tps --duration 15 --tps 20000 --disable-thread-pinning
 ```
 
 Run benchmark with less workers than the default:
 
 ```bash
-tempo-bench run-max-tps --duration 15 --tps 20 -w 1
+magnus-bench run-max-tps --duration 15 --tps 20 -w 1
 ```
 
 Run benchmark with more accounts than the default:
 
 ```bash
-tempo-bench run-max-tps --duration 15 --tps 1000 -a 1000
+magnus-bench run-max-tps --duration 15 --tps 1000 -a 1000
 ```
 
 Run benchmark against more than one node:
 
 ```bash
-tempo-bench run-max-tps --duration 15 --tps 20000 --target-urls http://node-1:8545 --target-urls http://node-2:8545
+magnus-bench run-max-tps --duration 15 --tps 20000 --target-urls http://node-1:8545 --target-urls http://node-2:8545
 ```
 
 The benchmark will continuously output performance metrics including transaction generation rates, network throughput, queue lengths, and response times. As the total transaction count increases, the rate limiter will automatically scale up according to your configured thresholds.
@@ -189,11 +189,11 @@ just localnet 50000
 ### 3. Run max TPS benchmark
 
 ```bash
-tempo-bench run-max-tps --duration 15 --tps 20000 --faucet
+magnus-bench run-max-tps --duration 15 --tps 20000 --faucet
 ```
 
 ### Sampling
 Use the following commands to run the node with [sampling](https://github.com/mstange/samply):
 ```bash
-	samply record --output tempo.samply -- just localnet 50000
+	samply record --output magnus.samply -- just localnet 50000
 ```

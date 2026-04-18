@@ -1,9 +1,9 @@
 //! On-chain CLOB (Central Limit Order Book) for [stablecoin trading].
 //!
 //! Supports limit orders, market swaps, and flip orders across
-//! TIP-20 token pairs with tick-based pricing and price-time priority.
+//! MIP-20 token pairs with tick-based pricing and price-time priority.
 //!
-//! [stablecoin trading]: <https://docs.tempo.xyz/protocol/exchange>
+//! [stablecoin trading]: <https://docs.magnus.xyz/protocol/exchange>
 
 pub mod dispatch;
 pub mod error;
@@ -23,9 +23,9 @@ use crate::{
     error::{Result, MagnusPrecompileError},
     stablecoin_dex::orderbook::{MAX_PRICE, MIN_PRICE, compute_book_key},
     storage::{Handler, Mapping},
-    tip20::{ITIP20, TIP20Token, validate_usd_currency},
-    tip20_factory::TIP20Factory,
-    tip403_registry::{AuthRole, TIP403Registry, is_policy_lookup_error},
+    mip20::{IMIP20, MIP20Token, validate_usd_currency},
+    mip20_factory::MIP20Factory,
+    mip403_registry::{AuthRole, MIP403Registry, is_policy_lookup_error},
 };
 use alloy::primitives::{Address, B256, U256};
 use magnus_precompiles_macros::contract;
@@ -39,7 +39,7 @@ pub const TICK_SPACING: i16 = 10;
 
 /// On-chain CLOB (Central Limit Order Book) for stablecoin trading.
 ///
-/// Supports limit orders, market swaps, and flip orders across USD-denominated TIP-20 token pairs.
+/// Supports limit orders, market swaps, and flip orders across USD-denominated MIP-20 token pairs.
 /// Orders use tick-based pricing with price-time priority.
 ///
 /// The struct fields define the on-chain storage layout; the `#[contract]` macro generates the
@@ -168,9 +168,9 @@ impl StablecoinDEX {
 
     /// Transfer tokens, accounting for pathUSD
     fn transfer(&mut self, token: Address, to: Address, amount: u128) -> Result<()> {
-        TIP20Token::from_address(token)?.transfer(
+        MIP20Token::from_address(token)?.transfer(
             self.address,
-            ITIP20::transferCall {
+            IMIP20::transferCall {
                 to,
                 amount: U256::from(amount),
             },
@@ -180,9 +180,9 @@ impl StablecoinDEX {
 
     /// Transfer tokens from user, accounting for pathUSD
     fn transfer_from(&mut self, token: Address, from: Address, amount: u128) -> Result<()> {
-        TIP20Token::from_address(token)?.transfer_from(
+        MIP20Token::from_address(token)?.transfer_from(
             self.address,
-            ITIP20::transferFromCall {
+            IMIP20::transferFromCall {
                 from,
                 to: self.address,
                 amount: U256::from(amount),
@@ -199,7 +199,7 @@ impl StablecoinDEX {
         amount: u128,
     ) -> Result<()> {
         // Ensure that the token can be transferred
-        TIP20Token::from_address(token)?.ensure_transfer_authorized(user, self.address)?;
+        MIP20Token::from_address(token)?.ensure_transfer_authorized(user, self.address)?;
 
         let user_balance = self.balance_of(user, token)?;
         if user_balance >= amount {
@@ -219,7 +219,7 @@ impl StablecoinDEX {
     ///
     /// # Errors
     /// - `IdenticalTokens` — `token_in` and `token_out` are the same address
-    /// - `InvalidToken` — a token address does not have a valid TIP-20 prefix
+    /// - `InvalidToken` — a token address does not have a valid MIP-20 prefix
     /// - `PairDoesNotExist` — no orderbook exists for one of the hops in the route
     /// - `InsufficientLiquidity` — not enough resting orders to fill `amount_out`
     pub fn quote_swap_exact_amount_out(
@@ -245,7 +245,7 @@ impl StablecoinDEX {
     ///
     /// # Errors
     /// - `IdenticalTokens` — `token_in` and `token_out` are the same address
-    /// - `InvalidToken` — a token address does not have a valid TIP-20 prefix
+    /// - `InvalidToken` — a token address does not have a valid MIP-20 prefix
     /// - `PairDoesNotExist` — no orderbook exists for one of the hops in the route
     /// - `InsufficientLiquidity` — not enough resting orders to fill `amount_in`
     pub fn quote_swap_exact_amount_in(
@@ -267,11 +267,11 @@ impl StablecoinDEX {
     }
 
     /// Swaps `amount_in` of `token_in` for `token_out`, routing through
-    /// one or more orderbooks. Deducts input via [`TIP20Token`] transfer
+    /// one or more orderbooks. Deducts input via [`MIP20Token`] transfer
     /// or DEX balance, then fills orders at best price per hop.
     ///
     /// # Errors
-    /// - `InvalidBaseToken` — token address does not have a valid TIP-20 prefix
+    /// - `InvalidBaseToken` — token address does not have a valid MIP-20 prefix
     /// - `PairNotFound` — no orderbook exists for the token pair
     /// - `InsufficientOutput` — final output amount falls below `min_amount_out`
     /// - `InsufficientBalance` — sender balance lower than required input
@@ -308,10 +308,10 @@ impl StablecoinDEX {
 
     /// Swaps to receive exactly `amount_out` of `token_out`, routing
     /// through one or more orderbooks. Works backwards from output to
-    /// compute input, then deducts via [`TIP20Token`] or DEX balance.
+    /// compute input, then deducts via [`MIP20Token`] or DEX balance.
     ///
     /// # Errors
-    /// - `InvalidBaseToken` — token address does not have a valid TIP-20 prefix
+    /// - `InvalidBaseToken` — token address does not have a valid MIP-20 prefix
     /// - `PairNotFound` — no orderbook exists for the token pair
     /// - `MaxInputExceeded` — required input exceeds `max_amount_in`
     /// - `InsufficientBalance` — sender balance lower than required input
@@ -346,12 +346,12 @@ impl StablecoinDEX {
     }
 
     /// Returns the [`TickLevel`] for a given `base` token, `tick`, and side. Looks up the
-    /// quote token via [`TIP20Token`] and derives the book key.
+    /// quote token via [`MIP20Token`] and derives the book key.
     ///
     /// # Errors
-    /// - `InvalidBaseToken` — `base` address does not resolve to a valid [`TIP20Token`]
+    /// - `InvalidBaseToken` — `base` address does not resolve to a valid [`MIP20Token`]
     pub fn get_price_level(&self, base: Address, tick: i16, is_bid: bool) -> Result<TickLevel> {
-        let quote = TIP20Token::from_address(base)?.quote_token()?;
+        let quote = MIP20Token::from_address(base)?.quote_token()?;
         let book_key = compute_book_key(base, quote);
         if is_bid {
             self.books[book_key].bids[tick].read()
@@ -399,19 +399,19 @@ impl StablecoinDEX {
 
     /// Creates a new trading pair between `base` and its quote token.
     /// Both must be USD-denominated tokens validated via
-    /// [`TIP20Factory`]. Reverts if the pair already exists.
+    /// [`MIP20Factory`]. Reverts if the pair already exists.
     ///
     /// # Errors
-    /// - `InvalidBaseToken` — token address does not have a valid TIP-20 prefix
-    /// - `InvalidCurrency` — both tokens must be USD-denominated (validated via [`TIP20Factory`]).
+    /// - `InvalidBaseToken` — token address does not have a valid MIP-20 prefix
+    /// - `InvalidCurrency` — both tokens must be USD-denominated (validated via [`MIP20Factory`]).
     /// - `PairAlreadyExists` — an orderbook for this pair is already initialized
     pub fn create_pair(&mut self, base: Address) -> Result<B256> {
-        // Validate that base is a TIP20 token
-        if !TIP20Factory::new().is_tip20(base)? {
+        // Validate that base is a MIP20 token
+        if !MIP20Factory::new().is_tip20(base)? {
             return Err(StablecoinDEXError::invalid_base_token().into());
         }
 
-        let quote = TIP20Token::from_address(base)?.quote_token()?;
+        let quote = MIP20Token::from_address(base)?.quote_token()?;
         validate_usd_currency(base)?;
         validate_usd_currency(quote)?;
 
@@ -438,16 +438,16 @@ impl StablecoinDEX {
     }
 
     /// Places a limit order on the orderbook for `token` against its quote token.
-    /// Escrows the appropriate amount via [`TIP20Token`] transfer or DEX balance and enforces
-    /// compliance via the [`TIP403Registry`]. Auto-creates the trading pair if needed.
+    /// Escrows the appropriate amount via [`MIP20Token`] transfer or DEX balance and enforces
+    /// compliance via the [`MIP403Registry`]. Auto-creates the trading pair if needed.
     ///
     /// # Errors
-    /// - `InvalidBaseToken` — token address does not have a valid TIP-20 prefix
+    /// - `InvalidBaseToken` — token address does not have a valid MIP-20 prefix
     /// - `TickOutOfBounds` — tick is outside the allowed `[MIN_TICK, MAX_TICK]` range
     /// - `InvalidTick` — tick is not aligned to `TICK_SPACING`
     /// - `BelowMinimumOrderSize` — order amount is below `MIN_ORDER_AMOUNT`
     /// - `InsufficientBalance` — sender balance lower than required escrow
-    /// - `PolicyForbids` — TIP-403 policy rejects the token transfer
+    /// - `PolicyForbids` — MIP-403 policy rejects the token transfer
     ///
     /// # Returns
     /// The assigned order ID
@@ -459,7 +459,7 @@ impl StablecoinDEX {
         is_bid: bool,
         tick: i16,
     ) -> Result<u128> {
-        let quote_token = TIP20Token::from_address(token)?.quote_token()?;
+        let quote_token = MIP20Token::from_address(token)?.quote_token()?;
 
         // Compute book_key from token pair
         let book_key = compute_book_key(token, quote_token);
@@ -495,7 +495,7 @@ impl StablecoinDEX {
 
         // Check policy on non-escrow token (escrow token is checked in decrement_balance_or_transfer_from)
         // Direction: DEX → sender (order placer receives non-escrow token when filled)
-        TIP20Token::from_address(non_escrow_token)?
+        MIP20Token::from_address(non_escrow_token)?
             .ensure_transfer_authorized(self.address, sender)?;
 
         // Debit from user's balance or transfer from wallet
@@ -579,17 +579,17 @@ impl StablecoinDEX {
 
     /// Places a flip order that auto-reverses to the opposite side when
     /// fully filled, acting as perpetual liquidity. Escrows tokens via
-    /// [`TIP20Token`] and enforces compliance via [`TIP403Registry`].
+    /// [`MIP20Token`] and enforces compliance via [`MIP403Registry`].
     /// For bids `flip_tick` must be > `tick`; for asks, < `tick`.
     ///
     /// # Errors
-    /// - `InvalidBaseToken` — token address does not have a valid TIP-20 prefix
+    /// - `InvalidBaseToken` — token address does not have a valid MIP-20 prefix
     /// - `TickOutOfBounds` — tick or flip_tick outside `[MIN_TICK, MAX_TICK]`
     /// - `InvalidTick` — tick is not aligned to `TICK_SPACING`
     /// - `InvalidFlipTick` — flip_tick on wrong side of tick for order direction
     /// - `BelowMinimumOrderSize` — order amount is below `MIN_ORDER_AMOUNT`
     /// - `InsufficientBalance` — sender balance lower than required escrow
-    /// - `PolicyForbids` — TIP-403 policy rejects the token transfer
+    /// - `PolicyForbids` — MIP-403 policy rejects the token transfer
     #[allow(clippy::too_many_arguments)]
     pub fn place_flip(
         &mut self,
@@ -601,7 +601,7 @@ impl StablecoinDEX {
         flip_tick: i16,
         internal_balance_only: bool,
     ) -> Result<u128> {
-        let quote_token = TIP20Token::from_address(token)?.quote_token()?;
+        let quote_token = MIP20Token::from_address(token)?.quote_token()?;
 
         // Compute book_key from token pair
         let book_key = compute_book_key(token, quote_token);
@@ -656,13 +656,13 @@ impl StablecoinDEX {
 
         // Check policy on non-escrow token (escrow token is checked in decrement_balance_or_transfer_from or below)
         // Direction: DEX → sender (order placer receives non-escrow token when filled)
-        TIP20Token::from_address(non_escrow_token)?
+        MIP20Token::from_address(non_escrow_token)?
             .ensure_transfer_authorized(self.address, sender)?;
 
         // Debit from user's balance only. This is set to true after a flip order is filled and the
         // subsequent flip order is being placed.
         if internal_balance_only {
-            TIP20Token::from_address(escrow_token)?
+            MIP20Token::from_address(escrow_token)?
                 .ensure_transfer_authorized(sender, self.address)?;
             let user_balance = self.balance_of(sender, escrow_token)?;
             if user_balance < escrow_amount {
@@ -770,7 +770,7 @@ impl StablecoinDEX {
     /// Fill an order and delete from storage. Returns the next best order and price level.
     ///
     /// NOTE: Maker transfer policy is not enforced here to not block swaps on the pair.
-    /// Note that TIP403 checks on order placement and withdraws are enforced.
+    /// Note that MIP403 checks on order placement and withdraws are enforced.
     /// [`cancel_stale_order`](Self::cancel_stale_order) can be used to remove orders.
     fn fill_order(
         &mut self,
@@ -1172,17 +1172,17 @@ impl StablecoinDEX {
         ))
     }
 
-    /// Cancels an order whose maker is blocked by [`TIP403Registry`] policy, allowing anyone to
+    /// Cancels an order whose maker is blocked by [`MIP403Registry`] policy, allowing anyone to
     /// clean up stale liquidity.
     ///
-    /// [TIP-1015]: T4+ checks sender authorization on the escrow token and recipient
+    /// [MIP-1015]: T4+ checks sender authorization on the escrow token and recipient
     /// authorization on the payout token. An order is stale if the maker fails either check.
     ///
-    /// [TIP-1015]: <https://docs.tempo.xyz/protocol/tips/tip-1015>
+    /// [MIP-1015]: <https://docs.magnus.xyz/protocol/mips/mip-1015>
     ///
     /// # Errors
     /// - `OrderDoesNotExist` — order ID not found or already fully filled
-    /// - `OrderNotStale` — order maker is still authorized by TIP-403 policy
+    /// - `OrderNotStale` — order maker is still authorized by MIP-403 policy
     pub fn cancel_stale_order(&mut self, order_id: u128) -> Result<()> {
         let order = self.orders[order_id].read()?;
 
@@ -1222,7 +1222,7 @@ impl StablecoinDEX {
     }
 
     /// Withdraws `amount` from the caller's DEX balance, transferring
-    /// tokens back via [`TIP20Token`].
+    /// tokens back via [`MIP20Token`].
     ///
     /// # Errors
     /// - `InsufficientBalance` — DEX balance lower than withdrawal amount
@@ -1339,14 +1339,14 @@ impl StablecoinDEX {
             return Err(StablecoinDEXError::identical_tokens().into());
         }
 
-        // Validate that both tokens are TIP20 tokens
+        // Validate that both tokens are MIP20 tokens
         if !token_in.is_tip20() || !token_out.is_tip20() {
             return Err(StablecoinDEXError::invalid_token().into());
         }
 
         // Check if direct or reverse pair exists
-        let in_quote = TIP20Token::from_address(token_in)?.quote_token()?;
-        let out_quote = TIP20Token::from_address(token_out)?.quote_token()?;
+        let in_quote = MIP20Token::from_address(token_in)?.quote_token()?;
+        let out_quote = MIP20Token::from_address(token_out)?.quote_token()?;
 
         if in_quote == token_out || out_quote == token_in {
             return self.validate_and_build_route(&[token_in, token_out]);
@@ -1396,7 +1396,7 @@ impl StablecoinDEX {
     /// Validates that all pairs in the path exist and returns book keys with direction info.
     ///
     /// # Errors
-    /// - `InvalidToken` — a token address does not have a valid TIP-20 prefix
+    /// - `InvalidToken` — a token address does not have a valid MIP-20 prefix
     /// - `PairDoesNotExist` — no orderbook exists for a hop in the route
     /// - `Paused` — a token in the route is paused (T3+)
     fn validate_and_build_route(&self, path: &[Address]) -> Result<Vec<(B256, bool)>> {
@@ -1407,10 +1407,10 @@ impl StablecoinDEX {
             let token_out = path[i + 1];
 
             let (base, quote) = {
-                let token_in_tip20 = TIP20Token::from_address(token_in)?;
+                let token_in_tip20 = MIP20Token::from_address(token_in)?;
 
                 // Ensure that the token is not paused (spec: T3+)
-                // Necessary because TIP20 transfer checks don't cover internal DEX balance updates
+                // Necessary because MIP20 transfer checks don't cover internal DEX balance updates
                 if self.storage.spec().is_t3() {
                     token_in_tip20.check_not_paused()?;
                 }
@@ -1418,7 +1418,7 @@ impl StablecoinDEX {
                 if token_in_tip20.quote_token()? == token_out {
                     (token_in, token_out)
                 } else {
-                    let token_out_tip20 = TIP20Token::from_address(token_out)?;
+                    let token_out_tip20 = MIP20Token::from_address(token_out)?;
                     if token_out_tip20.quote_token()? == token_in {
                         (token_out, token_in)
                     } else {
@@ -1447,7 +1447,7 @@ impl StablecoinDEX {
         let mut path = vec![token];
 
         while token != PATH_USD_ADDRESS {
-            token = TIP20Token::from_address(token)?.quote_token()?;
+            token = MIP20Token::from_address(token)?.quote_token()?;
             path.push(token);
         }
 
@@ -1536,8 +1536,8 @@ impl StablecoinDEX {
 /// Checks whether `address` is authorized under the transfer policy of `token` for the given
 /// `role`. Returns `false` instead of erroring when the policy lookup fails.
 fn is_authorized_for_token(token: Address, address: Address, role: AuthRole) -> Result<bool> {
-    let policy_id = TIP20Token::from_address(token)?.transfer_policy_id()?;
-    let registry = TIP403Registry::new();
+    let policy_id = MIP20Token::from_address(token)?.transfer_policy_id()?;
+    let registry = MIP403Registry::new();
     match registry.is_authorized_as(policy_id, address, role) {
         Ok(authorized) => Ok(authorized),
         Err(e) if is_policy_lookup_error(&e) => Ok(false),
@@ -1549,14 +1549,14 @@ fn is_authorized_for_token(token: Address, address: Address, role: AuthRole) -> 
 mod tests {
     use alloy::{primitives::IntoLogData, sol_types::SolEvent};
     use magnus_chainspec::hardfork::MagnusHardfork;
-    use magnus_contracts::precompiles::TIP20Error;
+    use magnus_contracts::precompiles::MIP20Error;
 
     use crate::{
         error::MagnusPrecompileError,
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
-        test_util::TIP20Setup,
-        tip20::PAUSE_ROLE,
-        tip403_registry::{ITIP403Registry, TIP403Registry},
+        test_util::MIP20Setup,
+        mip20::PAUSE_ROLE,
+        mip403_registry::{IMIP403Registry, MIP403Registry},
     };
 
     use super::*;
@@ -1569,14 +1569,14 @@ mod tests {
         amount: u128,
     ) -> Result<(Address, Address)> {
         // Configure pathUSD
-        let quote = TIP20Setup::path_usd(admin)
+        let quote = MIP20Setup::path_usd(admin)
             .with_issuer(admin)
             .with_mint(user, U256::from(amount))
             .with_approval(user, exchange_address, U256::from(amount))
             .apply()?;
 
         // Configure base token (uses pathUSD as quote by default)
-        let base = TIP20Setup::create("BASE", "BASE", admin)
+        let base = MIP20Setup::create("BASE", "BASE", admin)
             .with_issuer(admin)
             .with_mint(user, U256::from(amount))
             .with_approval(user, exchange_address, U256::from(amount))
@@ -1694,7 +1694,7 @@ mod tests {
 
             let max_escrow = expected_quote_ceil * 2;
 
-            let base = TIP20Setup::create("BASE", "BASE", admin)
+            let base = MIP20Setup::create("BASE", "BASE", admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(base_amount * 2))
                 .with_mint(bob, U256::from(base_amount * 2))
@@ -1704,7 +1704,7 @@ mod tests {
             let base_token = base.address();
             let quote_token = base.quote_token()?;
 
-            TIP20Setup::path_usd(admin)
+            MIP20Setup::path_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(max_escrow))
                 .with_mint(bob, U256::from(max_escrow))
@@ -1755,13 +1755,13 @@ mod tests {
             let price = orderbook::tick_to_price(tick) as u128;
             let escrow_ceil = (base_amount * price).div_ceil(orderbook::PRICE_SCALE as u128);
 
-            let base = TIP20Setup::create("BASE", "BASE", admin)
+            let base = MIP20Setup::create("BASE", "BASE", admin)
                 .with_issuer(admin)
                 .apply()?;
             let base_token = base.address();
             let quote_token = base.quote_token()?;
 
-            TIP20Setup::path_usd(admin)
+            MIP20Setup::path_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(escrow_ceil))
                 .with_approval(alice, exchange.address, U256::MAX)
@@ -1906,13 +1906,13 @@ mod tests {
             assert_eq!(level.total_liquidity, min_order_amount);
 
             // Verify balance was reduced by the escrow amount
-            let quote_tip20 = TIP20Token::from_address(quote_token)?;
+            let quote_tip20 = MIP20Token::from_address(quote_token)?;
             let remaining_balance =
-                quote_tip20.balance_of(ITIP20::balanceOfCall { account: alice })?;
+                quote_tip20.balance_of(IMIP20::balanceOfCall { account: alice })?;
             assert_eq!(remaining_balance, U256::ZERO);
 
             // Verify exchange received the tokens
-            let exchange_balance = quote_tip20.balance_of(ITIP20::balanceOfCall {
+            let exchange_balance = quote_tip20.balance_of(IMIP20::balanceOfCall {
                 account: exchange.address,
             })?;
             assert_eq!(exchange_balance, U256::from(expected_escrow));
@@ -1966,13 +1966,13 @@ mod tests {
             assert_eq!(level.total_liquidity, min_order_amount);
 
             // Verify balance was reduced by the escrow amount
-            let base_tip20 = TIP20Token::from_address(base_token)?;
+            let base_tip20 = MIP20Token::from_address(base_token)?;
             let remaining_balance =
-                base_tip20.balance_of(ITIP20::balanceOfCall { account: alice })?;
+                base_tip20.balance_of(IMIP20::balanceOfCall { account: alice })?;
             assert_eq!(remaining_balance, U256::ZERO); // All tokens should be escrowed
 
             // Verify exchange received the base tokens
-            let exchange_balance = base_tip20.balance_of(ITIP20::balanceOfCall {
+            let exchange_balance = base_tip20.balance_of(IMIP20::balanceOfCall {
                 account: exchange.address,
             })?;
             assert_eq!(exchange_balance, U256::from(min_order_amount));
@@ -2045,10 +2045,10 @@ mod tests {
             assert!(book_before.base.is_zero(),);
 
             // Transfer tokens to exchange first
-            let mut base = TIP20Token::from_address(base_token)?;
+            let mut base = MIP20Token::from_address(base_token)?;
             base.transfer(
                 user,
-                ITIP20::transferCall {
+                IMIP20::transferCall {
                     to: exchange.address,
                     amount: U256::from(MIN_ORDER_AMOUNT),
                 },
@@ -2137,13 +2137,13 @@ mod tests {
             assert_eq!(level.total_liquidity, min_order_amount);
 
             // Verify balance was reduced by the escrow amount
-            let quote_tip20 = TIP20Token::from_address(quote_token)?;
+            let quote_tip20 = MIP20Token::from_address(quote_token)?;
             let remaining_balance =
-                quote_tip20.balance_of(ITIP20::balanceOfCall { account: alice })?;
+                quote_tip20.balance_of(IMIP20::balanceOfCall { account: alice })?;
             assert_eq!(remaining_balance, U256::ZERO);
 
             // Verify exchange received the tokens
-            let exchange_balance = quote_tip20.balance_of(ITIP20::balanceOfCall {
+            let exchange_balance = quote_tip20.balance_of(IMIP20::balanceOfCall {
                 account: exchange.address,
             })?;
             assert_eq!(exchange_balance, U256::from(expected_escrow));
@@ -2192,13 +2192,13 @@ mod tests {
             assert_eq!(exchange.balance_of(alice, quote_token)?, 0);
 
             // Verify wallet balances changed correctly
-            let quote_tip20 = TIP20Token::from_address(quote_token)?;
+            let quote_tip20 = MIP20Token::from_address(quote_token)?;
             assert_eq!(
-                quote_tip20.balance_of(ITIP20::balanceOfCall { account: alice })?,
+                quote_tip20.balance_of(IMIP20::balanceOfCall { account: alice })?,
                 expected_escrow
             );
             assert_eq!(
-                quote_tip20.balance_of(ITIP20::balanceOfCall {
+                quote_tip20.balance_of(IMIP20::balanceOfCall {
                     account: exchange.address
                 })?,
                 0
@@ -2424,8 +2424,8 @@ mod tests {
                 .swap_exact_amount_out(bob, quote_token, base_token, amount_out, max_amount_in)
                 .expect("Swap should succeed");
 
-            let base_tip20 = TIP20Token::from_address(base_token)?;
-            let bob_base_balance = base_tip20.balance_of(ITIP20::balanceOfCall { account: bob })?;
+            let base_tip20 = MIP20Token::from_address(base_token)?;
+            let bob_base_balance = base_tip20.balance_of(IMIP20::balanceOfCall { account: bob })?;
             assert_eq!(bob_base_balance, U256::from(amount_out));
 
             let alice_quote_exchange_balance = exchange.balance_of(alice, quote_token)?;
@@ -2471,9 +2471,9 @@ mod tests {
                 .swap_exact_amount_in(bob, base_token, quote_token, amount_in, min_amount_out)
                 .expect("Swap should succeed");
 
-            let quote_tip20 = TIP20Token::from_address(quote_token)?;
+            let quote_tip20 = MIP20Token::from_address(quote_token)?;
             let bob_quote_balance =
-                quote_tip20.balance_of(ITIP20::balanceOfCall { account: bob })?;
+                quote_tip20.balance_of(IMIP20::balanceOfCall { account: bob })?;
             assert_eq!(bob_quote_balance, U256::from(amount_out));
 
             let alice_base_exchange_balance = exchange.balance_of(alice, base_token)?;
@@ -2632,8 +2632,8 @@ mod tests {
             let admin = Address::random();
 
             // Setup: pathUSD <- USDC <- TokenA
-            let usdc = TIP20Setup::create("USDC", "USDC", admin).apply()?;
-            let token_a = TIP20Setup::create("TokenA", "TKA", admin)
+            let usdc = MIP20Setup::create("USDC", "USDC", admin).apply()?;
+            let token_a = MIP20Setup::create("TokenA", "TKA", admin)
                 .quote_token(usdc.address())
                 .apply()?;
 
@@ -2749,8 +2749,8 @@ mod tests {
             // Setup: pathUSD <- USDC
             //        pathUSD <- EURC
             // (USDC and EURC are siblings, both have pathUSD as quote)
-            let usdc = TIP20Setup::create("USDC", "USDC", admin).apply()?;
-            let eurc = TIP20Setup::create("EURC", "EURC", admin).apply()?;
+            let usdc = MIP20Setup::create("USDC", "USDC", admin).apply()?;
+            let eurc = MIP20Setup::create("EURC", "EURC", admin).apply()?;
 
             // Create pairs first
             exchange.create_pair(usdc.address())?;
@@ -2782,17 +2782,17 @@ mod tests {
 
             // Setup: pathUSD <- USDC
             //        pathUSD <- EURC
-            let _path_usd = TIP20Setup::path_usd(admin)
+            let _path_usd = MIP20Setup::path_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, min_order_amount_x10)
                 .with_approval(alice, exchange.address, min_order_amount_x10)
                 .apply()?;
-            let usdc = TIP20Setup::create("USDC", "USDC", admin)
+            let usdc = MIP20Setup::create("USDC", "USDC", admin)
                 .with_issuer(admin)
                 .with_mint(alice, min_order_amount_x10)
                 .with_approval(alice, exchange.address, min_order_amount_x10)
                 .apply()?;
-            let eurc = TIP20Setup::create("EURC", "EURC", admin)
+            let eurc = MIP20Setup::create("EURC", "EURC", admin)
                 .with_issuer(admin)
                 .with_mint(alice, min_order_amount_x10)
                 .with_approval(alice, exchange.address, min_order_amount_x10)
@@ -2838,17 +2838,17 @@ mod tests {
 
             // Setup: pathUSD <- USDC
             //        pathUSD <- EURC
-            let _path_usd = TIP20Setup::path_usd(admin)
+            let _path_usd = MIP20Setup::path_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, min_order_amount_x10)
                 .with_approval(alice, exchange.address, min_order_amount_x10)
                 .apply()?;
-            let usdc = TIP20Setup::create("USDC", "USDC", admin)
+            let usdc = MIP20Setup::create("USDC", "USDC", admin)
                 .with_issuer(admin)
                 .with_mint(alice, min_order_amount_x10)
                 .with_approval(alice, exchange.address, min_order_amount_x10)
                 .apply()?;
-            let eurc = TIP20Setup::create("EURC", "EURC", admin)
+            let eurc = MIP20Setup::create("EURC", "EURC", admin)
                 .with_issuer(admin)
                 .with_mint(alice, min_order_amount_x10)
                 .with_approval(alice, exchange.address, min_order_amount_x10)
@@ -2889,14 +2889,14 @@ mod tests {
             let min_order_amount_x10 = U256::from(MIN_ORDER_AMOUNT * 10);
 
             // Setup: pathUSD <- USDC <- EURC
-            let path_usd = TIP20Setup::path_usd(admin)
+            let path_usd = MIP20Setup::path_usd(admin)
                 .with_issuer(admin)
                 // Setup alice as a liquidity provider
                 .with_mint(alice, min_order_amount_x10)
                 .with_approval(alice, exchange.address, min_order_amount_x10)
                 .apply()?;
 
-            let usdc = TIP20Setup::create("USDC", "USDC", admin)
+            let usdc = MIP20Setup::create("USDC", "USDC", admin)
                 .with_issuer(admin)
                 // Setup alice as a liquidity provider
                 .with_mint(alice, min_order_amount_x10)
@@ -2906,7 +2906,7 @@ mod tests {
                 .with_approval(bob, exchange.address, min_order_amount_x10)
                 .apply()?;
 
-            let eurc = TIP20Setup::create("EURC", "EURC", admin)
+            let eurc = MIP20Setup::create("EURC", "EURC", admin)
                 .with_issuer(admin)
                 // Setup alice as a liquidity provider
                 .with_mint(alice, min_order_amount_x10)
@@ -2918,8 +2918,8 @@ mod tests {
             exchange.place(alice, eurc.address(), min_order_amount * 5, false, 0)?;
 
             // Check bob's balances before swap
-            let bob_usdc_before = usdc.balance_of(ITIP20::balanceOfCall { account: bob })?;
-            let bob_eurc_before = eurc.balance_of(ITIP20::balanceOfCall { account: bob })?;
+            let bob_usdc_before = usdc.balance_of(IMIP20::balanceOfCall { account: bob })?;
+            let bob_eurc_before = eurc.balance_of(IMIP20::balanceOfCall { account: bob })?;
 
             // Execute multi-hop swap: USDC -> pathUSD -> EURC
             let amount_in = min_order_amount;
@@ -2932,8 +2932,8 @@ mod tests {
             )?;
 
             // Check bob's balances after swap
-            let bob_usdc_after = usdc.balance_of(ITIP20::balanceOfCall { account: bob })?;
-            let bob_eurc_after = eurc.balance_of(ITIP20::balanceOfCall { account: bob })?;
+            let bob_usdc_after = usdc.balance_of(IMIP20::balanceOfCall { account: bob })?;
+            let bob_eurc_after = eurc.balance_of(IMIP20::balanceOfCall { account: bob })?;
 
             // Verify bob spent USDC and received EURC
             assert_eq!(
@@ -2949,7 +2949,7 @@ mod tests {
 
             // Verify bob has ZERO pathUSD (intermediate token should be transitory)
             let bob_path_usd_wallet =
-                path_usd.balance_of(ITIP20::balanceOfCall { account: bob })?;
+                path_usd.balance_of(IMIP20::balanceOfCall { account: bob })?;
             assert_eq!(
                 bob_path_usd_wallet,
                 U256::ZERO,
@@ -2981,14 +2981,14 @@ mod tests {
             let min_order_amount_x10 = U256::from(MIN_ORDER_AMOUNT * 10);
 
             // Setup: pathUSD <- USDC <- EURC
-            let path_usd = TIP20Setup::path_usd(admin)
+            let path_usd = MIP20Setup::path_usd(admin)
                 .with_issuer(admin)
                 // Setup alice as a liquidity provider
                 .with_mint(alice, min_order_amount_x10)
                 .with_approval(alice, exchange.address, min_order_amount_x10)
                 .apply()?;
 
-            let usdc = TIP20Setup::create("USDC", "USDC", admin)
+            let usdc = MIP20Setup::create("USDC", "USDC", admin)
                 .with_issuer(admin)
                 // Setup alice as a liquidity provider
                 .with_mint(alice, min_order_amount_x10)
@@ -2998,7 +2998,7 @@ mod tests {
                 .with_approval(bob, exchange.address, min_order_amount_x10)
                 .apply()?;
 
-            let eurc = TIP20Setup::create("EURC", "EURC", admin)
+            let eurc = MIP20Setup::create("EURC", "EURC", admin)
                 .with_issuer(admin)
                 // Setup alice as a liquidity provider
                 .with_mint(alice, min_order_amount_x10)
@@ -3010,8 +3010,8 @@ mod tests {
             exchange.place(alice, eurc.address(), min_order_amount * 5, false, 0)?;
 
             // Check bob's balances before swap
-            let bob_usdc_before = usdc.balance_of(ITIP20::balanceOfCall { account: bob })?;
-            let bob_eurc_before = eurc.balance_of(ITIP20::balanceOfCall { account: bob })?;
+            let bob_usdc_before = usdc.balance_of(IMIP20::balanceOfCall { account: bob })?;
+            let bob_eurc_before = eurc.balance_of(IMIP20::balanceOfCall { account: bob })?;
 
             // Execute multi-hop swap: USDC -> pathUSD -> EURC (exact output)
             let amount_out = 90u128;
@@ -3024,8 +3024,8 @@ mod tests {
             )?;
 
             // Check bob's balances after swap
-            let bob_usdc_after = usdc.balance_of(ITIP20::balanceOfCall { account: bob })?;
-            let bob_eurc_after = eurc.balance_of(ITIP20::balanceOfCall { account: bob })?;
+            let bob_usdc_after = usdc.balance_of(IMIP20::balanceOfCall { account: bob })?;
+            let bob_eurc_after = eurc.balance_of(IMIP20::balanceOfCall { account: bob })?;
 
             // Verify bob spent USDC and received exact EURC
             assert_eq!(
@@ -3041,7 +3041,7 @@ mod tests {
 
             // Verify bob has ZERO pathUSD (intermediate token should be transitory)
             let bob_path_usd_wallet =
-                path_usd.balance_of(ITIP20::balanceOfCall { account: bob })?;
+                path_usd.balance_of(IMIP20::balanceOfCall { account: bob })?;
             assert_eq!(
                 bob_path_usd_wallet,
                 U256::ZERO,
@@ -3067,7 +3067,7 @@ mod tests {
             let admin = Address::random();
 
             // Create EUR token with PATH USD as quote (valid non-USD token)
-            let token_0 = TIP20Setup::create("EuroToken", "EURO", admin)
+            let token_0 = MIP20Setup::create("EuroToken", "EURO", admin)
                 .currency("EUR")
                 .apply()?;
 
@@ -3078,7 +3078,7 @@ mod tests {
             let result = exchange.create_pair(token_0.address());
             assert!(matches!(
                 result,
-                Err(MagnusPrecompileError::TIP20(TIP20Error::InvalidCurrency(_)))
+                Err(MagnusPrecompileError::MIP20(MIP20Error::InvalidCurrency(_)))
             ));
 
             Ok(())
@@ -3090,12 +3090,12 @@ mod tests {
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
             let admin = Address::random();
-            let _path_usd = TIP20Setup::path_usd(admin).apply()?;
+            let _path_usd = MIP20Setup::path_usd(admin).apply()?;
 
             let mut exchange = StablecoinDEX::new();
             exchange.initialize()?;
 
-            // Test: create_pair should reject non-TIP20 address (random address without TIP20 prefix)
+            // Test: create_pair should reject non-MIP20 address (random address without MIP20 prefix)
             let non_tip20_address = Address::random();
             let result = exchange.create_pair(non_tip20_address);
             assert!(matches!(
@@ -3191,8 +3191,8 @@ mod tests {
             )?;
 
             // Verify Bob got exactly the quote amount requested
-            let bob_quote_balance = TIP20Token::from_address(quote_token)?
-                .balance_of(ITIP20::balanceOfCall { account: bob })?;
+            let bob_quote_balance = MIP20Token::from_address(quote_token)?
+                .balance_of(IMIP20::balanceOfCall { account: bob })?;
             assert_eq!(bob_quote_balance, U256::from(amount_out_quote));
 
             Ok(())
@@ -3260,11 +3260,11 @@ mod tests {
             exchange.create_pair(base_token)?;
 
             // Give bob base tokens and carol quote tokens
-            TIP20Setup::config(base_token)
+            MIP20Setup::config(base_token)
                 .with_mint(bob, U256::from(AMOUNT))
                 .with_approval(bob, exchange.address, U256::from(AMOUNT))
                 .apply()?;
-            TIP20Setup::config(quote_token)
+            MIP20Setup::config(quote_token)
                 .with_mint(carol, U256::from(AMOUNT))
                 .with_approval(carol, exchange.address, U256::from(AMOUNT))
                 .apply()?;
@@ -3339,7 +3339,7 @@ mod tests {
             exchange.place(alice, base_token, amount, true, bid_tick_2)?;
 
             // Place ask orders at two different ticks
-            TIP20Setup::config(base_token)
+            MIP20Setup::config(base_token)
                 .with_mint(alice, U256::from(amount * 2))
                 .with_approval(alice, exchange.address, U256::from(amount * 2))
                 .apply()?;
@@ -3413,7 +3413,7 @@ mod tests {
             let bid_order_3 = exchange.place(alice, base_token, amount, true, bid_tick_2)?;
 
             // Place 2 ask orders at tick 50 and tick 60
-            TIP20Setup::config(base_token)
+            MIP20Setup::config(base_token)
                 .with_mint(alice, U256::from(amount * 2))
                 .with_approval(alice, exchange.address, U256::from(amount * 2))
                 .apply()?;
@@ -3481,7 +3481,7 @@ mod tests {
             exchange.create_pair(base_token)?;
 
             // Give alice base tokens
-            TIP20Setup::config(base_token)
+            MIP20Setup::config(base_token)
                 .with_mint(alice, U256::from(AMOUNT))
                 .with_approval(alice, exchange.address, U256::from(AMOUNT))
                 .apply()?;
@@ -3522,7 +3522,7 @@ mod tests {
             exchange.create_pair(base_token)?;
 
             // Give alice base tokens
-            TIP20Setup::config(base_token)
+            MIP20Setup::config(base_token)
                 .with_mint(alice, U256::from(AMOUNT))
                 .with_approval(alice, exchange.address, U256::from(AMOUNT))
                 .apply()?;
@@ -3603,7 +3603,7 @@ mod tests {
                         StablecoinDEXError::InvalidToken(_)
                     ))
                 ),
-                "Should return InvalidToken error for non-TIP20 token"
+                "Should return InvalidToken error for non-MIP20 token"
             );
 
             Ok(())
@@ -3629,7 +3629,7 @@ mod tests {
             let (base_token, quote_token) =
                 setup_test_tokens(admin, alice, exchange.address, bid_escrow)?;
 
-            TIP20Setup::config(base_token)
+            MIP20Setup::config(base_token)
                 .with_mint(alice, U256::from(amount))
                 .with_approval(alice, exchange.address, U256::from(amount))
                 .apply()?;
@@ -3689,10 +3689,10 @@ mod tests {
             assert!(book_before.base.is_zero(),);
 
             // Transfer tokens to exchange first
-            let mut base = TIP20Token::from_address(base_token)?;
+            let mut base = MIP20Token::from_address(base_token)?;
             base.transfer(
                 user,
-                ITIP20::transferCall {
+                IMIP20::transferCall {
                     to: exchange.address,
                     amount: U256::from(MIN_ORDER_AMOUNT),
                 },
@@ -3732,7 +3732,7 @@ mod tests {
             let admin = Address::random();
             let alice = Address::random();
 
-            let base = TIP20Setup::create("BASE", "BASE", admin).apply()?;
+            let base = MIP20Setup::create("BASE", "BASE", admin).apply()?;
             let base_address = base.address();
 
             exchange.create_pair(base_address)?;
@@ -3768,13 +3768,13 @@ mod tests {
             let expected_escrow =
                 (min_order_amount * price as u128) / orderbook::PRICE_SCALE as u128;
 
-            TIP20Setup::path_usd(admin)
+            MIP20Setup::path_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(expected_escrow))
                 .with_approval(alice, exchange.address, U256::from(expected_escrow))
                 .apply()?;
 
-            let base = TIP20Setup::create("BASE", "BASE", admin).apply()?;
+            let base = MIP20Setup::create("BASE", "BASE", admin).apply()?;
             let base_token = base.address();
             let quote_token = base.quote_token()?;
 
@@ -3821,13 +3821,13 @@ mod tests {
             let expected_escrow =
                 (min_order_amount * price as u128) / orderbook::PRICE_SCALE as u128;
 
-            TIP20Setup::path_usd(admin)
+            MIP20Setup::path_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(expected_escrow))
                 .with_approval(alice, exchange.address, U256::from(expected_escrow))
                 .apply()?;
 
-            let base = TIP20Setup::create("BASE", "BASE", admin).apply()?;
+            let base = MIP20Setup::create("BASE", "BASE", admin).apply()?;
             let base_token = base.address();
             let quote_token = base.quote_token()?;
 
@@ -3889,13 +3889,13 @@ mod tests {
             let expected_escrow =
                 (min_order_amount * price as u128) / orderbook::PRICE_SCALE as u128;
 
-            TIP20Setup::path_usd(admin)
+            MIP20Setup::path_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(expected_escrow))
                 .with_approval(alice, exchange.address, U256::from(expected_escrow))
                 .apply()?;
 
-            let base = TIP20Setup::create("BASE", "BASE", admin).apply()?;
+            let base = MIP20Setup::create("BASE", "BASE", admin).apply()?;
             let base_token = base.address();
             let quote_token = base.quote_token()?;
 
@@ -3928,7 +3928,7 @@ mod tests {
 
     #[test]
     fn test_blacklisted_user_cannot_use_internal_balance() -> eyre::Result<()> {
-        use crate::tip403_registry::{ITIP403Registry, TIP403Registry};
+        use crate::mip403_registry::{IMIP403Registry, MIP403Registry};
 
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
@@ -3939,34 +3939,34 @@ mod tests {
             let admin = Address::random();
 
             // Create a blacklist policy
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
             let policy_id = registry.create_policy(
                 admin,
-                ITIP403Registry::createPolicyCall {
+                IMIP403Registry::createPolicyCall {
                     admin,
-                    policyType: ITIP403Registry::PolicyType::BLACKLIST,
+                    policyType: IMIP403Registry::PolicyType::BLACKLIST,
                 },
             )?;
 
             // Setup quote token (pathUSD) with the blacklist policy
-            let mut quote = TIP20Setup::path_usd(admin).with_issuer(admin).apply()?;
+            let mut quote = MIP20Setup::path_usd(admin).with_issuer(admin).apply()?;
 
             quote.change_transfer_policy_id(
                 admin,
-                ITIP20::changeTransferPolicyIdCall {
+                IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: policy_id,
                 },
             )?;
 
             // Setup base token with the blacklist policy
-            let mut base = TIP20Setup::create("BASE", "BASE", admin)
+            let mut base = MIP20Setup::create("BASE", "BASE", admin)
                 .with_issuer(admin)
                 .apply()?;
             let base_address = base.address();
 
             base.change_transfer_policy_id(
                 admin,
-                ITIP20::changeTransferPolicyIdCall {
+                IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: policy_id,
                 },
             )?;
@@ -3981,7 +3981,7 @@ mod tests {
             // Blacklist alice
             registry.modify_policy_blacklist(
                 admin,
-                ITIP403Registry::modifyPolicyBlacklistCall {
+                IMIP403Registry::modifyPolicyBlacklistCall {
                     policyId: policy_id,
                     account: alice,
                     restricted: true,
@@ -4001,7 +4001,7 @@ mod tests {
             assert!(
                 matches!(
                     err,
-                    MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                    MagnusPrecompileError::MIP20(MIP20Error::PolicyForbids(_))
                 ),
                 "Expected PolicyForbids error, got: {err:?}"
             );
@@ -4021,23 +4021,23 @@ mod tests {
             let alice = Address::random();
             let admin = Address::random();
 
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
             let policy_id = registry.create_policy(
                 admin,
-                ITIP403Registry::createPolicyCall {
+                IMIP403Registry::createPolicyCall {
                     admin,
-                    policyType: ITIP403Registry::PolicyType::BLACKLIST,
+                    policyType: IMIP403Registry::PolicyType::BLACKLIST,
                 },
             )?;
 
-            let mut base = TIP20Setup::create("USDC", "USDC", admin)
+            let mut base = MIP20Setup::create("USDC", "USDC", admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(MIN_ORDER_AMOUNT * 2))
                 .with_approval(alice, exchange.address, U256::from(MIN_ORDER_AMOUNT * 2))
                 .apply()?;
             base.change_transfer_policy_id(
                 admin,
-                ITIP20::changeTransferPolicyIdCall {
+                IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: policy_id,
                 },
             )?;
@@ -4047,7 +4047,7 @@ mod tests {
 
             registry.modify_policy_blacklist(
                 admin,
-                ITIP403Registry::modifyPolicyBlacklistCall {
+                IMIP403Registry::modifyPolicyBlacklistCall {
                     policyId: policy_id,
                     account: alice,
                     restricted: true,
@@ -4075,23 +4075,23 @@ mod tests {
             let alice = Address::random();
             let admin = Address::random();
 
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
             let policy_id = registry.create_policy(
                 admin,
-                ITIP403Registry::createPolicyCall {
+                IMIP403Registry::createPolicyCall {
                     admin,
-                    policyType: ITIP403Registry::PolicyType::BLACKLIST,
+                    policyType: IMIP403Registry::PolicyType::BLACKLIST,
                 },
             )?;
 
-            let mut base = TIP20Setup::create("USDC", "USDC", admin)
+            let mut base = MIP20Setup::create("USDC", "USDC", admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(MIN_ORDER_AMOUNT * 2))
                 .with_approval(alice, exchange.address, U256::from(MIN_ORDER_AMOUNT * 2))
                 .apply()?;
             base.change_transfer_policy_id(
                 admin,
-                ITIP20::changeTransferPolicyIdCall {
+                IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: policy_id,
                 },
             )?;
@@ -4115,7 +4115,7 @@ mod tests {
         // An order whose token references a legacy-invalid policy (e.g. COMPOUND stored pre-T2)
         // should be cancellable as stale. The error returned by `policy_type()` changes at T2:
         //   - Pre-T2:  Panic(UnderOverflow)
-        //   - T2+:     TIP403RegistryError::InvalidPolicyType
+        //   - T2+:     MIP403RegistryError::InvalidPolicyType
         // Both must be treated as "policy gone → stale".
         for spec in [MagnusHardfork::T0, MagnusHardfork::T1C, MagnusHardfork::T2] {
             let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T0);
@@ -4128,7 +4128,7 @@ mod tests {
                     let mut exchange = StablecoinDEX::new();
                     exchange.initialize()?;
 
-                    let mut base = TIP20Setup::create("USDC", "USDC", admin)
+                    let mut base = MIP20Setup::create("USDC", "USDC", admin)
                         .with_issuer(admin)
                         .with_mint(alice, U256::from(MIN_ORDER_AMOUNT * 2))
                         .with_approval(alice, exchange.address, U256::from(MIN_ORDER_AMOUNT * 2))
@@ -4140,17 +4140,17 @@ mod tests {
 
                     // Create an invalid policy (COMPOUND on T0 stores as __Invalid = 255)
                     // and reassign the token to it, simulating a legacy-broken policy reference.
-                    let mut registry = TIP403Registry::new();
+                    let mut registry = MIP403Registry::new();
                     let invalid_policy_id = registry.create_policy(
                         admin,
-                        ITIP403Registry::createPolicyCall {
+                        IMIP403Registry::createPolicyCall {
                             admin,
-                            policyType: ITIP403Registry::PolicyType::COMPOUND,
+                            policyType: IMIP403Registry::PolicyType::COMPOUND,
                         },
                     )?;
                     base.change_transfer_policy_id(
                         admin,
-                        ITIP20::changeTransferPolicyIdCall {
+                        IMIP20::changeTransferPolicyIdCall {
                             newPolicyId: invalid_policy_id,
                         },
                     )?;
@@ -4164,7 +4164,7 @@ mod tests {
                 let mut exchange = StablecoinDEX::new();
 
                 // Sanity: the policy lookup itself fails
-                let registry = TIP403Registry::new();
+                let registry = MIP403Registry::new();
                 let auth_result =
                     registry.is_authorized_as(invalid_policy_id, alice, AuthRole::sender());
                 assert!(
@@ -4197,12 +4197,12 @@ mod tests {
             let alice = Address::random();
             let admin = Address::random();
 
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
             let policy_id = registry.create_policy(
                 admin,
-                ITIP403Registry::createPolicyCall {
+                IMIP403Registry::createPolicyCall {
                     admin,
-                    policyType: ITIP403Registry::PolicyType::BLACKLIST,
+                    policyType: IMIP403Registry::PolicyType::BLACKLIST,
                 },
             )?;
 
@@ -4212,17 +4212,17 @@ mod tests {
             exchange.create_pair(base_addr)?;
             let order_id = exchange.place(alice, base_addr, MIN_ORDER_AMOUNT, false, 0)?;
 
-            let mut quote = TIP20Token::from_address(quote_addr)?;
+            let mut quote = MIP20Token::from_address(quote_addr)?;
             quote.change_transfer_policy_id(
                 admin,
-                ITIP20::changeTransferPolicyIdCall {
+                IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: policy_id,
                 },
             )?;
 
             registry.modify_policy_blacklist(
                 admin,
-                ITIP403Registry::modifyPolicyBlacklistCall {
+                IMIP403Registry::modifyPolicyBlacklistCall {
                     policyId: policy_id,
                     account: alice,
                     restricted: true,
@@ -4251,12 +4251,12 @@ mod tests {
             let alice = Address::random();
             let admin = Address::random();
 
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
             let policy_id = registry.create_policy(
                 admin,
-                ITIP403Registry::createPolicyCall {
+                IMIP403Registry::createPolicyCall {
                     admin,
-                    policyType: ITIP403Registry::PolicyType::BLACKLIST,
+                    policyType: IMIP403Registry::PolicyType::BLACKLIST,
                 },
             )?;
 
@@ -4266,17 +4266,17 @@ mod tests {
             exchange.create_pair(base_addr)?;
             let order_id = exchange.place(alice, base_addr, MIN_ORDER_AMOUNT, false, 0)?;
 
-            let mut quote = TIP20Token::from_address(quote_addr)?;
+            let mut quote = MIP20Token::from_address(quote_addr)?;
             quote.change_transfer_policy_id(
                 admin,
-                ITIP20::changeTransferPolicyIdCall {
+                IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: policy_id,
                 },
             )?;
 
             registry.modify_policy_blacklist(
                 admin,
-                ITIP403Registry::modifyPolicyBlacklistCall {
+                IMIP403Registry::modifyPolicyBlacklistCall {
                     policyId: policy_id,
                     account: alice,
                     restricted: true,
@@ -4302,13 +4302,13 @@ mod tests {
             let alice = Address::random();
             let admin = Address::random();
 
-            // Setup TIP403 registry and create blacklist policy
-            let mut registry = TIP403Registry::new();
+            // Setup MIP403 registry and create blacklist policy
+            let mut registry = MIP403Registry::new();
             let policy_id = registry.create_policy(
                 admin,
-                ITIP403Registry::createPolicyCall {
+                IMIP403Registry::createPolicyCall {
                     admin,
-                    policyType: ITIP403Registry::PolicyType::BLACKLIST,
+                    policyType: IMIP403Registry::PolicyType::BLACKLIST,
                 },
             )?;
 
@@ -4317,10 +4317,10 @@ mod tests {
                 setup_test_tokens(admin, alice, exchange.address, MIN_ORDER_AMOUNT * 4)?;
 
             // Get the base token and apply blacklist policy
-            let mut base = TIP20Token::from_address(base_addr)?;
+            let mut base = MIP20Token::from_address(base_addr)?;
             base.change_transfer_policy_id(
                 admin,
-                ITIP20::changeTransferPolicyIdCall {
+                IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: policy_id,
                 },
             )?;
@@ -4328,7 +4328,7 @@ mod tests {
             // Blacklist alice in the base token
             registry.modify_policy_blacklist(
                 admin,
-                ITIP403Registry::modifyPolicyBlacklistCall {
+                IMIP403Registry::modifyPolicyBlacklistCall {
                     policyId: policy_id,
                     account: alice,
                     restricted: true,
@@ -4342,7 +4342,7 @@ mod tests {
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                MagnusPrecompileError::MIP20(MIP20Error::PolicyForbids(_))
             ));
 
             // Test placeFlip bid order - should also fail
@@ -4351,7 +4351,7 @@ mod tests {
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                MagnusPrecompileError::MIP20(MIP20Error::PolicyForbids(_))
             ));
 
             Ok(())
@@ -4368,13 +4368,13 @@ mod tests {
             let alice = Address::random();
             let admin = Address::random();
 
-            // Setup TIP403 registry and create blacklist policy
-            let mut registry = TIP403Registry::new();
+            // Setup MIP403 registry and create blacklist policy
+            let mut registry = MIP403Registry::new();
             let policy_id = registry.create_policy(
                 admin,
-                ITIP403Registry::createPolicyCall {
+                IMIP403Registry::createPolicyCall {
                     admin,
-                    policyType: ITIP403Registry::PolicyType::BLACKLIST,
+                    policyType: IMIP403Registry::PolicyType::BLACKLIST,
                 },
             )?;
 
@@ -4383,10 +4383,10 @@ mod tests {
                 setup_test_tokens(admin, alice, exchange.address, MIN_ORDER_AMOUNT * 4)?;
 
             // Get the quote token and apply blacklist policy
-            let mut quote = TIP20Token::from_address(quote_addr)?;
+            let mut quote = MIP20Token::from_address(quote_addr)?;
             quote.change_transfer_policy_id(
                 admin,
-                ITIP20::changeTransferPolicyIdCall {
+                IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: policy_id,
                 },
             )?;
@@ -4394,7 +4394,7 @@ mod tests {
             // Blacklist alice in the quote token
             registry.modify_policy_blacklist(
                 admin,
-                ITIP403Registry::modifyPolicyBlacklistCall {
+                IMIP403Registry::modifyPolicyBlacklistCall {
                     policyId: policy_id,
                     account: alice,
                     restricted: true,
@@ -4408,7 +4408,7 @@ mod tests {
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                MagnusPrecompileError::MIP20(MIP20Error::PolicyForbids(_))
             ));
 
             // Test placeFlip ask order - should also fail
@@ -4417,7 +4417,7 @@ mod tests {
             assert!(result.is_err());
             assert!(matches!(
                 result.unwrap_err(),
-                MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                MagnusPrecompileError::MIP20(MIP20Error::PolicyForbids(_))
             ));
 
             Ok(())
@@ -4432,15 +4432,15 @@ mod tests {
             exchange.initialize()?;
 
             let (alice, admin) = (Address::random(), Address::random());
-            let mut registry = TIP403Registry::new();
+            let mut registry = MIP403Registry::new();
 
             // Create a sender policy that allows anyone (always-allow = policy 1)
             // Create a recipient whitelist that does NOT include alice
             let recipient_policy = registry.create_policy(
                 admin,
-                ITIP403Registry::createPolicyCall {
+                IMIP403Registry::createPolicyCall {
                     admin,
-                    policyType: ITIP403Registry::PolicyType::WHITELIST,
+                    policyType: IMIP403Registry::PolicyType::WHITELIST,
                 },
             )?;
             // Don't add alice to the recipient whitelist - she cannot receive
@@ -4448,7 +4448,7 @@ mod tests {
             // Create compound policy: anyone can send, but only whitelisted can receive
             let compound_id = registry.create_compound_policy(
                 admin,
-                ITIP403Registry::createCompoundPolicyCall {
+                IMIP403Registry::createCompoundPolicyCall {
                     senderPolicyId: 1,                   // always-allow: anyone can send
                     recipientPolicyId: recipient_policy, // whitelist: alice NOT included
                     mintRecipientPolicyId: 1,            // always-allow: anyone can receive mints
@@ -4460,10 +4460,10 @@ mod tests {
                 setup_test_tokens(admin, alice, exchange.address, MIN_ORDER_AMOUNT * 4)?;
 
             // Apply compound policy to quote token (the non-escrow token for asks)
-            let mut quote = TIP20Token::from_address(quote_addr)?;
+            let mut quote = MIP20Token::from_address(quote_addr)?;
             quote.change_transfer_policy_id(
                 admin,
-                ITIP20::changeTransferPolicyIdCall {
+                IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: compound_id,
                 },
             )?;
@@ -4482,7 +4482,7 @@ mod tests {
                 assert!(
                     matches!(
                         res.unwrap_err(),
-                        MagnusPrecompileError::TIP20(TIP20Error::PolicyForbids(_))
+                        MagnusPrecompileError::MIP20(MIP20Error::PolicyForbids(_))
                     ),
                     "Order should fail: alice cannot receive quote token (non-escrow) per compound policy"
                 );
@@ -4511,16 +4511,16 @@ mod tests {
 
             let order_amount = 100000000u128;
 
-            let tip20_quote_token = TIP20Token::from_address(quote_token)?;
+            let mip20_quote_token = MIP20Token::from_address(quote_token)?;
             let alice_initial_balance =
-                tip20_quote_token.balance_of(ITIP20::balanceOfCall { account: alice })?;
+                mip20_quote_token.balance_of(IMIP20::balanceOfCall { account: alice })?;
 
             exchange
                 .place(alice, base_token, order_amount, true, tick)
                 .expect("Order should succeed");
 
             let alice_balance_after_place =
-                tip20_quote_token.balance_of(ITIP20::balanceOfCall { account: alice })?;
+                mip20_quote_token.balance_of(IMIP20::balanceOfCall { account: alice })?;
             let escrowed = alice_initial_balance - alice_balance_after_place;
             assert_eq!(escrowed, U256::from(100010000u128));
 
@@ -4688,26 +4688,26 @@ mod tests {
                 // Blacklist alice on the base token AFTER order placement.
                 // When the flip (ask) is placed during fill, ensure_transfer_authorized(alice, dex)
                 // on the base token will fail with PolicyForbids — a business logic error.
-                let mut registry = TIP403Registry::new();
+                let mut registry = MIP403Registry::new();
                 let policy_id = registry.create_policy(
                     admin,
-                    ITIP403Registry::createPolicyCall {
+                    IMIP403Registry::createPolicyCall {
                         admin,
-                        policyType: ITIP403Registry::PolicyType::BLACKLIST,
+                        policyType: IMIP403Registry::PolicyType::BLACKLIST,
                     },
                 )?;
 
-                let mut base = TIP20Token::from_address(base_token)?;
+                let mut base = MIP20Token::from_address(base_token)?;
                 base.change_transfer_policy_id(
                     admin,
-                    ITIP20::changeTransferPolicyIdCall {
+                    IMIP20::changeTransferPolicyIdCall {
                         newPolicyId: policy_id,
                     },
                 )?;
 
                 registry.modify_policy_blacklist(
                     admin,
-                    ITIP403Registry::modifyPolicyBlacklistCall {
+                    IMIP403Registry::modifyPolicyBlacklistCall {
                         policyId: policy_id,
                         account: alice,
                         restricted: true,
@@ -4820,7 +4820,7 @@ mod tests {
             let price = orderbook::tick_to_price(tick) as u128;
             let quote_amount = (amount * price).div_ceil(orderbook::PRICE_SCALE as u128);
 
-            let base = TIP20Setup::create("BASE", "BASE", admin)
+            let base = MIP20Setup::create("BASE", "BASE", admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(amount * 4))
                 .with_mint(bob, U256::from(amount * 4))
@@ -4830,7 +4830,7 @@ mod tests {
             let base_token = base.address();
             let quote_token = base.quote_token()?;
 
-            TIP20Setup::path_usd(admin)
+            MIP20Setup::path_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(quote_amount * 4))
                 .with_mint(bob, U256::from(quote_amount * 4))
@@ -4935,7 +4935,7 @@ mod tests {
             let price = orderbook::tick_to_price(tick) as u128;
             let quote_amount = (amount * price).div_ceil(orderbook::PRICE_SCALE as u128);
 
-            let base = TIP20Setup::create("BASE", "BASE", admin)
+            let base = MIP20Setup::create("BASE", "BASE", admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(amount * 2))
                 .with_approval(alice, exchange.address, U256::MAX)
@@ -4943,7 +4943,7 @@ mod tests {
             let base_token = base.address();
             let quote_token = base.quote_token()?;
 
-            TIP20Setup::path_usd(admin)
+            MIP20Setup::path_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(quote_amount * 2))
                 .with_approval(alice, exchange.address, U256::MAX)
@@ -5010,7 +5010,7 @@ mod tests {
             let user = Address::random();
             let admin = Address::random();
 
-            let base = TIP20Setup::create("BASE", "BASE", admin)
+            let base = MIP20Setup::create("BASE", "BASE", admin)
                 .with_issuer(admin)
                 .apply()?;
             let token = base.address();
@@ -5123,9 +5123,9 @@ mod tests {
                 exchange.set_balance(bob, base_token, amount_in * 2)?;
 
                 // Pause the base token
-                let mut base_tip20 = TIP20Token::from_address(base_token)?;
+                let mut base_tip20 = MIP20Token::from_address(base_token)?;
                 base_tip20.grant_role_internal(admin, *PAUSE_ROLE)?;
-                base_tip20.pause(admin, ITIP20::pauseCall {})?;
+                base_tip20.pause(admin, IMIP20::pauseCall {})?;
 
                 let res_in =
                     exchange.swap_exact_amount_in(bob, base_token, quote_token, amount_in, 0);
@@ -5139,7 +5139,7 @@ mod tests {
 
                 if spec.is_t3() {
                     assert_eq!(res_in, res_out);
-                    assert_eq!(res_in.unwrap_err(), TIP20Error::contract_paused().into());
+                    assert_eq!(res_in.unwrap_err(), MIP20Error::contract_paused().into());
                 } else {
                     assert!(res_in.is_ok());
                     assert!(res_out.is_ok());
@@ -5167,13 +5167,13 @@ mod tests {
                 let amount_u256 = U256::from(amount);
 
                 // Setup: pathUSD <- USDC, pathUSD <- EURC
-                let path_usd = TIP20Setup::path_usd(admin)
+                let path_usd = MIP20Setup::path_usd(admin)
                     .with_issuer(admin)
                     .with_mint(alice, amount_u256)
                     .with_approval(alice, exchange.address, amount_u256)
                     .apply()?;
 
-                let usdc = TIP20Setup::create("USDC", "USDC", admin)
+                let usdc = MIP20Setup::create("USDC", "USDC", admin)
                     .with_issuer(admin)
                     .with_mint(alice, amount_u256)
                     .with_approval(alice, exchange.address, amount_u256)
@@ -5181,7 +5181,7 @@ mod tests {
                     .with_approval(bob, exchange.address, amount_u256)
                     .apply()?;
 
-                let eurc = TIP20Setup::create("EURC", "EURC", admin)
+                let eurc = MIP20Setup::create("EURC", "EURC", admin)
                     .with_issuer(admin)
                     .with_mint(alice, amount_u256)
                     .with_approval(alice, exchange.address, amount_u256)
@@ -5192,9 +5192,9 @@ mod tests {
                 exchange.place(alice, eurc.address(), MIN_ORDER_AMOUNT * 5, false, 0)?;
 
                 // Pause pathUSD (the intermediate token)
-                let mut path_usd_tip20 = TIP20Token::from_address(path_usd.address())?;
+                let mut path_usd_tip20 = MIP20Token::from_address(path_usd.address())?;
                 path_usd_tip20.grant_role_internal(admin, *PAUSE_ROLE)?;
-                path_usd_tip20.pause(admin, ITIP20::pauseCall {})?;
+                path_usd_tip20.pause(admin, IMIP20::pauseCall {})?;
 
                 // Bob tries multi-hop swap: USDC -> pathUSD -> EURC
                 let res_in = exchange.swap_exact_amount_in(
@@ -5214,7 +5214,7 @@ mod tests {
 
                 if spec.is_t3() {
                     assert_eq!(res_in, res_out);
-                    assert_eq!(res_in.unwrap_err(), TIP20Error::contract_paused().into());
+                    assert_eq!(res_in.unwrap_err(), MIP20Error::contract_paused().into());
                 } else {
                     assert!(res_in.is_ok());
                     assert!(res_out.is_ok());

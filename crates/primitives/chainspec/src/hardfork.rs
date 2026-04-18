@@ -1,6 +1,6 @@
-//! Tempo-specific hardfork definitions and traits.
+//! Magnus-specific hardfork definitions and traits.
 //!
-//! This module provides the infrastructure for managing hardfork transitions in Tempo.
+//! This module provides the infrastructure for managing hardfork transitions in Magnus.
 //!
 //! ## Adding a New Hardfork
 //!
@@ -72,13 +72,13 @@ macro_rules! magnus_hardfork {
             }
         }
 
-        /// Trait for querying Tempo-specific hardfork activations.
+        /// Trait for querying Magnus-specific hardfork activations.
         #[cfg(feature = "reth")]
         pub trait MagnusHardforks: reth_chainspec::EthereumHardforks {
-            /// Retrieves activation condition for a Tempo-specific hardfork.
+            /// Retrieves activation condition for a Magnus-specific hardfork.
             fn magnus_fork_activation(&self, fork: MagnusHardfork) -> reth_chainspec::ForkCondition;
 
-            /// Retrieves the Tempo hardfork active at a given timestamp.
+            /// Retrieves the Magnus hardfork active at a given timestamp.
             fn magnus_hardfork_at(&self, timestamp: u64) -> MagnusHardfork {
                 for &fork in MagnusHardfork::VARIANTS.iter().rev() {
                     if self.magnus_fork_activation(fork).active_at_timestamp(timestamp) {
@@ -159,10 +159,10 @@ macro_rules! magnus_hardfork {
 }
 
 // -------------------------------------------------------------------------------------
-// Tempo hardfork definitions — append new variants here.
+// Magnus hardfork definitions — append new variants here.
 // -------------------------------------------------------------------------------------
 magnus_hardfork! (
-    /// Tempo-specific hardforks for network upgrades.
+    /// Magnus-specific hardforks for network upgrades.
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Default)]
     MagnusHardfork {
@@ -179,9 +179,9 @@ magnus_hardfork! (
         T1B,
         /// T1.C hardfork
         T1C,
-        /// T2 hardfork - adds compound transfer policies ([TIP-1015])
+        /// T2 hardfork - adds compound transfer policies ([MIP-1015])
         ///
-        /// [TIP-1015]: <https://docs.tempo.xyz/protocol/tips/tip-1015>
+        /// [MIP-1015]: <https://docs.magnus.xyz/protocol/mips/mip-1015>
         T2,
         /// T3 hardfork
         T3,
@@ -193,11 +193,11 @@ magnus_hardfork! (
 impl MagnusHardfork {
     /// Returns the base fee for this hardfork in attodollars.
     ///
-    /// Attodollars are the atomic gas accounting units at 10^-18 USD precision. Individual attodollars are not representable onchain (since TIP-20 tokens only have 6 decimals), but the unit is used for gas accounting.
+    /// Attodollars are the atomic gas accounting units at 10^-18 USD precision. Individual attodollars are not representable onchain (since MIP-20 tokens only have 6 decimals), but the unit is used for gas accounting.
     /// - Pre-T1: 10 billion attodollars per gas
-    /// - T1+: 20 billion attodollars per gas (targets ~0.1 cent per TIP-20 transfer)
+    /// - T1+: 20 billion attodollars per gas (targets ~0.1 cent per MIP-20 transfer)
     ///
-    /// Economic conversion: ceil(basefee × gas_used / 10^12) = cost in microdollars (TIP-20 tokens)
+    /// Economic conversion: ceil(basefee × gas_used / 10^12) = cost in microdollars (MIP-20 tokens)
     pub const fn base_fee(&self) -> u64 {
         if self.is_t1() {
             return gas::MAGNUS_T1_BASE_FEE;
@@ -217,9 +217,9 @@ impl MagnusHardfork {
 
     /// Returns the per-transaction gas limit cap.
     /// - Pre-T1A: EIP-7825 Osaka limit (16,777,216 gas)
-    /// - T1A+: 30M gas (allows maximum-sized contract deployments under [TIP-1000] state creation)
+    /// - T1A+: 30M gas (allows maximum-sized contract deployments under [MIP-1000] state creation)
     ///
-    /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
+    /// [MIP-1000]: <https://docs.magnus.xyz/protocol/mips/mip-1000>
     pub const fn tx_gas_limit_cap(&self) -> Option<u64> {
         if self.is_t1a() {
             return Some(gas::MAGNUS_T1_TX_GAS_LIMIT_CAP);
@@ -245,7 +245,7 @@ impl MagnusHardfork {
 
     /// Returns the active hardfork at the given timestamp for the specified chain.
     ///
-    /// Returns `None` if the chain ID is not a known Tempo chain.
+    /// Returns `None` if the chain ID is not a known Magnus chain.
     pub const fn from_chain_and_timestamp(chain_id: u64, timestamp: u64) -> Option<Self> {
         // Walk variants in reverse to find the latest active fork, mirroring
         // `MagnusHardforks::magnus_hardfork_at` but without needing a chainspec instance.
@@ -346,7 +346,7 @@ impl From<&MagnusHardfork> for SpecId {
 
 impl From<SpecId> for MagnusHardfork {
     fn from(_spec: SpecId) -> Self {
-        // All Tempo hardforks map to SpecId::OSAKA, so we cannot derive the hardfork from SpecId.
+        // All Magnus hardforks map to SpecId::OSAKA, so we cannot derive the hardfork from SpecId.
         // Default to the default hardfork when converting from SpecId.
         // The actual hardfork should be passed explicitly where needed.
         Self::default()

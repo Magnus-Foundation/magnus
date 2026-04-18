@@ -1,4 +1,4 @@
-//! Shared types and trait definitions for Tempo transaction integration tests.
+//! Shared types and trait definitions for Magnus transaction integration tests.
 //!
 //! Defines the [`TestEnv`] trait that abstracts over local and testnet
 //! environments, plus test-case descriptor types used by the matrix runners.
@@ -178,7 +178,7 @@ pub(crate) enum TestAction {
     Empty,
     /// Invalid CREATE (0xef initcode) — expects revert (status=0x0), nonce still bumps.
     InvalidCreate,
-    /// TIP-20 transfer of `amount` to a random recipient.
+    /// MIP-20 transfer of `amount` to a random recipient.
     Transfer(U256),
     /// Admin call (updateSpendingLimit) targeting the keychain precompile.
     AdminCall,
@@ -770,7 +770,7 @@ pub(crate) enum AuthKind {
 pub(crate) enum GasPayload {
     /// Single no-op call to a random address (default).
     NoOp,
-    /// TIP-20 transfer call.
+    /// MIP-20 transfer call.
     Transfer,
     /// Contract creation with fixed initcode.
     ContractCreation,

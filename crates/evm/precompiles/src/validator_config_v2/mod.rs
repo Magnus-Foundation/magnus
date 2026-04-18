@@ -1,7 +1,7 @@
 //! Validator Config V2 precompile – index-canonical, on-chain, [consensus] validator registry with
 //! signature-gated operations, IP uniqueness enforcement, and migration support from V1.
 //!
-//! [consensus]: <https://docs.tempo.xyz/protocol/blockspace/consensus>
+//! [consensus]: <https://docs.magnus.xyz/protocol/blockspace/consensus>
 
 pub mod dispatch;
 
