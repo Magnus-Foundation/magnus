@@ -17,9 +17,9 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
   RUSTC_WRAPPER: "sccache"
-  TEMPO_MAINNET_RPC_URL: ${{ secrets.TEMPO_MAINNET_RPC_URL }}
-  TEMPO_TESTNET_RPC_URL: ${{ secrets.TEMPO_TESTNET_RPC_URL }}
-  TEMPO_DEVNET_RPC_URL: ${{ secrets.TEMPO_DEVNET_RPC_URL }}
+  MAGNUS_MAINNET_RPC_URL: ${{ secrets.MAGNUS_MAINNET_RPC_URL }}
+  MAGNUS_TESTNET_RPC_URL: ${{ secrets.MAGNUS_TESTNET_RPC_URL }}
+  MAGNUS_DEVNET_RPC_URL: ${{ secrets.MAGNUS_DEVNET_RPC_URL }}
 
 jobs:
   check-precompiles:
@@ -109,24 +109,24 @@ jobs:
       # Build and run tests WITH coverage (only when precompiles changed)
       - name: Build and compile tests with coverage
         if: needs.check-precompiles.outputs.coverage == 'true'
-        run: cargo nextest run --profile ci -E 'not (package(tempo-e2e) | (package(tempo-node) & binary(it) & test(/test_matrices_(testnet|devnet)/)))' --partition count:${{ matrix.partition }}/2 --no-run
+        run: cargo nextest run --profile ci -E 'not (package(magnus-e2e) | (package(magnus-node) & binary(it) & test(/test_matrices_(testnet|devnet)/)))' --partition count:${{ matrix.partition }}/2 --no-run
         env:
           RUSTFLAGS: -C instrument-coverage
       - name: Run tests with coverage
         if: needs.check-precompiles.outputs.coverage == 'true'
         run: |
           mkdir -p coverage
-          cargo nextest run --profile ci -E 'not (package(tempo-e2e) | (package(tempo-node) & binary(it) & test(/test_matrices_(testnet|devnet)/)))' --partition count:${{ matrix.partition }}/2
+          cargo nextest run --profile ci -E 'not (package(magnus-e2e) | (package(magnus-node) & binary(it) & test(/test_matrices_(testnet|devnet)/)))' --partition count:${{ matrix.partition }}/2
         env:
           RUSTFLAGS: -C instrument-coverage
           LLVM_PROFILE_FILE: ${{ github.workspace }}/coverage/cargo-%p-%m.profraw
       # Build and run tests WITHOUT coverage (when precompiles not changed)
       - name: Build and compile tests
         if: needs.check-precompiles.outputs.coverage != 'true'
-        run: cargo nextest run --profile ci -E 'not (package(tempo-e2e) | (package(tempo-node) & binary(it) & test(/test_matrices_(testnet|devnet)/)))' --partition count:${{ matrix.partition }}/2 --no-run
+        run: cargo nextest run --profile ci -E 'not (package(magnus-e2e) | (package(magnus-node) & binary(it) & test(/test_matrices_(testnet|devnet)/)))' --partition count:${{ matrix.partition }}/2 --no-run
       - name: Run tests
         if: needs.check-precompiles.outputs.coverage != 'true'
-        run: cargo nextest run --profile ci -E 'not (package(tempo-e2e) | (package(tempo-node) & binary(it) & test(/test_matrices_(testnet|devnet)/)))' --partition count:${{ matrix.partition }}/2
+        run: cargo nextest run --profile ci -E 'not (package(magnus-e2e) | (package(magnus-node) & binary(it) & test(/test_matrices_(testnet|devnet)/)))' --partition count:${{ matrix.partition }}/2
       - name: Generate precompiles coverage profdata
         if: needs.check-precompiles.outputs.coverage == 'true'
         run: |
@@ -170,9 +170,9 @@ jobs:
         with:
           tool: nextest@0.9.124
       - name: Build e2e tests
-        run: cargo nextest run --profile ci -E 'package(tempo-e2e)' --partition count:${{ matrix.partition }}/3 --no-run
+        run: cargo nextest run --profile ci -E 'package(magnus-e2e)' --partition count:${{ matrix.partition }}/3 --no-run
       - name: Run e2e tests
-        run: cargo nextest run --profile ci -E 'package(tempo-e2e)' --partition count:${{ matrix.partition }}/3
+        run: cargo nextest run --profile ci -E 'package(magnus-e2e)' --partition count:${{ matrix.partition }}/3
 
   e2e-flaky:
     name: e2e-flaky

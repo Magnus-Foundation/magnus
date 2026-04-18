@@ -88,9 +88,9 @@ jobs:
         binary:
           - name: tempo
             features: "asm-keccak,jemalloc,otlp"
-          - name: tempo-bench
+          - name: magnus-bench
             features: ""
-          - name: tempo-sidecar
+          - name: magnus-sidecar
             features: ""
         platform:
           - os: depot-ubuntu-latest-16
@@ -253,7 +253,7 @@ jobs:
           VERSION: ${{ needs.get-version.outputs.version }}
           SHA: ${{ github.sha }}
         run: |
-          if [[ "${{ github.repository }}" == "tempoxyz/tempo-private-fork" ]]; then
+          if [[ "${{ github.repository }}" == "Magnus-Foundation/magnus-private-fork" ]]; then
             echo "dir=${SHA}/${VERSION}" >> $GITHUB_OUTPUT
           else
             # Otherwise these are being stored in a generic bucket with many other subdirectories

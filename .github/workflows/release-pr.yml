@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          token: ${{ secrets.TEMPO_GITHUB_PAT }}
+          token: ${{ secrets.MAGNUS_GITHUB_PAT }}
           persist-credentials: true
 
       - name: Keep only SDK changelog entries
@@ -25,7 +25,7 @@ jobs:
           from pathlib import Path
           import re
 
-          targets = {"tempo-alloy", "tempo-primitives", "tempo-chainspec", "tempo-contracts"}
+          targets = {"magnus-alloy", "magnus-primitives", "magnus-chainspec", "magnus-contracts"}
 
           for path in Path(".changelog").glob("*.md"):
               text = path.read_text(encoding="utf-8")
@@ -61,4 +61,4 @@ jobs:
         with:
           conventional-commit: true
           post-version-command: cargo update -w
-          github-token: ${{ secrets.TEMPO_GITHUB_PAT }}
+          github-token: ${{ secrets.MAGNUS_GITHUB_PAT }}

@@ -22,12 +22,12 @@ on:
     - cron: "30 20 * * *"
 
 env:
-  REGISTRY: ghcr.io/tempoxyz
+  REGISTRY: ghcr.io/magnus-foundation
 
 jobs:
   build-and-push:
     name: Build and Push Docker Images
-    if: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository != 'tempoxyz/tempo') }}
+    if: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository != 'Magnus-Foundation/magnus') }}
     runs-on: depot-ubuntu-latest-16
     permissions:
       contents: read
@@ -45,7 +45,7 @@ jobs:
         id: docker-labels
         shell: bash
         run: |
-          if [[ "${{ github.repository }}" != "tempoxyz/tempo" ]]; then
+          if [[ "${{ github.repository }}" != "Magnus-Foundation/magnus" ]]; then
             cat <<'LABELS' >> "$GITHUB_OUTPUT"
           value<<EOF
           org.opencontainers.image.created=
@@ -66,7 +66,7 @@ jobs:
         with:
           images: |
             ${{ env.REGISTRY }}/tempo
-            docker.io/tempoxyz/tempo
+            docker.io/magnus-foundation/magnus
           bake-target: tempo
           labels: ${{ steps.docker-labels.outputs.value }}
           tags: |
@@ -81,14 +81,14 @@ jobs:
             type=sha,prefix=sha-
             type=ref,event=pr
 
-      - name: Docker metadata for tempo-bench
-        id: meta-tempo-bench
+      - name: Docker metadata for magnus-bench
+        id: meta-magnus-bench
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: |
-            ${{ env.REGISTRY }}/tempo-bench
-            docker.io/tempoxyz/tempo-bench
-          bake-target: tempo-bench
+            ${{ env.REGISTRY }}/magnus-bench
+            docker.io/magnus-foundation/magnus-bench
+          bake-target: magnus-bench
           labels: ${{ steps.docker-labels.outputs.value }}
           tags: |
             type=schedule,pattern=nightly
@@ -102,14 +102,14 @@ jobs:
             type=sha,prefix=sha-
             type=ref,event=pr
 
-      - name: Docker metadata for tempo-sidecar
-        id: meta-tempo-sidecar
+      - name: Docker metadata for magnus-sidecar
+        id: meta-magnus-sidecar
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: |
-            ${{ env.REGISTRY }}/tempo-sidecar
-            docker.io/tempoxyz/tempo-sidecar
-          bake-target: tempo-sidecar
+            ${{ env.REGISTRY }}/magnus-sidecar
+            docker.io/magnus-foundation/magnus-sidecar
+          bake-target: magnus-sidecar
           labels: ${{ steps.docker-labels.outputs.value }}
           tags: |
             type=schedule,pattern=nightly
@@ -123,14 +123,14 @@ jobs:
             type=sha,prefix=sha-
             type=ref,event=pr
 
-      - name: Docker metadata for tempo-xtask
-        id: meta-tempo-xtask
+      - name: Docker metadata for magnus-xtask
+        id: meta-magnus-xtask
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: |
-            ${{ env.REGISTRY }}/tempo-xtask
-            docker.io/tempoxyz/tempo-xtask
-          bake-target: tempo-xtask
+            ${{ env.REGISTRY }}/magnus-xtask
+            docker.io/magnus-foundation/magnus-xtask
+          bake-target: magnus-xtask
           labels: ${{ steps.docker-labels.outputs.value }}
           tags: |
             type=schedule,pattern=nightly
@@ -166,9 +166,9 @@ jobs:
           files: |
             docker-bake.hcl
             ${{ steps.meta-tempo.outputs.bake-file }}
-            ${{ steps.meta-tempo-bench.outputs.bake-file }}
-            ${{ steps.meta-tempo-sidecar.outputs.bake-file }}
-            ${{ steps.meta-tempo-xtask.outputs.bake-file }}
+            ${{ steps.meta-magnus-bench.outputs.bake-file }}
+            ${{ steps.meta-magnus-sidecar.outputs.bake-file }}
+            ${{ steps.meta-magnus-xtask.outputs.bake-file }}
           targets: default
           project: 0c6tg19qsp
           push: true
@@ -185,16 +185,16 @@ jobs:
           set -euo pipefail
           images=(
             "${{ steps.meta-tempo.outputs.tags }}"
-            "${{ steps.meta-tempo-bench.outputs.tags }}"
-            "${{ steps.meta-tempo-sidecar.outputs.tags }}"
-            "${{ steps.meta-tempo-xtask.outputs.tags }}"
+            "${{ steps.meta-magnus-bench.outputs.tags }}"
+            "${{ steps.meta-magnus-sidecar.outputs.tags }}"
+            "${{ steps.meta-magnus-xtask.outputs.tags }}"
           )
           for tags in "${images[@]}"; do
             echo "$tags" | xargs -n1 cosign sign --yes --recursive
           done
 
       - name: Publish event (sha tag)
-        if: ${{ github.repository == 'tempoxyz/tempo' && github.event_name != 'merge_group' }}
+        if: ${{ github.repository == 'Magnus-Foundation/magnus' && github.event_name != 'merge_group' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -217,7 +217,7 @@ jobs:
             }'
 
       - name: Publish event (nightly tag)
-        if: ${{ github.repository == 'tempoxyz/tempo' && (github.event_name == 'schedule' || github.event.inputs.nightly == 'true') }}
+        if: ${{ github.repository == 'Magnus-Foundation/magnus' && (github.event_name == 'schedule' || github.event.inputs.nightly == 'true') }}
         shell: bash
         run: |
           set -euo pipefail

@@ -11,7 +11,7 @@ on:
         default: "profiling"
 
 env:
-  REGISTRY: ghcr.io/tempoxyz
+  REGISTRY: ghcr.io/magnus-foundation
 
 jobs:
   build-and-push:
@@ -29,7 +29,7 @@ jobs:
 
       - uses: depot/setup-action@15c09a5f77a0840ad4bce955686522a257853461 # v1.7.1
 
-      - name: Docker metadata for tempo-profiling
+      - name: Docker metadata for magnus-profiling
         id: meta-tempo
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:

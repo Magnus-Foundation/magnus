@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       preset:
-        description: "Workload preset (tip20, erc20, swap, order, tempo-mix)"
+        description: "Workload preset (tip20, erc20, swap, order, magnus-mix)"
         required: false
         default: "tip20"
         type: string
@@ -108,7 +108,7 @@ on:
         default: true
         type: boolean
       bench-args:
-        description: "Additional tempo-bench arguments (e.g. --some-flag)"
+        description: "Additional magnus-bench arguments (e.g. --some-flag)"
         required: false
         default: ""
         type: string
@@ -123,7 +123,7 @@ on:
         default: ""
         type: string
       bench-env:
-        description: "Environment variables for tempo-bench (KEY=VAL KEY2=VAL2)"
+        description: "Environment variables for magnus-bench (KEY=VAL KEY2=VAL2)"
         required: false
         default: ""
         type: string
@@ -144,11 +144,11 @@ permissions:
   pull-requests: write
 
 jobs:
-  tempo-bench-ack:
+  magnus-bench-ack:
     if: |
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && (startsWith(github.event.comment.body, '@decofe bench') || startsWith(github.event.comment.body, 'derek bench'))) ||
       github.event_name == 'workflow_dispatch'
-    name: tempo-bench-ack
+    name: magnus-bench-ack
     runs-on: ubuntu-latest
     outputs:
       pr: ${{ steps.args.outputs.pr }}
@@ -187,14 +187,14 @@ jobs:
             const user = context.payload.comment.user.login;
             try {
               const { status } = await github.rest.orgs.checkMembershipForUser({
-                org: 'tempoxyz',
+                org: 'Magnus-Foundation',
                 username: user,
               });
               if (status !== 204 && status !== 302) {
-                core.setFailed(`@${user} is not a member of tempoxyz`);
+                core.setFailed(`@${user} is not a member of Magnus-Foundation`);
               }
             } catch (e) {
-              core.setFailed(`@${user} is not a member of tempoxyz`);
+              core.setFailed(`@${user} is not a member of Magnus-Foundation`);
             }
 
       - name: Parse arguments
@@ -497,34 +497,34 @@ jobs:
             });
             core.setOutput('comment-id', String(comment.id));
 
-  tempo-bench:
-    needs: tempo-bench-ack
-    name: tempo-bench
+  magnus-bench:
+    needs: magnus-bench-ack
+    name: magnus-bench
     runs-on: [self-hosted, Linux, X64, bare-metal]
     timeout-minutes: 300
     env:
-      BENCH_PR: ${{ needs.tempo-bench-ack.outputs.pr }}
-      BENCH_ACTOR: ${{ needs.tempo-bench-ack.outputs.actor }}
-      BENCH_PRESET: ${{ needs.tempo-bench-ack.outputs.preset }}
-      BENCH_DURATION: ${{ needs.tempo-bench-ack.outputs.duration }}
-      BENCH_BLOAT: ${{ needs.tempo-bench-ack.outputs.bloat }}
-      BENCH_TPS: ${{ needs.tempo-bench-ack.outputs.tps }}
-      BENCH_SAMPLY: ${{ needs.tempo-bench-ack.outputs.samply }}
-      BENCH_TRACY: ${{ needs.tempo-bench-ack.outputs.tracy }}
-      BENCH_TRACY_SECONDS: ${{ needs.tempo-bench-ack.outputs.tracy-seconds }}
-      BENCH_TRACY_OFFSET: ${{ needs.tempo-bench-ack.outputs.tracy-offset }}
-      BENCH_BASELINE_ARGS: ${{ needs.tempo-bench-ack.outputs.baseline-args }}
-      BENCH_FEATURE_ARGS: ${{ needs.tempo-bench-ack.outputs.feature-args }}
-      BENCH_BASELINE_HARDFORK: ${{ needs.tempo-bench-ack.outputs.baseline-hardfork }}
-      BENCH_FEATURE_HARDFORK: ${{ needs.tempo-bench-ack.outputs.feature-hardfork }}
-      BENCH_RUN_TYPE: ${{ needs.tempo-bench-ack.outputs.run-type }}
-      BENCH_FORCE_BLOAT: ${{ needs.tempo-bench-ack.outputs.force-bloat }}
-      BENCH_NO_SLACK: ${{ needs.tempo-bench-ack.outputs.no-slack }}
-      BENCH_BENCH_ARGS: ${{ needs.tempo-bench-ack.outputs.bench-args }}
-      BENCH_BENCH_ENV: ${{ needs.tempo-bench-ack.outputs.bench-env }}
-      BENCH_BASELINE_ENV: ${{ needs.tempo-bench-ack.outputs.baseline-env }}
-      BENCH_FEATURE_ENV: ${{ needs.tempo-bench-ack.outputs.feature-env }}
-      BENCH_COMMENT_ID: ${{ needs.tempo-bench-ack.outputs.comment-id }}
+      BENCH_PR: ${{ needs.magnus-bench-ack.outputs.pr }}
+      BENCH_ACTOR: ${{ needs.magnus-bench-ack.outputs.actor }}
+      BENCH_PRESET: ${{ needs.magnus-bench-ack.outputs.preset }}
+      BENCH_DURATION: ${{ needs.magnus-bench-ack.outputs.duration }}
+      BENCH_BLOAT: ${{ needs.magnus-bench-ack.outputs.bloat }}
+      BENCH_TPS: ${{ needs.magnus-bench-ack.outputs.tps }}
+      BENCH_SAMPLY: ${{ needs.magnus-bench-ack.outputs.samply }}
+      BENCH_TRACY: ${{ needs.magnus-bench-ack.outputs.tracy }}
+      BENCH_TRACY_SECONDS: ${{ needs.magnus-bench-ack.outputs.tracy-seconds }}
+      BENCH_TRACY_OFFSET: ${{ needs.magnus-bench-ack.outputs.tracy-offset }}
+      BENCH_BASELINE_ARGS: ${{ needs.magnus-bench-ack.outputs.baseline-args }}
+      BENCH_FEATURE_ARGS: ${{ needs.magnus-bench-ack.outputs.feature-args }}
+      BENCH_BASELINE_HARDFORK: ${{ needs.magnus-bench-ack.outputs.baseline-hardfork }}
+      BENCH_FEATURE_HARDFORK: ${{ needs.magnus-bench-ack.outputs.feature-hardfork }}
+      BENCH_RUN_TYPE: ${{ needs.magnus-bench-ack.outputs.run-type }}
+      BENCH_FORCE_BLOAT: ${{ needs.magnus-bench-ack.outputs.force-bloat }}
+      BENCH_NO_SLACK: ${{ needs.magnus-bench-ack.outputs.no-slack }}
+      BENCH_BENCH_ARGS: ${{ needs.magnus-bench-ack.outputs.bench-args }}
+      BENCH_BENCH_ENV: ${{ needs.magnus-bench-ack.outputs.bench-env }}
+      BENCH_BASELINE_ENV: ${{ needs.magnus-bench-ack.outputs.baseline-env }}
+      BENCH_FEATURE_ENV: ${{ needs.magnus-bench-ack.outputs.feature-env }}
+      BENCH_COMMENT_ID: ${{ needs.magnus-bench-ack.outputs.comment-id }}
       TEMPO_TELEMETRY_URL: ${{ secrets.TEMPO_TELEMETRY_URL }}
       GRAFANA_TEMPO: ${{ secrets.GRAFANA_TEMPO }}
       CLICKHOUSE_URL: ${{ secrets.CLICKHOUSE_URL }}
@@ -593,7 +593,7 @@ jobs:
               repo: context.repo.repo,
               run_id: context.runId,
             });
-            const job = jobs.jobs.find(j => j.name === 'tempo-bench');
+            const job = jobs.jobs.find(j => j.name === 'magnus-bench');
             const jobUrl = job ? job.html_url : `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             core.exportVariable('BENCH_JOB_URL', jobUrl);
 
@@ -601,11 +601,11 @@ jobs:
             const duration = process.env.BENCH_DURATION;
             const bloat = process.env.BENCH_BLOAT;
             const tps = process.env.BENCH_TPS;
-            const baseline = '${{ needs.tempo-bench-ack.outputs.baseline-name }}';
-            const feature = '${{ needs.tempo-bench-ack.outputs.feature-name }}';
-            const samply = '${{ needs.tempo-bench-ack.outputs.samply }}' === 'true';
+            const baseline = '${{ needs.magnus-bench-ack.outputs.baseline-name }}';
+            const feature = '${{ needs.magnus-bench-ack.outputs.feature-name }}';
+            const samply = '${{ needs.magnus-bench-ack.outputs.samply }}' === 'true';
             const samplyNote = samply ? ', samply: `enabled`' : '';
-            const tracy = '${{ needs.tempo-bench-ack.outputs.tracy }}';
+            const tracy = '${{ needs.magnus-bench-ack.outputs.tracy }}';
             const tracyNote = tracy !== 'off' ? `, tracy: \`${tracy}\`` : '';
             const bHf2 = process.env.BENCH_BASELINE_HARDFORK || '';
             const fHf2 = process.env.BENCH_FEATURE_HARDFORK || '';
@@ -650,8 +650,8 @@ jobs:
             const { execSync } = require('child_process');
             const run = (cmd) => execSync(cmd, { encoding: 'utf8' }).trim();
 
-            const baselineArg = '${{ needs.tempo-bench-ack.outputs.baseline }}';
-            const featureArg = '${{ needs.tempo-bench-ack.outputs.feature }}';
+            const baselineArg = '${{ needs.magnus-bench-ack.outputs.baseline }}';
+            const featureArg = '${{ needs.magnus-bench-ack.outputs.feature }}';
 
             let baselineRef, baselineName, featureRef, featureName;
 
@@ -771,7 +771,7 @@ jobs:
         if: "!cancelled()"
         uses: actions/upload-artifact@v4
         with:
-          name: tempo-bench-results
+          name: magnus-bench-results
           path: bench-results/
 
       - name: Upload results to ClickHouse
@@ -808,7 +808,7 @@ jobs:
               if (refEpoch && benchId) {
                 const fromMs = refEpoch * 1000;
                 const toMs = Date.now();
-                const grafanaUrl = `https://tempoxyz.grafana.net/d/tikv2tn/tempo-bench?orgId=1&from=${fromMs}&to=${toMs}&var-benchmark_id=${benchId}&var-job=tempo-bench`;
+                const grafanaUrl = `https://tempoxyz.grafana.net/d/tikv2tn/magnus-bench?orgId=1&from=${fromMs}&to=${toMs}&var-benchmark_id=${benchId}&var-job=magnus-bench`;
                 const logsPane = JSON.stringify({
                   pw4: {
                     datasource: 'ffdsfozmb3eo0e',
