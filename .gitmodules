@@ -1,9 +1,9 @@
 [submodule "mips/ref-impls/lib/forge-std"]
 	path = mips/ref-impls/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "mips/ref-impls/lib/tempo-std"]
+[submodule "mips/ref-impls/lib/magnus-std"]
 	path = mips/ref-impls/lib/magnus-std
-	url = https://github.com/tempoxyz/tempo-std
+	url = https://github.com/Magnus-Foundation/magnus-std
 [submodule "mips/ref-impls/lib/solady"]
 	path = mips/ref-impls/lib/solady
 	url = https://github.com/vectorized/solady
