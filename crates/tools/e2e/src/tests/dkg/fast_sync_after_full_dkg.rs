@@ -26,7 +26,7 @@ use crate::{Setup, connect_execution_peers, connect_execution_to_peers, setup_va
 /// 4. The late validator continues progressing after sync
 #[test_traced]
 fn validator_can_fast_sync_after_full_dkg() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let how_many_signers = 4;
     let epoch_length = 20;

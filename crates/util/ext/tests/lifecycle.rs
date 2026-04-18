@@ -314,8 +314,8 @@ impl Fixture {
             .map(|s| s.to_string())
     }
 
-    fn run(&self, args: &[&str]) -> Result<i32, tempo_ext::LauncherError> {
-        tempo_ext::run(args.iter().map(|s| s.to_string()))
+    fn run(&self, args: &[&str]) -> Result<i32, magnus_ext::LauncherError> {
+        magnus_ext::run(args.iter().map(|s| s.to_string()))
     }
 }
 

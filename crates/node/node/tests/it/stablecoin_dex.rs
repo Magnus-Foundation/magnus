@@ -2,11 +2,11 @@ use alloy::{
     primitives::U256, providers::ProviderBuilder, signers::local::MnemonicBuilder,
     sol_types::SolError,
 };
-use tempo_contracts::precompiles::{
+use magnus_contracts::precompiles::{
     IStablecoinDEX,
     ITIP20::{self, ITIP20Instance},
 };
-use tempo_precompiles::{
+use magnus_precompiles::{
     PATH_USD_ADDRESS, STABLECOIN_DEX_ADDRESS, stablecoin_dex::MIN_ORDER_AMOUNT,
 };
 

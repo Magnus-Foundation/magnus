@@ -26,8 +26,8 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
 };
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_precompiles::NONCE_PRECOMPILE_ADDRESS;
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_precompiles::NONCE_PRECOMPILE_ADDRESS;
 use tokio::sync::broadcast;
 
 type TxOrdering = CoinbaseTipOrdering<TempoPooledTransaction>;
@@ -150,7 +150,7 @@ impl AA2dPool {
         &mut self,
         transaction: Arc<ValidPoolTransaction<TempoPooledTransaction>>,
         on_chain_nonce: u64,
-        hardfork: tempo_chainspec::hardfork::TempoHardfork,
+        hardfork: magnus_chainspec::hardfork::TempoHardfork,
     ) -> PoolResult<AddedTransaction<TempoPooledTransaction>> {
         debug_assert!(
             transaction.transaction.is_aa(),
@@ -1700,12 +1700,12 @@ mod tests {
     use reth_primitives_traits::Recovered;
     use reth_transaction_pool::PoolTransaction;
     use std::collections::HashSet;
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_primitives::{
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_primitives::{
         TempoTxEnvelope,
         transaction::{
             TempoTransaction,
-            tempo_transaction::Call,
+            magnus_transaction::Call,
             tt_signature::{PrimitiveSignature, TempoSignature},
             tt_signed::AASigned,
         },
@@ -5310,7 +5310,7 @@ mod tests {
                 valid_after: None,
                 valid_before: Some(core::num::NonZeroU64::new(123).unwrap()),
                 access_list: AccessList::default(),
-                tempo_authorization_list: Vec::new(),
+                magnus_authorization_list: Vec::new(),
                 key_authorization: None,
             };
 
@@ -5394,7 +5394,7 @@ mod tests {
             fee_payer_signature: Some(Signature::new(U256::from(1), U256::from(2), false)),
             valid_before: Some(core::num::NonZeroU64::new(123).unwrap()),
             access_list: AccessList::default(),
-            tempo_authorization_list: Vec::new(),
+            magnus_authorization_list: Vec::new(),
             key_authorization: None,
             valid_after: None,
         };

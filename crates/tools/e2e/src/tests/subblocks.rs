@@ -19,23 +19,23 @@ use reth_ethereum::{
 };
 use reth_node_builder::ConsensusEngineEvent;
 use reth_node_core::primitives::transaction::TxHashRef;
-use tempo_chainspec::spec::{SYSTEM_TX_COUNT, TEMPO_T1_BASE_FEE};
-use tempo_node::primitives::{
+use magnus_chainspec::spec::{SYSTEM_TX_COUNT, TEMPO_T1_BASE_FEE};
+use magnus_node::primitives::{
     SubBlockMetadata, TempoTransaction, TempoTxEnvelope,
     subblock::{PartialValidatorKey, TEMPO_SUBBLOCK_NONCE_KEY_PREFIX},
     transaction::{Call, calc_gas_balance_spending},
 };
-use tempo_precompiles::{
+use magnus_precompiles::{
     DEFAULT_FEE_TOKEN, NONCE_PRECOMPILE_ADDRESS, nonce::NonceManager, tip20::TIP20Token,
 };
 
-use tempo_node::consensus::TEMPO_SHARED_GAS_DIVISOR;
+use magnus_node::consensus::TEMPO_SHARED_GAS_DIVISOR;
 
 use crate::{Setup, TestingNode, setup_validators};
 
 #[test_traced]
 fn subblocks_are_included() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     Runner::from(Config::default().with_seed(0)).start(|mut context| async move {
         let how_many_signers = 4;
@@ -142,7 +142,7 @@ fn subblocks_are_included() {
 
 #[test_traced]
 fn subblocks_are_included_with_failing_txs() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     Runner::from(Config::default().with_seed(0)).start(|mut context| async move {
         let how_many_signers = 5;
@@ -324,7 +324,7 @@ fn subblocks_are_included_with_failing_txs() {
 
 #[test_traced]
 fn oversized_subblock_txs_are_removed() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     Runner::from(Config::default().with_seed(42)).start(|mut context| async move {
         let how_many_signers = 4;

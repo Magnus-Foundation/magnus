@@ -1,7 +1,7 @@
 use crate::rpc::token::tokens::{Token, TokensFilters};
 use alloy_primitives::{Address, B256, U256};
 use serde::{Deserialize, Serialize};
-use tempo_alloy::rpc::pagination::PaginationParams;
+use magnus_alloy::rpc::pagination::PaginationParams;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

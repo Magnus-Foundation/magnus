@@ -5,20 +5,20 @@
 
 use super::*;
 use alloy::primitives::B256;
-use tempo_precompiles::storage::{Mapping, Set, StorageCtx};
+use magnus_precompiles::storage::{Mapping, Set, StorageCtx};
 
 fn expect_members_match<T>(
-    set: &mut tempo_precompiles::storage::SetHandler<T>,
+    set: &mut magnus_precompiles::storage::SetHandler<T>,
     expected: &[T],
 ) -> eyre::Result<()>
 where
-    T: tempo_precompiles::storage::Storable
-        + tempo_precompiles::storage::StorageKey
+    T: magnus_precompiles::storage::Storable
+        + magnus_precompiles::storage::StorageKey
         + std::hash::Hash
         + Eq
         + Clone
         + std::fmt::Debug,
-    T::Handler: tempo_precompiles::storage::Handler<T>,
+    T::Handler: magnus_precompiles::storage::Handler<T>,
 {
     // Check length
     assert_eq!(
@@ -66,7 +66,7 @@ fn test_oz_starts_empty() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         let value_a = test_address(1);
 
@@ -85,7 +85,7 @@ fn test_oz_add_adds_a_value() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         let value_a = test_address(1);
 
@@ -103,7 +103,7 @@ fn test_oz_add_adds_several_values() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         let value_a = test_address(1);
         let value_b = test_address(2);
@@ -126,7 +126,7 @@ fn test_oz_add_returns_false_when_adding_values_already_in_set() -> eyre::Result
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         let value_a = test_address(1);
 
@@ -147,7 +147,7 @@ fn test_oz_at_returns_none_for_nonexistent_elements() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         // Note: OZ reverts with panic, we return None for safe access
         assert!(set.at(0)?.is_none());
@@ -161,7 +161,7 @@ fn test_oz_at_retrieves_existing_element() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         let value_a = test_address(1);
 
@@ -178,7 +178,7 @@ fn test_oz_remove_removes_added_values() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         let value_a = test_address(1);
 
@@ -201,7 +201,7 @@ fn test_oz_remove_returns_false_when_removing_values_not_in_set() -> eyre::Resul
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         let value_a = test_address(1);
 
@@ -220,7 +220,7 @@ fn test_oz_remove_adds_and_removes_multiple_values() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         let value_a = test_address(1);
         let value_b = test_address(2);
@@ -266,7 +266,7 @@ fn test_oz_clear_clears_a_single_value() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         let value_a = test_address(1);
 
@@ -285,7 +285,7 @@ fn test_oz_clear_clears_multiple_values() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         let value_a = test_address(1);
         let value_b = test_address(2);
@@ -311,7 +311,7 @@ fn test_oz_clear_does_not_revert_on_empty_set() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         // Should not panic/error
         set.delete()?;
@@ -325,7 +325,7 @@ fn test_oz_clear_then_add_value() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<Address>::new(U256::ZERO, address);
 
         let value_a = test_address(1);
         let value_b = test_address(2);
@@ -353,7 +353,7 @@ fn test_oz_values_full_and_paginated() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<U256>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<U256>::new(U256::ZERO, address);
 
         let value_a = U256::from(1);
         let value_b = U256::from(2);
@@ -494,7 +494,7 @@ fn test_set_with_b256() -> eyre::Result<()> {
     let (mut storage, address) = setup_storage();
 
     StorageCtx::enter(&mut storage, || {
-        let mut set = tempo_precompiles::storage::SetHandler::<B256>::new(U256::ZERO, address);
+        let mut set = magnus_precompiles::storage::SetHandler::<B256>::new(U256::ZERO, address);
 
         let val1 = B256::random();
         let val2 = B256::random();

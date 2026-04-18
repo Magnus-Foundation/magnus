@@ -4,16 +4,16 @@
 
 use alloy::primitives::{Address, U256};
 use revm::interpreter::instructions::utility::{IntoAddress, IntoU256};
-use tempo_precompiles_macros;
+use magnus_precompiles_macros;
 
 use crate::storage::types::*;
 
 // rust integers: (u)int8, (u)int16, (u)int32, (u)int64, (u)int128
-tempo_precompiles_macros::storable_rust_ints!();
+magnus_precompiles_macros::storable_rust_ints!();
 // alloy integers: U8, I8, U16, I16, U32, I32, U64, I64, U128, I128, U256, I256
-tempo_precompiles_macros::storable_alloy_ints!();
+magnus_precompiles_macros::storable_alloy_ints!();
 // alloy fixed bytes: FixedBytes<1>, FixedBytes<2>, ..., FixedBytes<32>
-tempo_precompiles_macros::storable_alloy_bytes!();
+magnus_precompiles_macros::storable_alloy_bytes!();
 
 // -- MANUAL STORAGE TRAIT IMPLEMENTATIONS -------------------------------------
 
@@ -106,7 +106,7 @@ mod tests {
     // - rust integers: (u)int8, (u)int16, (u)int32, (u)int64, (u)int128
     // - alloy integers: U8, I8, U16, I16, U32, I32, U64, I64, U128, I128, U256, I256
     // - alloy fixed bytes: FixedBytes<1>, FixedBytes<2>, ..., FixedBytes<32>
-    tempo_precompiles_macros::gen_storable_tests!();
+    magnus_precompiles_macros::gen_storable_tests!();
     proptest! {
         #![proptest_config(ProptestConfig::with_cases(500))]
 

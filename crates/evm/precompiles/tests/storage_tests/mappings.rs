@@ -1,7 +1,7 @@
 //! Mapping storage tests.
 
 use super::*;
-use tempo_precompiles::storage::{Mapping, StorageCtx};
+use magnus_precompiles::storage::{Mapping, StorageCtx};
 
 #[test]
 fn test_mapping() {
@@ -88,7 +88,7 @@ fn test_mapping() {
             profile2
         );
 
-        Ok::<(), tempo_precompiles::error::TempoPrecompileError>(())
+        Ok::<(), magnus_precompiles::error::TempoPrecompileError>(())
     })
     .unwrap();
 }

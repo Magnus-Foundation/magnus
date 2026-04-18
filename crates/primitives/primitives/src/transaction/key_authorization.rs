@@ -120,7 +120,7 @@ impl SelectorRule {
     }
 }
 
-use tempo_contracts::precompiles::IAccountKeychain::{
+use magnus_contracts::precompiles::IAccountKeychain::{
     CallScope as AbiCallScope, SelectorRule as AbiSelectorRule,
 };
 

@@ -5,9 +5,9 @@
 
 pub mod dispatch;
 
-pub use tempo_contracts::precompiles::{IValidatorConfigV2, ValidatorConfigV2Error};
-use tempo_contracts::precompiles::{VALIDATOR_CONFIG_V2_ADDRESS, ValidatorConfigV2Event};
-use tempo_precompiles_macros::{Storable, contract};
+pub use magnus_contracts::precompiles::{IValidatorConfigV2, ValidatorConfigV2Error};
+use magnus_contracts::precompiles::{VALIDATOR_CONFIG_V2_ADDRESS, ValidatorConfigV2Event};
+use magnus_precompiles_macros::{Storable, contract};
 
 use crate::{
     error::{Result, TempoPrecompileError},
@@ -1917,7 +1917,7 @@ mod tests {
 
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: v1_addr,
                     publicKey: FixedBytes::<32>::from([0x11; 32]),
                     active: true,
@@ -1928,7 +1928,7 @@ mod tests {
 
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: v2_addr,
                     publicKey: FixedBytes::<32>::from([0x22; 32]),
                     active: false,
@@ -1988,7 +1988,7 @@ mod tests {
             v1.initialize(owner)?;
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: v1_addr,
                     publicKey: FixedBytes::<32>::from([0x11; 32]),
                     active: true,
@@ -2041,7 +2041,7 @@ mod tests {
 
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: Address::random(),
                     publicKey: FixedBytes::<32>::from([0x11; 32]),
                     active: true,
@@ -2052,7 +2052,7 @@ mod tests {
 
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: Address::random(),
                     publicKey: FixedBytes::<32>::from([0x22; 32]),
                     active: true,
@@ -2088,7 +2088,7 @@ mod tests {
 
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: Address::random(),
                     publicKey: FixedBytes::<32>::from([0x11; 32]),
                     active: true,
@@ -2099,7 +2099,7 @@ mod tests {
 
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: Address::random(),
                     publicKey: FixedBytes::<32>::from([0x22; 32]),
                     active: true,
@@ -2356,7 +2356,7 @@ mod tests {
             v1.initialize(owner)?;
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: v1_addr,
                     publicKey: FixedBytes::<32>::from([0x11; 32]),
                     active: true,
@@ -2443,7 +2443,7 @@ mod tests {
             v1.initialize(owner)?;
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: Address::random(),
                     publicKey: FixedBytes::<32>::from([0x11; 32]),
                     active: true,
@@ -2453,7 +2453,7 @@ mod tests {
             )?;
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: Address::random(),
                     publicKey: FixedBytes::<32>::from([0x22; 32]),
                     active: true,
@@ -2488,7 +2488,7 @@ mod tests {
             v1.initialize(owner)?;
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: Address::random(),
                     publicKey: FixedBytes::<32>::from([0xDD; 32]),
                     active: true,
@@ -2498,7 +2498,7 @@ mod tests {
             )?;
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: Address::random(),
                     publicKey: FixedBytes::<32>::from([0x22; 32]),
                     active: true,
@@ -2537,7 +2537,7 @@ mod tests {
             v1.initialize(owner)?;
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: addr1,
                     publicKey: FixedBytes::<32>::from([0x11; 32]),
                     active: true,
@@ -2547,7 +2547,7 @@ mod tests {
             )?;
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: addr2,
                     publicKey: FixedBytes::<32>::from([0x11; 32]),
                     active: true,
@@ -3586,7 +3586,7 @@ mod tests {
             v1.initialize(owner)?;
             v1.add_validator(
                 owner,
-                tempo_contracts::precompiles::IValidatorConfig::addValidatorCall {
+                magnus_contracts::precompiles::IValidatorConfig::addValidatorCall {
                     newValidatorAddress: v1_addr,
                     publicKey: v1_pk,
                     active: true,

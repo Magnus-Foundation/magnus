@@ -6,8 +6,8 @@ use alloy::{
 use alloy_eips::BlockNumberOrTag;
 use futures::{StreamExt, future::join_all, stream};
 use std::env;
-use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
-use tempo_precompiles::{PATH_USD_ADDRESS, tip20::ITIP20};
+use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_precompiles::{PATH_USD_ADDRESS, tip20::ITIP20};
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_base_fee() -> eyre::Result<()> {

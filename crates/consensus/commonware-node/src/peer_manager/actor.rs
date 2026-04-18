@@ -14,9 +14,9 @@ use eyre::{OptionExt as _, WrapErr as _};
 use futures::{StreamExt as _, channel::mpsc};
 use prometheus_client::metrics::gauge::Gauge;
 use reth_provider::{BlockIdReader as _, HeaderProvider as _};
-use tempo_dkg_onchain_artifacts::OnchainDkgOutcome;
-use tempo_node::TempoFullNode;
-use tempo_primitives::TempoHeader;
+use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
+use magnus_node::TempoFullNode;
+use magnus_primitives::TempoHeader;
 use tracing::{Span, debug, error, info_span, instrument};
 
 use crate::validators::read_active_and_known_peers_at_block_hash;

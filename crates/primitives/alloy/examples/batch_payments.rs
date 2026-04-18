@@ -7,7 +7,7 @@ use alloy::{
     providers::{Provider, ProviderBuilder},
     sol_types::SolCall,
 };
-use tempo_alloy::{
+use magnus_alloy::{
     TempoNetwork, contracts::precompiles::ITIP20, primitives::transaction::Call,
     rpc::TempoTransactionRequest,
 };

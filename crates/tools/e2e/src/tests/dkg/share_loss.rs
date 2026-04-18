@@ -27,7 +27,7 @@ fn metric_value(metrics: &str, uid: &str, metric_suffix: &str) -> Option<u64> {
 
 #[test_traced]
 fn validator_lost_share_but_gets_share_in_next_epoch() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let seed = 0;
 
@@ -92,7 +92,7 @@ fn validator_lost_share_but_gets_share_in_next_epoch() {
 
 #[test_traced]
 fn validator_loses_consensus_state_becomes_observer() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let seed = 0;
 

@@ -11,8 +11,8 @@ use alloy::{
     sol_types::{SolCall, SolInterface},
 };
 use revm::precompile::PrecompileResult;
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_contracts::precompiles::{IRolesAuth::IRolesAuthCalls, ITIP20::ITIP20Calls, TIP20Error};
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_contracts::precompiles::{IRolesAuth::IRolesAuthCalls, ITIP20::ITIP20Calls, TIP20Error};
 
 const T2_ADDED: &[[u8; 4]] = &[
     ITIP20::permitCall::SELECTOR,
@@ -233,8 +233,8 @@ mod tests {
         sol_types::{SolCall, SolError, SolInterface, SolValue},
     };
 
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::{
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::{
         IRolesAuth, RolesAuthError, TIP20Error, UnknownFunctionSelector,
     };
 
@@ -754,7 +754,7 @@ mod tests {
     #[test]
     fn tip20_test_selector_coverage() -> eyre::Result<()> {
         use crate::test_util::{assert_full_coverage, check_selector_coverage};
-        use tempo_contracts::precompiles::{IRolesAuth::IRolesAuthCalls, ITIP20::ITIP20Calls};
+        use magnus_contracts::precompiles::{IRolesAuth::IRolesAuthCalls, ITIP20::ITIP20Calls};
 
         // Use T2 hardfork so T2-gated selectors (permit, nonces, DOMAIN_SEPARATOR) are active
         let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T2);

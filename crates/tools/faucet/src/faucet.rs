@@ -5,8 +5,8 @@ use alloy::{
 use async_trait::async_trait;
 use jsonrpsee::{core::RpcResult, proc_macros::rpc, types::error::INTERNAL_ERROR_CODE};
 use reth_rpc_server_types::result::rpc_err;
-use tempo_alloy::TempoNetwork;
-use tempo_precompiles::tip20::ITIP20;
+use magnus_alloy::TempoNetwork;
+use magnus_precompiles::tip20::ITIP20;
 
 #[rpc(server, namespace = "tempo")]
 pub trait TempoFaucetExtApi {

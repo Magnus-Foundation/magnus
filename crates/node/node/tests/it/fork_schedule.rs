@@ -1,9 +1,9 @@
 use crate::utils::TestNodeBuilder;
 use alloy::providers::{Provider, ProviderBuilder};
 use reth_chainspec::Hardfork;
-use tempo_alloy::{TempoNetwork, provider::ext::TempoProviderExt};
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_node::rpc::fork_schedule::ForkSchedule;
+use magnus_alloy::{TempoNetwork, provider::ext::TempoProviderExt};
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_node::rpc::fork_schedule::ForkSchedule;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_fork_schedule() -> eyre::Result<()> {
@@ -13,7 +13,7 @@ async fn test_fork_schedule() -> eyre::Result<()> {
     let provider = ProviderBuilder::new().connect_http(setup.http_url);
 
     let schedule: ForkSchedule = provider
-        .raw_request("tempo_forkSchedule".into(), ())
+        .raw_request("magnus_forkSchedule".into(), ())
         .await?;
 
     // Every TempoHardfork variant except Genesis must appear.

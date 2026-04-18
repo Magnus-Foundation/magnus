@@ -7,7 +7,7 @@ use commonware_consensus::types::{Epoch, Epocher as _, FixedEpocher, Height};
 use commonware_runtime::{Clock as _, Metrics as _, deterministic::Context};
 use commonware_utils::NZU64;
 use reth_ethereum::provider::BlockReader as _;
-use tempo_dkg_onchain_artifacts::OnchainDkgOutcome;
+use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
 
 use crate::{CONSENSUS_NODE_PREFIX, TestingNode};
 

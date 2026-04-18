@@ -31,17 +31,17 @@ pub use evm::TempoEvmFactory;
 use reth_chainspec::EthChainSpec;
 use reth_evm::{self, ConfigureEvm, EvmEnvFor, block::StateDB};
 use reth_primitives_traits::{SealedBlock, SealedHeader};
-use tempo_primitives::{
+use magnus_primitives::{
     Block, SubBlockMetadata, TempoHeader, TempoPrimitives, TempoReceipt, TempoTxEnvelope,
     subblock::PartialValidatorKey,
 };
 
 use crate::{block::TempoBlockExecutor, evm::TempoEvm};
 use reth_evm_ethereum::EthEvmConfig;
-use tempo_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
-use tempo_revm::{evm::TempoContext, gas_params::tempo_gas_params};
+use magnus_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
+use magnus_revm::{evm::TempoContext, gas_params::magnus_gas_params};
 
-pub use tempo_revm::{TempoBlockEnv, TempoHaltReason, TempoStateAccess};
+pub use magnus_revm::{TempoBlockEnv, TempoHaltReason, TempoStateAccess};
 
 #[cfg(test)]
 mod test_utils;
@@ -135,10 +135,10 @@ impl ConfigureEvm for TempoEvmConfig {
                 .blob_params_at_timestamp(header.timestamp()),
         );
 
-        let spec = self.chain_spec().tempo_hardfork_at(header.timestamp());
+        let spec = self.chain_spec().magnus_hardfork_at(header.timestamp());
 
         // Apply TIP-1000 gas params for T1 hardfork.
-        let mut cfg_env = cfg_env.with_spec_and_gas_params(spec, tempo_gas_params(spec));
+        let mut cfg_env = cfg_env.with_spec_and_gas_params(spec, magnus_gas_params(spec));
         cfg_env.tx_gas_limit_cap = spec.tx_gas_limit_cap();
 
         Ok(EvmEnv {
@@ -173,10 +173,10 @@ impl ConfigureEvm for TempoEvmConfig {
                 .blob_params_at_timestamp(attributes.timestamp),
         );
 
-        let spec = self.chain_spec().tempo_hardfork_at(attributes.timestamp);
+        let spec = self.chain_spec().magnus_hardfork_at(attributes.timestamp);
 
         // Apply TIP-1000 gas params for T1 hardfork.
-        let mut cfg_env = cfg_env.with_spec_and_gas_params(spec, tempo_gas_params(spec));
+        let mut cfg_env = cfg_env.with_spec_and_gas_params(spec, magnus_gas_params(spec));
         cfg_env.tx_gas_limit_cap = spec.tx_gas_limit_cap();
 
         Ok(EvmEnv {
@@ -226,7 +226,7 @@ impl ConfigureEvm for TempoEvmConfig {
             },
             general_gas_limit: block.header().general_gas_limit,
             shared_gas_limit: block.header().gas_limit()
-                / tempo_consensus::TEMPO_SHARED_GAS_DIVISOR,
+                / magnus_consensus::TEMPO_SHARED_GAS_DIVISOR,
             // Not available when we only have a block body.
             validator_set: None,
             consensus_context: block.header().consensus_context,
@@ -253,7 +253,7 @@ impl ConfigureEvm for TempoEvmConfig {
             },
             general_gas_limit: attributes.general_gas_limit,
             shared_gas_limit: attributes.inner.gas_limit
-                / tempo_consensus::TEMPO_SHARED_GAS_DIVISOR,
+                / magnus_consensus::TEMPO_SHARED_GAS_DIVISOR,
             // Fine to not validate during block building.
             validator_set: None,
             consensus_context: attributes.consensus_context,
@@ -271,8 +271,8 @@ mod tests {
     use alloy_rlp::{Encodable, bytes::BytesMut};
     use reth_evm::{ConfigureEvm, NextBlockEnvAttributes};
     use std::collections::HashMap;
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_primitives::{
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_primitives::{
         BlockBody, SubBlockMetadata, subblock::SubBlockVersion,
         transaction::envelope::TEMPO_SYSTEM_TX_SIGNATURE,
     };
@@ -282,7 +282,7 @@ mod tests {
         let evm_config = TempoEvmConfig::new(test_chainspec());
         let activation = evm_config
             .chain_spec()
-            .tempo_fork_activation(TempoHardfork::Genesis);
+            .magnus_fork_activation(TempoHardfork::Genesis);
         assert_eq!(activation, reth_chainspec::ForkCondition::Timestamp(0));
     }
 
@@ -328,7 +328,7 @@ mod tests {
     /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
     #[test]
     fn test_evm_env_t1_gas_cap() {
-        use tempo_chainspec::spec::DEV;
+        use magnus_chainspec::spec::DEV;
 
         // DEV chainspec has T1 activated at timestamp 0
         let chainspec = DEV.clone();
@@ -349,14 +349,14 @@ mod tests {
         };
 
         // Verify we're in T1
-        assert!(chainspec.tempo_hardfork_at(header.timestamp()).is_t1());
+        assert!(chainspec.magnus_hardfork_at(header.timestamp()).is_t1());
 
         let evm_env = evm_config.evm_env(&header).unwrap();
 
         // Verify TIP-1000 gas limit cap is set
         assert_eq!(
             evm_env.cfg_env.tx_gas_limit_cap,
-            Some(tempo_chainspec::spec::TEMPO_T1_TX_GAS_LIMIT_CAP),
+            Some(magnus_chainspec::spec::TEMPO_T1_TX_GAS_LIMIT_CAP),
             "TIP-1000 requires 30M gas limit cap for T1 hardfork"
         );
     }

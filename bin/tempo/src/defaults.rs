@@ -7,7 +7,7 @@ use reth_ethereum::node::core::args::{
     DefaultTxPoolValues,
 };
 use std::{borrow::Cow, str::FromStr, time::Duration};
-use tempo_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::TempoHardfork;
 use url::Url;
 
 pub(crate) const DEFAULT_DOWNLOAD_URL: &str = "https://snapshots.tempoxyz.dev/4217";

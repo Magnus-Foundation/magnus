@@ -5,7 +5,7 @@ use alloy::{
     signers::local::PrivateKeySigner,
 };
 use clap::Args;
-use tempo_alloy::{TempoNetwork, provider::ext::TempoProviderBuilderExt};
+use magnus_alloy::{TempoNetwork, provider::ext::TempoProviderBuilderExt};
 
 /// Faucet-specific CLI arguments
 #[derive(Debug, Clone, Default, Args, PartialEq, Eq)]

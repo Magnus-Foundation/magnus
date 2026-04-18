@@ -549,7 +549,7 @@ mod tests {
     };
     use alloy::primitives::Address;
     use proptest::prelude::*;
-    use tempo_precompiles_macros::Storable;
+    use magnus_precompiles_macros::Storable;
 
     // -- TEST HELPERS -------------------------------------------------------------
 

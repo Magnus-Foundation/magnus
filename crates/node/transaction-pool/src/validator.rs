@@ -16,18 +16,18 @@ use reth_transaction_pool::{
     TransactionValidator, error::InvalidPoolTransactionError,
 };
 use revm::context::result::{EVMError, InvalidTransaction};
-use tempo_chainspec::{
+use magnus_chainspec::{
     TempoChainSpec,
     hardfork::{TempoHardfork, TempoHardforks},
 };
-use tempo_evm::{TempoEvmConfig, evm::TempoEvm};
-use tempo_precompiles::nonce::{INonce, NonceManager};
-use tempo_primitives::{
+use magnus_evm::{TempoEvmConfig, evm::TempoEvm};
+use magnus_precompiles::nonce::{INonce, NonceManager};
+use magnus_primitives::{
     Block, TempoHeader,
     subblock::has_sub_block_nonce_key_prefix,
     transaction::{TEMPO_EXPIRING_NONCE_KEY, TempoTransaction},
 };
-use tempo_revm::{
+use magnus_revm::{
     TempoBlockEnv, TempoInvalidTransaction, TempoStateAccess, ValidationContext,
     error::FeePaymentError,
 };
@@ -183,7 +183,7 @@ where
             return Ok(());
         };
 
-        let count = aa_tx.tx().tempo_authorization_list.len();
+        let count = aa_tx.tx().magnus_authorization_list.len();
         if count > self.max_tempo_authorizations {
             return Err(TempoPoolTransactionError::TooManyAuthorizations {
                 count,
@@ -333,7 +333,7 @@ where
         let spec = self
             .inner
             .chain_spec()
-            .tempo_hardfork_at(self.inner.fork_tracker().tip_timestamp());
+            .magnus_hardfork_at(self.inner.fork_tracker().tip_timestamp());
 
         // Reject system transactions, those are never allowed in the pool.
         if transaction.inner().is_system_tx() {
@@ -482,7 +482,7 @@ where
                 if let Some(aa_tx) = transaction.transaction().inner().as_aa() {
                     let mut recovered_aa_authorities = aa_tx
                         .tx()
-                        .tempo_authorization_list
+                        .magnus_authorization_list
                         .iter()
                         .filter_map(|authorization| authorization.recover_authority().ok())
                         .collect::<Vec<_>>();
@@ -660,17 +660,17 @@ mod tests {
     };
     use revm::context::result::InvalidTransaction;
     use std::sync::Arc;
-    use tempo_chainspec::spec::{MODERATO, TEMPO_T0_BASE_FEE, TEMPO_T1_TX_GAS_LIMIT_CAP};
-    use tempo_precompiles::{
+    use magnus_chainspec::spec::{MODERATO, TEMPO_T0_BASE_FEE, TEMPO_T1_TX_GAS_LIMIT_CAP};
+    use magnus_precompiles::{
         PATH_USD_ADDRESS,
         tip20::{TIP20Token, slots as tip20_slots},
     };
-    use tempo_primitives::{
+    use magnus_primitives::{
         Block, TempoHeader, TempoPrimitives, TempoTxEnvelope, TempoTxType,
         transaction::{
             TempoTransaction,
             envelope::TEMPO_SYSTEM_TX_SIGNATURE,
-            tempo_transaction::Call,
+            magnus_transaction::Call,
             tt_signature::{PrimitiveSignature, TempoSignature},
             tt_signed::AASigned,
         },
@@ -791,7 +791,7 @@ mod tests {
         use alloy_eips::eip7702::Authorization;
         use alloy_signer::SignerSync;
         use alloy_signer_local::PrivateKeySigner;
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             TempoSignedAuthorization,
             tt_signature::{PrimitiveSignature, TempoSignature},
         };
@@ -811,14 +811,14 @@ mod tests {
         let signature = authority_signer
             .sign_hash_sync(&authorization.signature_hash())
             .expect("authorization signing should succeed");
-        let tempo_authorization = TempoSignedAuthorization::new_unchecked(
+        let magnus_authorization = TempoSignedAuthorization::new_unchecked(
             authorization,
             TempoSignature::Primitive(PrimitiveSignature::Secp256k1(signature)),
         );
 
         let transaction = TxBuilder::aa(Address::random())
             .fee_token(PATH_USD_ADDRESS)
-            .authorization_list(vec![tempo_authorization])
+            .authorization_list(vec![magnus_authorization])
             .build();
         let validator = setup_validator(&transaction, current_time);
 
@@ -829,11 +829,11 @@ mod tests {
         match outcome {
             TransactionValidationOutcome::Valid { authorities, .. } => {
                 let authorities = authorities.expect(
-                    "AA transactions with tempo_authorization_list should return authorities",
+                    "AA transactions with magnus_authorization_list should return authorities",
                 );
                 assert!(
                     authorities.contains(&expected_authority),
-                    "AA authority recovered from tempo_authorization_list must be tracked"
+                    "AA authority recovered from magnus_authorization_list must be tracked"
                 );
             }
             other => panic!("Expected Valid outcome with recovered authorities, got: {other:?}"),
@@ -1120,9 +1120,9 @@ mod tests {
     #[tokio::test]
     async fn test_aa_intrinsic_gas_validation() {
         use alloy_primitives::{Signature, TxKind, address};
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             TempoTransaction,
-            tempo_transaction::Call,
+            magnus_transaction::Call,
             tt_signature::{PrimitiveSignature, TempoSignature},
             tt_signed::AASigned,
         };
@@ -1216,9 +1216,9 @@ mod tests {
     #[tokio::test]
     async fn test_aa_create_tx_with_2d_nonce_intrinsic_gas() {
         use alloy_primitives::Signature;
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             TempoTransaction,
-            tempo_transaction::Call as TxCall,
+            magnus_transaction::Call as TxCall,
             tt_signature::{PrimitiveSignature, TempoSignature},
             tt_signed::AASigned,
         };
@@ -1371,9 +1371,9 @@ mod tests {
     #[tokio::test]
     async fn test_expiring_nonce_intrinsic_gas_uses_lower_cost() {
         use alloy_primitives::{Signature, TxKind, address};
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             TempoTransaction,
-            tempo_transaction::Call,
+            magnus_transaction::Call,
             tt_signature::{PrimitiveSignature, TempoSignature},
             tt_signed::AASigned,
         };
@@ -1450,9 +1450,9 @@ mod tests {
     #[tokio::test]
     async fn test_existing_2d_nonce_key_intrinsic_gas() {
         use alloy_primitives::{Signature, TxKind, address};
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             TempoTransaction,
-            tempo_transaction::Call,
+            magnus_transaction::Call,
             tt_signature::{PrimitiveSignature, TempoSignature},
             tt_signed::AASigned,
         };
@@ -1702,10 +1702,10 @@ mod tests {
             .await;
 
         if let TransactionValidationOutcome::Invalid(_, ref err) = outcome {
-            let tempo_err = err.downcast_other_ref::<TempoPoolTransactionError>();
+            let magnus_err = err.downcast_other_ref::<TempoPoolTransactionError>();
             assert!(
                 !matches!(
-                    tempo_err,
+                    magnus_err,
                     Some(TempoPoolTransactionError::InvalidValidAfter { .. })
                         | Some(TempoPoolTransactionError::InvalidValidBefore { .. })
                 ),
@@ -1760,7 +1760,7 @@ mod tests {
             .as_secs();
 
         // Create a transaction with max_fee_per_gas exactly at minimum
-        let active_fork = MODERATO.tempo_hardfork_at(current_time);
+        let active_fork = MODERATO.magnus_hardfork_at(current_time);
         let transaction = TxBuilder::aa(Address::random())
             .max_fee(active_fork.base_fee() as u128)
             .max_priority_fee(1_000_000_000)
@@ -1920,9 +1920,9 @@ mod tests {
     ) -> TempoPooledTransaction {
         use alloy_eips::eip7702::Authorization;
         use alloy_primitives::{Signature, TxKind, address};
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             TempoSignedAuthorization, TempoTransaction,
-            tempo_transaction::Call,
+            magnus_transaction::Call,
             tt_signature::{PrimitiveSignature, TempoSignature},
             tt_signed::AASigned,
         };
@@ -1961,7 +1961,7 @@ mod tests {
             valid_after: None,
             valid_before: None,
             access_list: Default::default(),
-            tempo_authorization_list: authorizations,
+            magnus_authorization_list: authorizations,
             key_authorization: None,
         };
 
@@ -2216,7 +2216,7 @@ mod tests {
     async fn test_aa_create_call_with_authorization_list_rejected() {
         use alloy_eips::eip7702::Authorization;
         use alloy_primitives::Signature;
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             TempoSignedAuthorization,
             tt_signature::{PrimitiveSignature, TempoSignature},
         };
@@ -2292,7 +2292,7 @@ mod tests {
         );
 
         let mut state = provider.latest().unwrap();
-        let spec = provider.chain_spec().tempo_hardfork_at(0);
+        let spec = provider.chain_spec().magnus_hardfork_at(0);
 
         // Test that is_fee_token_paused returns true for paused tokens
         let result = state.is_fee_token_paused(spec, fee_token);
@@ -2423,7 +2423,7 @@ mod tests {
         );
 
         let mut state = provider.latest().unwrap();
-        let spec = provider.chain_spec().tempo_hardfork_at(0);
+        let spec = provider.chain_spec().magnus_hardfork_at(0);
 
         // Create AMM cache with the paused token in unique_tokens (simulating a validator's
         // preferred token). This would normally cause has_enough_liquidity() to return true

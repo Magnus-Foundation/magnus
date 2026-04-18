@@ -30,9 +30,9 @@ use std::{
     },
     time::Duration,
 };
-use tempo_alloy::TempoNetwork;
-use tempo_chainspec::spec::{TempoChainSpec, chain_value_parser};
-use tempo_primitives::{TempoHeader, TempoPrimitives, TempoTxEnvelope};
+use magnus_alloy::TempoNetwork;
+use magnus_chainspec::spec::{TempoChainSpec, chain_value_parser};
+use magnus_primitives::{TempoHeader, TempoPrimitives, TempoTxEnvelope};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info};
 
@@ -159,7 +159,7 @@ enum FetchRequest {
     },
     GetBodies {
         hashes: Vec<B256>,
-        response: oneshot::Sender<Vec<tempo_primitives::BlockBody>>,
+        response: oneshot::Sender<Vec<magnus_primitives::BlockBody>>,
     },
 }
 
@@ -190,7 +190,7 @@ impl BlockCache {
         number: u64,
         hash: B256,
         header: TempoHeader,
-        body: tempo_primitives::BlockBody,
+        body: magnus_primitives::BlockBody,
     ) {
         self.upsert(number, hash, header, Some(body));
     }
@@ -200,7 +200,7 @@ impl BlockCache {
         number: u64,
         hash: B256,
         header: TempoHeader,
-        body: Option<tempo_primitives::BlockBody>,
+        body: Option<magnus_primitives::BlockBody>,
     ) {
         if let Some(old_hash) = self.by_number.get(&number).map(|block| block.hash)
             && old_hash != hash
@@ -243,7 +243,7 @@ impl BlockCache {
 #[derive(Clone)]
 struct CachedBlock {
     header: TempoHeader,
-    body: Option<tempo_primitives::BlockBody>,
+    body: Option<magnus_primitives::BlockBody>,
     hash: B256,
 }
 
@@ -455,7 +455,7 @@ async fn fetch_and_cache_block(
 
     let hash = block.header.hash();
     let header: TempoHeader = block.header.inner.inner.clone();
-    let body = tempo_primitives::BlockBody {
+    let body = magnus_primitives::BlockBody {
         transactions: block
             .transactions
             .into_transactions()
@@ -635,7 +635,7 @@ async fn fetch_body_by_hash(
     provider: &impl Provider<TempoNetwork>,
     cache: &mut BlockCache,
     hash: B256,
-) -> Option<tempo_primitives::BlockBody> {
+) -> Option<magnus_primitives::BlockBody> {
     let block = provider
         .get_block_by_hash(hash)
         .full()
@@ -644,7 +644,7 @@ async fn fetch_body_by_hash(
         .flatten()?;
     let number = block.header.number();
     let header: TempoHeader = block.header.inner.inner.clone();
-    let body = tempo_primitives::BlockBody {
+    let body = magnus_primitives::BlockBody {
         transactions: block
             .transactions
             .into_transactions()
@@ -663,7 +663,7 @@ async fn resolve_bodies(
     provider: &impl Provider<TempoNetwork>,
     cache: &mut BlockCache,
     hashes: &[B256],
-) -> Vec<tempo_primitives::BlockBody> {
+) -> Vec<magnus_primitives::BlockBody> {
     let mut bodies = Vec::new();
 
     for &hash in hashes {

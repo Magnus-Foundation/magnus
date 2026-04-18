@@ -3,7 +3,7 @@
 use alloy_evm::error::InvalidTxError;
 use alloy_primitives::{Address, U256};
 use revm::context::result::{EVMError, ExecutionResult, HaltReason, InvalidTransaction};
-use tempo_primitives::transaction::{KeyAuthorizationChainIdError, KeychainVersionError};
+use magnus_primitives::transaction::{KeyAuthorizationChainIdError, KeychainVersionError};
 
 /// Tempo-specific invalid transaction errors.
 ///
@@ -78,8 +78,8 @@ pub enum TempoInvalidTransaction {
     #[error("nonce manager error: {0}")]
     NonceManagerError(String),
 
-    /// Expiring nonce transaction missing tempo_tx_env.
-    #[error("expiring nonce transaction requires tempo_tx_env")]
+    /// Expiring nonce transaction missing magnus_tx_env.
+    #[error("expiring nonce transaction requires magnus_tx_env")]
     ExpiringNonceMissingTxEnv,
 
     /// Expiring nonce transaction missing valid_before.
@@ -441,9 +441,9 @@ mod tests {
     #[test]
     fn test_from_invalid_transaction() {
         let eth_err = InvalidTransaction::PriorityFeeGreaterThanMaxFee;
-        let tempo_err: TempoInvalidTransaction = eth_err.into();
+        let magnus_err: TempoInvalidTransaction = eth_err.into();
         assert!(matches!(
-            tempo_err,
+            magnus_err,
             TempoInvalidTransaction::EthInvalidTransaction(_)
         ));
     }

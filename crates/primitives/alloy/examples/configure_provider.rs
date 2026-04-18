@@ -3,7 +3,7 @@
 //! Run with: `cargo run --example configure_provider`
 
 use alloy::providers::{Provider, ProviderBuilder};
-use tempo_alloy::TempoNetwork;
+use magnus_alloy::TempoNetwork;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

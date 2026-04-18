@@ -13,11 +13,11 @@ use metrics::{counter, describe_counter};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use poem::{EndpointExt as _, Route, Server, get, listener::TcpListener};
 use std::{collections::HashSet, time::Duration};
-use tempo_precompiles::{
+use magnus_precompiles::{
     TIP_FEE_MANAGER_ADDRESS, TIP20_FACTORY_ADDRESS, tip_fee_manager::ITIPFeeAMM,
     tip20_factory::ITIP20Factory,
 };
-use tempo_telemetry_util::error_field;
+use magnus_telemetry_util::error_field;
 use tracing::{debug, error, info, instrument};
 
 use crate::monitor;
@@ -86,11 +86,11 @@ impl SimpleArbArgs {
             .context("failed to install recorder")?;
 
         describe_counter!(
-            "tempo_arb_bot_successful_transactions",
+            "magnus_arb_bot_successful_transactions",
             "Number of successful transactions executed by the arb bot"
         );
         describe_counter!(
-            "tempo_arb_bot_failed_transactions",
+            "magnus_arb_bot_failed_transactions",
             "Number of failed transactions executed by the arb bot"
         );
 
@@ -196,7 +196,7 @@ impl SimpleArbArgs {
                                 "Failed to send rebalance transaction"
                             );
 
-                            counter!("tempo_arb_bot_failed_transactions", "error" => "tx_send")
+                            counter!("magnus_arb_bot_failed_transactions", "error" => "tx_send")
                                 .increment(1);
                         }
                     }
@@ -211,16 +211,16 @@ impl SimpleArbArgs {
                         {
                             Ok(Ok(_)) => {
                                 debug!("Tx receipt received successfully");
-                                counter!("tempo_arb_bot_successful_transactions").increment(1);
+                                counter!("magnus_arb_bot_successful_transactions").increment(1);
                             }
                             Ok(Err(e)) => {
                                 error!(err = error_field(&e), "Failed to get tx receipt");
-                                counter!("tempo_arb_bot_failed_transactions", "error" => "fetch_receipt")
+                                counter!("magnus_arb_bot_failed_transactions", "error" => "fetch_receipt")
                                     .increment(1);
                             }
                             Err(_) => {
                                 error!("Timeout waiting for tx receipt");
-                                counter!("tempo_arb_bot_failed_transactions", "error" => "receipt_timeout")
+                                counter!("magnus_arb_bot_failed_transactions", "error" => "receipt_timeout")
                                     .increment(1);
                             }
                         }

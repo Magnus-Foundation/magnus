@@ -11,7 +11,7 @@ use crate::{CONSENSUS_NODE_PREFIX, Setup, setup_validators};
 
 #[test_traced]
 fn no_duplicate_metrics() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let setup = Setup::new().how_many_signers(1).epoch_length(10);
 

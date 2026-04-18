@@ -11,7 +11,7 @@ use crate::{
 };
 use alloy::{primitives::Address, sol_types::SolInterface};
 use revm::precompile::PrecompileResult;
-use tempo_contracts::precompiles::{IFeeManager::IFeeManagerCalls, ITIPFeeAMM::ITIPFeeAMMCalls};
+use magnus_contracts::precompiles::{IFeeManager::IFeeManagerCalls, ITIPFeeAMM::ITIPFeeAMMCalls};
 
 /// Unified calldata discriminant for both `IFeeManager` and `ITIPFeeAMM` selectors.
 enum TipFeeManagerCall {
@@ -149,7 +149,7 @@ mod tests {
         primitives::{Address, B256, U256},
         sol_types::{SolCall, SolValue},
     };
-    use tempo_contracts::precompiles::{
+    use magnus_contracts::precompiles::{
         IFeeManager, IFeeManager::IFeeManagerCalls, ITIPFeeAMM, ITIPFeeAMM::ITIPFeeAMMCalls,
     };
 

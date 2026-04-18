@@ -1,8 +1,8 @@
 use super::*;
 use alloy::providers::DynProvider;
 use indicatif::ProgressIterator;
-use tempo_contracts::precompiles::{IStablecoinDEX, PATH_USD_ADDRESS};
-use tempo_precompiles::tip20::U128_MAX;
+use magnus_contracts::precompiles::{IStablecoinDEX, PATH_USD_ADDRESS};
+use magnus_precompiles::tip20::U128_MAX;
 
 /// This method performs a one-time setup for sending a lot of transactions:
 /// * Deploys the specified number of user tokens.

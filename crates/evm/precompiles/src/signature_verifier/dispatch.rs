@@ -2,10 +2,10 @@ use super::SignatureVerifier;
 use crate::{Precompile, charge_input_cost, dispatch_call, view};
 use alloy::{primitives::Address, sol_types::SolInterface};
 use revm::precompile::PrecompileResult;
-use tempo_contracts::precompiles::{
+use magnus_contracts::precompiles::{
     ISignatureVerifier::ISignatureVerifierCalls as ISVCalls, SignatureVerifierError,
 };
-use tempo_primitives::MAX_WEBAUTHN_SIGNATURE_LENGTH;
+use magnus_primitives::MAX_WEBAUTHN_SIGNATURE_LENGTH;
 
 /// Maximum valid calldata size: `verify(address,bytes32,bytes)` with a WebAuthn signature is the
 /// worst case. ABI encoding pads the dynamic `bytes` field independently, so only round the
@@ -45,8 +45,8 @@ mod tests {
     use alloy::{primitives::B256, sol_types::SolCall};
     use alloy_signer::SignerSync;
     use alloy_signer_local::PrivateKeySigner;
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::ISignatureVerifier;
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::ISignatureVerifier;
 
     #[test]
     fn test_signature_verifier_selector_coverage() -> eyre::Result<()> {

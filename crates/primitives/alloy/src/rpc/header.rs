@@ -3,7 +3,7 @@ use alloy_network::primitives::HeaderResponse;
 use alloy_primitives::{Address, B64, B256, BlockHash, Bloom, Bytes, U256};
 use alloy_rpc_types_eth::Header;
 use serde::{Deserialize, Serialize};
-use tempo_primitives::TempoHeader;
+use magnus_primitives::TempoHeader;
 
 /// Tempo RPC header response type.
 #[derive(Debug, Clone, Serialize, Deserialize, derive_more::Deref, derive_more::DerefMut)]

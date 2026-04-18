@@ -1,5 +1,5 @@
 use alloy::primitives::{Address, B256, address, hex_literal::hex};
-use tempo_alloy::primitives::{MasterId, TempoAddressExt, UserTag};
+use magnus_alloy::primitives::{MasterId, TempoAddressExt, UserTag};
 
 /// Pre-mined TIP-1022 PoW salts for the first 7 anvil mnemonic accounts.
 ///

@@ -261,7 +261,7 @@ mod tests {
     use alloy_signer_local::PrivateKeySigner;
     use reth_primitives_traits::Recovered;
     use reth_transaction_pool::TransactionOrigin;
-    use tempo_primitives::{TempoTxEnvelope, transaction::tt_signed::AASigned};
+    use magnus_primitives::{TempoTxEnvelope, transaction::tt_signed::AASigned};
 
     fn create_valid_tx(sender: Address) -> Arc<ValidPoolTransaction<TempoPooledTransaction>> {
         let pooled = TxBuilder::aa(sender).build();

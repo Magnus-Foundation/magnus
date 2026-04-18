@@ -1,6 +1,6 @@
 pub mod envelope;
 pub mod key_authorization;
-pub mod tempo_transaction;
+pub mod magnus_transaction;
 pub mod tt_authorization;
 pub mod tt_signature;
 pub mod tt_signed;
@@ -18,7 +18,7 @@ pub use key_authorization::{
     CallScope, KeyAuthorization, KeyAuthorizationChainIdError, SelectorRule,
     SignedKeyAuthorization, TokenLimit,
 };
-pub use tempo_transaction::{
+pub use magnus_transaction::{
     Call, MAX_WEBAUTHN_SIGNATURE_LENGTH, P256_SIGNATURE_LENGTH, SECP256K1_SIGNATURE_LENGTH,
     SignatureType, TEMPO_EXPIRING_NONCE_KEY, TEMPO_EXPIRING_NONCE_MAX_EXPIRY_SECS,
     TEMPO_TX_TYPE_ID, TempoTransaction, validate_calls,

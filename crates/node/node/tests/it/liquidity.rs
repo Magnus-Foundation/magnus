@@ -5,9 +5,9 @@ use alloy::{
     sol_types::SolCall,
 };
 use alloy_eips::Encodable2718;
-use tempo_contracts::precompiles::{IFeeManager::setUserTokenCall, ITIP20};
-use tempo_precompiles::DEFAULT_FEE_TOKEN;
-use tempo_primitives::{TempoTransaction, TempoTxEnvelope, transaction::tempo_transaction::Call};
+use magnus_contracts::precompiles::{IFeeManager::setUserTokenCall, ITIP20};
+use magnus_precompiles::DEFAULT_FEE_TOKEN;
+use magnus_primitives::{TempoTransaction, TempoTxEnvelope, transaction::magnus_transaction::Call};
 
 use crate::utils::setup_test_token;
 
@@ -34,8 +34,8 @@ async fn test_block_building_insufficient_fee_amm_liquidity() -> eyre::Result<()
     let payment_token_addr = *payment_token.address();
 
     // Get validator token address (default fee token from genesis)
-    use tempo_contracts::precompiles::ITIPFeeAMM;
-    use tempo_precompiles::TIP_FEE_MANAGER_ADDRESS;
+    use magnus_contracts::precompiles::ITIPFeeAMM;
+    use magnus_precompiles::TIP_FEE_MANAGER_ADDRESS;
     let validator_token_addr = DEFAULT_FEE_TOKEN;
 
     let fee_amm = ITIPFeeAMM::new(TIP_FEE_MANAGER_ADDRESS, provider.clone());
@@ -78,7 +78,7 @@ async fn test_block_building_insufficient_fee_amm_liquidity() -> eyre::Result<()
     println!("FeeAMM pool created. Now draining liquidity...");
 
     // Get user's LP token balance
-    use tempo_precompiles::tip_fee_manager::amm::PoolKey;
+    use magnus_precompiles::tip_fee_manager::amm::PoolKey;
     let pool_key = PoolKey::new(payment_token_addr, validator_token_addr);
     let pool_id = pool_key.get_id();
 

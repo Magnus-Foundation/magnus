@@ -12,7 +12,7 @@ use revm::{
 };
 use scoped_tls::scoped_thread_local;
 use std::{cell::RefCell, fmt::Debug};
-use tempo_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::TempoHardfork;
 
 use crate::{
     Precompile,
@@ -472,7 +472,7 @@ unsafe fn extend_lifetime_mut<'b, T: ?Sized>(r: &mut T) -> &'b mut T {
 mod tests {
     use super::*;
     use alloy::primitives::U256;
-    use tempo_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::TempoHardfork;
 
     fn t1c_storage() -> HashMapStorageProvider {
         HashMapStorageProvider::new_with_spec(1, TempoHardfork::T1C)

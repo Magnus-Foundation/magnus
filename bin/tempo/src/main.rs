@@ -42,7 +42,7 @@ static MALLOC_CONF: &[u8] = b"prof:true,prof_active:true,lg_prof_sample:19\0";
 mod defaults;
 mod init_state;
 mod p2p_proxy;
-mod tempo_cmd;
+mod magnus_cmd;
 
 use clap::{CommandFactory, FromArgMatches};
 use commonware_runtime::{Metrics, Runner};
@@ -55,15 +55,15 @@ use reth_network_peers::pk2id;
 use reth_node_builder::{NodeHandle, WithLaunchContext};
 use reth_rpc_server_types::{RethRpcModule, RpcModuleSelection, RpcModuleValidator};
 use std::{sync::Arc, thread, time::Duration};
-use tempo_chainspec::spec::{TempoChainSpec, TempoChainSpecParser};
-use tempo_commonware_node::{feed as consensus_feed, run_consensus_stack};
-use tempo_consensus::TempoConsensus;
-use tempo_evm::TempoEvmConfig;
-use tempo_faucet::{
+use magnus_chainspec::spec::{TempoChainSpec, TempoChainSpecParser};
+use magnus_commonware_node::{feed as consensus_feed, run_consensus_stack};
+use magnus_consensus::TempoConsensus;
+use magnus_evm::TempoEvmConfig;
+use magnus_faucet::{
     args::FaucetArgs,
     faucet::{TempoFaucetExt, TempoFaucetExtApiServer},
 };
-use tempo_node::{
+use magnus_node::{
     TempoFullNode, TempoNodeArgs,
     node::TempoNode,
     rpc::consensus::{TempoConsensusApiServer, TempoConsensusRpc},
@@ -73,7 +73,7 @@ use tokio::sync::oneshot;
 use tracing::{debug, info, info_span, warn};
 
 type TempoCli =
-    Cli<TempoChainSpecParser, TempoArgs, TempoRpcModuleValidator, tempo_cmd::TempoSubcommand>;
+    Cli<TempoChainSpecParser, TempoArgs, TempoRpcModuleValidator, magnus_cmd::TempoSubcommand>;
 
 const TEMPO_CUSTOM_RPC_MODULES: &[&str] = &["consensus", "operator", "tempo", "token"];
 
@@ -102,7 +102,7 @@ impl RpcModuleValidator for TempoRpcModuleValidator {
     }
 }
 
-// TODO: migrate this to tempo_node eventually.
+// TODO: migrate this to magnus_node eventually.
 #[derive(Debug, Clone, clap::Args)]
 struct TempoArgs {
     /// Follow this specific RPC node for block hashes.
@@ -127,7 +127,7 @@ struct TempoArgs {
     pub telemetry: defaults::TelemetryArgs,
 
     #[command(flatten)]
-    pub consensus: tempo_commonware_node::Args,
+    pub consensus: magnus_commonware_node::Args,
 
     #[command(flatten)]
     pub faucet_args: FaucetArgs,
@@ -205,7 +205,7 @@ fn print_extensions_footer() {
         return;
     }
 
-    let extensions = match tempo_ext::installed_extensions() {
+    let extensions = match magnus_ext::installed_extensions() {
         Ok(e) => e,
         Err(_) => return,
     };
@@ -273,7 +273,7 @@ fn main() -> eyre::Result<()> {
     //
     // TODO: Can remove this if https://github.com/tokio-rs/tracing/issues/2648
     // ever gets addressed.
-    tempo_eyre::install()
+    magnus_eyre::install()
         .expect("must install the eyre error hook before constructing any eyre reports");
 
     // Enable backtraces unless a RUST_BACKTRACE value has already been explicitly provided.
@@ -281,7 +281,7 @@ fn main() -> eyre::Result<()> {
         unsafe { std::env::set_var("RUST_BACKTRACE", "1") };
     }
 
-    tempo_node::init_version_metadata();
+    magnus_node::init_version_metadata();
     defaults::init_defaults();
 
     let mut cli = match TempoCli::command()
@@ -293,7 +293,7 @@ fn main() -> eyre::Result<()> {
         Err(err) => {
             if err.kind() == clap::error::ErrorKind::InvalidSubcommand {
                 // Unknown subcommand — try the extension launcher.
-                let code = match tempo_ext::run(std::env::args_os()) {
+                let code = match magnus_ext::run(std::env::args_os()) {
                     Ok(code) => code,
                     Err(e) => {
                         eprintln!("{e}");
@@ -435,7 +435,7 @@ fn main() -> eyre::Result<()> {
                 // not forget.
                 let ctx = ctx.with_label("consensus");
 
-                let mut metrics_server = tempo_commonware_node::metrics::install(
+                let mut metrics_server = magnus_commonware_node::metrics::install(
                     ctx.with_label("metrics"),
                     args.consensus.metrics_address,
                 )

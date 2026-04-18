@@ -10,8 +10,8 @@ use alloy_evm::{
 use alloy_primitives::{Address, Bytes, TxKind};
 use reth_revm::{InspectSystemCallEvm, MainContext, context::result::ExecutionResult};
 use std::ops::{Deref, DerefMut};
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_revm::{
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_revm::{
     TempoHaltReason, TempoInvalidTransaction, TempoTxEnv, ValidationContext, evm::TempoContext,
     handler::TempoEvmHandler,
 };
@@ -58,7 +58,7 @@ impl EvmFactory for TempoEvmFactory {
 /// `RevmEvm` type.
 #[expect(missing_debug_implementations)]
 pub struct TempoEvm<DB: Database, I = NoOpInspector> {
-    inner: tempo_revm::TempoEvm<DB, I>,
+    inner: magnus_revm::TempoEvm<DB, I>,
     inspect: bool,
 }
 
@@ -72,15 +72,15 @@ impl<DB: Database> TempoEvm<DB> {
             .with_tx(Default::default());
 
         Self {
-            inner: tempo_revm::TempoEvm::new(ctx, NoOpInspector {}),
+            inner: magnus_revm::TempoEvm::new(ctx, NoOpInspector {}),
             inspect: false,
         }
     }
 }
 
 impl<DB: Database, I> TempoEvm<DB, I> {
-    /// Consumes this EVM wrapper and returns the inner [`tempo_revm::TempoEvm`].
-    pub fn into_inner(self) -> tempo_revm::TempoEvm<DB, I> {
+    /// Consumes this EVM wrapper and returns the inner [`magnus_revm::TempoEvm`].
+    pub fn into_inner(self) -> magnus_revm::TempoEvm<DB, I> {
         self.inner
     }
 
@@ -94,8 +94,8 @@ impl<DB: Database, I> TempoEvm<DB, I> {
         &mut self.inner.inner.ctx
     }
 
-    /// Provides a mutable reference to the inner [`tempo_revm::TempoEvm`].
-    pub fn inner_mut(&mut self) -> &mut tempo_revm::TempoEvm<DB, I> {
+    /// Provides a mutable reference to the inner [`magnus_revm::TempoEvm`].
+    pub fn inner_mut(&mut self) -> &mut magnus_revm::TempoEvm<DB, I> {
         &mut self.inner
     }
 
@@ -248,8 +248,8 @@ mod tests {
         context::{CfgEnv, TxEnv},
         database::{EmptyDB, in_memory_db::CacheDB},
     };
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_revm::gas_params::tempo_gas_params;
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_revm::gas_params::magnus_gas_params;
 
     use super::*;
 
@@ -410,15 +410,15 @@ mod tests {
 
     /// Helper to create EvmEnv with a specific hardfork spec.
     fn evm_env_with_spec(
-        spec: tempo_chainspec::hardfork::TempoHardfork,
-    ) -> EvmEnv<tempo_chainspec::hardfork::TempoHardfork, TempoBlockEnv> {
-        EvmEnv::<tempo_chainspec::hardfork::TempoHardfork, TempoBlockEnv>::new(
-            CfgEnv::new_with_spec_and_gas_params(spec, tempo_gas_params(spec)),
+        spec: magnus_chainspec::hardfork::TempoHardfork,
+    ) -> EvmEnv<magnus_chainspec::hardfork::TempoHardfork, TempoBlockEnv> {
+        EvmEnv::<magnus_chainspec::hardfork::TempoHardfork, TempoBlockEnv>::new(
+            CfgEnv::new_with_spec_and_gas_params(spec, magnus_gas_params(spec)),
             TempoBlockEnv::default(),
         )
     }
 
-    /// Test that TempoEvm applies custom gas params via `tempo_gas_params()`.
+    /// Test that TempoEvm applies custom gas params via `magnus_gas_params()`.
     /// This verifies the [TIP-1000] gas parameter override mechanism.
     ///
     /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>

@@ -4,7 +4,7 @@ use revm::{
     handler::instructions::EthInstructions,
     interpreter::{Instruction, InstructionContext, interpreter::EthInterpreter, push},
 };
-use tempo_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::TempoHardfork;
 
 /// Instruction ID for opcode returning milliseconds timestamp.
 const MILLIS_TIMESTAMP: u8 = 0x4F;
@@ -21,7 +21,7 @@ fn millis_timestamp<DB: Database>(context: TempoInstructionContext<'_, DB>) {
 }
 
 /// Returns configured instructions table for Tempo.
-pub(crate) fn tempo_instructions<DB: Database>(
+pub(crate) fn magnus_instructions<DB: Database>(
     spec: TempoHardfork,
 ) -> EthInstructions<EthInterpreter, TempoContext<DB>> {
     let mut instructions = EthInstructions::new_mainnet_with_spec(spec.into());

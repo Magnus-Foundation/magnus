@@ -9,7 +9,7 @@ use reth_tracing::{
     RethTracer, Tracer,
     tracing::{debug, error, info},
 };
-use tempo_alloy::{
+use magnus_alloy::{
     TempoNetwork, fillers::ExpiringNonceFiller, provider::ext::TempoProviderBuilderExt,
 };
 
@@ -57,7 +57,7 @@ use std::{
     },
     time::Duration,
 };
-use tempo_contracts::precompiles::{
+use magnus_contracts::precompiles::{
     ADDRESS_REGISTRY_ADDRESS,
     IAddressRegistry::{self, IAddressRegistryInstance},
     IFeeManager::IFeeManagerInstance,
@@ -66,7 +66,7 @@ use tempo_contracts::precompiles::{
     ITIP20::{self, ITIP20Instance},
     ITIP20Factory, STABLECOIN_DEX_ADDRESS, TIP20_FACTORY_ADDRESS,
 };
-use tempo_precompiles::{
+use magnus_precompiles::{
     TIP_FEE_MANAGER_ADDRESS,
     address_registry::MasterId,
     stablecoin_dex::{MAX_TICK, MIN_ORDER_AMOUNT, MIN_TICK, TICK_SPACING},
@@ -190,7 +190,7 @@ pub struct MaxTpsArgs {
 
     /// Fund accounts from the faucet before running the benchmark.
     ///
-    /// Calls tempo_fundAddress for each account.
+    /// Calls magnus_fundAddress for each account.
     #[arg(long)]
     faucet: bool,
 
@@ -969,7 +969,7 @@ async fn fund_accounts(
         .iter()
         .map(|address| {
             let address = *address;
-            provider.raw_request::<_, Vec<B256>>("tempo_fundAddress".into(), (address,))
+            provider.raw_request::<_, Vec<B256>>("magnus_fundAddress".into(), (address,))
         })
         .chunks(max_concurrent_transactions);
 

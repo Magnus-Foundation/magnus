@@ -3,8 +3,8 @@
 use alloy_primitives::B256;
 use futures::Future;
 use serde::{Deserialize, Serialize};
-use tempo_alloy::rpc::TempoHeaderResponse;
-use tempo_primitives::Block;
+use magnus_alloy::rpc::TempoHeaderResponse;
+use magnus_primitives::Block;
 use tokio::sync::broadcast;
 
 /// A block with a threshold BLS certificate (notarization or finalization).

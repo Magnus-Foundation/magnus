@@ -7,10 +7,10 @@
 //! When a new hardfork is needed (e.g., `Vivace`):
 //!
 //! ### In `hardfork.rs`:
-//! 1. Append a `Vivace` variant to `tempo_hardfork!` — automatically:
+//! 1. Append a `Vivace` variant to `magnus_hardfork!` — automatically:
 //!    * defines the enum variant via [`hardfork!`]
 //!    * implements trait `TempoHardforks` by adding `is_vivace()`, `is_vivace_active_at_timestamp()`,
-//!      and updating `tempo_hardfork_at()`
+//!      and updating `magnus_hardfork_at()`
 //!    * adds tests for each of the `TempoHardfork` methods
 //! 2. Update `From<TempoHardfork> for SpecId` if the hardfork requires a different Ethereum `SpecId`
 //!
@@ -35,15 +35,15 @@ use alloy_hardforks::hardfork;
 /// * Generates `is_<fork>()` inherent methods on `TempoHardfork` — returns `true` when
 ///   `*self >= Self::<Fork>`
 /// * Generates the `TempoHardforks` trait with:
-///   - `tempo_fork_activation()` (required — the only method implementors provide)
-///   - `tempo_hardfork_at()` — walks `VARIANTS` in reverse to find the latest active fork
+///   - `magnus_fork_activation()` (required — the only method implementors provide)
+///   - `magnus_hardfork_at()` — walks `VARIANTS` in reverse to find the latest active fork
 ///   - `is_<fork>_active_at_timestamp()` — per-fork convenience helpers
 ///   - `general_gas_limit_at()` — gas limit lookup by timestamp
 /// * Generates a `#[cfg(test)] mod tests` with activation, naming, trait, and serde tests
 ///
 /// `Genesis` (first variant) is treated as the baseline and does not get `is_*()` methods.
 ///  All subsequent variants are considered post-Genesis hardforks.
-macro_rules! tempo_hardfork {
+macro_rules! magnus_hardfork {
     (
         $(#[$enum_meta:meta])*
         TempoHardfork {
@@ -76,12 +76,12 @@ macro_rules! tempo_hardfork {
         #[cfg(feature = "reth")]
         pub trait TempoHardforks: reth_chainspec::EthereumHardforks {
             /// Retrieves activation condition for a Tempo-specific hardfork.
-            fn tempo_fork_activation(&self, fork: TempoHardfork) -> reth_chainspec::ForkCondition;
+            fn magnus_fork_activation(&self, fork: TempoHardfork) -> reth_chainspec::ForkCondition;
 
             /// Retrieves the Tempo hardfork active at a given timestamp.
-            fn tempo_hardfork_at(&self, timestamp: u64) -> TempoHardfork {
+            fn magnus_hardfork_at(&self, timestamp: u64) -> TempoHardfork {
                 for &fork in TempoHardfork::VARIANTS.iter().rev() {
-                    if self.tempo_fork_activation(fork).active_at_timestamp(timestamp) {
+                    if self.magnus_fork_activation(fork).active_at_timestamp(timestamp) {
                         return fork;
                     }
                 }
@@ -92,7 +92,7 @@ macro_rules! tempo_hardfork {
                 $(
                     #[doc = concat!("Returns true if ", stringify!($variant), " is active at the given timestamp.")]
                     fn [<is_ $variant:lower _active_at_timestamp>](&self, timestamp: u64) -> bool {
-                        self.tempo_fork_activation(TempoHardfork::$variant)
+                        self.magnus_fork_activation(TempoHardfork::$variant)
                             .active_at_timestamp(timestamp)
                     }
                 )*
@@ -102,7 +102,7 @@ macro_rules! tempo_hardfork {
             /// - T1+: fixed at 30M gas
             /// - Pre-T1: calculated as (gas_limit - shared_gas_limit) / 2
             fn general_gas_limit_at(&self, timestamp: u64, gas_limit: u64, shared_gas_limit: u64) -> u64 {
-                self.tempo_hardfork_at(timestamp)
+                self.magnus_hardfork_at(timestamp)
                     .general_gas_limit()
                     .unwrap_or_else(|| (gas_limit - shared_gas_limit) / 2)
             }
@@ -161,7 +161,7 @@ macro_rules! tempo_hardfork {
 // -------------------------------------------------------------------------------------
 // Tempo hardfork definitions — append new variants here.
 // -------------------------------------------------------------------------------------
-tempo_hardfork! (
+magnus_hardfork! (
     /// Tempo-specific hardforks for network upgrades.
     #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     #[derive(Default)]
@@ -248,7 +248,7 @@ impl TempoHardfork {
     /// Returns `None` if the chain ID is not a known Tempo chain.
     pub const fn from_chain_and_timestamp(chain_id: u64, timestamp: u64) -> Option<Self> {
         // Walk variants in reverse to find the latest active fork, mirroring
-        // `TempoHardforks::tempo_hardfork_at` but without needing a chainspec instance.
+        // `TempoHardforks::magnus_hardfork_at` but without needing a chainspec instance.
         let variants = Self::VARIANTS;
         let mut i = variants.len();
         while i > 0 {

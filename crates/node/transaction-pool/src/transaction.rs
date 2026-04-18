@@ -20,9 +20,9 @@ use std::{
     fmt::Debug,
     sync::{Arc, OnceLock},
 };
-use tempo_precompiles::{DEFAULT_FEE_TOKEN, nonce::NonceManager};
-use tempo_primitives::{TempoTxEnvelope, transaction::calc_gas_balance_spending};
-use tempo_revm::{TempoInvalidTransaction, TempoTxEnv};
+use magnus_precompiles::{DEFAULT_FEE_TOKEN, nonce::NonceManager};
+use magnus_primitives::{TempoTxEnvelope, transaction::calc_gas_balance_spending};
+use magnus_revm::{TempoInvalidTransaction, TempoTxEnv};
 use thiserror::Error;
 
 /// Tempo pooled transaction representation.
@@ -97,7 +97,7 @@ impl TempoPooledTransaction {
         self.inner().is_aa()
     }
 
-    /// Returns the nonce key of this transaction if it's an [`AASigned`](tempo_primitives::AASigned) transaction.
+    /// Returns the nonce key of this transaction if it's an [`AASigned`](magnus_primitives::AASigned) transaction.
     pub fn nonce_key(&self) -> Option<U256> {
         self.inner.transaction.nonce_key()
     }
@@ -533,11 +533,11 @@ mod tests {
     use alloy_consensus::TxEip1559;
     use alloy_primitives::{Address, Signature, TxKind, address};
     use alloy_sol_types::SolCall;
-    use tempo_contracts::precompiles::ITIP20;
-    use tempo_precompiles::{PATH_USD_ADDRESS, nonce::NonceManager};
-    use tempo_primitives::transaction::{
+    use magnus_contracts::precompiles::ITIP20;
+    use magnus_precompiles::{PATH_USD_ADDRESS, nonce::NonceManager};
+    use magnus_primitives::transaction::{
         TempoTransaction,
-        tempo_transaction::Call,
+        magnus_transaction::Call,
         tt_signature::{PrimitiveSignature, TempoSignature},
         tt_signed::AASigned,
     };

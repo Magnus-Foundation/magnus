@@ -25,12 +25,12 @@ use reth_transaction_pool::{
     pool::AddedTransactionState,
 };
 use std::{num::NonZeroU64, sync::Arc};
-use tempo_chainspec::spec::{TEMPO_T1_BASE_FEE, TempoChainSpec};
-use tempo_node::node::TempoNode;
-use tempo_precompiles::{DEFAULT_FEE_TOKEN, tip_fee_manager::TipFeeManager};
-use tempo_primitives::{
+use magnus_chainspec::spec::{TEMPO_T1_BASE_FEE, TempoChainSpec};
+use magnus_node::node::TempoNode;
+use magnus_precompiles::{DEFAULT_FEE_TOKEN, tip_fee_manager::TipFeeManager};
+use magnus_primitives::{
     TempoTransaction, TempoTxEnvelope,
-    transaction::{calc_gas_balance_spending, tempo_transaction::Call},
+    transaction::{calc_gas_balance_spending, magnus_transaction::Call},
 };
 
 #[tokio::test(flavor = "multi_thread")]
@@ -267,7 +267,7 @@ async fn test_2d_nonce_tx_reinjected_after_reorg() -> eyre::Result<()> {
             value: U256::ZERO,
             input: alloy_primitives::Bytes::new(),
         }],
-        fee_token: Some(tempo_precompiles::DEFAULT_FEE_TOKEN),
+        fee_token: Some(magnus_precompiles::DEFAULT_FEE_TOKEN),
         ..Default::default()
     };
 
@@ -383,7 +383,7 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
     //
     // This should NOT evict the transaction because the attacker's token is not
     // used by any active block producers.
-    let updates = tempo_transaction_pool::TempoPoolUpdates {
+    let updates = magnus_transaction_pool::TempoPoolUpdates {
         validator_token_changes: [(user_addr, attacker_token)].into_iter().collect(),
         ..Default::default()
     };
@@ -420,8 +420,8 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
     use alloy::sol_types::SolCall;
-    use tempo_contracts::precompiles::{ITIP20, ITIP403Registry};
-    use tempo_precompiles::{TIP_FEE_MANAGER_ADDRESS, TIP403_REGISTRY_ADDRESS};
+    use magnus_contracts::precompiles::{ITIP20, ITIP403Registry};
+    use magnus_precompiles::{TIP_FEE_MANAGER_ADDRESS, TIP403_REGISTRY_ADDRESS};
 
     reth_tracing::init_test_tracing();
 

@@ -1,6 +1,6 @@
 use alloy_primitives::Address;
 use serde::{Deserialize, Serialize};
-use tempo_primitives::{TempoTxEnvelope, TempoTxType};
+use magnus_primitives::{TempoTxEnvelope, TempoTxType};
 
 pub type Transaction = alloy_rpc_types_eth::Transaction<TempoTxEnvelope>;
 

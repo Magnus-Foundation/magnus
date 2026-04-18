@@ -4,8 +4,8 @@
 
 pub mod dispatch;
 
-pub use tempo_contracts::precompiles::{ITIP20Factory, TIP20FactoryError, TIP20FactoryEvent};
-use tempo_precompiles_macros::contract;
+pub use magnus_contracts::precompiles::{ITIP20Factory, TIP20FactoryError, TIP20FactoryEvent};
+use magnus_precompiles_macros::contract;
 
 use crate::{
     PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS,
@@ -16,7 +16,7 @@ use alloy::{
     primitives::{Address, B256, keccak256},
     sol_types::SolValue,
 };
-use tempo_primitives::TempoAddressExt;
+use magnus_primitives::TempoAddressExt;
 use tracing::trace;
 
 /// Number of reserved addresses (0 to RESERVED_SIZE-1) that cannot be deployed via factory

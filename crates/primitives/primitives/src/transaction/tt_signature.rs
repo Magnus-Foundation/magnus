@@ -1,4 +1,4 @@
-use super::tempo_transaction::{
+use super::magnus_transaction::{
     MAX_WEBAUTHN_SIGNATURE_LENGTH, P256_SIGNATURE_LENGTH, SECP256K1_SIGNATURE_LENGTH, SignatureType,
 };
 use alloc::vec::Vec;

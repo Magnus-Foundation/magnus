@@ -1,7 +1,7 @@
 use alloy::primitives::{Address, FixedBytes, U256};
 use criterion::{Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
-use tempo_precompiles::{
+use magnus_precompiles::{
     storage::{StorageCtx, hashmap::HashMapStorageProvider},
     test_util::TIP20Setup,
     tip20::{ISSUER_ROLE, ITIP20, PAUSE_ROLE, UNPAUSE_ROLE},

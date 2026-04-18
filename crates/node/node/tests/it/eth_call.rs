@@ -15,13 +15,13 @@ use alloy_rpc_types_eth::{
     state::{AccountOverride, StateOverride},
 };
 use reth_evm::revm::interpreter::instructions::utility::IntoU256;
-use tempo_chainspec::{hardfork::TempoHardfork, spec::TEMPO_T1_BASE_FEE};
-use tempo_contracts::precompiles::{
+use magnus_chainspec::{hardfork::TempoHardfork, spec::TEMPO_T1_BASE_FEE};
+use magnus_contracts::precompiles::{
     IFeeManager,
     ITIP20::{self, transferCall},
     ITIPFeeAMM, IValidatorConfig, UnknownFunctionSelector,
 };
-use tempo_precompiles::{
+use magnus_precompiles::{
     PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS, error::TempoPrecompileError, storage::ContractStorage,
     tip20::TIP20Token, validator_config::ValidatorConfig,
 };
@@ -343,12 +343,12 @@ async fn test_eth_estimate_gas_different_fee_tokens() -> eyre::Result<()> {
 
     // Setup fee manager to configure different tokens
     let fee_manager =
-        IFeeManager::new(tempo_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
+        IFeeManager::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
 
     // Supply liquidity to enable fee token swapping
     let validator_token_address = PATH_USD_ADDRESS;
 
-    let fee_amm = ITIPFeeAMM::new(tempo_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
+    let fee_amm = ITIPFeeAMM::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
 
     // Provide liquidity for the fee token pair
     let liquidity_amount = U256::from(u32::MAX);
@@ -445,8 +445,8 @@ async fn test_eth_estimate_gas_validator_fee_token_mismatch() -> eyre::Result<()
     let provider = ProviderBuilder::new().wallet(wallet).connect_http(http_url);
 
     let fee_manager =
-        IFeeManager::new(tempo_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
-    let fee_amm = ITIPFeeAMM::new(tempo_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
+        IFeeManager::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
+    let fee_amm = ITIPFeeAMM::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
 
     let validator_custom_token = setup_test_token(provider.clone(), wallet_address).await?;
     let user_fee_token = setup_test_token(provider.clone(), wallet_address).await?;
@@ -568,7 +568,7 @@ async fn test_eth_estimate_gas_preseeded_zero_address_validator_token() -> eyre:
 
     // Verify the pre-seeded state: validatorTokens[address(0)] should be non-PathUSD
     let fee_manager =
-        IFeeManager::new(tempo_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
+        IFeeManager::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
     let zero_addr_token = fee_manager.validatorTokens(Address::ZERO).call().await?;
     assert_ne!(
         zero_addr_token, PATH_USD_ADDRESS,
@@ -585,7 +585,7 @@ async fn test_eth_estimate_gas_preseeded_zero_address_validator_token() -> eyre:
         .get_receipt()
         .await?;
 
-    let fee_amm = ITIPFeeAMM::new(tempo_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
+    let fee_amm = ITIPFeeAMM::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
     fee_amm
         .mint(
             *user_fee_token.address(),

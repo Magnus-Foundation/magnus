@@ -5,7 +5,7 @@
 /// # Example
 ///
 /// ```
-/// use tempo_telemetry_util::display_duration;
+/// use magnus_telemetry_util::display_duration;
 ///
 /// let timeout = std::time::Duration::from_millis(1500);
 /// tracing::warn!(
@@ -73,7 +73,7 @@ impl std::fmt::Display for DisplayDuration {
 ///
 /// ```
 /// use eyre::WrapErr;
-/// use tempo_telemetry_util::error_field;
+/// use magnus_telemetry_util::error_field;
 /// let read_error: Result<(), std::io::Error> = Err(std::io::ErrorKind::NotFound.into());
 /// if let Err(error) = Err::<(), _>(std::io::Error::from(std::io::ErrorKind::NotFound))
 ///     .wrap_err("failed opening config")
@@ -86,7 +86,7 @@ impl std::fmt::Display for DisplayDuration {
 /// ```
 /// This will print (using the standard `tracing_subscriber::fmt::init()` formatting subscriber):
 /// ```text
-/// 2025-08-08T14:38:17.541852Z ERROR tempo_telemetry_util: error=failed starting server error.sources=[failed opening config, entity not found]
+/// 2025-08-08T14:38:17.541852Z ERROR magnus_telemetry_util: error=failed starting server error.sources=[failed opening config, entity not found]
 /// ```
 pub fn error_field<E, TMarker>(error: &E) -> Box<dyn tracing::Value + '_>
 where
@@ -133,7 +133,7 @@ impl AsTracingValue<private::Eyre> for eyre::Report {
 /// # Example
 ///
 /// ```
-/// use tempo_telemetry_util::display_result;
+/// use magnus_telemetry_util::display_result;
 ///
 /// let ok_result: Result<u64, std::io::Error> = Ok(42);
 /// let err_result: Result<u64, std::io::Error> = Err(std::io::ErrorKind::NotFound.into());
@@ -176,7 +176,7 @@ impl<T: std::fmt::Display, E: std::error::Error> std::fmt::Display for DisplayRe
 /// # Example
 ///
 /// ```
-/// use tempo_telemetry_util::display_option;
+/// use magnus_telemetry_util::display_option;
 ///
 /// let some_value: Option<u64> = Some(42);
 /// let none_value: Option<u64> = None;

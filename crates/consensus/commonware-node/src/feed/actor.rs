@@ -32,7 +32,7 @@ use std::{
     task::{Context, Poll},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tempo_node::{
+use magnus_node::{
     TempoFullNode,
     rpc::consensus::{CertifiedBlock, Event},
 };

@@ -6,7 +6,7 @@ use alloy_provider::Provider;
 use alloy_rpc_types_eth::{Transaction, TransactionRequest, TransactionTrait};
 use core::num::NonZeroU64;
 use serde::{Deserialize, Serialize};
-use tempo_primitives::{
+use magnus_primitives::{
     AASigned, SignatureType, TempoTransaction, TempoTxEnvelope,
     transaction::{
         Call, SignedKeyAuthorization, TempoSignedAuthorization, TempoTypedTransaction,
@@ -73,7 +73,7 @@ pub struct TempoTransactionRequest {
         skip_serializing_if = "Vec::is_empty",
         rename = "aaAuthorizationList"
     )]
-    pub tempo_authorization_list: Vec<TempoSignedAuthorization>,
+    pub magnus_authorization_list: Vec<TempoSignedAuthorization>,
 
     /// Key authorization for provisioning an access key (for gas estimation).
     /// Provide a signed KeyAuthorization when the transaction provisions an access key.
@@ -283,7 +283,7 @@ impl TempoTransactionRequest {
             fee_token: self.fee_token,
             access_list: self.inner.access_list.unwrap_or_default(),
             calls,
-            tempo_authorization_list: self.tempo_authorization_list,
+            magnus_authorization_list: self.magnus_authorization_list,
             nonce_key: self.nonce_key.unwrap_or_default(),
             key_authorization: self.key_authorization,
         })
@@ -406,7 +406,7 @@ impl From<TempoTransaction> for TempoTransactionRequest {
                 transaction_type: Some(tx.ty()),
             },
             calls: tx.calls,
-            tempo_authorization_list: tx.tempo_authorization_list,
+            magnus_authorization_list: tx.magnus_authorization_list,
             key_type: None,
             key_data: None,
             key_id: None,
@@ -520,7 +520,7 @@ impl<P: Provider<TempoNetwork>, D: CallDecoder> TempoCallBuilderExt
 mod tests {
     use super::*;
     use alloy_primitives::{Bytes, Signature, address};
-    use tempo_primitives::transaction::{
+    use magnus_primitives::transaction::{
         Call, KeyAuthorization, PrimitiveSignature, TEMPO_EXPIRING_NONCE_KEY,
     };
 
@@ -609,7 +609,7 @@ mod tests {
                 value: Default::default(),
                 input: Default::default(),
             }],
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
             nonce_key: TEMPO_EXPIRING_NONCE_KEY,
             key_authorization: None,
         };
@@ -688,7 +688,7 @@ mod tests {
                 value: Default::default(),
                 input: Default::default(),
             }],
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
             nonce_key: Default::default(),
             key_authorization: None,
         };

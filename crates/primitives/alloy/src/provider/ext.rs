@@ -4,13 +4,13 @@ use alloy_provider::{
     Identity, Provider, ProviderBuilder,
     fillers::{JoinFill, RecommendedFillers},
 };
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_contracts::precompiles::{
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_contracts::precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS,
     IAccountKeychain::{IAccountKeychainInstance, KeyInfo},
     getAllowedCallsReturn, getRemainingLimitReturn,
 };
-use tempo_primitives::transaction::CallScope;
+use magnus_primitives::transaction::CallScope;
 
 use crate::{
     TempoFillers, TempoNetwork,
@@ -98,7 +98,7 @@ pub trait TempoProviderExt: Provider<TempoNetwork> {
 
     /// Returns `true` if the given Tempo hardfork is active on the connected chain.
     ///
-    /// Queries the node's `tempo_forkSchedule` RPC to determine the currently active hardfork.
+    /// Queries the node's `magnus_forkSchedule` RPC to determine the currently active hardfork.
     async fn is_hardfork_active(
         &self,
         hardfork: TempoHardfork,
@@ -111,7 +111,7 @@ pub trait TempoProviderExt: Provider<TempoNetwork> {
             active: String,
         }
 
-        let resp: Response = self.raw_request("tempo_forkSchedule".into(), ()).await?;
+        let resp: Response = self.raw_request("magnus_forkSchedule".into(), ()).await?;
 
         Ok(resp
             .active
@@ -201,7 +201,7 @@ mod tests {
     use alloy::sol_types::SolCall;
     use alloy_primitives::{Address, Bytes, U256};
     use alloy_provider::{Identity, ProviderBuilder, fillers::JoinFill, mock::Asserter};
-    use tempo_contracts::precompiles::{
+    use magnus_contracts::precompiles::{
         IAccountKeychain::{
             CallScope as AbiCallScope, KeyInfo, SelectorRule as AbiSelectorRule, SignatureType,
             getAllowedCallsCall, getKeyCall, getRemainingLimitWithPeriodCall,
@@ -209,7 +209,7 @@ mod tests {
         },
         getAllowedCallsReturn, getRemainingLimitReturn,
     };
-    use tempo_primitives::transaction::{CallScope, SelectorRule};
+    use magnus_primitives::transaction::{CallScope, SelectorRule};
 
     use crate::{
         TempoFillers, TempoNetwork,

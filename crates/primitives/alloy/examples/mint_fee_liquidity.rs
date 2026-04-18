@@ -6,7 +6,7 @@ use alloy::{
     primitives::{U256, address},
     providers::ProviderBuilder,
 };
-use tempo_alloy::{
+use magnus_alloy::{
     TempoNetwork,
     contracts::precompiles::{ITIPFeeAMM, TIP_FEE_MANAGER_ADDRESS},
 };

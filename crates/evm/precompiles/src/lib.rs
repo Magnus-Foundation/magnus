@@ -31,8 +31,8 @@ use crate::{
     tip403_registry::TIP403Registry, validator_config::ValidatorConfig,
     validator_config_v2::ValidatorConfigV2,
 };
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_primitives::TempoAddressExt;
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_primitives::TempoAddressExt;
 
 #[cfg(test)]
 use alloy::sol_types::SolInterface;
@@ -49,7 +49,7 @@ use revm::{
     primitives::hardfork::SpecId,
 };
 
-pub use tempo_contracts::precompiles::{
+pub use magnus_contracts::precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS, ADDRESS_REGISTRY_ADDRESS, DEFAULT_FEE_TOKEN,
     NONCE_PRECOMPILE_ADDRESS, PATH_USD_ADDRESS, SIGNATURE_VERIFIER_ADDRESS, STABLECOIN_DEX_ADDRESS,
     TIP_FEE_MANAGER_ADDRESS, TIP20_FACTORY_ADDRESS, TIP403_REGISTRY_ADDRESS,
@@ -95,7 +95,7 @@ pub trait Precompile {
 ///
 /// Pre-T1C hardforks use Prague precompiles, T1C+ uses Osaka precompiles.
 /// Tempo-specific precompiles are also registered via [`extend_tempo_precompiles`].
-pub fn tempo_precompiles(cfg: &CfgEnv<TempoHardfork>) -> PrecompilesMap {
+pub fn magnus_precompiles(cfg: &CfgEnv<TempoHardfork>) -> PrecompilesMap {
     let spec = if cfg.spec.is_t1c() {
         cfg.spec.into()
     } else {
@@ -109,7 +109,7 @@ pub fn tempo_precompiles(cfg: &CfgEnv<TempoHardfork>) -> PrecompilesMap {
 /// Registers Tempo-specific precompiles into an existing [`PrecompilesMap`] by installing a
 /// lookup function that matches addresses to their precompile: TIP-20 tokens (by prefix),
 /// TIP20Factory, TIP403Registry, TipFeeManager, StablecoinDEX, NonceManager, ValidatorConfig,
-/// AccountKeychain, and ValidatorConfigV2. Each precompile is wrapped via the `tempo_precompile!`
+/// AccountKeychain, and ValidatorConfigV2. Each precompile is wrapped via the `magnus_precompile!`
 /// macro which enforces direct-call-only (no delegatecall) and sets up the storage context.
 pub fn extend_tempo_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<TempoHardfork>) {
     let cfg = cfg.clone();
@@ -148,7 +148,7 @@ sol! {
     error StaticCallNotAllowed();
 }
 
-macro_rules! tempo_precompile {
+macro_rules! magnus_precompile {
     ($id:expr, $cfg:expr, |$input:ident| $impl:expr) => {{
         let spec = $cfg.spec;
         let gas_params = $cfg.gas_params.clone();
@@ -178,35 +178,35 @@ macro_rules! tempo_precompile {
 impl TipFeeManager {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<TempoHardfork>) -> DynPrecompile {
-        tempo_precompile!("TipFeeManager", cfg, |input| { Self::new() })
+        magnus_precompile!("TipFeeManager", cfg, |input| { Self::new() })
     }
 }
 
 impl AddressRegistry {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<TempoHardfork>) -> DynPrecompile {
-        tempo_precompile!("AddressRegistry", cfg, |input| { Self::new() })
+        magnus_precompile!("AddressRegistry", cfg, |input| { Self::new() })
     }
 }
 
 impl TIP403Registry {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<TempoHardfork>) -> DynPrecompile {
-        tempo_precompile!("TIP403Registry", cfg, |input| { Self::new() })
+        magnus_precompile!("TIP403Registry", cfg, |input| { Self::new() })
     }
 }
 
 impl TIP20Factory {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<TempoHardfork>) -> DynPrecompile {
-        tempo_precompile!("TIP20Factory", cfg, |input| { Self::new() })
+        magnus_precompile!("TIP20Factory", cfg, |input| { Self::new() })
     }
 }
 
 impl TIP20Token {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(address: Address, cfg: &CfgEnv<TempoHardfork>) -> DynPrecompile {
-        tempo_precompile!("TIP20Token", cfg, |input| {
+        magnus_precompile!("TIP20Token", cfg, |input| {
             Self::from_address(address).expect("TIP20 prefix already verified")
         })
     }
@@ -215,42 +215,42 @@ impl TIP20Token {
 impl StablecoinDEX {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<TempoHardfork>) -> DynPrecompile {
-        tempo_precompile!("StablecoinDEX", cfg, |input| { Self::new() })
+        magnus_precompile!("StablecoinDEX", cfg, |input| { Self::new() })
     }
 }
 
 impl NonceManager {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<TempoHardfork>) -> DynPrecompile {
-        tempo_precompile!("NonceManager", cfg, |input| { Self::new() })
+        magnus_precompile!("NonceManager", cfg, |input| { Self::new() })
     }
 }
 
 impl AccountKeychain {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<TempoHardfork>) -> DynPrecompile {
-        tempo_precompile!("AccountKeychain", cfg, |input| { Self::new() })
+        magnus_precompile!("AccountKeychain", cfg, |input| { Self::new() })
     }
 }
 
 impl ValidatorConfig {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<TempoHardfork>) -> DynPrecompile {
-        tempo_precompile!("ValidatorConfig", cfg, |input| { Self::new() })
+        magnus_precompile!("ValidatorConfig", cfg, |input| { Self::new() })
     }
 }
 
 impl ValidatorConfigV2 {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<TempoHardfork>) -> DynPrecompile {
-        tempo_precompile!("ValidatorConfigV2", cfg, |input| { Self::new() })
+        magnus_precompile!("ValidatorConfigV2", cfg, |input| { Self::new() })
     }
 }
 
 impl SignatureVerifier {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<TempoHardfork>) -> DynPrecompile {
-        tempo_precompile!("SignatureVerifier", cfg, |input| { Self::new() })
+        magnus_precompile!("SignatureVerifier", cfg, |input| { Self::new() })
     }
 }
 
@@ -450,12 +450,12 @@ mod tests {
         database::{CacheDB, EmptyDB},
         state::{AccountInfo, Bytecode},
     };
-    use tempo_contracts::precompiles::{ITIP20, UnknownFunctionSelector};
+    use magnus_contracts::precompiles::{ITIP20, UnknownFunctionSelector};
 
     #[test]
     fn test_precompile_delegatecall() {
         let cfg = CfgEnv::<TempoHardfork>::default();
-        let precompile = tempo_precompile!("TIP20Token", &cfg, |input| {
+        let precompile = magnus_precompile!("TIP20Token", &cfg, |input| {
             TIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
         });
 
@@ -495,7 +495,7 @@ mod tests {
     fn test_precompile_static_call() {
         let cfg = CfgEnv::<TempoHardfork>::default();
         let tx = TxEnv::default();
-        let precompile = tempo_precompile!("TIP20Token", &cfg, |input| {
+        let precompile = magnus_precompile!("TIP20Token", &cfg, |input| {
             TIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
         });
 
@@ -573,7 +573,7 @@ mod tests {
             let mut cfg = CfgEnv::<TempoHardfork>::default();
             cfg.set_spec_and_mainnet_gas_params(spec);
             let tx = TxEnv::default();
-            let precompile = tempo_precompile!("TIP20Token", &cfg, |input| {
+            let precompile = magnus_precompile!("TIP20Token", &cfg, |input| {
                 TIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
             });
 
@@ -618,7 +618,7 @@ mod tests {
 
         // Verify it's an UnknownFunctionSelector error with the correct selector
         let decoded =
-            tempo_contracts::precompiles::UnknownFunctionSelector::abi_decode(&unknown.bytes)
+            magnus_contracts::precompiles::UnknownFunctionSelector::abi_decode(&unknown.bytes)
                 .expect("T1: expected UnknownFunctionSelector error");
         assert_eq!(decoded.selector.as_slice(), &[0xAA, 0xAA, 0xAA, 0xAA]);
 
@@ -738,7 +738,7 @@ mod tests {
     fn test_extend_tempo_precompiles_registers_precompiles() {
         let mut cfg = CfgEnv::<TempoHardfork>::default();
         cfg.set_spec_and_mainnet_gas_params(TempoHardfork::T3);
-        let precompiles = tempo_precompiles(&cfg);
+        let precompiles = magnus_precompiles(&cfg);
 
         // TIP20Factory should be registered
         let factory_precompile = precompiles.get(&TIP20_FACTORY_ADDRESS);
@@ -822,7 +822,7 @@ mod tests {
     #[test]
     fn test_signature_verifier_not_registered_pre_t3() {
         let cfg = CfgEnv::<TempoHardfork>::default();
-        let precompiles = tempo_precompiles(&cfg);
+        let precompiles = magnus_precompiles(&cfg);
 
         assert!(
             precompiles.get(&SIGNATURE_VERIFIER_ADDRESS).is_none(),
@@ -838,7 +838,7 @@ mod tests {
 
             let mut cfg = CfgEnv::<TempoHardfork>::default();
             cfg.set_spec_and_mainnet_gas_params(spec);
-            tempo_precompiles(&cfg).get(&p256_addr).is_some()
+            magnus_precompiles(&cfg).get(&p256_addr).is_some()
         };
 
         // Pre-T1C hardforks should use Prague precompiles (no P256VERIFY)

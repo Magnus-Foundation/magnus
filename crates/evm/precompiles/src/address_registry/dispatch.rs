@@ -3,8 +3,8 @@ use crate::{
 };
 use alloy::{primitives::Address, sol_types::SolInterface};
 use revm::precompile::PrecompileResult;
-use tempo_contracts::precompiles::IAddressRegistry::IAddressRegistryCalls;
-use tempo_primitives::{MasterId, TempoAddressExt, UserTag};
+use magnus_contracts::precompiles::IAddressRegistry::IAddressRegistryCalls;
+use magnus_primitives::{MasterId, TempoAddressExt, UserTag};
 
 impl Precompile for AddressRegistry {
     fn call(&mut self, calldata: &[u8], msg_sender: Address) -> PrecompileResult {
@@ -56,7 +56,7 @@ mod tests {
         test_util::{assert_full_coverage, check_selector_coverage},
     };
     use alloy::sol_types::{SolCall, SolValue};
-    use tempo_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::TempoHardfork;
 
     #[test]
     fn test_selector_coverage() -> eyre::Result<()> {

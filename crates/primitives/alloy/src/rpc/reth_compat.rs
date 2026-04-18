@@ -9,13 +9,13 @@ use reth_rpc_convert::{
     FromConsensusHeader, SignTxRequestError, SignableTxRequest, TryIntoSimTx, TryIntoTxEnv,
 };
 use reth_rpc_eth_types::EthApiError;
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_evm::TempoBlockEnv;
-use tempo_primitives::{
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_evm::TempoBlockEnv;
+use magnus_primitives::{
     SignatureType, TempoHeader, TempoSignature, TempoTxEnvelope, TempoTxType,
     transaction::{Call, RecoveredTempoAuthorization},
 };
-use tempo_revm::{TempoBatchCallEnv, TempoTxEnv};
+use magnus_revm::{TempoBatchCallEnv, TempoTxEnv};
 
 impl TryIntoSimTx<TempoTxEnvelope> for TempoTransactionRequest {
     fn try_into_sim_tx(self) -> Result<TempoTxEnvelope, ValueError<Self>> {
@@ -40,7 +40,7 @@ impl TryIntoSimTx<TempoTxEnvelope> for TempoTransactionRequest {
                     key_type,
                     key_data,
                     key_id,
-                    tempo_authorization_list,
+                    magnus_authorization_list,
                     key_authorization,
                     valid_before,
                     valid_after,
@@ -59,7 +59,7 @@ impl TryIntoSimTx<TempoTxEnvelope> for TempoTransactionRequest {
                             key_type,
                             key_data,
                             key_id,
-                            tempo_authorization_list,
+                            magnus_authorization_list,
                             key_authorization,
                             valid_before,
                             valid_after,
@@ -78,7 +78,7 @@ impl TryIntoSimTx<TempoTxEnvelope> for TempoTransactionRequest {
                             key_type,
                             key_data,
                             key_id,
-                            tempo_authorization_list,
+                            magnus_authorization_list,
                             key_authorization,
                             valid_before,
                             valid_after,
@@ -121,7 +121,7 @@ impl TryIntoTxEnv<TempoTxEnv, TempoHardfork, TempoBlockEnv> for TempoTransaction
             key_type,
             key_data,
             key_id,
-            tempo_authorization_list,
+            magnus_authorization_list,
             nonce_key,
             key_authorization,
             valid_before,
@@ -133,8 +133,8 @@ impl TryIntoTxEnv<TempoTxEnv, TempoHardfork, TempoBlockEnv> for TempoTransaction
             fee_token,
             is_system_tx: false,
             fee_payer,
-            tempo_tx_env: if !calls.is_empty()
-                || !tempo_authorization_list.is_empty()
+            magnus_tx_env: if !calls.is_empty()
+                || !magnus_authorization_list.is_empty()
                 || nonce_key.is_some()
                 || key_authorization.is_some()
                 || key_id.is_some()
@@ -169,7 +169,7 @@ impl TryIntoTxEnv<TempoTxEnv, TempoHardfork, TempoBlockEnv> for TempoTransaction
                 Some(Box::new(TempoBatchCallEnv {
                     aa_calls: calls,
                     signature: mock_signature,
-                    tempo_authorization_list: tempo_authorization_list
+                    magnus_authorization_list: magnus_authorization_list
                         .into_iter()
                         .map(RecoveredTempoAuthorization::new)
                         .collect(),
@@ -212,7 +212,7 @@ fn create_mock_tempo_sig(
     caller_addr: alloy_primitives::Address,
     is_t1c: bool,
 ) -> TempoSignature {
-    use tempo_primitives::transaction::tt_signature::{KeychainSignature, TempoSignature};
+    use magnus_primitives::transaction::tt_signature::{KeychainSignature, TempoSignature};
 
     let inner_sig = create_mock_primitive_signature(key_type, key_data.cloned());
 
@@ -233,8 +233,8 @@ fn create_mock_tempo_sig(
 fn create_mock_primitive_signature(
     sig_type: &SignatureType,
     key_data: Option<Bytes>,
-) -> tempo_primitives::transaction::tt_signature::PrimitiveSignature {
-    use tempo_primitives::transaction::tt_signature::{
+) -> magnus_primitives::transaction::tt_signature::PrimitiveSignature {
+    use magnus_primitives::transaction::tt_signature::{
         P256SignatureWithPreHash, PrimitiveSignature, WebAuthnSignature,
     };
 
@@ -349,7 +349,7 @@ mod tests {
     use alloy_signer::SignerSync;
     use alloy_signer_local::PrivateKeySigner;
     use reth_rpc_convert::TryIntoTxEnv;
-    use tempo_primitives::{
+    use magnus_primitives::{
         TempoTransaction,
         transaction::{Call, tt_signature::PrimitiveSignature},
     };
@@ -384,7 +384,7 @@ mod tests {
 
         let evm_env = EvmEnv::default();
         let tx_env = req.try_into_tx_env(&evm_env).expect("try_into_tx_env");
-        let estimated_calls = tx_env.tempo_tx_env.expect("tempo_tx_env").aa_calls;
+        let estimated_calls = tx_env.magnus_tx_env.expect("magnus_tx_env").aa_calls;
 
         assert_eq!(estimated_calls, built_calls);
     }
@@ -463,7 +463,7 @@ mod tests {
                 value: Default::default(),
                 input: Default::default(),
             }],
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
             nonce_key: Default::default(),
             key_authorization: None,
         };
@@ -490,7 +490,7 @@ mod tests {
         let tx_env = req.try_into_tx_env(&evm_env).expect("try_into_tx_env");
 
         assert!(
-            tx_env.tempo_tx_env.is_some(),
+            tx_env.magnus_tx_env.is_some(),
             "fee_payer_signature alone must produce an AA tx env"
         );
         assert_eq!(
@@ -531,7 +531,7 @@ mod tests {
 
         let evm_env = EvmEnv::default();
         let tx_env = req.try_into_tx_env(&evm_env).expect("try_into_tx_env");
-        let aa_calls = tx_env.tempo_tx_env.expect("tempo_tx_env").aa_calls;
+        let aa_calls = tx_env.magnus_tx_env.expect("magnus_tx_env").aa_calls;
 
         assert_eq!(
             aa_calls, calls,
@@ -563,7 +563,7 @@ mod tests {
         let tx_env = req.try_into_tx_env(&evm_env).expect("try_into_tx_env");
 
         assert!(
-            tx_env.tempo_tx_env.is_some(),
+            tx_env.magnus_tx_env.is_some(),
             "fee_payer_signature alone must produce an AA tx env"
         );
         assert_eq!(

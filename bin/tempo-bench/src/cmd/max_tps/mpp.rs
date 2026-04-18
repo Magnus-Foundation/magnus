@@ -4,7 +4,7 @@ use alloy::{
     sol,
     sol_types::{SolCall, SolValue},
 };
-use tempo_alloy::{primitives::transaction::Call, rpc::TempoTransactionRequest};
+use magnus_alloy::{primitives::transaction::Call, rpc::TempoTransactionRequest};
 
 sol! {
     #[sol(rpc)]

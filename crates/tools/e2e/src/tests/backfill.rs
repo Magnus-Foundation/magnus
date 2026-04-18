@@ -31,7 +31,7 @@ fn validator_can_join_later_with_pipeline_sync() {
         should_pipeline_sync: false,
     }
     .run();
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 }
 
 #[track_caller]
@@ -67,7 +67,7 @@ impl AssertJoinsLate {
             should_pipeline_sync,
         } = self;
 
-        let _ = tempo_eyre::install();
+        let _ = magnus_eyre::install();
         let metrics_recorder = install_prometheus_recorder();
 
         let setup = Setup::new().epoch_length(100);

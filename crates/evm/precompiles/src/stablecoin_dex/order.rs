@@ -6,7 +6,7 @@
 
 use crate::stablecoin_dex::{IStablecoinDEX, error::OrderError};
 use alloy::primitives::{Address, B256};
-use tempo_precompiles_macros::Storable;
+use magnus_precompiles_macros::Storable;
 
 /// Represents an order in the stablecoin DEX orderbook.
 ///

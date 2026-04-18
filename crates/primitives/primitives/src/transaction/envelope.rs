@@ -9,7 +9,7 @@ use alloy_consensus::{
 };
 use alloy_primitives::{Address, B256, Bytes, Signature, TxKind, U256, hex};
 use core::fmt;
-use tempo_contracts::precompiles::ITIP20;
+use magnus_contracts::precompiles::ITIP20;
 
 /// TIP20 payment address prefix (12 bytes for payment classification)
 /// Same as TIP20_TOKEN_PREFIX
@@ -138,11 +138,11 @@ impl TempoTxEnvelope {
     }
 
     /// Returns the Tempo authorization list if present (for Tempo transactions)
-    pub fn tempo_authorization_list(
+    pub fn magnus_authorization_list(
         &self,
     ) -> Option<&[crate::transaction::TempoSignedAuthorization]> {
         match self {
-            Self::AA(tx) => Some(&tx.tx().tempo_authorization_list),
+            Self::AA(tx) => Some(&tx.tx().magnus_authorization_list),
             _ => None,
         }
     }
@@ -216,7 +216,7 @@ impl TempoTxEnvelope {
                 !tx.calls.is_empty()
                     && tx.key_authorization.is_none()
                     && tx.access_list.is_empty()
-                    && tx.tempo_authorization_list.is_empty()
+                    && tx.magnus_authorization_list.is_empty()
                     && tx
                         .calls
                         .iter()
@@ -902,7 +902,7 @@ mod tests {
                 value: U256::ZERO,
                 input: Bytes::from(calldata),
             }],
-            tempo_authorization_list: vec![TempoSignedAuthorization::new_unchecked(
+            magnus_authorization_list: vec![TempoSignedAuthorization::new_unchecked(
                 alloy_eips::eip7702::Authorization {
                     chain_id: U256::from(1),
                     address: Address::random(),
@@ -919,7 +919,7 @@ mod tests {
         );
         assert!(
             !envelope.is_payment_v2(),
-            "V2 must reject AA tx with tempo_authorization_list"
+            "V2 must reject AA tx with magnus_authorization_list"
         );
     }
 

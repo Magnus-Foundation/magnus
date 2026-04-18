@@ -38,8 +38,8 @@ use std::{
     sync::{Arc, mpsc::RecvError},
     time::{Duration, Instant},
 };
-use tempo_node::{TempoFullNode, consensus::TEMPO_SHARED_GAS_DIVISOR, evm::evm::TempoEvm};
-use tempo_primitives::{
+use magnus_node::{TempoFullNode, consensus::TEMPO_SHARED_GAS_DIVISOR, evm::evm::TempoEvm};
+use magnus_primitives::{
     RecoveredSubBlock, SignedSubBlock, SubBlock, SubBlockVersion, TempoTxEnvelope,
 };
 use tokio::sync::broadcast;

@@ -5,7 +5,7 @@ use reth_ethereum_engine_primitives::EthPayloadAttributes;
 use reth_node_api::PayloadAttributes;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, atomic, atomic::Ordering};
-use tempo_primitives::{RecoveredSubBlock, TempoConsensusContext};
+use magnus_primitives::{RecoveredSubBlock, TempoConsensusContext};
 
 /// A handle for a payload interrupt flag.
 ///
@@ -391,31 +391,31 @@ mod tests {
             slot_number: None,
         };
 
-        let tempo_attrs: TempoPayloadAttributes = eth_attrs.clone().into();
+        let magnus_attrs: TempoPayloadAttributes = eth_attrs.clone().into();
 
         // Inner fields preserved
         let parent = B256::random();
         assert_eq!(
-            tempo_attrs.payload_id(&parent),
+            magnus_attrs.payload_id(&parent),
             payload_id_from_block_hash(&parent)
         );
-        assert_eq!(tempo_attrs.timestamp(), eth_attrs.timestamp);
+        assert_eq!(magnus_attrs.timestamp(), eth_attrs.timestamp);
         assert_eq!(
-            tempo_attrs.suggested_fee_recipient,
+            magnus_attrs.suggested_fee_recipient,
             eth_attrs.suggested_fee_recipient
         );
-        assert_eq!(tempo_attrs.prev_randao, eth_attrs.prev_randao);
-        assert_eq!(tempo_attrs.withdrawals().as_ref().map(|w| w.len()), Some(0));
+        assert_eq!(magnus_attrs.prev_randao, eth_attrs.prev_randao);
+        assert_eq!(magnus_attrs.withdrawals().as_ref().map(|w| w.len()), Some(0));
         assert_eq!(
-            tempo_attrs.parent_beacon_block_root(),
+            magnus_attrs.parent_beacon_block_root(),
             eth_attrs.parent_beacon_block_root
         );
 
         // Tempo-specific defaults
-        assert_eq!(tempo_attrs.timestamp_millis_part(), 0);
-        assert_eq!(tempo_attrs.extra_data(), &Bytes::default());
-        assert!(!tempo_attrs.is_interrupted());
-        assert!(tempo_attrs.subblocks().is_empty());
+        assert_eq!(magnus_attrs.timestamp_millis_part(), 0);
+        assert_eq!(magnus_attrs.extra_data(), &Bytes::default());
+        assert!(!magnus_attrs.is_interrupted());
+        assert!(magnus_attrs.subblocks().is_empty());
     }
 
     #[test]

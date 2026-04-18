@@ -10,8 +10,8 @@ use alloy::{
     sol_types::{SolCall, SolInterface},
 };
 use revm::precompile::PrecompileResult;
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_contracts::precompiles::ITIP403Registry::{self, ITIP403RegistryCalls};
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_contracts::precompiles::ITIP403Registry::{self, ITIP403RegistryCalls};
 
 const T2_ADDED: &[[u8; 4]] = &[
     ITIP403Registry::isAuthorizedSenderCall::SELECTOR,
@@ -88,8 +88,8 @@ mod tests {
         tip403_registry::ITIP403Registry,
     };
     use alloy::sol_types::{SolCall, SolValue};
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::ITIP403Registry::ITIP403RegistryCalls;
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::ITIP403Registry::ITIP403RegistryCalls;
 
     #[test]
     fn test_is_authorized_precompile() -> eyre::Result<()> {

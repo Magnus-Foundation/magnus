@@ -22,12 +22,12 @@ use std::{
     collections::{BTreeMap, btree_map::Entry},
     time::Instant,
 };
-use tempo_chainspec::TempoChainSpec;
-use tempo_contracts::precompiles::{IAccountKeychain, IFeeManager, ITIP20, ITIP403Registry};
-use tempo_precompiles::{
+use magnus_chainspec::TempoChainSpec;
+use magnus_contracts::precompiles::{IAccountKeychain, IFeeManager, ITIP20, ITIP403Registry};
+use magnus_precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS, TIP_FEE_MANAGER_ADDRESS, TIP403_REGISTRY_ADDRESS,
 };
-use tempo_primitives::{TempoAddressExt, TempoHeader, TempoPrimitives};
+use magnus_primitives::{TempoAddressExt, TempoHeader, TempoPrimitives};
 use tracing::{debug, error};
 
 /// Evict transactions this many seconds before they expire to reduce propagation
@@ -722,7 +722,7 @@ mod tests {
     use alloy_primitives::{Address, TxHash};
     use reth_primitives_traits::RecoveredBlock;
     use std::sync::Arc;
-    use tempo_primitives::{Block, BlockBody, TempoHeader, TempoTxEnvelope};
+    use magnus_primitives::{Block, BlockBody, TempoHeader, TempoTxEnvelope};
 
     mod pending_staleness_tracker_tests {
         use super::*;
@@ -839,7 +839,7 @@ mod tests {
 
     fn create_test_chain_with_receipts(
         blocks: Vec<reth_primitives_traits::RecoveredBlock<Block>>,
-        receipts: Vec<Vec<tempo_primitives::TempoReceipt>>,
+        receipts: Vec<Vec<magnus_primitives::TempoReceipt>>,
     ) -> Arc<Chain<TempoPrimitives>> {
         use reth_provider::{Chain, ExecutionOutcome};
 
@@ -883,7 +883,7 @@ mod tests {
         use super::*;
         use alloy_primitives::{IntoLogData, Log, U256};
         use alloy_signer_local::PrivateKeySigner;
-        use tempo_primitives::{TempoReceipt, TempoTxType};
+        use magnus_primitives::{TempoReceipt, TempoTxType};
 
         /// Verify from_chain extracts (account, key_id) with wildcard token from included
         /// keychain txs, so all pending txs for that key are rechecked regardless of fee token.
@@ -1027,7 +1027,7 @@ mod tests {
 
         #[test]
         fn extracts_fee_balance_changes_from_tip20_transfer_logs() {
-            let fee_token = tempo_precompiles::PATH_USD_ADDRESS;
+            let fee_token = magnus_precompiles::PATH_USD_ADDRESS;
             let from = Address::random();
             let to = Address::random();
             let amount = U256::from(42_u64);
@@ -1058,7 +1058,7 @@ mod tests {
         /// TransferPolicyUpdate events are parsed from TIP20 token logs.
         #[test]
         fn extracts_transfer_policy_updates() {
-            let fee_token = tempo_precompiles::PATH_USD_ADDRESS;
+            let fee_token = magnus_precompiles::PATH_USD_ADDRESS;
             let updater = Address::random();
             let new_policy_id = 42u64;
             let log_data = ITIP20::TransferPolicyUpdate {
@@ -1088,7 +1088,7 @@ mod tests {
         /// Duplicate TransferPolicyUpdate events for the same token are deduplicated.
         #[test]
         fn transfer_policy_updates_deduplicates_by_token() {
-            let fee_token = tempo_precompiles::PATH_USD_ADDRESS;
+            let fee_token = magnus_precompiles::PATH_USD_ADDRESS;
 
             let log_data_1 = ITIP20::TransferPolicyUpdate {
                 updater: Address::random(),

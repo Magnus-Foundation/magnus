@@ -5,7 +5,7 @@ use std::{
 
 use commonware_cryptography::ed25519::PublicKey;
 use eyre::Context;
-use tempo_commonware_node_config::SigningKey;
+use magnus_commonware_node_config::SigningKey;
 
 const DEFAULT_MAX_MESSAGE_SIZE_BYTES: u32 =
     reth_consensus_common::validation::MAX_RLP_BLOCK_SIZE as u32;

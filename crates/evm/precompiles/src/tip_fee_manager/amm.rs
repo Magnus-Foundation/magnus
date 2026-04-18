@@ -8,7 +8,7 @@ use alloy::{
     primitives::{Address, B256, U256, keccak256, uint},
     sol_types::SolValue,
 };
-use tempo_precompiles_macros::Storable;
+use magnus_precompiles_macros::Storable;
 
 /// Fee multiplier for fee swaps: 0.9970 scaled by 10000 (30 bps fee).
 pub const M: U256 = uint!(9970_U256);
@@ -562,8 +562,8 @@ impl TipFeeManager {
 #[cfg(test)]
 mod tests {
     use alloy::primitives::Address;
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::TIP20Error;
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::TIP20Error;
 
     use super::*;
     use crate::{

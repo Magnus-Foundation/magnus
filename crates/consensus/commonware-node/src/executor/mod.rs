@@ -9,7 +9,7 @@ pub(crate) use actor::Actor;
 use eyre::WrapErr as _;
 use futures::channel::mpsc;
 pub(crate) use ingress::Mailbox;
-use tempo_node::TempoFullNode;
+use magnus_node::TempoFullNode;
 
 pub(crate) fn init<TContext>(
     context: TContext,

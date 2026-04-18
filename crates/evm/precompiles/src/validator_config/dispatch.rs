@@ -10,8 +10,8 @@ use alloy::{
     sol_types::{SolCall, SolInterface},
 };
 use revm::precompile::PrecompileResult;
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_contracts::precompiles::IValidatorConfig::{self, IValidatorConfigCalls};
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_contracts::precompiles::IValidatorConfig::{self, IValidatorConfigCalls};
 
 const T1_ADDED: &[[u8; 4]] = &[IValidatorConfig::changeValidatorStatusByIndexCall::SELECTOR];
 
@@ -85,8 +85,8 @@ mod tests {
         sol_types::{SolCall, SolValue},
     };
 
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::{
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::{
         IValidatorConfig, IValidatorConfig::IValidatorConfigCalls, ValidatorConfigError,
     };
 
@@ -244,7 +244,7 @@ mod tests {
     #[test]
     fn test_change_validator_status_by_index_t1_gating() -> eyre::Result<()> {
         use alloy::sol_types::SolError;
-        use tempo_contracts::precompiles::UnknownFunctionSelector;
+        use magnus_contracts::precompiles::UnknownFunctionSelector;
 
         let owner = Address::random();
         let validator = Address::random();

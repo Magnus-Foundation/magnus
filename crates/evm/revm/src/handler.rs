@@ -33,10 +33,10 @@ use revm::{
     },
     precompile::PrecompileError,
 };
-use tempo_contracts::precompiles::{
+use magnus_contracts::precompiles::{
     IAccountKeychain::SignatureType as PrecompileSignatureType, TIPFeeAMMError,
 };
-use tempo_precompiles::{
+use magnus_precompiles::{
     ECRECOVER_GAS,
     account_keychain::{
         AccountKeychain, CallScope as PrecompileCallScope, KeyRestrictions,
@@ -53,7 +53,7 @@ use tempo_precompiles::{
     tip_fee_manager::TipFeeManager,
     tip20::{ITIP20::InsufficientBalance, TIP20Error, TIP20Token},
 };
-use tempo_primitives::{
+use magnus_primitives::{
     TempoAddressExt,
     transaction::{
         PrimitiveSignature, SignatureType, TEMPO_EXPIRING_NONCE_KEY, TempoSignature,
@@ -128,7 +128,7 @@ fn primitive_signature_verification_gas(signature: &PrimitiveSignature) -> u64 {
 /// For Keychain signatures, adds key validation overhead to the inner signature cost
 /// Returns the additional gas required beyond the base transaction cost.
 #[inline]
-fn tempo_signature_verification_gas(signature: &TempoSignature) -> u64 {
+fn magnus_signature_verification_gas(signature: &TempoSignature) -> u64 {
     match signature {
         TempoSignature::Primitive(prim_sig) => primitive_signature_verification_gas(prim_sig),
         TempoSignature::Keychain(keychain_sig) => {
@@ -142,7 +142,7 @@ fn tempo_signature_verification_gas(signature: &TempoSignature) -> u64 {
 ///
 /// This only covers the rows that already pay the dynamic SSTORE set cost. The helper
 /// bookkeeping around scope persistence is charged separately via a rounded surcharge.
-fn call_scope_storage_slots(auth: &tempo_primitives::transaction::KeyAuthorization) -> u64 {
+fn call_scope_storage_slots(auth: &magnus_primitives::transaction::KeyAuthorization) -> u64 {
     match auth.allowed_calls.as_ref() {
         None => 0,
         Some(scopes) if scopes.is_empty() => 1,
@@ -189,7 +189,7 @@ fn call_scope_storage_slots(auth: &tempo_primitives::transaction::KeyAuthorizati
 ///
 /// TODO: Refactor intrinsic gas accounting so this and the other intrinsic surcharges come from one
 /// shared model instead of per-feature heuristics.
-fn call_scope_extra_gas(auth: &tempo_primitives::transaction::KeyAuthorization) -> u64 {
+fn call_scope_extra_gas(auth: &magnus_primitives::transaction::KeyAuthorization) -> u64 {
     const BASE_SCOPE_GAS: u64 = 5_000;
     const TARGET_SCOPE_GAS: u64 = 7_000;
     const SELECTOR_SCOPE_GAS: u64 = 7_000;
@@ -243,7 +243,7 @@ fn normalize_failed_batch_result_gas(
 }
 
 fn translate_allowed_calls_for_precompile(
-    key_auth: &tempo_primitives::transaction::SignedKeyAuthorization,
+    key_auth: &magnus_primitives::transaction::SignedKeyAuthorization,
 ) -> Vec<PrecompileCallScope> {
     let Some(scopes) = key_auth.allowed_calls.as_ref() else {
         return Vec::new();
@@ -277,9 +277,9 @@ fn translate_allowed_calls_for_precompile(
 ///   This is the sole gas accounting — the precompile runs with unlimited gas.
 #[inline]
 fn calculate_key_authorization_gas(
-    key_auth: &tempo_primitives::transaction::SignedKeyAuthorization,
+    key_auth: &magnus_primitives::transaction::SignedKeyAuthorization,
     gas_params: &GasParams,
-    spec: tempo_chainspec::hardfork::TempoHardfork,
+    spec: magnus_chainspec::hardfork::TempoHardfork,
 ) -> u64 {
     // All signature types pay ECRECOVER_GAS (3k) as the baseline since
     // primitive_signature_verification_gas assumes ecrecover is already in base 21k.
@@ -336,7 +336,7 @@ fn calculate_key_authorization_gas(
 /// handling where nonce_2d_gas is added to init_and_floor_gas but not to evm.initial_gas.
 #[inline]
 fn adjusted_initial_gas(
-    spec: tempo_chainspec::hardfork::TempoHardfork,
+    spec: magnus_chainspec::hardfork::TempoHardfork,
     evm_initial_gas: u64,
     init_and_floor_gas: &InitialAndFloorGas,
 ) -> InitialAndFloorGas {
@@ -395,7 +395,7 @@ where
     fn prevalidate_keychain_call_scopes(
         &self,
         evm: &mut TempoEvm<DB, I>,
-        calls: &[tempo_primitives::transaction::Call],
+        calls: &[magnus_primitives::transaction::Call],
         remaining_gas: &mut u64,
     ) -> Result<Option<FrameResult>, EVMError<DB::Error, TempoInvalidTransaction>> {
         let spec = *evm.ctx().cfg().spec();
@@ -410,18 +410,18 @@ where
         let (access_key_addr, user_address) = {
             let ctx = evm.ctx();
             let tx = ctx.tx();
-            let Some(tempo_tx_env) = tx.tempo_tx_env.as_ref() else {
+            let Some(magnus_tx_env) = tx.magnus_tx_env.as_ref() else {
                 return Ok(None);
             };
-            let Some(keychain_sig) = tempo_tx_env.signature.as_keychain() else {
+            let Some(keychain_sig) = magnus_tx_env.signature.as_keychain() else {
                 return Ok(None);
             };
 
-            let access_key_addr = if let Some(override_key_id) = tempo_tx_env.override_key_id {
+            let access_key_addr = if let Some(override_key_id) = magnus_tx_env.override_key_id {
                 override_key_id
             } else {
                 keychain_sig
-                    .key_id(&tempo_tx_env.signature_hash)
+                    .key_id(&magnus_tx_env.signature_hash)
                     .map_err(|_| {
                         EVMError::Custom(
                             "keychain access key recovery failed after validation".into(),
@@ -552,7 +552,7 @@ where
         &mut self,
         evm: &mut TempoEvm<DB, I>,
         init_and_floor_gas: &InitialAndFloorGas,
-        calls: Vec<tempo_primitives::transaction::Call>,
+        calls: Vec<magnus_primitives::transaction::Call>,
         mut execute_single: F,
     ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>>
     where
@@ -627,7 +627,7 @@ where
                 let uses_protocol_nonce = evm
                     .ctx()
                     .tx()
-                    .tempo_tx_env
+                    .magnus_tx_env
                     .as_ref()
                     .map(|aa| aa.nonce_key.is_zero())
                     .unwrap_or(true);
@@ -680,7 +680,7 @@ where
         &mut self,
         evm: &mut TempoEvm<DB, I>,
         init_and_floor_gas: &InitialAndFloorGas,
-        calls: Vec<tempo_primitives::transaction::Call>,
+        calls: Vec<magnus_primitives::transaction::Call>,
     ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>> {
         self.execute_multi_call_with(evm, init_and_floor_gas, calls, Self::execute_single_call)
     }
@@ -708,7 +708,7 @@ where
         &mut self,
         evm: &mut TempoEvm<DB, I>,
         init_and_floor_gas: &InitialAndFloorGas,
-        calls: Vec<tempo_primitives::transaction::Call>,
+        calls: Vec<magnus_primitives::transaction::Call>,
     ) -> Result<FrameResult, EVMError<DB::Error, TempoInvalidTransaction>>
     where
         I: Inspector<TempoContext<DB>, EthInterpreter>,
@@ -756,8 +756,8 @@ where
             return Ok(oog);
         }
 
-        if let Some(tempo_tx_env) = tx.tempo_tx_env.as_ref() {
-            let calls = tempo_tx_env.aa_calls.clone();
+        if let Some(magnus_tx_env) = tx.magnus_tx_env.as_ref() {
+            let calls = magnus_tx_env.aa_calls.clone();
             return self.inspect_execute_multi_call(evm, &adjusted_gas, calls);
         }
 
@@ -798,8 +798,8 @@ where
             return Ok(oog);
         }
 
-        if let Some(tempo_tx_env) = tx.tempo_tx_env.as_ref() {
-            let calls = tempo_tx_env.aa_calls.clone();
+        if let Some(magnus_tx_env) = tx.magnus_tx_env.as_ref() {
+            let calls = magnus_tx_env.aa_calls.clone();
             self.execute_multi_call(evm, &adjusted_gas, calls)
         } else {
             self.execute_single_call(evm, &adjusted_gas)
@@ -825,7 +825,7 @@ where
     ///
     /// The default implementation only processes authorization lists for TransactionType::Eip7702 (0x04).
     /// This override extends support to AA transactions (type 0x76) by checking for the presence
-    /// of an aa_authorization_list in the tempo_tx_env.
+    /// of an aa_authorization_list in the magnus_tx_env.
     #[inline]
     fn apply_eip7702_auth_list(
         &self,
@@ -838,21 +838,21 @@ where
         // Check if this is an AA transaction with an authorization list
         let has_aa_auth_list = ctx
             .tx
-            .tempo_tx_env
+            .magnus_tx_env
             .as_ref()
-            .map(|aa_env| !aa_env.tempo_authorization_list.is_empty())
+            .map(|aa_env| !aa_env.magnus_authorization_list.is_empty())
             .unwrap_or(false);
 
         // If it's an AA transaction with authorization list, we need to apply it manually
         // since the default implementation only checks for TransactionType::Eip7702
         let refunded_gas = if has_aa_auth_list {
-            let tempo_tx_env = ctx.tx.tempo_tx_env.as_ref().unwrap();
+            let magnus_tx_env = ctx.tx.magnus_tx_env.as_ref().unwrap();
 
             apply_auth_list::<_, Self::Error>(
                 ctx.cfg.chain_id,
                 ctx.cfg.gas_params.tx_eip7702_auth_refund(),
-                tempo_tx_env
-                    .tempo_authorization_list
+                magnus_tx_env
+                    .magnus_authorization_list
                     .iter()
                     // T0 hardfork: skip keychain signatures in auth list processing
                     .filter(|auth| !(spec.is_t0() && auth.signature().is_keychain())),
@@ -914,7 +914,7 @@ where
         let mut caller_account = journal.load_account_with_code_mut(tx.caller())?.data;
 
         let nonce_key = tx
-            .tempo_tx_env
+            .magnus_tx_env
             .as_ref()
             .map(|aa| aa.nonce_key)
             .unwrap_or_default();
@@ -961,8 +961,8 @@ where
             // - Pre-T1B: use tx_hash for backwards-compatible behavior.
             // - T1B+: use expiring_nonce_hash (keccak256(encode_for_signing || sender))
             //   to prevent replay via different fee payer signatures.
-            let tempo_tx_env = tx
-                .tempo_tx_env
+            let magnus_tx_env = tx
+                .magnus_tx_env
                 .as_ref()
                 .ok_or(TempoInvalidTransaction::ExpiringNonceMissingTxEnv)?;
 
@@ -972,13 +972,13 @@ where
             }
 
             let replay_hash = if spec.is_t1b() {
-                tempo_tx_env
+                magnus_tx_env
                     .expiring_nonce_hash
                     .ok_or(TempoInvalidTransaction::ExpiringNonceMissingTxEnv)?
             } else {
-                tempo_tx_env.tx_hash
+                magnus_tx_env.tx_hash
             };
-            let valid_before = tempo_tx_env
+            let valid_before = magnus_tx_env
                 .valid_before
                 .ok_or(TempoInvalidTransaction::ExpiringNonceMissingValidBefore)?;
 
@@ -986,7 +986,7 @@ where
             StorageCtx::enter_evm(journal, block, cfg, tx, || {
                 let mut nonce_manager = NonceManager::new();
 
-                let prev_ptr = if let Some(expiring_nonce_idx) = tempo_tx_env.expiring_nonce_idx {
+                let prev_ptr = if let Some(expiring_nonce_idx) = magnus_tx_env.expiring_nonce_idx {
                     let ptr = nonce_manager
                         .expiring_nonce_ring_ptr
                         .read()
@@ -1009,7 +1009,7 @@ where
                     .map_err(|err| match err {
                         TempoPrecompileError::Fatal(err) => EVMError::Custom(err),
                         TempoPrecompileError::NonceError(
-                            tempo_contracts::precompiles::NonceError::InvalidExpiringNonceExpiry(_),
+                            magnus_contracts::precompiles::NonceError::InvalidExpiringNonceExpiry(_),
                         ) => {
                             let max_allowed =
                                 block_timestamp.saturating_add(EXPIRING_NONCE_MAX_EXPIRY_SECS);
@@ -1105,19 +1105,19 @@ where
         // Note: Transaction parameter validation (priority fee, time window) happens in validate_env()
 
         // If the transaction includes a KeyAuthorization, validate and authorize the key
-        if let Some(tempo_tx_env) = tx.tempo_tx_env.as_ref()
-            && let Some(key_auth) = &tempo_tx_env.key_authorization
+        if let Some(magnus_tx_env) = tx.magnus_tx_env.as_ref()
+            && let Some(key_auth) = &magnus_tx_env.key_authorization
         {
             // Check if this TX is using a Keychain signature (access key)
             // Access keys cannot authorize new keys UNLESS it's the same key being authorized (same-tx auth+use)
-            if let Some(keychain_sig) = tempo_tx_env.signature.as_keychain() {
+            if let Some(keychain_sig) = magnus_tx_env.signature.as_keychain() {
                 // Use override_key_id if provided (for gas estimation), otherwise recover from signature
-                let access_key_addr = if let Some(override_key_id) = tempo_tx_env.override_key_id {
+                let access_key_addr = if let Some(override_key_id) = magnus_tx_env.override_key_id {
                     override_key_id
                 } else {
                     // Get the access key address (recovered during Tx->TxEnv conversion and cached)
                     keychain_sig
-                        .key_id(&tempo_tx_env.signature_hash)
+                        .key_id(&magnus_tx_env.signature_hash)
                         .map_err(|_| TempoInvalidTransaction::AccessKeyRecoveryFailed)?
                 };
 
@@ -1314,11 +1314,11 @@ where
 
         // For Keychain signatures, validate that the keychain is authorized in the precompile
         // UNLESS this transaction also includes a KeyAuthorization (same-tx auth+use case)
-        if let Some(tempo_tx_env) = tx.tempo_tx_env.as_ref()
-            && let Some(keychain_sig) = tempo_tx_env.signature.as_keychain()
+        if let Some(magnus_tx_env) = tx.magnus_tx_env.as_ref()
+            && let Some(keychain_sig) = magnus_tx_env.signature.as_keychain()
         {
             // Use override_key_id if provided (for gas estimation), otherwise recover from signature
-            let access_key_addr = if let Some(override_key_id) = tempo_tx_env.override_key_id {
+            let access_key_addr = if let Some(override_key_id) = magnus_tx_env.override_key_id {
                 override_key_id
             } else {
                 // The user_address is the root account this transaction is being executed for
@@ -1336,14 +1336,14 @@ where
 
                 // Get the access key address (recovered during pool validation and cached)
                 keychain_sig
-                    .key_id(&tempo_tx_env.signature_hash)
+                    .key_id(&magnus_tx_env.signature_hash)
                     .map_err(|_| TempoInvalidTransaction::AccessKeyRecoveryFailed)?
             };
 
             // Check if this transaction includes a KeyAuthorization for the same key.
             // Same-tx auth+use still needs key-type parity checks, but we avoid a full keychain
             // existence lookup here to preserve the pre-T1B out-of-gas behavior.
-            let is_authorizing_this_key = tempo_tx_env
+            let is_authorizing_this_key = magnus_tx_env
                 .key_authorization
                 .as_ref()
                 .map(|key_auth| key_auth.key_id == access_key_addr)
@@ -1358,7 +1358,7 @@ where
                 |mut keychain: AccountKeychain| {
                     let key_expiry = if is_authorizing_this_key {
                         if spec.is_t3()
-                            && tempo_tx_env
+                            && magnus_tx_env
                                 .key_authorization
                                 .as_ref()
                                 .is_some_and(|key_auth| {
@@ -1372,7 +1372,7 @@ where
                             .into());
                         }
                         // Same-tx auth+use: expiry comes from the inline KeyAuthorization
-                        tempo_tx_env
+                        magnus_tx_env
                             .key_authorization
                             .as_ref()
                             .and_then(|ka| ka.expiry.map(|expiry| expiry.get()))
@@ -1573,11 +1573,11 @@ where
         let cfg = evm.ctx_ref().cfg();
         let tx = evm.ctx_ref().tx();
 
-        if let Some(aa_env) = tx.tempo_tx_env.as_ref() {
+        if let Some(aa_env) = tx.magnus_tx_env.as_ref() {
             // Validate AA transaction structure (calls list, CREATE rules)
             validate_calls(
                 &aa_env.aa_calls,
-                !aa_env.tempo_authorization_list.is_empty(),
+                !aa_env.magnus_authorization_list.is_empty(),
             )
             .map_err(TempoInvalidTransaction::from)?;
 
@@ -1603,7 +1603,7 @@ where
                 .signature
                 .validate_version(cfg.spec().is_t1c())
                 .map_err(TempoInvalidTransaction::from)?;
-            for auth in &aa_env.tempo_authorization_list {
+            for auth in &aa_env.magnus_authorization_list {
                 auth.signature()
                     .validate_version(cfg.spec().is_t1c())
                     .map_err(TempoInvalidTransaction::from)?;
@@ -1656,7 +1656,7 @@ where
         let gas_limit = tx.gas_limit();
 
         // Route to appropriate gas calculation and validation based on transaction type
-        let init_gas = if tx.tempo_tx_env.is_some() {
+        let init_gas = if tx.magnus_tx_env.is_some() {
             // AA transaction - use batch gas calculation (includes validation)
             validate_aa_initial_tx_gas(evm)?
         } else {
@@ -1819,11 +1819,11 @@ pub fn calculate_aa_batch_intrinsic_gas<'a>(
     aa_env: &TempoBatchCallEnv,
     gas_params: &GasParams,
     access_list: Option<impl Iterator<Item = &'a AccessListItem>>,
-    spec: tempo_chainspec::hardfork::TempoHardfork,
+    spec: magnus_chainspec::hardfork::TempoHardfork,
 ) -> Result<InitialAndFloorGas, TempoInvalidTransaction> {
     let calls = &aa_env.aa_calls;
     let signature = &aa_env.signature;
-    let authorization_list = &aa_env.tempo_authorization_list;
+    let authorization_list = &aa_env.magnus_authorization_list;
     let key_authorization = aa_env.key_authorization.as_ref();
     let mut gas = InitialAndFloorGas::default();
 
@@ -1831,7 +1831,7 @@ pub fn calculate_aa_batch_intrinsic_gas<'a>(
     gas.initial_total_gas += gas_params.tx_base_stipend();
 
     // 2. Signature verification gas
-    gas.initial_total_gas += tempo_signature_verification_gas(signature);
+    gas.initial_total_gas += magnus_signature_verification_gas(signature);
 
     let cold_account_cost =
         gas_params.warm_storage_read_cost() + gas_params.cold_account_additional_cost();
@@ -1847,7 +1847,7 @@ pub fn calculate_aa_batch_intrinsic_gas<'a>(
     // Add signature verification costs for each authorization
     // No need for v1 fork check as gas_params would be zero
     for auth in authorization_list {
-        gas.initial_total_gas += tempo_signature_verification_gas(auth.signature());
+        gas.initial_total_gas += magnus_signature_verification_gas(auth.signature());
         // TIP-1000: Storage pricing updates for launch
         // EIP-7702 authorisation list entries with `auth_list.nonce == 0` require an additional 250,000 gas.
         if auth.nonce == 0 {
@@ -1925,7 +1925,7 @@ where
 
     // This function should only be called for AA transactions
     let aa_env = tx
-        .tempo_tx_env
+        .magnus_tx_env
         .as_ref()
         .expect("validate_aa_initial_tx_gas called for non-AA transaction");
 
@@ -1963,7 +1963,7 @@ where
             // TIP-1000 Invariant 3: existing state updates must charge +5,000 gas
             batch_gas.initial_total_gas += spec.gas_existing_nonce_key();
         }
-    } else if let Some(aa_env) = &tx.tempo_tx_env
+    } else if let Some(aa_env) = &tx.magnus_tx_env
         && !aa_env.nonce_key.is_zero()
     {
         nonce_2d_gas = if tx.nonce() == 0 {
@@ -2070,7 +2070,7 @@ fn oog_frame_result(kind: TxKind, gas_limit: u64) -> FrameResult {
 /// to maintain backward compatibility.
 #[inline]
 fn check_gas_limit(
-    spec: tempo_chainspec::hardfork::TempoHardfork,
+    spec: magnus_chainspec::hardfork::TempoHardfork,
     tx: &TempoTxEnv,
     adjusted_gas: &InitialAndFloorGas,
 ) -> Option<FrameResult> {
@@ -2134,10 +2134,10 @@ mod tests {
         interpreter::{gas::COLD_ACCOUNT_ACCESS_COST, instructions::utility::IntoU256},
         primitives::hardfork::SpecId,
     };
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::DEFAULT_FEE_TOKEN;
-    use tempo_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS};
-    use tempo_primitives::transaction::{
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::DEFAULT_FEE_TOKEN;
+    use magnus_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS};
+    use magnus_primitives::transaction::{
         Call, TempoSignature,
         tt_signature::{P256SignatureWithPreHash, WebAuthnSignature},
     };
@@ -2343,7 +2343,7 @@ mod tests {
         use crate::TempoBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use tempo_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, TempoSignature};
         let gas_params = GasParams::default();
 
         // Test that AA tx with secp256k1 and single call matches normal tx + per-call overhead
@@ -2368,7 +2368,7 @@ mod tests {
         };
 
         // Calculate AA gas
-        let spec = tempo_chainspec::hardfork::TempoHardfork::default();
+        let spec = magnus_chainspec::hardfork::TempoHardfork::default();
         let aa_gas = calculate_aa_batch_intrinsic_gas(
             &aa_env,
             &gas_params,
@@ -2396,7 +2396,7 @@ mod tests {
         use crate::TempoBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use tempo_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, TempoSignature};
 
         let calldata = Bytes::from(vec![1, 2, 3]); // 3 non-zero bytes
 
@@ -2428,7 +2428,7 @@ mod tests {
             ..Default::default()
         };
 
-        let spec = tempo_chainspec::hardfork::TempoHardfork::default();
+        let spec = magnus_chainspec::hardfork::TempoHardfork::default();
         let gas = calculate_aa_batch_intrinsic_gas(
             &aa_env,
             &GasParams::default(),
@@ -2454,7 +2454,7 @@ mod tests {
         use crate::TempoBatchCallEnv;
         use alloy_primitives::{B256, Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             Call, TempoSignature, tt_signature::P256SignatureWithPreHash,
         };
 
@@ -2487,7 +2487,7 @@ mod tests {
             &aa_env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         )
         .unwrap();
 
@@ -2504,7 +2504,7 @@ mod tests {
         use crate::TempoBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use tempo_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, TempoSignature};
 
         let spec = SpecId::CANCUN; // Post-Shanghai
         let initcode = Bytes::from(vec![0x60, 0x80]); // 2 bytes
@@ -2529,7 +2529,7 @@ mod tests {
             &aa_env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         )
         .unwrap();
 
@@ -2547,7 +2547,7 @@ mod tests {
     fn test_aa_gas_value_transfer() {
         use crate::TempoBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
-        use tempo_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, TempoSignature};
 
         let calldata = Bytes::from(vec![1]);
 
@@ -2571,7 +2571,7 @@ mod tests {
             &aa_env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         );
 
         assert_eq!(
@@ -2585,7 +2585,7 @@ mod tests {
         use crate::TempoBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use tempo_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, TempoSignature};
 
         let spec = SpecId::CANCUN;
         let calldata = Bytes::from(vec![]);
@@ -2611,7 +2611,7 @@ mod tests {
             &aa_env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         )
         .unwrap();
 
@@ -2625,7 +2625,7 @@ mod tests {
     #[test]
     fn test_key_authorization_rlp_encoding() {
         use alloy_primitives::{Address, U256};
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             SignatureType, TokenLimit, key_authorization::KeyAuthorization,
         };
 
@@ -2677,7 +2677,7 @@ mod tests {
         use crate::TempoBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use tempo_primitives::transaction::{Call, TempoSignature};
+        use magnus_primitives::transaction::{Call, TempoSignature};
 
         let spec = SpecId::PRAGUE;
         let calldata = Bytes::from(vec![1, 2, 3, 4, 5]); // 5 non-zero bytes
@@ -2702,7 +2702,7 @@ mod tests {
             &aa_env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         )
         .unwrap();
 
@@ -2750,7 +2750,7 @@ mod tests {
 
     #[test]
     fn test_key_authorization_gas_with_limits() {
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             KeyAuthorization, SignatureType, SignedKeyAuthorization, TokenLimit,
         };
 
@@ -2781,7 +2781,7 @@ mod tests {
         let gas_0 = calculate_key_authorization_gas(
             &create_key_auth(0),
             &GasParams::default(),
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         );
         assert_eq!(
             gas_0,
@@ -2793,7 +2793,7 @@ mod tests {
         let gas_1 = calculate_key_authorization_gas(
             &create_key_auth(1),
             &GasParams::default(),
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         );
         assert_eq!(
             gas_1,
@@ -2805,7 +2805,7 @@ mod tests {
         let gas_2 = calculate_key_authorization_gas(
             &create_key_auth(2),
             &GasParams::default(),
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         );
         assert_eq!(
             gas_2,
@@ -2817,7 +2817,7 @@ mod tests {
         let gas_3 = calculate_key_authorization_gas(
             &create_key_auth(3),
             &GasParams::default(),
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         );
         assert_eq!(
             gas_3,
@@ -2826,7 +2826,7 @@ mod tests {
         );
 
         // T1B branch: gas = sig_gas + SLOAD + SSTORE * (1 + num_limits) + buffer
-        let t1b_gas_params = crate::gas_params::tempo_gas_params(TempoHardfork::T1B);
+        let t1b_gas_params = crate::gas_params::magnus_gas_params(TempoHardfork::T1B);
         let sstore =
             t1b_gas_params.get(revm::context_interface::cfg::GasId::sstore_set_without_load_cost());
         let sload =
@@ -2860,9 +2860,9 @@ mod tests {
                 SignatureType::Secp256k1,
                 Address::random(),
             )
-            .with_allowed_calls(vec![tempo_primitives::transaction::CallScope {
+            .with_allowed_calls(vec![magnus_primitives::transaction::CallScope {
                 target: Address::random(),
-                selector_rules: vec![tempo_primitives::transaction::SelectorRule {
+                selector_rules: vec![magnus_primitives::transaction::SelectorRule {
                     selector: [0xa9, 0x05, 0x9c, 0xbb],
                     recipients: vec![Address::random(), Address::random()],
                 }],
@@ -2882,7 +2882,7 @@ mod tests {
 
     #[test]
     fn test_translate_allowed_calls_for_precompile_preserves_empty_nested_allow_all_lists() {
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             CallScope, KeyAuthorization, SelectorRule, SignatureType, SignedKeyAuthorization,
         };
 
@@ -2930,7 +2930,7 @@ mod tests {
         use crate::TempoBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
         use revm::interpreter::gas::calculate_initial_tx_gas;
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             Call, KeyAuthorization, SignatureType, SignedKeyAuthorization, TempoSignature,
             TokenLimit,
         };
@@ -2990,7 +2990,7 @@ mod tests {
             &aa_env_with_key_auth,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         )
         .unwrap();
 
@@ -2999,7 +2999,7 @@ mod tests {
             &aa_env_without_key_auth,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         )
         .unwrap();
 
@@ -3013,7 +3013,7 @@ mod tests {
         );
 
         // Also verify absolute values
-        let spec = tempo_chainspec::hardfork::TempoHardfork::default();
+        let spec = magnus_chainspec::hardfork::TempoHardfork::default();
         let base_tx_gas = calculate_initial_tx_gas(spec.into(), &calldata, false, 0, 0, 0);
         let expected_without = base_tx_gas.initial_total_gas; // no cold access for single call
         let expected_with = expected_without + expected_key_auth_gas;
@@ -3030,7 +3030,7 @@ mod tests {
 
     #[test]
     fn test_2d_nonce_gas_in_intrinsic_gas() {
-        use crate::gas_params::tempo_gas_params;
+        use crate::gas_params::magnus_gas_params;
         use revm::{context_interface::cfg::GasId, handler::Handler};
 
         const BASE_INTRINSIC_GAS: u64 = 21_000;
@@ -3043,7 +3043,7 @@ mod tests {
             TempoHardfork::T1B,
             TempoHardfork::T2,
         ] {
-            let gas_params = tempo_gas_params(spec);
+            let gas_params = magnus_gas_params(spec);
 
             let make_evm = |nonce: u64, nonce_key: U256| {
                 let journal = Journal::new(CacheDB::new(EmptyDB::default()));
@@ -3060,7 +3060,7 @@ mod tests {
                             nonce,
                             ..Default::default()
                         },
-                        tempo_tx_env: Some(Box::new(TempoBatchCallEnv {
+                        magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
                             aa_calls: vec![Call {
                                 to: TxKind::Call(Address::random()),
                                 value: U256::ZERO,
@@ -3119,7 +3119,7 @@ mod tests {
 
     #[test]
     fn test_2d_nonce_gas_limit_validation() {
-        use crate::gas_params::tempo_gas_params;
+        use crate::gas_params::magnus_gas_params;
         use revm::{context_interface::cfg::GasId, handler::Handler};
 
         const BASE_INTRINSIC_GAS: u64 = 21_000;
@@ -3130,7 +3130,7 @@ mod tests {
             TempoHardfork::T1,
             TempoHardfork::T2,
         ] {
-            let gas_params = tempo_gas_params(spec);
+            let gas_params = magnus_gas_params(spec);
 
             // Build spec-specific test cases: (gas_limit, nonce, expected_result)
             let nonce_zero_gas = if spec.is_t1() {
@@ -3170,7 +3170,7 @@ mod tests {
                             nonce,
                             ..Default::default()
                         },
-                        tempo_tx_env: Some(Box::new(TempoBatchCallEnv {
+                        magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
                             aa_calls: vec![Call {
                                 to: TxKind::Call(Address::random()),
                                 value: U256::ZERO,
@@ -3220,9 +3220,9 @@ mod tests {
         let target = DEFAULT_FEE_TOKEN;
 
         let signature =
-            TempoSignature::Keychain(tempo_primitives::transaction::KeychainSignature::new(
+            TempoSignature::Keychain(magnus_primitives::transaction::KeychainSignature::new(
                 caller,
-                tempo_primitives::transaction::PrimitiveSignature::Secp256k1(
+                magnus_primitives::transaction::PrimitiveSignature::Secp256k1(
                     alloy_primitives::Signature::test_signature(),
                 ),
             ));
@@ -3238,7 +3238,7 @@ mod tests {
                 ..Default::default()
             },
             fee_token: Some(DEFAULT_FEE_TOKEN),
-            tempo_tx_env: Some(Box::new(TempoBatchCallEnv {
+            magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
                 signature,
                 aa_calls: vec![Call {
                     to: TxKind::Call(target),
@@ -3338,7 +3338,7 @@ mod tests {
     #[test]
     fn test_t3_scope_validation_returns_call_not_allowed_revert_data() {
         use alloy_sol_types::SolInterface;
-        use tempo_contracts::precompiles::AccountKeychainError;
+        use magnus_contracts::precompiles::AccountKeychainError;
 
         const ALLOWED_SELECTOR: [u8; 4] = [0xde, 0xad, 0xbe, 0xef];
         const DENIED_SELECTOR: [u8; 4] = [0xca, 0xfe, 0xba, 0xbe];
@@ -3348,9 +3348,9 @@ mod tests {
         let target = DEFAULT_FEE_TOKEN;
 
         let signature =
-            TempoSignature::Keychain(tempo_primitives::transaction::KeychainSignature::new(
+            TempoSignature::Keychain(magnus_primitives::transaction::KeychainSignature::new(
                 caller,
-                tempo_primitives::transaction::PrimitiveSignature::Secp256k1(
+                magnus_primitives::transaction::PrimitiveSignature::Secp256k1(
                     alloy_primitives::Signature::test_signature(),
                 ),
             ));
@@ -3366,7 +3366,7 @@ mod tests {
                 ..Default::default()
             },
             fee_token: Some(DEFAULT_FEE_TOKEN),
-            tempo_tx_env: Some(Box::new(TempoBatchCallEnv {
+            magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
                 signature,
                 aa_calls: vec![Call {
                     to: TxKind::Call(target),
@@ -3448,9 +3448,9 @@ mod tests {
         let access_key = Address::repeat_byte(0x22);
 
         let signature =
-            TempoSignature::Keychain(tempo_primitives::transaction::KeychainSignature::new(
+            TempoSignature::Keychain(magnus_primitives::transaction::KeychainSignature::new(
                 caller,
-                tempo_primitives::transaction::PrimitiveSignature::Secp256k1(
+                magnus_primitives::transaction::PrimitiveSignature::Secp256k1(
                     alloy_primitives::Signature::test_signature(),
                 ),
             ));
@@ -3464,7 +3464,7 @@ mod tests {
                 gas_limit: 1_000_000,
                 ..Default::default()
             },
-            tempo_tx_env: Some(Box::new(TempoBatchCallEnv {
+            magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
                 signature,
                 aa_calls: vec![],
                 signature_hash: B256::ZERO,
@@ -3508,7 +3508,7 @@ mod tests {
             handler::FrameResult,
             interpreter::{CallOutcome, Gas, InstructionResult, InterpreterResult},
         };
-        use tempo_primitives::transaction::Call;
+        use magnus_primitives::transaction::Call;
 
         const GAS_LIMIT: u64 = 1_000_000;
         const INTRINSIC_GAS: u64 = 21_000;
@@ -3647,7 +3647,7 @@ mod tests {
             env,
             &GasParams::default(),
             None::<std::iter::Empty<&AccessListItem>>,
-            tempo_chainspec::hardfork::TempoHardfork::default(),
+            magnus_chainspec::hardfork::TempoHardfork::default(),
         )
         .unwrap()
     }
@@ -3860,7 +3860,7 @@ mod tests {
 
             let tx_env = TempoTxEnv {
                 inner: revm::context::TxEnv::default(),
-                tempo_tx_env: Some(Box::new(TempoBatchCallEnv {
+                magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
                     aa_calls: calls,
                     signature: secp256k1_sig(),
                     signature_hash: B256::ZERO,
@@ -3882,7 +3882,7 @@ mod tests {
         fn proptest_first_call_empty_aa(_dummy in 0u8..1) {
             let tx_env = TempoTxEnv {
                 inner: revm::context::TxEnv::default(),
-                tempo_tx_env: Some(Box::new(TempoBatchCallEnv {
+                magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
                     aa_calls: vec![],
                     signature: secp256k1_sig(),
                     signature_hash: B256::ZERO,
@@ -3906,7 +3906,7 @@ mod tests {
                     data: calldata.clone(),
                     ..Default::default()
                 },
-                tempo_tx_env: None,
+                magnus_tx_env: None,
                 ..Default::default()
             };
 
@@ -3924,7 +3924,7 @@ mod tests {
             num_limits1 in 0usize..10,
             num_limits2 in 0usize..10,
         ) {
-            use tempo_primitives::transaction::{
+            use magnus_primitives::transaction::{
                 SignatureType, SignedKeyAuthorization,
                 key_authorization::KeyAuthorization,
                 TokenLimit as PrimTokenLimit,
@@ -3948,8 +3948,8 @@ mod tests {
 
             // Test both pre-T1B and T1B branches
             for (gas_params, spec) in [
-                (GasParams::default(), tempo_chainspec::hardfork::TempoHardfork::default()),
-                (crate::gas_params::tempo_gas_params(TempoHardfork::T1B), TempoHardfork::T1B),
+                (GasParams::default(), magnus_chainspec::hardfork::TempoHardfork::default()),
+                (crate::gas_params::magnus_gas_params(TempoHardfork::T1B), TempoHardfork::T1B),
             ] {
                 let gas1 = calculate_key_authorization_gas(&make_key_auth(num_limits1), &gas_params, spec);
                 let gas2 = calculate_key_authorization_gas(&make_key_auth(num_limits2), &gas_params, spec);
@@ -3972,7 +3972,7 @@ mod tests {
             sig_type in 0u8..3,
             num_limits in 0usize..5,
         ) {
-            use tempo_primitives::transaction::{
+            use magnus_primitives::transaction::{
                 SignatureType, SignedKeyAuthorization,
                 key_authorization::KeyAuthorization,
                 TokenLimit as PrimTokenLimit,
@@ -4004,13 +4004,13 @@ mod tests {
             };
 
             // Pre-T1B: minimum is KEY_AUTH_BASE_GAS + ECRECOVER_GAS
-            let gas = calculate_key_authorization_gas(&key_auth, &GasParams::default(), tempo_chainspec::hardfork::TempoHardfork::default());
+            let gas = calculate_key_authorization_gas(&key_auth, &GasParams::default(), magnus_chainspec::hardfork::TempoHardfork::default());
             let min_gas = KEY_AUTH_BASE_GAS + ECRECOVER_GAS;
             prop_assert!(gas >= min_gas,
                 "Pre-T1B: Key auth gas should be at least {min_gas}, got {gas}");
 
             // T1B: minimum is ECRECOVER_GAS + sload + sstore (0 limits)
-            let t1b_params = crate::gas_params::tempo_gas_params(TempoHardfork::T1B);
+            let t1b_params = crate::gas_params::magnus_gas_params(TempoHardfork::T1B);
             let gas_t1b = calculate_key_authorization_gas(&key_auth, &t1b_params, TempoHardfork::T1B);
             let sstore = t1b_params.get(revm::context_interface::cfg::GasId::sstore_set_without_load_cost());
             let sload = t1b_params.warm_storage_read_cost() + t1b_params.cold_storage_additional_cost();
@@ -4031,7 +4031,7 @@ mod tests {
     /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
     #[test]
     fn test_t1_2d_nonce_key_charges_250k_gas() {
-        use crate::gas_params::tempo_gas_params;
+        use crate::gas_params::magnus_gas_params;
         use revm::{context_interface::cfg::GasId, handler::Handler};
 
         // Deterministic test addresses
@@ -4044,7 +4044,7 @@ mod tests {
         // Create T1 config with TIP-1000 gas params
         let mut cfg = CfgEnv::<TempoHardfork>::default();
         cfg.spec = SPEC;
-        cfg.gas_params = tempo_gas_params(TempoHardfork::T1);
+        cfg.gas_params = magnus_gas_params(TempoHardfork::T1);
 
         // Get the expected new_account_cost dynamically from gas params
         let new_account_cost = cfg.gas_params.get(GasId::new_account_cost());
@@ -4066,7 +4066,7 @@ mod tests {
                         nonce,
                         ..Default::default()
                     },
-                    tempo_tx_env: Some(Box::new(TempoBatchCallEnv {
+                    magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
                         aa_calls: vec![Call {
                             to: TxKind::Call(TEST_TARGET),
                             value: U256::ZERO,
@@ -4134,7 +4134,7 @@ mod tests {
     /// [TIP-1000]: <https://docs.tempo.xyz/protocol/tips/tip-1000>
     #[test]
     fn test_t1_existing_2d_nonce_key_charges_5k_gas() {
-        use crate::gas_params::tempo_gas_params;
+        use crate::gas_params::magnus_gas_params;
         use revm::handler::Handler;
 
         const BASE_INTRINSIC_GAS: u64 = 21_000;
@@ -4145,7 +4145,7 @@ mod tests {
 
         let mut cfg = CfgEnv::<TempoHardfork>::default();
         cfg.spec = SPEC;
-        cfg.gas_params = tempo_gas_params(TempoHardfork::T1);
+        cfg.gas_params = magnus_gas_params(TempoHardfork::T1);
 
         let make_evm = |cfg: CfgEnv<TempoHardfork>, nonce: u64, nonce_key: U256| {
             let journal = Journal::new(CacheDB::new(EmptyDB::default()));
@@ -4159,7 +4159,7 @@ mod tests {
                         nonce,
                         ..Default::default()
                     },
-                    tempo_tx_env: Some(Box::new(TempoBatchCallEnv {
+                    magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
                         aa_calls: vec![Call {
                             to: TxKind::Call(TEST_TARGET),
                             value: U256::ZERO,
@@ -4209,7 +4209,7 @@ mod tests {
         use super::*;
         use alloy_signer::SignerSync;
         use alloy_signer_local::PrivateKeySigner;
-        use tempo_primitives::transaction::{
+        use magnus_primitives::transaction::{
             KeychainSignature, SignatureType, key_authorization::KeyAuthorization,
         };
 
@@ -4222,7 +4222,7 @@ mod tests {
         fn sign_key_auth(
             signer: &PrivateKeySigner,
             key_auth: KeyAuthorization,
-        ) -> tempo_primitives::transaction::SignedKeyAuthorization {
+        ) -> magnus_primitives::transaction::SignedKeyAuthorization {
             let sig = signer
                 .sign_hash_sync(&key_auth.signature_hash())
                 .expect("signing failed");
@@ -4242,7 +4242,7 @@ mod tests {
         fn make_evm(
             user: Address,
             access_key: Address,
-            key_auth: Option<tempo_primitives::transaction::SignedKeyAuthorization>,
+            key_auth: Option<magnus_primitives::transaction::SignedKeyAuthorization>,
             spec: TempoHardfork,
             signature: Option<TempoSignature>,
             seed_key: bool,
@@ -4264,7 +4264,7 @@ mod tests {
                     ..Default::default()
                 },
                 fee_token: Some(DEFAULT_FEE_TOKEN),
-                tempo_tx_env: Some(Box::new(TempoBatchCallEnv {
+                magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
                     signature: sig,
                     aa_calls: vec![Call {
                         to: TxKind::Call(Address::ZERO),

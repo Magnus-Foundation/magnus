@@ -36,13 +36,13 @@ use reth_rpc_eth_api::{
 use reth_tracing::tracing::{debug, info};
 use reth_transaction_pool::{TransactionValidationTaskExecutor, blobstore::InMemoryBlobStore};
 use std::default::Default;
-use tempo_chainspec::spec::TempoChainSpec;
-use tempo_consensus::TempoConsensus;
-use tempo_evm::TempoEvmConfig;
-use tempo_payload_builder::TempoPayloadBuilder;
-use tempo_payload_types::TempoPayloadAttributes;
-use tempo_primitives::{TempoHeader, TempoPrimitives, TempoTxEnvelope, TempoTxType};
-use tempo_transaction_pool::{
+use magnus_chainspec::spec::TempoChainSpec;
+use magnus_consensus::TempoConsensus;
+use magnus_evm::TempoEvmConfig;
+use magnus_payload_builder::TempoPayloadBuilder;
+use magnus_payload_types::TempoPayloadAttributes;
+use magnus_primitives::{TempoHeader, TempoPrimitives, TempoTxEnvelope, TempoTxType};
+use magnus_transaction_pool::{
     AA2dPool, AA2dPoolConfig, TempoTransactionPool,
     amm::AmmLiquidityCache,
     validator::{
@@ -282,7 +282,7 @@ impl<N: FullNodeComponents<Types = Self>> DebugNode<N> for TempoNode {
     type RpcBlock =
         alloy_rpc_types_eth::Block<alloy_rpc_types_eth::Transaction<TempoTxEnvelope>, TempoHeader>;
 
-    fn rpc_to_primitive_block(rpc_block: Self::RpcBlock) -> tempo_primitives::Block {
+    fn rpc_to_primitive_block(rpc_block: Self::RpcBlock) -> magnus_primitives::Block {
         rpc_block
             .into_consensus_block()
             .map_transactions(|tx| tx.into_inner())
@@ -475,7 +475,7 @@ where
         // This consolidates: expired AA txs, 2D nonce updates, AMM cache, and keychain revocations
         ctx.task_executor().spawn_critical_task(
             "txpool maintenance - tempo pool",
-            tempo_transaction_pool::maintain::maintain_tempo_pool(transaction_pool.clone()),
+            magnus_transaction_pool::maintain::maintain_tempo_pool(transaction_pool.clone()),
         );
 
         info!(target: "reth::cli", "Transaction pool initialized");

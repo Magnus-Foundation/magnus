@@ -1,6 +1,6 @@
 use auto_impl::auto_impl;
 use revm::context_interface::cfg::{GasId, GasParams};
-use tempo_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::TempoHardfork;
 
 /// Extending [`GasParams`] for Tempo use case.
 #[auto_impl(&, Arc, Box, &mut)]
@@ -20,7 +20,7 @@ impl TempoGasParams for GasParams {
 
 /// Tempo gas params override.
 #[inline]
-pub fn tempo_gas_params(spec: TempoHardfork) -> GasParams {
+pub fn magnus_gas_params(spec: TempoHardfork) -> GasParams {
     let mut gas_params = GasParams::new_spec(spec.into());
     let mut overrides = vec![];
     if spec.is_t1() {

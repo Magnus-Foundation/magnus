@@ -4,7 +4,7 @@
 //! verifying that multi-slot structs are correctly handled and that deletion works.
 
 use super::*;
-use tempo_precompiles::storage::{Mapping, StorableType, StorageCtx};
+use magnus_precompiles::storage::{Mapping, StorableType, StorageCtx};
 
 #[test]
 fn test_struct_storage() {

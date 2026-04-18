@@ -20,7 +20,7 @@ use reth_chainspec::{
 use reth_network_peers::NodeRecord;
 #[cfg(feature = "std")]
 use std::sync::LazyLock;
-use tempo_primitives::TempoHeader;
+use magnus_primitives::TempoHeader;
 
 // End-of-block system transactions
 pub const SYSTEM_TX_COUNT: usize = 1;
@@ -181,11 +181,11 @@ impl TempoChainSpec {
         // Create base chainspec from genesis (already has ordered Ethereum hardforks)
         let mut base_spec = ChainSpec::from_genesis(genesis);
 
-        let tempo_forks = TempoHardfork::VARIANTS.iter().filter_map(|&fork| {
+        let magnus_forks = TempoHardfork::VARIANTS.iter().filter_map(|&fork| {
             info.fork_time(fork)
                 .map(|time| (fork, ForkCondition::Timestamp(time)))
         });
-        base_spec.hardforks.extend(tempo_forks);
+        base_spec.hardforks.extend(magnus_forks);
 
         Self {
             inner: base_spec.map_header(|inner| TempoHeader {
@@ -286,13 +286,13 @@ impl EthChainSpec for TempoChainSpec {
 
     fn display_hardforks(&self) -> Box<dyn core::fmt::Display> {
         // filter only tempo hardforks
-        let tempo_forks = self.inner.hardforks.forks_iter().filter(|(fork, _)| {
+        let magnus_forks = self.inner.hardforks.forks_iter().filter(|(fork, _)| {
             !EthereumHardfork::VARIANTS
                 .iter()
                 .any(|h| h.name() == (*fork).name())
         });
 
-        Box::new(DisplayHardforks::new(tempo_forks))
+        Box::new(DisplayHardforks::new(magnus_forks))
     }
 
     fn genesis_header(&self) -> &Self::Header {
@@ -316,7 +316,7 @@ impl EthChainSpec for TempoChainSpec {
     }
 
     fn next_block_base_fee(&self, _parent: &TempoHeader, target_timestamp: u64) -> Option<u64> {
-        Some(self.tempo_hardfork_at(target_timestamp).base_fee())
+        Some(self.magnus_hardfork_at(target_timestamp).base_fee())
     }
 }
 
@@ -333,7 +333,7 @@ impl EthExecutorSpec for TempoChainSpec {
 }
 
 impl TempoHardforks for TempoChainSpec {
-    fn tempo_fork_activation(&self, fork: TempoHardfork) -> ForkCondition {
+    fn magnus_fork_activation(&self, fork: TempoHardfork) -> ForkCondition {
         self.fork(fork)
     }
 }
@@ -362,11 +362,11 @@ mod tests {
             .expect("the mainnet chainspec must always be well formed");
 
         // Genesis should be active at timestamp 0
-        let activation = chainspec.tempo_fork_activation(TempoHardfork::Genesis);
+        let activation = chainspec.magnus_fork_activation(TempoHardfork::Genesis);
         assert_eq!(activation, ForkCondition::Timestamp(0));
 
         // T0 should be active at timestamp 0
-        let activation = chainspec.tempo_fork_activation(TempoHardfork::T0);
+        let activation = chainspec.magnus_fork_activation(TempoHardfork::T0);
         assert_eq!(activation, ForkCondition::Timestamp(0));
     }
 
@@ -376,7 +376,7 @@ mod tests {
             .expect("the mainnet chainspec must always be well formed");
 
         // Should be able to query Tempo hardfork activation through trait
-        let activation = chainspec.tempo_fork_activation(TempoHardfork::T0);
+        let activation = chainspec.magnus_fork_activation(TempoHardfork::T0);
         assert_eq!(activation, ForkCondition::Timestamp(0));
     }
 
@@ -416,25 +416,25 @@ mod tests {
         // Every fork should be active at any timestamp
         for &fork in TempoHardfork::VARIANTS {
             assert!(
-                chainspec.tempo_fork_activation(fork).active_at_timestamp(0),
+                chainspec.magnus_fork_activation(fork).active_at_timestamp(0),
                 "{fork:?} should be active at timestamp 0"
             );
             assert!(
                 chainspec
-                    .tempo_fork_activation(fork)
+                    .magnus_fork_activation(fork)
                     .active_at_timestamp(1000),
                 "{fork:?} should be active at timestamp 1000"
             );
         }
 
-        // tempo_hardfork_at should return the latest fork
+        // magnus_hardfork_at should return the latest fork
         let latest = *TempoHardfork::VARIANTS.last().unwrap();
-        assert_eq!(chainspec.tempo_hardfork_at(0), latest);
-        assert_eq!(chainspec.tempo_hardfork_at(1000), latest);
-        assert_eq!(chainspec.tempo_hardfork_at(u64::MAX), latest);
+        assert_eq!(chainspec.magnus_hardfork_at(0), latest);
+        assert_eq!(chainspec.magnus_hardfork_at(1000), latest);
+        assert_eq!(chainspec.magnus_hardfork_at(u64::MAX), latest);
     }
 
-    mod tempo_hardfork_at {
+    mod magnus_hardfork_at {
         use super::*;
 
         #[test]
@@ -443,48 +443,48 @@ mod tests {
                 .expect("the mainnet chainspec must always be well formed");
 
             // Before T1 activation (1770908400 = Feb 12th 2026 16:00 CET)
-            assert_eq!(cs.tempo_hardfork_at(0), TempoHardfork::T0);
-            assert_eq!(cs.tempo_hardfork_at(1000), TempoHardfork::T0);
-            assert_eq!(cs.tempo_hardfork_at(1770908399), TempoHardfork::T0);
+            assert_eq!(cs.magnus_hardfork_at(0), TempoHardfork::T0);
+            assert_eq!(cs.magnus_hardfork_at(1000), TempoHardfork::T0);
+            assert_eq!(cs.magnus_hardfork_at(1770908399), TempoHardfork::T0);
 
             // At and after T1/T1A activation (both activate at 1770908400)
             assert!(cs.is_t1_active_at_timestamp(1770908400));
             assert!(cs.is_t1a_active_at_timestamp(1770908400));
-            assert_eq!(cs.tempo_hardfork_at(1770908400), TempoHardfork::T1A);
-            assert_eq!(cs.tempo_hardfork_at(1770908401), TempoHardfork::T1A);
+            assert_eq!(cs.magnus_hardfork_at(1770908400), TempoHardfork::T1A);
+            assert_eq!(cs.magnus_hardfork_at(1770908401), TempoHardfork::T1A);
 
             // Before T1B activation (1771858800 = Feb 23rd 2026 16:00 CET)
             assert!(!cs.is_t1b_active_at_timestamp(1771858799));
-            assert_eq!(cs.tempo_hardfork_at(1771858799), TempoHardfork::T1A);
+            assert_eq!(cs.magnus_hardfork_at(1771858799), TempoHardfork::T1A);
 
             // At and after T1B activation
             assert!(cs.is_t1b_active_at_timestamp(1771858800));
-            assert_eq!(cs.tempo_hardfork_at(1771858800), TempoHardfork::T1B);
+            assert_eq!(cs.magnus_hardfork_at(1771858800), TempoHardfork::T1B);
 
             // Before T1C activation (1773327600 = Mar 12th 2026 16:00 CET)
             assert!(!cs.is_t1c_active_at_timestamp(1773327599));
-            assert_eq!(cs.tempo_hardfork_at(1773327599), TempoHardfork::T1B);
+            assert_eq!(cs.magnus_hardfork_at(1773327599), TempoHardfork::T1B);
 
             // At and after T1C activation
             assert!(cs.is_t1c_active_at_timestamp(1773327600));
-            assert_eq!(cs.tempo_hardfork_at(1773327600), TempoHardfork::T1C);
+            assert_eq!(cs.magnus_hardfork_at(1773327600), TempoHardfork::T1C);
 
             // Before T2 activation (1774965600 = Mar 31st 2026 16:00 CEST)
             assert!(!cs.is_t2_active_at_timestamp(1774965599));
-            assert_eq!(cs.tempo_hardfork_at(1774965599), TempoHardfork::T1C);
+            assert_eq!(cs.magnus_hardfork_at(1774965599), TempoHardfork::T1C);
 
             // At and after T2 activation
             assert!(cs.is_t2_active_at_timestamp(1774965600));
-            assert_eq!(cs.tempo_hardfork_at(1774965600), TempoHardfork::T2);
+            assert_eq!(cs.magnus_hardfork_at(1774965600), TempoHardfork::T2);
 
             // Before T3 activation (1777298400 = Apr 27th 2026 16:00 CEST)
             assert!(!cs.is_t3_active_at_timestamp(1777298399));
-            assert_eq!(cs.tempo_hardfork_at(1777298399), TempoHardfork::T2);
+            assert_eq!(cs.magnus_hardfork_at(1777298399), TempoHardfork::T2);
 
             // At and after T3 activation
             assert!(cs.is_t3_active_at_timestamp(1777298400));
-            assert_eq!(cs.tempo_hardfork_at(1777298400), TempoHardfork::T3);
-            assert_eq!(cs.tempo_hardfork_at(u64::MAX), TempoHardfork::T3);
+            assert_eq!(cs.magnus_hardfork_at(1777298400), TempoHardfork::T3);
+            assert_eq!(cs.magnus_hardfork_at(u64::MAX), TempoHardfork::T3);
         }
 
         #[test]
@@ -493,45 +493,45 @@ mod tests {
                 .expect("the moderato chainspec must always be well formed");
 
             // Before T0/T1 activation (1770303600 = Feb 5th 2026 16:00 CET)
-            assert_eq!(cs.tempo_hardfork_at(0), TempoHardfork::Genesis);
-            assert_eq!(cs.tempo_hardfork_at(1770303599), TempoHardfork::Genesis);
+            assert_eq!(cs.magnus_hardfork_at(0), TempoHardfork::Genesis);
+            assert_eq!(cs.magnus_hardfork_at(1770303599), TempoHardfork::Genesis);
 
             // At and after T0/T1 activation
-            assert_eq!(cs.tempo_hardfork_at(1770303600), TempoHardfork::T1);
-            assert_eq!(cs.tempo_hardfork_at(1770303601), TempoHardfork::T1);
+            assert_eq!(cs.magnus_hardfork_at(1770303600), TempoHardfork::T1);
+            assert_eq!(cs.magnus_hardfork_at(1770303601), TempoHardfork::T1);
 
             // Before T1A/T1B activation (1771858800 = Feb 23rd 2026 16:00 CET)
-            assert_eq!(cs.tempo_hardfork_at(1771858799), TempoHardfork::T1);
+            assert_eq!(cs.magnus_hardfork_at(1771858799), TempoHardfork::T1);
 
             // At and after T1A/T1B activation (both activate at 1771858800)
             assert!(cs.is_t1a_active_at_timestamp(1771858800));
             assert!(cs.is_t1b_active_at_timestamp(1771858800));
-            assert_eq!(cs.tempo_hardfork_at(1771858800), TempoHardfork::T1B);
+            assert_eq!(cs.magnus_hardfork_at(1771858800), TempoHardfork::T1B);
 
             // Before T1C activation (1773068400 = Mar 9th 2026 16:00 CET)
             assert!(!cs.is_t1c_active_at_timestamp(1773068399));
-            assert_eq!(cs.tempo_hardfork_at(1773068399), TempoHardfork::T1B);
+            assert_eq!(cs.magnus_hardfork_at(1773068399), TempoHardfork::T1B);
 
             // At and after T1C activation
             assert!(cs.is_t1c_active_at_timestamp(1773068400));
-            assert_eq!(cs.tempo_hardfork_at(1773068400), TempoHardfork::T1C);
+            assert_eq!(cs.magnus_hardfork_at(1773068400), TempoHardfork::T1C);
 
             // Before T2 activation (1774537200 = Mar 26th 2026 16:00 CET)
             assert!(!cs.is_t2_active_at_timestamp(1774537199));
-            assert_eq!(cs.tempo_hardfork_at(1774537199), TempoHardfork::T1C);
+            assert_eq!(cs.magnus_hardfork_at(1774537199), TempoHardfork::T1C);
 
             // At and after T2 activation
             assert!(cs.is_t2_active_at_timestamp(1774537200));
-            assert_eq!(cs.tempo_hardfork_at(1774537200), TempoHardfork::T2);
+            assert_eq!(cs.magnus_hardfork_at(1774537200), TempoHardfork::T2);
 
             // Before T3 activation (1776780000 = Apr 21st 2026 16:00 CEST)
             assert!(!cs.is_t3_active_at_timestamp(1776779999));
-            assert_eq!(cs.tempo_hardfork_at(1776779999), TempoHardfork::T2);
+            assert_eq!(cs.magnus_hardfork_at(1776779999), TempoHardfork::T2);
 
             // At and after T3 activation
             assert!(cs.is_t3_active_at_timestamp(1776780000));
-            assert_eq!(cs.tempo_hardfork_at(1776780000), TempoHardfork::T3);
-            assert_eq!(cs.tempo_hardfork_at(u64::MAX), TempoHardfork::T3);
+            assert_eq!(cs.magnus_hardfork_at(1776780000), TempoHardfork::T3);
+            assert_eq!(cs.magnus_hardfork_at(u64::MAX), TempoHardfork::T3);
         }
 
         #[test]

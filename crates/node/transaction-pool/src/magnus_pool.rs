@@ -29,11 +29,11 @@ use reth_transaction_pool::{
 };
 use revm::database::BundleAccount;
 use std::{sync::Arc, time::Instant};
-use tempo_chainspec::{
+use magnus_chainspec::{
     TempoChainSpec,
     hardfork::{TempoHardfork, TempoHardforks},
 };
-use tempo_precompiles::{
+use magnus_precompiles::{
     DEFAULT_FEE_TOKEN, TIP_FEE_MANAGER_ADDRESS,
     account_keychain::AccountKeychain,
     error::Result as TempoPrecompileResult,
@@ -41,8 +41,8 @@ use tempo_precompiles::{
     tip20::TIP20Token,
     tip403_registry::{REJECT_ALL_POLICY_ID, TIP403Registry},
 };
-use tempo_primitives::Block;
-use tempo_revm::TempoStateAccess;
+use magnus_primitives::Block;
+use magnus_revm::TempoStateAccess;
 
 /// Tempo transaction pool that routes based on nonce_key
 pub struct TempoTransactionPool<Client> {
@@ -144,7 +144,7 @@ where
             .inner
             .fork_tracker()
             .tip_timestamp();
-        let spec = self.client().chain_spec().tempo_hardfork_at(tip_timestamp);
+        let spec = self.client().chain_spec().magnus_hardfork_at(tip_timestamp);
 
         // Cache policy lookups per fee token to avoid redundant storage reads.
         // For compound policies (TIP-1015), the cache stores all sub-policy IDs
@@ -250,7 +250,7 @@ where
                     .transaction
                     .inner()
                     .fee_token()
-                    .unwrap_or(tempo_precompiles::DEFAULT_FEE_TOKEN);
+                    .unwrap_or(magnus_precompiles::DEFAULT_FEE_TOKEN);
                 let cost = tx.transaction.fee_token_cost();
 
                 match amm_cache.has_enough_liquidity(user_token, cost, provider) {
@@ -471,7 +471,7 @@ where
                         .inner
                         .fork_tracker()
                         .tip_timestamp();
-                    let hardfork = self.client().chain_spec().tempo_hardfork_at(tip_timestamp);
+                    let hardfork = self.client().chain_spec().magnus_hardfork_at(tip_timestamp);
 
                     let added = self.aa_2d_pool.write().add_transaction(
                         Arc::new(tx),
@@ -1274,19 +1274,19 @@ mod tests {
         blobstore::InMemoryBlobStore,
         validate::{EthTransactionValidatorBuilder, ValidTransaction},
     };
-    use tempo_chainspec::{
+    use magnus_chainspec::{
         hardfork::TempoHardfork,
         spec::{MODERATO, TEMPO_T1_TX_GAS_LIMIT_CAP},
     };
-    use tempo_contracts::precompiles::ITIP403Registry;
-    use tempo_evm::TempoEvmConfig;
-    use tempo_precompiles::{
+    use magnus_contracts::precompiles::ITIP403Registry;
+    use magnus_evm::TempoEvmConfig;
+    use magnus_precompiles::{
         PATH_USD_ADDRESS,
         account_keychain::{AccountKeychain, AuthorizedKey, SpendingLimitState},
         tip20::slots as tip20_slots,
         tip403_registry::{CompoundPolicyData, PolicyData, TIP403Registry},
     };
-    use tempo_primitives::{Block, TempoHeader, TempoPrimitives, TempoTxEnvelope};
+    use magnus_primitives::{Block, TempoHeader, TempoPrimitives, TempoTxEnvelope};
 
     fn provider_with_spending_limit(
         account: Address,
@@ -1314,7 +1314,7 @@ mod tests {
         setup_spec: TempoHardfork,
     ) -> Box<dyn reth_storage_api::StateProvider> {
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            tempo_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::MODERATO.clone(),
         ));
 
         // Write AuthorizedKey with enforce_limits=true
@@ -1329,7 +1329,7 @@ mod tests {
                 })?;
                 let limit_key = AccountKeychain::spending_limit_key(account, key_id);
                 keychain.spending_limits[limit_key][fee_token].write(limit_state)?;
-                Ok::<(), tempo_precompiles::error::TempoPrecompileError>(())
+                Ok::<(), magnus_precompiles::error::TempoPrecompileError>(())
             })
             .unwrap();
 
@@ -1477,7 +1477,7 @@ mod tests {
         let recipient_sub_policy: u64 = 4;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            tempo_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::MODERATO.clone(),
         ));
 
         // Set up TIP20 token with transfer_policy_id = compound_policy_id
@@ -1538,7 +1538,7 @@ mod tests {
         let recipient_sub_policy: u64 = 4;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            tempo_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::MODERATO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1596,7 +1596,7 @@ mod tests {
         let mint_recipient_sub: u64 = 6;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            tempo_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::MODERATO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1650,7 +1650,7 @@ mod tests {
         let recipient_sub: u64 = 4;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            tempo_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::MODERATO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1707,7 +1707,7 @@ mod tests {
         let simple_policy_id: u64 = 7;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            tempo_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::MODERATO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1806,7 +1806,7 @@ mod tests {
 
         // Provider with AuthorizedKey (enforce_limits=true) but no spending limit slot
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            tempo_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::MODERATO.clone(),
         ));
         provider
             .setup_storage(TempoHardfork::default(), || {
@@ -1841,7 +1841,7 @@ mod tests {
 
         // Provider with AuthorizedKey (enforce_limits=false)
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            tempo_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::MODERATO.clone(),
         ));
         provider
             .setup_storage(TempoHardfork::default(), || {

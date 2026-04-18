@@ -15,8 +15,8 @@ pub use orderbook::{
     MAX_TICK, MIN_TICK, Orderbook, PRICE_SCALE, RoundingDirection, TickLevel, base_to_quote,
     quote_to_base, tick_to_price, validate_tick_spacing,
 };
-use tempo_contracts::precompiles::PATH_USD_ADDRESS;
-pub use tempo_contracts::precompiles::{IStablecoinDEX, StablecoinDEXError, StablecoinDEXEvents};
+use magnus_contracts::precompiles::PATH_USD_ADDRESS;
+pub use magnus_contracts::precompiles::{IStablecoinDEX, StablecoinDEXError, StablecoinDEXEvents};
 
 use crate::{
     STABLECOIN_DEX_ADDRESS,
@@ -28,8 +28,8 @@ use crate::{
     tip403_registry::{AuthRole, TIP403Registry, is_policy_lookup_error},
 };
 use alloy::primitives::{Address, B256, U256};
-use tempo_precompiles_macros::contract;
-use tempo_primitives::TempoAddressExt;
+use magnus_precompiles_macros::contract;
+use magnus_primitives::TempoAddressExt;
 
 /// Minimum order size of $100 USD
 pub const MIN_ORDER_AMOUNT: u128 = 100_000_000;
@@ -1548,8 +1548,8 @@ fn is_authorized_for_token(token: Address, address: Address, role: AuthRole) -> 
 #[cfg(test)]
 mod tests {
     use alloy::{primitives::IntoLogData, sol_types::SolEvent};
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::TIP20Error;
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::TIP20Error;
 
     use crate::{
         error::TempoPrecompileError,

@@ -22,8 +22,8 @@ use commonware_cryptography::ed25519::{PrivateKey, PublicKey};
 use commonware_p2p::authenticated::lookup;
 use commonware_runtime::Metrics as _;
 use eyre::{OptionExt, WrapErr as _, eyre};
-use tempo_commonware_node_config::SigningShare;
-use tempo_node::TempoFullNode;
+use magnus_commonware_node_config::SigningShare;
+use magnus_node::TempoFullNode;
 
 pub use crate::config::{
     BROADCASTER_CHANNEL_IDENT, BROADCASTER_LIMIT, CERTIFICATES_CHANNEL_IDENT, CERTIFICATES_LIMIT,

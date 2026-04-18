@@ -13,9 +13,9 @@ use parking_lot::RwLock;
 use reth_node_core::rpc::compat::FromConsensusHeader;
 use reth_provider::HeaderProvider as _;
 use std::sync::{Arc, OnceLock};
-use tempo_alloy::rpc::TempoHeaderResponse;
-use tempo_dkg_onchain_artifacts::OnchainDkgOutcome;
-use tempo_node::{
+use magnus_alloy::rpc::TempoHeaderResponse;
+use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
+use magnus_node::{
     TempoFullNode,
     rpc::consensus::{
         CertifiedBlock, ConsensusFeed, ConsensusState, Event, IdentityProofError,

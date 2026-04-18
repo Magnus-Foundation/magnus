@@ -26,15 +26,15 @@ use reth_revm::{
     state::{Account, Bytecode, EvmState},
 };
 use std::collections::{HashMap, HashSet};
-use tempo_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
-use tempo_contracts::precompiles::{
+use magnus_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
+use magnus_contracts::precompiles::{
     ADDRESS_REGISTRY_ADDRESS, SIGNATURE_VERIFIER_ADDRESS, VALIDATOR_CONFIG_V2_ADDRESS,
 };
-use tempo_primitives::{
+use magnus_primitives::{
     SubBlock, SubBlockMetadata, TempoReceipt, TempoTxEnvelope, TempoTxType,
     subblock::PartialValidatorKey,
 };
-use tempo_revm::{TempoHaltReason, evm::TempoContext};
+use magnus_revm::{TempoHaltReason, evm::TempoContext};
 use tracing::trace;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -446,8 +446,8 @@ where
     ) -> Result<Self::Result, BlockExecutionError> {
         let (mut tx_env, recovered) = tx.into_parts();
         // Remove any prewarming-specific context that was added to the tx env.
-        if let Some(tempo_tx_env) = tx_env.tempo_tx_env.as_mut() {
-            tempo_tx_env.expiring_nonce_idx = None;
+        if let Some(magnus_tx_env) = tx_env.magnus_tx_env.as_mut() {
+            magnus_tx_env.expiring_nonce_idx = None;
         }
         let next_section = self.validate_tx_pre_execution(recovered.tx())?;
 
@@ -604,12 +604,12 @@ mod tests {
         context::result::{ExecutionResult, ResultGas},
         database::EmptyDB,
     };
-    use tempo_primitives::{
+    use magnus_primitives::{
         SubBlockMetadata, TempoSignature, TempoTransaction, TempoTxType,
         subblock::{SubBlockVersion, TEMPO_SUBBLOCK_NONCE_KEY_PREFIX},
         transaction::{Call, envelope::TEMPO_SYSTEM_TX_SIGNATURE},
     };
-    use tempo_revm::TempoHaltReason;
+    use magnus_revm::TempoHaltReason;
 
     fn create_legacy_tx() -> TempoTxEnvelope {
         let tx = TxLegacy {
@@ -708,7 +708,7 @@ mod tests {
 
     fn create_valid_subblock_metadata(parent_hash: B256, signer: &PrivateKey) -> SubBlockMetadata {
         let validator_key = B256::from_slice(&signer.public_key());
-        let subblock = tempo_primitives::SubBlock {
+        let subblock = magnus_primitives::SubBlock {
             version: SubBlockVersion::V1,
             parent_hash,
             fee_recipient: Address::ZERO,
@@ -889,7 +889,7 @@ mod tests {
 
         // Create metadata with wrong signature
         let wrong_signer = PrivateKey::from_seed(1);
-        let subblock = tempo_primitives::SubBlock {
+        let subblock = magnus_primitives::SubBlock {
             version: SubBlockVersion::V1,
             parent_hash: B256::ZERO,
             fee_recipient: Address::ZERO,
@@ -923,7 +923,7 @@ mod tests {
         let proposer = PartialValidatorKey::from_slice(&validator_key[..15]);
 
         // Create subblock with transactions included
-        let subblock = tempo_primitives::SubBlock {
+        let subblock = magnus_primitives::SubBlock {
             version: SubBlockVersion::V1,
             parent_hash: B256::ZERO,
             fee_recipient: Address::ZERO,
@@ -1179,7 +1179,7 @@ mod tests {
     #[test]
     fn test_apply_pre_execution_deploys_validator_v2_code() {
         use std::sync::Arc;
-        use tempo_chainspec::spec::DEV;
+        use magnus_chainspec::spec::DEV;
 
         // Dev chainspec has t2Time: 0, so T2 is active at any timestamp.
         let chainspec = Arc::new(TempoChainSpec::from_genesis(DEV.genesis().clone()));
@@ -1198,7 +1198,7 @@ mod tests {
     #[test]
     fn test_apply_pre_execution_deploys_signature_verifier_code() {
         use std::sync::Arc;
-        use tempo_chainspec::spec::DEV;
+        use magnus_chainspec::spec::DEV;
 
         // Dev chainspec has t3Time: 0, so T3 is active at any timestamp.
         let chainspec = Arc::new(TempoChainSpec::from_genesis(DEV.genesis().clone()));

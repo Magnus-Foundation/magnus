@@ -23,7 +23,7 @@ use revm::{
     interpreter::gas::{KECCAK256, KECCAK256WORD},
     state::{AccountInfo, Bytecode},
 };
-use tempo_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::TempoHardfork;
 
 use crate::error::{Result, TempoPrecompileError};
 

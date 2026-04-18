@@ -13,15 +13,15 @@ use alloy_eips::{BlockId, Encodable2718};
 use alloy_network::{AnyReceiptEnvelope, EthereumWallet};
 use alloy_primitives::{Address, Signature, U256, address};
 use alloy_rpc_types_eth::TransactionRequest;
-use tempo_alloy::rpc::TempoTransactionReceipt;
-use tempo_contracts::precompiles::{
+use magnus_alloy::rpc::TempoTransactionReceipt;
+use magnus_contracts::precompiles::{
     IFeeManager, ITIP20, ITIP403Registry,
     ITIPFeeAMM::{self},
 };
-use tempo_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, TIP403_REGISTRY_ADDRESS};
-use tempo_primitives::{
+use magnus_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, TIP403_REGISTRY_ADDRESS};
+use magnus_primitives::{
     TempoTransaction, TempoTxEnvelope,
-    transaction::{calc_gas_balance_spending, tempo_transaction::Call},
+    transaction::{calc_gas_balance_spending, magnus_transaction::Call},
 };
 
 #[tokio::test(flavor = "multi_thread")]

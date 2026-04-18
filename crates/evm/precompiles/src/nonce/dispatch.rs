@@ -3,7 +3,7 @@
 use crate::{Precompile, charge_input_cost, dispatch_call, nonce::NonceManager, view};
 use alloy::{primitives::Address, sol_types::SolInterface};
 use revm::precompile::PrecompileResult;
-use tempo_contracts::precompiles::INonce::INonceCalls;
+use magnus_contracts::precompiles::INonce::INonceCalls;
 
 impl Precompile for NonceManager {
     fn call(&mut self, calldata: &[u8], _msg_sender: Address) -> PrecompileResult {
@@ -24,7 +24,7 @@ mod tests {
         storage::{StorageCtx, hashmap::HashMapStorageProvider},
         test_util::{assert_full_coverage, check_selector_coverage},
     };
-    use tempo_contracts::precompiles::INonce::INonceCalls;
+    use magnus_contracts::precompiles::INonce::INonceCalls;
 
     #[test]
     fn test_nonce_selector_coverage() -> eyre::Result<()> {

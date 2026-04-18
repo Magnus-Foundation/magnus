@@ -6244,6 +6244,668 @@ dependencies = [
 ]
 
 [[package]]
+name = "magnus-alloy"
+version = "1.6.0"
+dependencies = [
+ "alloy",
+ "alloy-consensus",
+ "alloy-contract",
+ "alloy-eips 2.0.0",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types-eth",
+ "alloy-serde 2.0.0",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "alloy-transport",
+ "async-trait",
+ "dashmap",
+ "derive_more",
+ "eyre",
+ "futures",
+ "magnus-chainspec",
+ "magnus-contracts",
+ "magnus-evm",
+ "magnus-primitives",
+ "magnus-revm",
+ "reth-evm",
+ "reth-primitives-traits",
+ "reth-rpc-convert",
+ "reth-rpc-eth-types",
+ "serde",
+ "serde_json",
+ "test-case",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "magnus-bench"
+version = "1.6.0"
+dependencies = [
+ "alloy",
+ "alloy-consensus",
+ "clap",
+ "eyre",
+ "futures",
+ "governor",
+ "indicatif",
+ "itertools 0.14.0",
+ "magnus-alloy",
+ "magnus-contracts",
+ "magnus-precompiles",
+ "mimalloc",
+ "rand 0.8.5",
+ "rand 0.9.4",
+ "rayon",
+ "reth-tracing",
+ "rlimit",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "magnus-chainspec"
+version = "1.5.3"
+dependencies = [
+ "alloy-eips 2.0.0",
+ "alloy-evm",
+ "alloy-genesis",
+ "alloy-hardforks",
+ "alloy-primitives",
+ "eyre",
+ "magnus-primitives",
+ "once_cell",
+ "paste",
+ "reth-chainspec",
+ "reth-cli",
+ "reth-network-peers",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "magnus-commonware-node"
+version = "1.6.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-primitives",
+ "alloy-rlp",
+ "alloy-rpc-types-engine",
+ "axum",
+ "bytes",
+ "clap",
+ "commonware-broadcast",
+ "commonware-codec",
+ "commonware-consensus",
+ "commonware-cryptography",
+ "commonware-macros",
+ "commonware-math",
+ "commonware-p2p",
+ "commonware-parallel",
+ "commonware-runtime",
+ "commonware-storage",
+ "commonware-utils",
+ "eyre",
+ "futures",
+ "governor",
+ "indexmap 2.14.0",
+ "jiff",
+ "magnus-alloy",
+ "magnus-chainspec",
+ "magnus-commonware-node-config",
+ "magnus-dkg-onchain-artifacts",
+ "magnus-node",
+ "magnus-payload-types",
+ "magnus-precompiles",
+ "magnus-primitives",
+ "magnus-telemetry-util",
+ "parking_lot",
+ "pin-project",
+ "prometheus-client",
+ "rand 0.8.5",
+ "rand_core 0.6.4",
+ "reth-consensus-common",
+ "reth-ethereum",
+ "reth-evm",
+ "reth-node-builder",
+ "reth-node-core",
+ "reth-primitives-traits",
+ "reth-provider",
+ "reth-revm",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "magnus-commonware-node-config"
+version = "1.6.0"
+dependencies = [
+ "commonware-codec",
+ "commonware-cryptography",
+ "commonware-utils",
+ "const-hex",
+ "rand 0.8.5",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "magnus-consensus"
+version = "1.6.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-evm",
+ "alloy-genesis",
+ "alloy-primitives",
+ "magnus-chainspec",
+ "magnus-primitives",
+ "reth-chainspec",
+ "reth-consensus",
+ "reth-consensus-common",
+ "reth-ethereum-consensus",
+ "reth-primitives-traits",
+ "serde_json",
+]
+
+[[package]]
+name = "magnus-contracts"
+version = "1.6.0"
+dependencies = [
+ "alloy-contract",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-sol-types",
+ "serde",
+ "tokio",
+]
+
+[[package]]
+name = "magnus-dkg-onchain-artifacts"
+version = "1.6.0"
+dependencies = [
+ "bytes",
+ "commonware-codec",
+ "commonware-consensus",
+ "commonware-cryptography",
+ "commonware-math",
+ "commonware-utils",
+ "modular-bitfield",
+ "rand 0.8.5",
+]
+
+[[package]]
+name = "magnus-e2e"
+version = "1.6.0"
+dependencies = [
+ "alloy",
+ "alloy-evm",
+ "alloy-genesis",
+ "alloy-network",
+ "alloy-primitives",
+ "commonware-codec",
+ "commonware-consensus",
+ "commonware-cryptography",
+ "commonware-macros",
+ "commonware-math",
+ "commonware-p2p",
+ "commonware-parallel",
+ "commonware-runtime",
+ "commonware-utils",
+ "eyre",
+ "futures",
+ "itertools 0.14.0",
+ "jsonrpsee",
+ "magnus-chainspec",
+ "magnus-commonware-node",
+ "magnus-dkg-onchain-artifacts",
+ "magnus-eyre",
+ "magnus-node",
+ "magnus-precompiles",
+ "magnus-primitives",
+ "rand 0.8.5",
+ "reth-chainspec",
+ "reth-db",
+ "reth-ethereum",
+ "reth-node-builder",
+ "reth-node-core",
+ "reth-node-metrics",
+ "reth-rpc-builder",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.23",
+]
+
+[[package]]
+name = "magnus-evm"
+version = "1.6.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-evm",
+ "alloy-primitives",
+ "alloy-rlp",
+ "commonware-codec",
+ "commonware-cryptography",
+ "derive_more",
+ "magnus-chainspec",
+ "magnus-consensus",
+ "magnus-contracts",
+ "magnus-payload-types",
+ "magnus-primitives",
+ "magnus-revm",
+ "rayon",
+ "reth-chainspec",
+ "reth-consensus",
+ "reth-evm",
+ "reth-evm-ethereum",
+ "reth-primitives-traits",
+ "reth-revm",
+ "reth-rpc-eth-api",
+ "reth-storage-api",
+ "revm",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "magnus-ext"
+version = "1.6.0"
+dependencies = [
+ "clap",
+ "dirs-next",
+ "minisign",
+ "minisign-verify",
+ "reqwest 0.13.2",
+ "semver 1.0.28",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "magnus-eyre"
+version = "1.6.0"
+dependencies = [
+ "eyre",
+ "indenter",
+]
+
+[[package]]
+name = "magnus-faucet"
+version = "1.6.0"
+dependencies = [
+ "alloy",
+ "async-trait",
+ "clap",
+ "jsonrpsee",
+ "magnus-alloy",
+ "magnus-precompiles",
+ "reth-rpc-server-types",
+]
+
+[[package]]
+name = "magnus-node"
+version = "1.6.0"
+dependencies = [
+ "alloy",
+ "alloy-eips 2.0.0",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-rlp",
+ "alloy-rpc-types-admin",
+ "alloy-rpc-types-engine",
+ "alloy-rpc-types-eth",
+ "alloy-serde 2.0.0",
+ "async-trait",
+ "base64 0.22.1",
+ "clap",
+ "commonware-runtime",
+ "eyre",
+ "futures",
+ "indexmap 2.14.0",
+ "insta",
+ "jiff",
+ "jsonrpsee",
+ "magnus-alloy",
+ "magnus-chainspec",
+ "magnus-consensus",
+ "magnus-contracts",
+ "magnus-e2e",
+ "magnus-evm",
+ "magnus-payload-builder",
+ "magnus-payload-types",
+ "magnus-precompiles",
+ "magnus-primitives",
+ "magnus-transaction-pool",
+ "p256",
+ "rand 0.9.4",
+ "reqwest 0.13.2",
+ "reth-chainspec",
+ "reth-e2e-test-utils",
+ "reth-errors",
+ "reth-ethereum",
+ "reth-evm",
+ "reth-network-api",
+ "reth-node-api",
+ "reth-node-builder",
+ "reth-node-core",
+ "reth-node-ethereum",
+ "reth-node-metrics",
+ "reth-primitives-traits",
+ "reth-provider",
+ "reth-rpc",
+ "reth-rpc-api",
+ "reth-rpc-builder",
+ "reth-rpc-eth-api",
+ "reth-rpc-eth-types",
+ "reth-tracing",
+ "reth-transaction-pool",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "test-case",
+ "thiserror 2.0.18",
+ "tokio",
+ "url",
+ "vergen",
+ "vergen-git2",
+]
+
+[[package]]
+name = "magnus-payload-builder"
+version = "1.6.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-primitives",
+ "alloy-rlp",
+ "either",
+ "magnus-chainspec",
+ "magnus-consensus",
+ "magnus-evm",
+ "magnus-payload-types",
+ "magnus-precompiles",
+ "magnus-primitives",
+ "magnus-transaction-pool",
+ "metrics",
+ "reth-basic-payload-builder",
+ "reth-chainspec",
+ "reth-consensus-common",
+ "reth-engine-tree",
+ "reth-errors",
+ "reth-evm",
+ "reth-execution-types",
+ "reth-metrics",
+ "reth-payload-builder",
+ "reth-payload-primitives",
+ "reth-primitives-traits",
+ "reth-revm",
+ "reth-storage-api",
+ "reth-transaction-pool",
+ "reth-trie-common",
+ "tracing",
+]
+
+[[package]]
+name = "magnus-payload-types"
+version = "1.6.0"
+dependencies = [
+ "alloy-eips 2.0.0",
+ "alloy-primitives",
+ "alloy-rpc-types-engine",
+ "alloy-rpc-types-eth",
+ "derive_more",
+ "magnus-primitives",
+ "reth-ethereum-engine-primitives",
+ "reth-node-api",
+ "reth-payload-primitives",
+ "reth-primitives-traits",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "magnus-precompiles"
+version = "1.6.0"
+dependencies = [
+ "alloy",
+ "alloy-evm",
+ "alloy-primitives",
+ "alloy-signer",
+ "alloy-signer-local",
+ "commonware-codec",
+ "commonware-cryptography",
+ "criterion 0.8.2",
+ "derive_more",
+ "eyre",
+ "magnus-chainspec",
+ "magnus-contracts",
+ "magnus-evm",
+ "magnus-precompiles-macros",
+ "magnus-primitives",
+ "p256",
+ "proptest",
+ "rand 0.8.5",
+ "revm",
+ "scoped-tls",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "magnus-precompiles-macros"
+version = "1.6.0"
+dependencies = [
+ "alloy",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "magnus-primitives"
+version = "1.6.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips 2.0.0",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-rlp",
+ "alloy-rpc-types-eth",
+ "alloy-serde 2.0.0",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "arbitrary",
+ "aws-lc-rs",
+ "base64 0.22.1",
+ "derive_more",
+ "ed25519-consensus",
+ "magnus-contracts",
+ "modular-bitfield",
+ "once_cell",
+ "p256",
+ "proptest",
+ "proptest-arbitrary-interop",
+ "rand 0.9.4",
+ "reth-codecs",
+ "reth-db-api",
+ "reth-ethereum-primitives",
+ "reth-primitives-traits",
+ "reth-rpc-convert",
+ "revm",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tracing-subscriber 0.3.23",
+]
+
+[[package]]
+name = "magnus-revm"
+version = "1.6.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips 2.0.0",
+ "alloy-evm",
+ "alloy-primitives",
+ "alloy-rlp",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "auto_impl",
+ "base64 0.22.1",
+ "derive_more",
+ "eyre",
+ "magnus-chainspec",
+ "magnus-contracts",
+ "magnus-evm",
+ "magnus-precompiles",
+ "magnus-primitives",
+ "p256",
+ "proptest",
+ "reth-evm",
+ "reth-rpc-eth-types",
+ "reth-storage-api",
+ "revm",
+ "serde",
+ "sha2 0.10.9",
+ "test-case",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "magnus-sidecar"
+version = "1.6.0"
+dependencies = [
+ "alloy",
+ "clap",
+ "eyre",
+ "futures",
+ "hex",
+ "itertools 0.14.0",
+ "magnus-alloy",
+ "magnus-precompiles",
+ "magnus-primitives",
+ "magnus-telemetry-util",
+ "metrics",
+ "metrics-exporter-prometheus",
+ "poem",
+ "rand_distr 0.5.1",
+ "reqwest 0.13.2",
+ "rustls",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.23",
+]
+
+[[package]]
+name = "magnus-telemetry-util"
+version = "1.6.0"
+dependencies = [
+ "eyre",
+ "jiff",
+ "tracing",
+]
+
+[[package]]
+name = "magnus-transaction-pool"
+version = "1.6.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips 2.0.0",
+ "alloy-evm",
+ "alloy-primitives",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-sol-types",
+ "futures",
+ "itertools 0.14.0",
+ "magnus-chainspec",
+ "magnus-contracts",
+ "magnus-evm",
+ "magnus-precompiles",
+ "magnus-primitives",
+ "magnus-revm",
+ "metrics",
+ "parking_lot",
+ "reth-chainspec",
+ "reth-eth-wire-types",
+ "reth-ethereum-primitives",
+ "reth-evm",
+ "reth-metrics",
+ "reth-primitives-traits",
+ "reth-provider",
+ "reth-revm",
+ "reth-storage-api",
+ "reth-tracing",
+ "reth-transaction-pool",
+ "revm",
+ "test-case",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "magnus-validator-config"
+version = "1.6.0"
+dependencies = [
+ "alloy-primitives",
+ "commonware-codec",
+ "commonware-cryptography",
+ "magnus-contracts",
+ "magnus-precompiles",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "magnus-xtask"
+version = "1.6.0"
+dependencies = [
+ "alloy",
+ "alloy-primitives",
+ "clap",
+ "coins-bip32",
+ "commonware-codec",
+ "commonware-consensus",
+ "commonware-cryptography",
+ "commonware-math",
+ "commonware-utils",
+ "const-hex",
+ "eyre",
+ "indicatif",
+ "itertools 0.14.0",
+ "magnus-chainspec",
+ "magnus-commonware-node-config",
+ "magnus-contracts",
+ "magnus-dkg-onchain-artifacts",
+ "magnus-evm",
+ "magnus-precompiles",
+ "magnus-primitives",
+ "magnus-revm",
+ "magnus-validator-config",
+ "rand 0.8.5",
+ "rayon",
+ "reth-evm",
+ "reth-network-peers",
+ "secp256k1 0.30.0",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "mappings"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12265,6 +12927,21 @@ dependencies = [
  "eyre",
  "futures",
  "jiff",
+ "magnus-alloy",
+ "magnus-chainspec",
+ "magnus-commonware-node",
+ "magnus-commonware-node-config",
+ "magnus-consensus",
+ "magnus-contracts",
+ "magnus-dkg-onchain-artifacts",
+ "magnus-evm",
+ "magnus-ext",
+ "magnus-eyre",
+ "magnus-faucet",
+ "magnus-node",
+ "magnus-precompiles",
+ "magnus-primitives",
+ "magnus-validator-config",
  "opentelemetry-otlp",
  "pyroscope",
  "pyroscope_pprofrs",
@@ -12294,688 +12971,11 @@ dependencies = [
  "secp256k1 0.30.0",
  "serde",
  "serde_json",
- "tempo-alloy",
- "tempo-chainspec",
- "tempo-commonware-node",
- "tempo-commonware-node-config",
- "tempo-consensus",
- "tempo-contracts",
- "tempo-dkg-onchain-artifacts",
- "tempo-evm",
- "tempo-ext",
- "tempo-eyre",
- "tempo-faucet",
- "tempo-node",
- "tempo-precompiles",
- "tempo-primitives",
- "tempo-validator-config",
  "tokio",
  "tokio-util",
  "tracing",
  "tracy-client",
  "url",
-]
-
-[[package]]
-name = "tempo-alloy"
-version = "1.6.0"
-dependencies = [
- "alloy",
- "alloy-consensus",
- "alloy-contract",
- "alloy-eips 2.0.0",
- "alloy-network",
- "alloy-primitives",
- "alloy-provider",
- "alloy-rpc-types-eth",
- "alloy-serde 2.0.0",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types",
- "alloy-transport",
- "async-trait",
- "dashmap",
- "derive_more",
- "eyre",
- "futures",
- "reth-evm",
- "reth-primitives-traits",
- "reth-rpc-convert",
- "reth-rpc-eth-types",
- "serde",
- "serde_json",
- "tempo-chainspec",
- "tempo-contracts",
- "tempo-evm",
- "tempo-primitives",
- "tempo-revm",
- "test-case",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "tempo-bench"
-version = "1.6.0"
-dependencies = [
- "alloy",
- "alloy-consensus",
- "clap",
- "eyre",
- "futures",
- "governor",
- "indicatif",
- "itertools 0.14.0",
- "mimalloc",
- "rand 0.8.5",
- "rand 0.9.4",
- "rayon",
- "reth-tracing",
- "rlimit",
- "serde",
- "serde_json",
- "tempo-alloy",
- "tempo-contracts",
- "tempo-precompiles",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
-name = "tempo-chainspec"
-version = "1.5.3"
-dependencies = [
- "alloy-eips 2.0.0",
- "alloy-evm",
- "alloy-genesis",
- "alloy-hardforks",
- "alloy-primitives",
- "eyre",
- "once_cell",
- "paste",
- "reth-chainspec",
- "reth-cli",
- "reth-network-peers",
- "serde",
- "serde_json",
- "tempo-primitives",
-]
-
-[[package]]
-name = "tempo-commonware-node"
-version = "1.6.0"
-dependencies = [
- "alloy-consensus",
- "alloy-primitives",
- "alloy-rlp",
- "alloy-rpc-types-engine",
- "axum",
- "bytes",
- "clap",
- "commonware-broadcast",
- "commonware-codec",
- "commonware-consensus",
- "commonware-cryptography",
- "commonware-macros",
- "commonware-math",
- "commonware-p2p",
- "commonware-parallel",
- "commonware-runtime",
- "commonware-storage",
- "commonware-utils",
- "eyre",
- "futures",
- "governor",
- "indexmap 2.14.0",
- "jiff",
- "parking_lot",
- "pin-project",
- "prometheus-client",
- "rand 0.8.5",
- "rand_core 0.6.4",
- "reth-consensus-common",
- "reth-ethereum",
- "reth-evm",
- "reth-node-builder",
- "reth-node-core",
- "reth-primitives-traits",
- "reth-provider",
- "reth-revm",
- "tempo-alloy",
- "tempo-chainspec",
- "tempo-commonware-node-config",
- "tempo-dkg-onchain-artifacts",
- "tempo-node",
- "tempo-payload-types",
- "tempo-precompiles",
- "tempo-primitives",
- "tempo-telemetry-util",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "tempo-commonware-node-config"
-version = "1.6.0"
-dependencies = [
- "commonware-codec",
- "commonware-cryptography",
- "commonware-utils",
- "const-hex",
- "rand 0.8.5",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "tempo-consensus"
-version = "1.6.0"
-dependencies = [
- "alloy-consensus",
- "alloy-evm",
- "alloy-genesis",
- "alloy-primitives",
- "reth-chainspec",
- "reth-consensus",
- "reth-consensus-common",
- "reth-ethereum-consensus",
- "reth-primitives-traits",
- "serde_json",
- "tempo-chainspec",
- "tempo-primitives",
-]
-
-[[package]]
-name = "tempo-contracts"
-version = "1.6.0"
-dependencies = [
- "alloy-contract",
- "alloy-primitives",
- "alloy-provider",
- "alloy-sol-types",
- "serde",
- "tokio",
-]
-
-[[package]]
-name = "tempo-dkg-onchain-artifacts"
-version = "1.6.0"
-dependencies = [
- "bytes",
- "commonware-codec",
- "commonware-consensus",
- "commonware-cryptography",
- "commonware-math",
- "commonware-utils",
- "modular-bitfield",
- "rand 0.8.5",
-]
-
-[[package]]
-name = "tempo-e2e"
-version = "1.6.0"
-dependencies = [
- "alloy",
- "alloy-evm",
- "alloy-genesis",
- "alloy-network",
- "alloy-primitives",
- "commonware-codec",
- "commonware-consensus",
- "commonware-cryptography",
- "commonware-macros",
- "commonware-math",
- "commonware-p2p",
- "commonware-parallel",
- "commonware-runtime",
- "commonware-utils",
- "eyre",
- "futures",
- "itertools 0.14.0",
- "jsonrpsee",
- "rand 0.8.5",
- "reth-chainspec",
- "reth-db",
- "reth-ethereum",
- "reth-node-builder",
- "reth-node-core",
- "reth-node-metrics",
- "reth-rpc-builder",
- "serde_json",
- "tempfile",
- "tempo-chainspec",
- "tempo-commonware-node",
- "tempo-dkg-onchain-artifacts",
- "tempo-eyre",
- "tempo-node",
- "tempo-precompiles",
- "tempo-primitives",
- "tokio",
- "tracing",
- "tracing-subscriber 0.3.23",
-]
-
-[[package]]
-name = "tempo-evm"
-version = "1.6.0"
-dependencies = [
- "alloy-consensus",
- "alloy-evm",
- "alloy-primitives",
- "alloy-rlp",
- "commonware-codec",
- "commonware-cryptography",
- "derive_more",
- "rayon",
- "reth-chainspec",
- "reth-consensus",
- "reth-evm",
- "reth-evm-ethereum",
- "reth-primitives-traits",
- "reth-revm",
- "reth-rpc-eth-api",
- "reth-storage-api",
- "revm",
- "tempo-chainspec",
- "tempo-consensus",
- "tempo-contracts",
- "tempo-payload-types",
- "tempo-primitives",
- "tempo-revm",
- "thiserror 2.0.18",
- "tracing",
-]
-
-[[package]]
-name = "tempo-ext"
-version = "1.6.0"
-dependencies = [
- "clap",
- "dirs-next",
- "minisign",
- "minisign-verify",
- "reqwest 0.13.2",
- "semver 1.0.28",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
- "thiserror 2.0.18",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "tempo-eyre"
-version = "1.6.0"
-dependencies = [
- "eyre",
- "indenter",
-]
-
-[[package]]
-name = "tempo-faucet"
-version = "1.6.0"
-dependencies = [
- "alloy",
- "async-trait",
- "clap",
- "jsonrpsee",
- "reth-rpc-server-types",
- "tempo-alloy",
- "tempo-precompiles",
-]
-
-[[package]]
-name = "tempo-node"
-version = "1.6.0"
-dependencies = [
- "alloy",
- "alloy-eips 2.0.0",
- "alloy-network",
- "alloy-primitives",
- "alloy-rlp",
- "alloy-rpc-types-admin",
- "alloy-rpc-types-engine",
- "alloy-rpc-types-eth",
- "alloy-serde 2.0.0",
- "async-trait",
- "base64 0.22.1",
- "clap",
- "commonware-runtime",
- "eyre",
- "futures",
- "indexmap 2.14.0",
- "insta",
- "jiff",
- "jsonrpsee",
- "p256",
- "rand 0.9.4",
- "reqwest 0.13.2",
- "reth-chainspec",
- "reth-e2e-test-utils",
- "reth-errors",
- "reth-ethereum",
- "reth-evm",
- "reth-network-api",
- "reth-node-api",
- "reth-node-builder",
- "reth-node-core",
- "reth-node-ethereum",
- "reth-node-metrics",
- "reth-primitives-traits",
- "reth-provider",
- "reth-rpc",
- "reth-rpc-api",
- "reth-rpc-builder",
- "reth-rpc-eth-api",
- "reth-rpc-eth-types",
- "reth-tracing",
- "reth-transaction-pool",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempo-alloy",
- "tempo-chainspec",
- "tempo-consensus",
- "tempo-contracts",
- "tempo-e2e",
- "tempo-evm",
- "tempo-payload-builder",
- "tempo-payload-types",
- "tempo-precompiles",
- "tempo-primitives",
- "tempo-transaction-pool",
- "test-case",
- "thiserror 2.0.18",
- "tokio",
- "url",
- "vergen",
- "vergen-git2",
-]
-
-[[package]]
-name = "tempo-payload-builder"
-version = "1.6.0"
-dependencies = [
- "alloy-consensus",
- "alloy-primitives",
- "alloy-rlp",
- "either",
- "metrics",
- "reth-basic-payload-builder",
- "reth-chainspec",
- "reth-consensus-common",
- "reth-engine-tree",
- "reth-errors",
- "reth-evm",
- "reth-execution-types",
- "reth-metrics",
- "reth-payload-builder",
- "reth-payload-primitives",
- "reth-primitives-traits",
- "reth-revm",
- "reth-storage-api",
- "reth-transaction-pool",
- "reth-trie-common",
- "tempo-chainspec",
- "tempo-consensus",
- "tempo-evm",
- "tempo-payload-types",
- "tempo-precompiles",
- "tempo-primitives",
- "tempo-transaction-pool",
- "tracing",
-]
-
-[[package]]
-name = "tempo-payload-types"
-version = "1.6.0"
-dependencies = [
- "alloy-eips 2.0.0",
- "alloy-primitives",
- "alloy-rpc-types-engine",
- "alloy-rpc-types-eth",
- "derive_more",
- "reth-ethereum-engine-primitives",
- "reth-node-api",
- "reth-payload-primitives",
- "reth-primitives-traits",
- "serde",
- "serde_json",
- "tempo-primitives",
-]
-
-[[package]]
-name = "tempo-precompiles"
-version = "1.6.0"
-dependencies = [
- "alloy",
- "alloy-evm",
- "alloy-primitives",
- "alloy-signer",
- "alloy-signer-local",
- "commonware-codec",
- "commonware-cryptography",
- "criterion 0.8.2",
- "derive_more",
- "eyre",
- "p256",
- "proptest",
- "rand 0.8.5",
- "revm",
- "scoped-tls",
- "serde",
- "serde_json",
- "tempo-chainspec",
- "tempo-contracts",
- "tempo-evm",
- "tempo-precompiles-macros",
- "tempo-primitives",
- "thiserror 2.0.18",
- "tracing",
-]
-
-[[package]]
-name = "tempo-precompiles-macros"
-version = "1.6.0"
-dependencies = [
- "alloy",
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "tempo-primitives"
-version = "1.6.0"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.0",
- "alloy-network",
- "alloy-primitives",
- "alloy-rlp",
- "alloy-rpc-types-eth",
- "alloy-serde 2.0.0",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types",
- "arbitrary",
- "aws-lc-rs",
- "base64 0.22.1",
- "derive_more",
- "ed25519-consensus",
- "modular-bitfield",
- "once_cell",
- "p256",
- "proptest",
- "proptest-arbitrary-interop",
- "rand 0.9.4",
- "reth-codecs",
- "reth-db-api",
- "reth-ethereum-primitives",
- "reth-primitives-traits",
- "reth-rpc-convert",
- "revm",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempo-contracts",
- "tracing-subscriber 0.3.23",
-]
-
-[[package]]
-name = "tempo-revm"
-version = "1.6.0"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.0",
- "alloy-evm",
- "alloy-primitives",
- "alloy-rlp",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types",
- "auto_impl",
- "base64 0.22.1",
- "derive_more",
- "eyre",
- "p256",
- "proptest",
- "reth-evm",
- "reth-rpc-eth-types",
- "reth-storage-api",
- "revm",
- "serde",
- "sha2 0.10.9",
- "tempo-chainspec",
- "tempo-contracts",
- "tempo-evm",
- "tempo-precompiles",
- "tempo-primitives",
- "test-case",
- "thiserror 2.0.18",
- "tracing",
-]
-
-[[package]]
-name = "tempo-sidecar"
-version = "1.6.0"
-dependencies = [
- "alloy",
- "clap",
- "eyre",
- "futures",
- "hex",
- "itertools 0.14.0",
- "metrics",
- "metrics-exporter-prometheus",
- "poem",
- "rand_distr 0.5.1",
- "reqwest 0.13.2",
- "rustls",
- "tempo-alloy",
- "tempo-precompiles",
- "tempo-primitives",
- "tempo-telemetry-util",
- "tokio",
- "tracing",
- "tracing-subscriber 0.3.23",
-]
-
-[[package]]
-name = "tempo-telemetry-util"
-version = "1.6.0"
-dependencies = [
- "eyre",
- "jiff",
- "tracing",
-]
-
-[[package]]
-name = "tempo-transaction-pool"
-version = "1.6.0"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.0",
- "alloy-evm",
- "alloy-primitives",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-sol-types",
- "futures",
- "itertools 0.14.0",
- "metrics",
- "parking_lot",
- "reth-chainspec",
- "reth-eth-wire-types",
- "reth-ethereum-primitives",
- "reth-evm",
- "reth-metrics",
- "reth-primitives-traits",
- "reth-provider",
- "reth-revm",
- "reth-storage-api",
- "reth-tracing",
- "reth-transaction-pool",
- "revm",
- "tempo-chainspec",
- "tempo-contracts",
- "tempo-evm",
- "tempo-precompiles",
- "tempo-primitives",
- "tempo-revm",
- "test-case",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "tempo-validator-config"
-version = "1.6.0"
-dependencies = [
- "alloy-primitives",
- "commonware-codec",
- "commonware-cryptography",
- "tempo-contracts",
- "tempo-precompiles",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "tempo-xtask"
-version = "1.6.0"
-dependencies = [
- "alloy",
- "alloy-primitives",
- "clap",
- "coins-bip32",
- "commonware-codec",
- "commonware-consensus",
- "commonware-cryptography",
- "commonware-math",
- "commonware-utils",
- "const-hex",
- "eyre",
- "indicatif",
- "itertools 0.14.0",
- "rand 0.8.5",
- "rayon",
- "reth-evm",
- "reth-network-peers",
- "secp256k1 0.30.0",
- "serde",
- "serde_json",
- "tempo-chainspec",
- "tempo-commonware-node-config",
- "tempo-contracts",
- "tempo-dkg-onchain-artifacts",
- "tempo-evm",
- "tempo-precompiles",
- "tempo-primitives",
- "tempo-revm",
- "tempo-validator-config",
- "tokio",
 ]
 
 [[package]]

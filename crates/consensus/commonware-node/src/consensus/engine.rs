@@ -30,7 +30,7 @@ use commonware_utils::{NZU16, NZU64, NZUsize};
 use eyre::{OptionExt as _, WrapErr as _};
 use futures::future::try_join_all;
 use rand_08::{CryptoRng, Rng};
-use tempo_node::TempoFullNode;
+use magnus_node::TempoFullNode;
 use tracing::info;
 
 use crate::{

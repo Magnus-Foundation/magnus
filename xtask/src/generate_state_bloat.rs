@@ -23,8 +23,8 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-use tempo_precompiles::tip20::tip20_slots;
-use tempo_primitives::transaction::TIP20_PAYMENT_PREFIX;
+use magnus_precompiles::tip20::tip20_slots;
+use magnus_primitives::transaction::TIP20_PAYMENT_PREFIX;
 
 /// Magic bytes for the state bloat binary format (8 bytes)
 const MAGIC: &[u8; 8] = b"TEMPOSB\x00";

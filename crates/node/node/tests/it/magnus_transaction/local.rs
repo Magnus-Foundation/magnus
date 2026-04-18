@@ -23,19 +23,19 @@ use reth_ethereum::network::{NetworkSyncUpdater, SyncState};
 use reth_node_api::BuiltPayload;
 use reth_primitives_traits::transaction::TxHashRef;
 use reth_transaction_pool::TransactionPool;
-use tempo_alloy::TempoNetwork;
-use tempo_chainspec::{hardfork::TempoHardfork, spec::TEMPO_T1_BASE_FEE};
-use tempo_contracts::precompiles::{
+use magnus_alloy::TempoNetwork;
+use magnus_chainspec::{hardfork::TempoHardfork, spec::TEMPO_T1_BASE_FEE};
+use magnus_contracts::precompiles::{
     DEFAULT_FEE_TOKEN, account_keychain::IAccountKeychain::revokeKeyCall,
 };
-use tempo_precompiles::{
+use magnus_precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS,
     tip20::ITIP20::{self},
 };
-use tempo_primitives::{
+use magnus_primitives::{
     TempoTransaction, TempoTxEnvelope,
     transaction::{
-        tempo_transaction::Call,
+        magnus_transaction::Call,
         tt_signature::{KeychainSignature, PrimitiveSignature, TempoSignature, WebAuthnSignature},
         tt_signed::AASigned,
     },
@@ -1494,7 +1494,7 @@ async fn test_aa_keychain_revocation_toctou_dos() -> eyre::Result<()> {
     submit_and_mine_aa_tx(&mut setup, revoke_tx, revoke_sig).await?;
 
     // Verify the key is actually revoked by querying the keychain
-    use tempo_contracts::precompiles::account_keychain::IAccountKeychain::IAccountKeychainInstance;
+    use magnus_contracts::precompiles::account_keychain::IAccountKeychain::IAccountKeychainInstance;
     let keychain = IAccountKeychainInstance::new(ACCOUNT_KEYCHAIN_ADDRESS, &provider);
     let key_info = keychain.getKey(root_addr, access_key_addr).call().await?;
     assert!(key_info.isRevoked, "Key should be marked as revoked");
@@ -1633,7 +1633,7 @@ async fn test_aa_expiring_nonce_replay_protection() -> eyre::Result<()> {
 /// 4. Transactions should be evicted from the mempool
 #[tokio::test]
 async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
-    use tempo_precompiles::account_keychain::updateSpendingLimitCall;
+    use magnus_precompiles::account_keychain::updateSpendingLimitCall;
 
     reth_tracing::init_test_tracing();
 
@@ -1679,7 +1679,7 @@ async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
         create_mock_p256_sig(access_pub_x, access_pub_y),
         chain_id,
         None, // Never expires
-        Some(vec![tempo_primitives::transaction::TokenLimit {
+        Some(vec![magnus_primitives::transaction::TokenLimit {
             token: DEFAULT_FEE_TOKEN,
             limit: initial_spending_limit,
             period: 0,
@@ -1852,7 +1852,7 @@ async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
     Ok(())
 }
 
-/// V1 keychain signature inside `tempo_authorization_list` must be rejected post-T1C.
+/// V1 keychain signature inside `magnus_authorization_list` must be rejected post-T1C.
 /// Outer sig is a normal secp256k1 primitive, only the auth list entry carries V1 keychain.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_v1_keychain_in_auth_list_rejected_post_t1c() -> eyre::Result<()> {
@@ -1878,7 +1878,7 @@ async fn test_v1_keychain_in_auth_list_rejected_post_t1c() -> eyre::Result<()> {
         Address::random(), // arbitrary user_address
         PrimitiveSignature::Secp256k1(inner_signature),
     ));
-    let auth_signed = tempo_primitives::transaction::TempoSignedAuthorization::new_unchecked(
+    let auth_signed = magnus_primitives::transaction::TempoSignedAuthorization::new_unchecked(
         auth,
         v1_keychain_sig,
     );
@@ -1891,7 +1891,7 @@ async fn test_v1_keychain_in_auth_list_rejected_post_t1c() -> eyre::Result<()> {
         vec![create_balance_of_call(sender_addr)],
         2_000_000,
     );
-    tx.tempo_authorization_list = vec![auth_signed];
+    tx.magnus_authorization_list = vec![auth_signed];
 
     let outer_sig = sign_aa_tx_secp256k1(&tx, &sender_signer)?;
     let envelope: TempoTxEnvelope = AASigned::new_unhashed(tx, outer_sig).into();

@@ -13,17 +13,17 @@ use reth_primitives_traits::Recovered;
 use reth_provider::test_utils::{ExtendedAccount, MockEthProvider};
 use reth_transaction_pool::{TransactionOrigin, ValidPoolTransaction};
 use std::time::Instant;
-use tempo_chainspec::{
+use magnus_chainspec::{
     TempoChainSpec,
     hardfork::TempoHardfork,
     spec::{DEV, MODERATO},
 };
-use tempo_precompiles::storage::{StorageCtx, hashmap::HashMapStorageProvider};
-use tempo_primitives::{
+use magnus_precompiles::storage::{StorageCtx, hashmap::HashMapStorageProvider};
+use magnus_primitives::{
     TempoPrimitives, TempoTxEnvelope,
     transaction::{
         TempoSignedAuthorization, TempoTransaction,
-        tempo_transaction::Call,
+        magnus_transaction::Call,
         tt_signature::{KeychainVersion, PrimitiveSignature, TempoSignature},
         tt_signed::AASigned,
     },
@@ -208,7 +208,7 @@ impl TxBuilder {
             valid_after: self.valid_after,
             valid_before: self.valid_before,
             access_list: self.access_list,
-            tempo_authorization_list: self.authorization_list.unwrap_or_default(),
+            magnus_authorization_list: self.authorization_list.unwrap_or_default(),
             key_authorization: None,
         };
 
@@ -241,7 +241,7 @@ impl TxBuilder {
         version: KeychainVersion,
     ) -> TempoPooledTransaction {
         use alloy_signer::SignerSync;
-        use tempo_primitives::transaction::tt_signature::KeychainSignature;
+        use magnus_primitives::transaction::tt_signature::KeychainSignature;
 
         let calls = self.calls.unwrap_or_else(|| {
             vec![Call {
@@ -264,7 +264,7 @@ impl TxBuilder {
             valid_after: self.valid_after,
             valid_before: self.valid_before,
             access_list: self.access_list,
-            tempo_authorization_list: self.authorization_list.unwrap_or_default(),
+            magnus_authorization_list: self.authorization_list.unwrap_or_default(),
             key_authorization: None,
         };
 

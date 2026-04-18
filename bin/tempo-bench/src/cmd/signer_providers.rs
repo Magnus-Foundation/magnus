@@ -10,7 +10,7 @@ use alloy::{
 };
 use indicatif::ProgressIterator;
 use rand::seq::IndexedRandom;
-use tempo_alloy::TempoNetwork;
+use magnus_alloy::TempoNetwork;
 
 type BenchProvider<F> = FillProvider<F, RootProvider<TempoNetwork>, TempoNetwork>;
 type UnsignedProviderFactory<F> =

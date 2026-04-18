@@ -8,11 +8,11 @@
 pub mod dispatch;
 
 use crate::StorageCtx;
-pub use tempo_contracts::precompiles::{
+pub use magnus_contracts::precompiles::{
     ITIP403Registry::{self, PolicyType},
     TIP403RegistryError, TIP403RegistryEvent,
 };
-use tempo_precompiles_macros::{Storable, contract};
+use magnus_precompiles_macros::{Storable, contract};
 
 use crate::{
     TIP403_REGISTRY_ADDRESS,
@@ -20,7 +20,7 @@ use crate::{
     storage::{Handler, Mapping},
 };
 use alloy::primitives::Address;
-use tempo_primitives::TempoAddressExt;
+use magnus_primitives::TempoAddressExt;
 
 /// Built-in policy ID that always rejects authorization.
 pub const REJECT_ALL_POLICY_ID: u64 = 0;
@@ -746,9 +746,9 @@ mod tests {
         sol_types::SolEvent,
     };
     use rand_08::Rng;
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::TIP403_REGISTRY_ADDRESS;
-    use tempo_primitives::{MasterId, TempoAddressExt, UserTag};
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::TIP403_REGISTRY_ADDRESS;
+    use magnus_primitives::{MasterId, TempoAddressExt, UserTag};
 
     #[test]
     fn test_create_policy() -> eyre::Result<()> {

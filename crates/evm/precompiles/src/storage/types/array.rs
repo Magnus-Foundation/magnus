@@ -13,7 +13,7 @@
 
 use alloy::primitives::{Address, U256};
 use std::ops::{Index, IndexMut};
-use tempo_precompiles_macros;
+use magnus_precompiles_macros;
 
 use crate::{
     error::Result,
@@ -24,9 +24,9 @@ use crate::{
 };
 
 // fixed-size arrays: [T; N] for primitive types T and sizes 1-32
-tempo_precompiles_macros::storable_arrays!();
+magnus_precompiles_macros::storable_arrays!();
 // nested arrays: [[T; M]; N] for small primitive types
-tempo_precompiles_macros::storable_nested_arrays!();
+magnus_precompiles_macros::storable_nested_arrays!();
 
 /// Type-safe handler for accessing fixed-size arrays `[T; N]` in storage.
 ///

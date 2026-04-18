@@ -31,16 +31,16 @@ use reth_chainspec::EthChainSpec;
 use reth_cli_runner::CliRunner;
 use reth_ethereum_cli::ExtendedCommand;
 use serde::Serialize;
-use tempo_alloy::TempoNetwork;
-use tempo_chainspec::spec::{TempoChainSpec, TempoChainSpecParser};
-use tempo_commonware_node_config::SigningKey;
-use tempo_contracts::precompiles::{
+use magnus_alloy::TempoNetwork;
+use magnus_chainspec::spec::{TempoChainSpec, TempoChainSpecParser};
+use magnus_commonware_node_config::SigningKey;
+use magnus_contracts::precompiles::{
     IValidatorConfigV2::{self, Validator},
     VALIDATOR_CONFIG_V2_ADDRESS,
 };
-use tempo_dkg_onchain_artifacts::OnchainDkgOutcome;
-use tempo_precompiles::validator_config_v2::{VALIDATOR_NS_ADD, VALIDATOR_NS_ROTATE};
-use tempo_validator_config::ValidatorConfig;
+use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
+use magnus_precompiles::validator_config_v2::{VALIDATOR_NS_ADD, VALIDATOR_NS_ROTATE};
+use magnus_validator_config::ValidatorConfig;
 
 use crate::{init_state, p2p_proxy::P2pProxyArgs};
 
@@ -51,7 +51,7 @@ fn get_env(key: &str) -> eyre::Result<String> {
 /// Passthrough args for extension management commands.
 ///
 /// These commands are defined here so they appear in `tempo --help`, but
-/// the actual implementation lives in `tempo_ext::run()`. We capture all
+/// the actual implementation lives in `magnus_ext::run()`. We capture all
 /// trailing arguments and re-dispatch.
 #[derive(Debug, clap::Args)]
 pub(crate) struct ExtArgs {
@@ -112,12 +112,12 @@ impl ExtendedCommand for TempoSubcommand {
             Self::InitFromBinaryDump(cmd) => {
                 let runtime = runner.runtime();
                 runner.run_blocking_until_ctrl_c(
-                    cmd.execute::<tempo_node::node::TempoNode>(runtime),
+                    cmd.execute::<magnus_node::node::TempoNode>(runtime),
                 )?;
                 Ok(())
             }
             Self::Add(_) | Self::Update(_) | Self::Remove(_) | Self::List(_) => {
-                let code = tempo_ext::run(std::env::args_os()).map_err(|e| eyre!("{e}"))?;
+                let code = magnus_ext::run(std::env::args_os()).map_err(|e| eyre!("{e}"))?;
                 if code != 0 {
                     std::process::exit(code);
                 }
@@ -901,7 +901,7 @@ pub(crate) struct ValidatorInfo {
 
     /// Chain spec override for local/unknown chains (mainnet, testnet, moderato, or path to
     /// chainspec file). Resolved automatically from the RPC chain id when omitted.
-    #[arg(long, short, value_parser = tempo_chainspec::spec::chain_value_parser)]
+    #[arg(long, short, value_parser = magnus_chainspec::spec::chain_value_parser)]
     chain: Option<Arc<TempoChainSpec>>,
 
     /// Skip crosschecking the validator with the last DKG round.
@@ -940,7 +940,7 @@ impl ValidatorInfo {
                 }
                 chain
             }
-            None => tempo_chainspec::spec::chainspec_from_chain_id(chain_id)
+            None => magnus_chainspec::spec::chainspec_from_chain_id(chain_id)
                 .ok_or_else(|| eyre!("unknown chain id {chain_id}, pass --chain explicitly"))?,
         };
 
@@ -1087,7 +1087,7 @@ pub(crate) struct ValidatorsInfo {
 
     /// Chain spec override for local/unknown chains (mainnet, testnet, moderato, or path to
     /// chainspec file). Resolved automatically from the RPC chain id when omitted.
-    #[arg(long, short, value_parser = tempo_chainspec::spec::chain_value_parser)]
+    #[arg(long, short, value_parser = magnus_chainspec::spec::chain_value_parser)]
     chain: Option<Arc<TempoChainSpec>>,
 }
 
@@ -1116,7 +1116,7 @@ impl ValidatorsInfo {
                 }
                 chain
             }
-            None => tempo_chainspec::spec::chainspec_from_chain_id(chain_id)
+            None => magnus_chainspec::spec::chainspec_from_chain_id(chain_id)
                 .ok_or_else(|| eyre!("unknown chain id {chain_id}, pass --chain explicitly"))?,
         };
 
@@ -1251,7 +1251,7 @@ mod tests {
     use clap::Parser;
     use reth_ethereum_cli::Cli;
     use reth_rpc_server_types::{RethRpcModule, RpcModuleSelection, RpcModuleValidator};
-    use tempo_chainspec::spec::TempoChainSpecParser;
+    use magnus_chainspec::spec::TempoChainSpecParser;
 
     type TempoCli = Cli<
         TempoChainSpecParser,
@@ -1313,7 +1313,7 @@ mod tests {
     }
 
     #[test]
-    fn tempo_rpc_module_validator_allows_tempo_custom_modules() {
+    fn magnus_rpc_module_validator_allows_tempo_custom_modules() {
         for module in ["consensus", "operator", "tempo", "token"] {
             let selection = crate::TempoRpcModuleValidator::parse_selection(module).unwrap();
 
@@ -1325,7 +1325,7 @@ mod tests {
     }
 
     #[test]
-    fn tempo_rpc_module_validator_rejects_unknown_modules() {
+    fn magnus_rpc_module_validator_rejects_unknown_modules() {
         let err = crate::TempoRpcModuleValidator::parse_selection("not-a-real-module").unwrap_err();
 
         assert!(err.contains("Unknown RPC module: 'not-a-real-module'"));

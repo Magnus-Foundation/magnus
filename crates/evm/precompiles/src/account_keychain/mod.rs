@@ -11,8 +11,8 @@ pub mod dispatch;
 use std::collections::HashSet;
 
 use alloy::sol_types::SolCall;
-use tempo_contracts::precompiles::{AccountKeychainError, AccountKeychainEvent, ITIP20};
-pub use tempo_contracts::precompiles::{
+use magnus_contracts::precompiles::{AccountKeychainError, AccountKeychainEvent, ITIP20};
+pub use magnus_contracts::precompiles::{
     IAccountKeychain,
     IAccountKeychain::{
         CallScope, KeyInfo, KeyRestrictions, SelectorRule, SignatureType, TokenLimit,
@@ -30,7 +30,7 @@ use crate::{
     tip20_factory::TIP20Factory,
 };
 use alloy::primitives::{Address, B256, FixedBytes, TxKind, U256, keccak256};
-use tempo_precompiles_macros::{Storable, contract};
+use magnus_precompiles_macros::{Storable, contract};
 
 /// Allowed TIP-20 selectors for recipient-constrained rules.
 const TIP20_TRANSFER_SELECTOR: [u8; 4] = ITIP20::transferCall::SELECTOR;
@@ -1305,8 +1305,8 @@ mod tests {
     };
     use alloy::primitives::{Address, B256, TxKind, U256};
     use revm::state::Bytecode;
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::{DEFAULT_FEE_TOKEN, IAccountKeychain::SignatureType};
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::{DEFAULT_FEE_TOKEN, IAccountKeychain::SignatureType};
 
     // Helper function to assert unauthorized error
     fn assert_unauthorized_error(error: TempoPrecompileError) {

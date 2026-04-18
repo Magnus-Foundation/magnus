@@ -12,8 +12,8 @@ pub mod dispatch;
 pub mod rewards;
 pub mod roles;
 
-use tempo_contracts::precompiles::STABLECOIN_DEX_ADDRESS;
-pub use tempo_contracts::precompiles::{
+use magnus_contracts::precompiles::STABLECOIN_DEX_ADDRESS;
+pub use magnus_contracts::precompiles::{
     IRolesAuth, ITIP20, RolesAuthError, RolesAuthEvent, TIP20Error, TIP20Event, USD_CURRENCY,
 };
 
@@ -35,15 +35,15 @@ use alloy::{
     sol_types::SolValue,
 };
 use std::sync::LazyLock;
-use tempo_precompiles_macros::contract;
-use tempo_primitives::TempoAddressExt;
-pub use tempo_primitives::is_tip20_prefix;
+use magnus_precompiles_macros::contract;
+use magnus_primitives::TempoAddressExt;
+pub use magnus_primitives::is_tip20_prefix;
 use tracing::trace;
 
 /// u128::MAX as U256
 pub const U128_MAX: U256 = uint!(0xffffffffffffffffffffffffffffffff_U256);
 
-use tempo_contracts::precompiles::DECIMALS as TIP20_DECIMALS;
+use magnus_contracts::precompiles::DECIMALS as TIP20_DECIMALS;
 
 /// Validates that the given token's currency is `"USD"`.
 ///
@@ -1209,7 +1209,7 @@ mod recipient_tests {
         test_util::{VIRTUAL_MASTER, register_virtual_master},
     };
     use alloy::primitives::{Address, U256};
-    use tempo_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::TempoHardfork;
 
     #[test]
     fn test_resolve() -> eyre::Result<()> {
@@ -1317,7 +1317,7 @@ mod recipient_tests {
 #[cfg(test)]
 pub(crate) mod tests {
     use alloy::primitives::{Address, FixedBytes, IntoLogData, U256, hex};
-    use tempo_contracts::precompiles::ITIP20Factory;
+    use magnus_contracts::precompiles::ITIP20Factory;
 
     use super::*;
     use crate::{
@@ -1332,7 +1332,7 @@ pub(crate) mod tests {
         test_util::{TIP20Setup, VIRTUAL_MASTER, register_virtual_master, setup_storage},
     };
     use rand_08::{Rng, distributions::Alphanumeric, thread_rng};
-    use tempo_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::TempoHardfork;
 
     #[test]
     fn test_mint_increases_balance_and_supply() -> eyre::Result<()> {
@@ -2517,7 +2517,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_is_transfer_authorized() -> eyre::Result<()> {
-        use tempo_chainspec::hardfork::TempoHardfork;
+        use magnus_chainspec::hardfork::TempoHardfork;
 
         let admin = Address::random();
         let sender = Address::random();
@@ -2926,7 +2926,7 @@ pub(crate) mod tests {
         use alloy::sol_types::SolValue;
         use alloy_signer::SignerSync;
         use alloy_signer_local::PrivateKeySigner;
-        use tempo_chainspec::hardfork::TempoHardfork;
+        use magnus_chainspec::hardfork::TempoHardfork;
 
         const CHAIN_ID: u64 = 42;
 

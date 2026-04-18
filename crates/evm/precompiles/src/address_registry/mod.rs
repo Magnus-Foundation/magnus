@@ -16,9 +16,9 @@ use alloy::{
     primitives::{Address, FixedBytes, keccak256},
     sol_types::SolValue,
 };
-pub use tempo_contracts::precompiles::{AddrRegistryError, AddrRegistryEvent, IAddressRegistry};
-use tempo_precompiles_macros::{Storable, contract};
-pub use tempo_primitives::{MasterId, TempoAddressExt, UserTag};
+pub use magnus_contracts::precompiles::{AddrRegistryError, AddrRegistryEvent, IAddressRegistry};
+use magnus_precompiles_macros::{Storable, contract};
+pub use magnus_primitives::{MasterId, TempoAddressExt, UserTag};
 
 /// [TIP-1022] virtual address registry contract.
 ///
@@ -166,7 +166,7 @@ mod tests {
         test_util::{VIRTUAL_MASTER, VIRTUAL_SALT},
     };
     use alloy_primitives::hex_literal::hex;
-    use tempo_chainspec::hardfork::TempoHardfork;
+    use magnus_chainspec::hardfork::TempoHardfork;
 
     #[test]
     fn test_register_virtual_master() -> eyre::Result<()> {

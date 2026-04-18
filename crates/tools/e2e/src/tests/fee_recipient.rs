@@ -17,7 +17,7 @@ const FALLBACK_FEE_RECIPIENT: Address = Address::new([0xCC; 20]);
 /// across a `setFeeRecipient` update.
 #[test_traced]
 fn block_beneficiary_follows_v2_fee_recipient() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let setup = Setup::new()
         .how_many_signers(1)
@@ -82,7 +82,7 @@ fn block_beneficiary_follows_v2_fee_recipient() {
 /// the node falls back to the CLI-configured fee recipient.
 #[test_traced]
 fn falls_back_to_cli_fee_recipient_when_onchain_is_zero() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let setup = Setup::new()
         .how_many_signers(1)

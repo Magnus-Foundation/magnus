@@ -2,9 +2,9 @@ pub mod dispatch;
 
 use crate::{SIGNATURE_VERIFIER_ADDRESS, error::Result};
 use alloy::primitives::{Address, B256, Bytes};
-use tempo_contracts::precompiles::SignatureVerifierError;
-use tempo_precompiles_macros::contract;
-use tempo_primitives::transaction::{SignatureType, tt_signature::PrimitiveSignature};
+use magnus_contracts::precompiles::SignatureVerifierError;
+use magnus_precompiles_macros::contract;
+use magnus_primitives::transaction::{SignatureType, tt_signature::PrimitiveSignature};
 
 /// Gas cost for secp256k1 signature verification.
 const SECP256K1_VERIFY_GAS: u64 = 3_000;
@@ -48,8 +48,8 @@ mod tests {
     use crate::storage::{StorageCtx, hashmap::HashMapStorageProvider};
     use alloy_signer::SignerSync;
     use alloy_signer_local::PrivateKeySigner;
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_primitives::transaction::tt_signature::{
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_primitives::transaction::tt_signature::{
         SIGNATURE_TYPE_P256, SIGNATURE_TYPE_WEBAUTHN,
     };
 
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn test_verify_p256_valid() -> eyre::Result<()> {
         use p256::{ecdsa::SigningKey, elliptic_curve::rand_core::OsRng};
-        use tempo_primitives::transaction::tt_signature::{derive_p256_address, normalize_p256_s};
+        use magnus_primitives::transaction::tt_signature::{derive_p256_address, normalize_p256_s};
 
         let mut storage = HashMapStorageProvider::new_with_spec(1, TempoHardfork::T3);
         StorageCtx::enter(&mut storage, || {

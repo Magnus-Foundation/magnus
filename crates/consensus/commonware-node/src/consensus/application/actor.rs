@@ -38,14 +38,14 @@ use reth_ethereum::chainspec::EthChainSpec as _;
 use reth_node_builder::{
     Block as _, BuiltPayload, ConsensusEngineHandle, PayloadAttributes, PayloadKind,
 };
-use tempo_chainspec::{TempoChainSpec, hardfork::TempoHardforks as _};
-use tempo_dkg_onchain_artifacts::OnchainDkgOutcome;
-use tempo_node::{TempoExecutionData, TempoFullNode, TempoPayloadTypes};
-use tempo_telemetry_util::display_duration;
+use magnus_chainspec::{TempoChainSpec, hardfork::TempoHardforks as _};
+use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
+use magnus_node::{TempoExecutionData, TempoFullNode, TempoPayloadTypes};
+use magnus_telemetry_util::display_duration;
 
 use reth_provider::{BlockHashReader as _, BlockReader as _};
-use tempo_payload_types::TempoPayloadAttributes;
-use tempo_primitives::TempoConsensusContext;
+use magnus_payload_types::TempoPayloadAttributes;
+use magnus_primitives::TempoConsensusContext;
 use tokio::sync::RwLock;
 use tracing::{Level, debug, error, error_span, info, info_span, instrument, warn};
 

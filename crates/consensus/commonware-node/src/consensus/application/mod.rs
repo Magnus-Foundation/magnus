@@ -11,7 +11,7 @@ use commonware_runtime::{Metrics, Pacer, Spawner, Storage};
 
 use eyre::WrapErr as _;
 use rand_08::{CryptoRng, Rng};
-use tempo_node::TempoFullNode;
+use magnus_node::TempoFullNode;
 
 mod actor;
 mod ingress;

@@ -27,14 +27,14 @@ use crate::consensus::Digest;
 // Sealed because of the frequent accesses to the hash.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[repr(transparent)]
-pub(crate) struct Block(SealedBlock<tempo_primitives::Block>);
+pub(crate) struct Block(SealedBlock<magnus_primitives::Block>);
 
 impl Block {
-    pub(crate) fn from_execution_block(block: SealedBlock<tempo_primitives::Block>) -> Self {
+    pub(crate) fn from_execution_block(block: SealedBlock<magnus_primitives::Block>) -> Self {
         Self(block)
     }
 
-    pub(crate) fn into_inner(self) -> SealedBlock<tempo_primitives::Block> {
+    pub(crate) fn into_inner(self) -> SealedBlock<magnus_primitives::Block> {
         self.0
     }
 
@@ -58,7 +58,7 @@ impl Block {
 }
 
 impl std::ops::Deref for Block {
-    type Target = SealedBlock<tempo_primitives::Block>;
+    type Target = SealedBlock<magnus_primitives::Block>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

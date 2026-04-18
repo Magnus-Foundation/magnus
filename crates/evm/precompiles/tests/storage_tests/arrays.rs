@@ -96,7 +96,7 @@ fn test_array_storage() {
         assert_eq!(layout.field_c.read().unwrap(), U256::from(3));
         assert_eq!(layout.field_d.read().unwrap(), U256::from(4));
 
-        Ok::<(), tempo_precompiles::error::TempoPrecompileError>(())
+        Ok::<(), magnus_precompiles::error::TempoPrecompileError>(())
     })
     .unwrap()
 }
@@ -156,7 +156,7 @@ fn test_array_element_access() {
         assert_eq!(layout.large_array[2].read().unwrap(), U256::ZERO);
         assert_eq!(layout.large_array[1].read().unwrap(), U256::from(200));
 
-        Ok::<(), tempo_precompiles::error::TempoPrecompileError>(())
+        Ok::<(), magnus_precompiles::error::TempoPrecompileError>(())
     })
     .unwrap()
 }

@@ -11,7 +11,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use poem::{EndpointExt, Route, Server, get, listener::TcpListener};
 use reqwest::Url;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tempo_alloy::{TempoNetwork, primitives::TempoHeader};
+use magnus_alloy::{TempoNetwork, primitives::TempoHeader};
 use tokio::signal;
 use tracing::{debug, error, warn};
 
@@ -101,7 +101,7 @@ impl TransactionLatencyMonitor {
     }
 
     fn on_mined_block(&mut self, header: TempoHeader, mined_txs: B256Set) {
-        gauge!("tempo_tx_latency_pending_observed").set(self.pending.len() as f64);
+        gauge!("magnus_tx_latency_pending_observed").set(self.pending.len() as f64);
         if self.pending.is_empty() {
             return;
         }
@@ -109,7 +109,7 @@ impl TransactionLatencyMonitor {
             if mined_txs.contains(hash) {
                 let latency_secs =
                     Self::latency_seconds(*seen_at, header.timestamp_millis() as u128);
-                histogram!("tempo_tx_landing_latency_seconds").record(latency_secs);
+                histogram!("magnus_tx_landing_latency_seconds").record(latency_secs);
                 false
             } else {
                 true
@@ -154,11 +154,11 @@ impl TxLatencyArgs {
             .context("failed to install recorder")?;
 
         describe_histogram!(
-            "tempo_tx_landing_latency_seconds",
+            "magnus_tx_landing_latency_seconds",
             "Latency between seeing a transaction in the pool and it landing in a block"
         );
         describe_gauge!(
-            "tempo_tx_latency_pending_observed",
+            "magnus_tx_latency_pending_observed",
             "Number of observed pending transactions awaiting inclusion"
         );
 

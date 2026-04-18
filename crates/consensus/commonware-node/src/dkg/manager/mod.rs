@@ -4,7 +4,7 @@ use commonware_runtime::{BufferPooler, Clock, Metrics, Spawner, Storage};
 use eyre::WrapErr as _;
 use futures::channel::mpsc;
 use rand_core::CryptoRngCore;
-use tempo_node::TempoFullNode;
+use magnus_node::TempoFullNode;
 
 mod actor;
 mod ingress;

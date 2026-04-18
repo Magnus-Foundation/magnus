@@ -2,7 +2,7 @@ use core::fmt;
 
 use alloy_primitives::{Address, Bytes, TxKind, U256};
 use alloy_sol_types::SolCall;
-use tempo_contracts::precompiles::{
+use magnus_contracts::precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS,
     IAccountKeychain::{
         KeyRestrictions as AbiKeyRestrictions, LegacyTokenLimit as AbiLegacyTokenLimit,
@@ -11,7 +11,7 @@ use tempo_contracts::precompiles::{
     },
     ITIP20, authorizeKeyCall, legacyAuthorizeKeyCall,
 };
-use tempo_primitives::{
+use magnus_primitives::{
     SignatureType,
     transaction::{Call, CallScope, SelectorRule, TokenLimit},
 };
@@ -161,7 +161,7 @@ impl From<KeyRestrictions> for AbiKeyRestrictions {
 ///
 /// ```ignore
 /// use alloy_primitives::address;
-/// use tempo_alloy::provider::keychain::CallScopeBuilder;
+/// use magnus_alloy::provider::keychain::CallScopeBuilder;
 ///
 /// // Allow transfer and approve to any recipient on a specific token
 /// let scope = CallScopeBuilder::new(PATH_USD)
@@ -333,7 +333,7 @@ pub fn update_spending_limit(key_id: Address, token: Address, new_limit: U256) -
 ///
 /// ```ignore
 /// use alloy_primitives::address;
-/// use tempo_alloy::provider::keychain::{CallScopeBuilder, set_allowed_calls};
+/// use magnus_alloy::provider::keychain::{CallScopeBuilder, set_allowed_calls};
 ///
 /// let key_id = address!("0x1111111111111111111111111111111111111111");
 /// let token = address!("0x20c0000000000000000000000000000000000001");
@@ -358,7 +358,7 @@ pub fn set_allowed_calls(key_id: Address, scopes: Vec<CallScope>) -> Call {
 ///
 /// ```ignore
 /// use alloy_primitives::address;
-/// use tempo_alloy::provider::keychain::remove_allowed_calls;
+/// use magnus_alloy::provider::keychain::remove_allowed_calls;
 ///
 /// let key_id = address!("0x1111111111111111111111111111111111111111");
 /// let token = address!("0x20c0000000000000000000000000000000000001");
@@ -385,7 +385,7 @@ fn account_keychain_call(call: impl SolCall) -> Call {
 mod tests {
     use super::*;
     use alloy_primitives::{address, uint};
-    use tempo_contracts::precompiles::IAccountKeychain::{
+    use magnus_contracts::precompiles::IAccountKeychain::{
         CallScope as AbiCallScope, SelectorRule as AbiSelectorRule,
         SignatureType as AbiSignatureType, removeAllowedCallsCall, revokeKeyCall,
         setAllowedCallsCall, updateSpendingLimitCall,

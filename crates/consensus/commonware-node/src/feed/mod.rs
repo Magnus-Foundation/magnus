@@ -14,7 +14,7 @@ mod state;
 use commonware_consensus::types::FixedEpocher;
 use commonware_runtime::Spawner;
 use futures::channel::mpsc;
-use tempo_node::TempoFullNode;
+use magnus_node::TempoFullNode;
 
 use crate::alias::marshal;
 pub(crate) use actor::Actor;

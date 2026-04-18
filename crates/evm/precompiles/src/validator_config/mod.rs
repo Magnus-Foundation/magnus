@@ -5,9 +5,9 @@
 
 pub mod dispatch;
 
-use tempo_contracts::precompiles::VALIDATOR_CONFIG_ADDRESS;
-pub use tempo_contracts::precompiles::{IValidatorConfig, ValidatorConfigError};
-use tempo_precompiles_macros::{Storable, contract};
+use magnus_contracts::precompiles::VALIDATOR_CONFIG_ADDRESS;
+pub use magnus_contracts::precompiles::{IValidatorConfig, ValidatorConfigError};
+use magnus_precompiles_macros::{Storable, contract};
 
 use crate::{
     error::{Result, TempoPrecompileError},

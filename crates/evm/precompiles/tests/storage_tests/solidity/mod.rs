@@ -8,7 +8,7 @@ mod primitives;
 mod utils;
 
 use super::*;
-use tempo_precompiles_macros::Storable;
+use magnus_precompiles_macros::Storable;
 
 // Helper struct for struct test (defined at module level, used in primitives.rs)
 #[derive(Debug, Clone, Default, PartialEq, Eq, Storable)]

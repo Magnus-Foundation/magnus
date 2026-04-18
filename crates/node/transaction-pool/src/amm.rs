@@ -12,12 +12,12 @@ use reth_provider::{
     ChainSpecProvider, ExecutionOutcome, HeaderProvider, ProviderError, ProviderResult,
     StateProvider, StateProviderFactory,
 };
-use tempo_chainspec::{
+use magnus_chainspec::{
     TempoChainSpec,
     hardfork::{TempoHardfork, TempoHardforks},
 };
-use tempo_evm::TempoStateAccess;
-use tempo_precompiles::{
+use magnus_evm::TempoStateAccess;
+use magnus_precompiles::{
     DEFAULT_FEE_TOKEN, TIP_FEE_MANAGER_ADDRESS,
     error::Result as TempoResult,
     storage::Handler,
@@ -26,8 +26,8 @@ use tempo_precompiles::{
         amm::{Pool, PoolKey, compute_amount_out},
     },
 };
-use tempo_primitives::{TempoHeader, TempoReceipt};
-use tempo_revm::IntoAddress;
+use magnus_primitives::{TempoHeader, TempoReceipt};
+use magnus_revm::IntoAddress;
 
 /// Number of recent validators/tokens to track.
 const LAST_SEEN_WINDOW: usize = 10;
@@ -488,7 +488,7 @@ mod tests {
     #[test]
     fn test_on_new_state_early_return_no_fee_manager_account() {
         use reth_provider::ExecutionOutcome;
-        use tempo_primitives::TempoReceipt;
+        use magnus_primitives::TempoReceipt;
 
         let cache = AmmLiquidityCache {
             inner: Arc::new(RwLock::new(AmmLiquidityCacheInner::default())),

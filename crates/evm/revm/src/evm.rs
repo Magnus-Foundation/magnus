@@ -10,7 +10,7 @@ use revm::{
     inspector::InspectorEvmTr,
     interpreter::interpreter::EthInterpreter,
 };
-use tempo_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::TempoHardfork;
 
 /// The Tempo EVM context type.
 pub type TempoContext<DB> = Context<TempoBlockEnv, TempoTxEnv, CfgEnv<TempoHardfork>, DB>;
@@ -55,10 +55,10 @@ pub struct TempoEvm<DB: Database, I> {
 impl<DB: Database, I> TempoEvm<DB, I> {
     /// Create a new Tempo EVM.
     pub fn new(ctx: TempoContext<DB>, inspector: I) -> Self {
-        let precompiles = tempo_precompiles::tempo_precompiles(&ctx.cfg);
+        let precompiles = magnus_precompiles::magnus_precompiles(&ctx.cfg);
 
         Self::new_inner(Evm {
-            instruction: instructions::tempo_instructions(ctx.cfg.spec),
+            instruction: instructions::magnus_instructions(ctx.cfg.spec),
             ctx,
             inspector,
             precompiles,
@@ -205,7 +205,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::gas_params::tempo_gas_params;
+    use crate::gas_params::magnus_gas_params;
     use alloy_eips::eip7702::Authorization;
     use alloy_evm::FromRecoveredTx;
     use alloy_primitives::{Address, Bytes, TxKind, U256, bytes};
@@ -229,19 +229,19 @@ mod tests {
         state::{AccountInfo, Bytecode},
     };
     use sha2::{Digest, Sha256};
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_precompiles::{
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_precompiles::{
         AuthorizedKey, NONCE_PRECOMPILE_ADDRESS, PATH_USD_ADDRESS,
         nonce::NonceManager,
         storage::{Handler, StorageCtx, evm::EvmPrecompileStorageProvider},
         test_util::TIP20Setup,
         tip20::{ITIP20, TIP20Token},
     };
-    use tempo_primitives::{
+    use magnus_primitives::{
         TempoTransaction,
         transaction::{
             KeyAuthorization, KeychainSignature, SignatureType, TempoSignedAuthorization,
-            tempo_transaction::Call,
+            magnus_transaction::Call,
             tt_signature::{
                 PrimitiveSignature, TempoSignature, WebAuthnSignature, derive_p256_address,
                 normalize_p256_s,
@@ -309,13 +309,13 @@ mod tests {
     }
 
     /// Create an EVM with T1C hardfork enabled and a funded account.
-    /// This applies TIP-1000 gas params via `tempo_gas_params()`.
+    /// This applies TIP-1000 gas params via `magnus_gas_params()`.
     fn create_funded_evm_t1(address: Address) -> TempoEvm<CacheDB<EmptyDB>, ()> {
         let db = CacheDB::new(EmptyDB::new());
         let mut cfg = CfgEnv::<TempoHardfork>::default();
         cfg.spec = TempoHardfork::T1C;
         // Apply TIP-1000 gas params for T1C hardfork
-        cfg.gas_params = tempo_gas_params(TempoHardfork::T1C);
+        cfg.gas_params = magnus_gas_params(TempoHardfork::T1C);
 
         let ctx = Context::mainnet()
             .with_db(db)
@@ -333,7 +333,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut cfg = CfgEnv::<TempoHardfork>::default();
         cfg.spec = TempoHardfork::T3;
-        cfg.gas_params = tempo_gas_params(TempoHardfork::T3);
+        cfg.gas_params = magnus_gas_params(TempoHardfork::T3);
 
         let ctx = Context::mainnet()
             .with_db(db)
@@ -364,7 +364,7 @@ mod tests {
         let db = CacheDB::new(EmptyDB::new());
         let mut cfg = CfgEnv::<TempoHardfork>::default();
         cfg.spec = TempoHardfork::T1;
-        cfg.gas_params = tempo_gas_params(TempoHardfork::T1);
+        cfg.gas_params = magnus_gas_params(TempoHardfork::T1);
 
         let mut block = TempoBlockEnv::default();
         block.inner.timestamp = U256::from(timestamp);
@@ -468,7 +468,7 @@ mod tests {
             };
 
             let mut sig_buf = Vec::new();
-            sig_buf.push(tempo_primitives::transaction::tt_authorization::MAGIC);
+            sig_buf.push(magnus_primitives::transaction::tt_authorization::MAGIC);
             alloy_rlp::Encodable::encode(&auth, &mut sig_buf);
             let auth_sig_hash = alloy_primitives::keccak256(&sig_buf);
 
@@ -479,7 +479,7 @@ mod tests {
         }
 
         /// Sign a transaction and return it ready for execution.
-        fn sign_tx(&self, tx: TempoTransaction) -> eyre::Result<tempo_primitives::AASigned> {
+        fn sign_tx(&self, tx: TempoTransaction) -> eyre::Result<magnus_primitives::AASigned> {
             let webauthn_sig = self.sign_webauthn(tx.signature_hash().as_slice())?;
             Ok(
                 tx.into_signed(TempoSignature::Primitive(PrimitiveSignature::WebAuthn(
@@ -492,7 +492,7 @@ mod tests {
         fn sign_tx_keychain(
             &self,
             tx: TempoTransaction,
-        ) -> eyre::Result<tempo_primitives::AASigned> {
+        ) -> eyre::Result<magnus_primitives::AASigned> {
             // V2: sign keccak256(0x04 || sig_hash || user_address)
             let sig_hash = tx.signature_hash();
             let effective_hash = alloy_primitives::keccak256(
@@ -516,7 +516,7 @@ mod tests {
         valid_before: Option<u64>,
         valid_after: Option<u64>,
         authorization_list: Vec<TempoSignedAuthorization>,
-        key_authorization: Option<tempo_primitives::transaction::SignedKeyAuthorization>,
+        key_authorization: Option<magnus_primitives::transaction::SignedKeyAuthorization>,
     }
 
     impl Default for TxBuilder {
@@ -623,7 +623,7 @@ mod tests {
 
         fn key_authorization(
             mut self,
-            key_auth: tempo_primitives::transaction::SignedKeyAuthorization,
+            key_auth: magnus_primitives::transaction::SignedKeyAuthorization,
         ) -> Self {
             self.key_authorization = Some(key_auth);
             self
@@ -644,7 +644,7 @@ mod tests {
                 valid_before: self.valid_before.and_then(core::num::NonZeroU64::new),
                 valid_after: self.valid_after.and_then(core::num::NonZeroU64::new),
                 key_authorization: self.key_authorization,
-                tempo_authorization_list: self.authorization_list,
+                magnus_authorization_list: self.authorization_list,
             }
         }
     }
@@ -666,8 +666,8 @@ mod tests {
         ctx.block.timestamp = U256::from(1000);
         ctx.block.timestamp_millis_part = 100;
 
-        let mut tempo_evm = TempoEvm::new(ctx, ());
-        let ctx = &mut tempo_evm.ctx;
+        let mut magnus_evm = TempoEvm::new(ctx, ());
+        let ctx = &mut magnus_evm.ctx;
 
         let internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut storage = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
@@ -691,7 +691,7 @@ mod tests {
             kind: contract.into(),
             ..Default::default()
         };
-        let result = tempo_evm.transact_one(tx_env.into())?;
+        let result = magnus_evm.transact_one(tx_env.into())?;
 
         if !spec.is_t1c() {
             assert!(result.is_success());
@@ -832,7 +832,7 @@ mod tests {
         // Test inspector with a Tempo transaction that has multiple calls
 
         let key_pair = P256KeyPair::random();
-        let tempo_caller = key_pair.address;
+        let magnus_caller = key_pair.address;
 
         // Create signed authorization for Tempo tx
         let signed_auth = key_pair.create_signed_authorization(Address::repeat_byte(0x42))?;
@@ -846,12 +846,12 @@ mod tests {
             .build();
 
         let signed_tx = key_pair.sign_tx(tx)?;
-        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, tempo_caller);
+        let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, magnus_caller);
 
         // Create a new EVM with fresh inspector for multi-call test
         let mut multi_evm = create_evm_with_inspector(CountInspector::new());
         multi_evm.ctx.db_mut().insert_account_info(
-            tempo_caller,
+            magnus_caller,
             AccountInfo {
                 balance: U256::from(DEFAULT_BALANCE),
                 ..Default::default()
@@ -992,10 +992,10 @@ mod tests {
         let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
 
         // Verify transaction has AA auth list
-        assert!(tx_env.tempo_tx_env.is_some(),);
-        let tempo_env = tx_env.tempo_tx_env.as_ref().unwrap();
-        assert_eq!(tempo_env.tempo_authorization_list.len(), 1);
-        assert_eq!(tempo_env.aa_calls.len(), 2);
+        assert!(tx_env.magnus_tx_env.is_some(),);
+        let magnus_env = tx_env.magnus_tx_env.as_ref().unwrap();
+        assert_eq!(magnus_env.magnus_authorization_list.len(), 1);
+        assert_eq!(magnus_env.aa_calls.len(), 2);
 
         // Create EVM with T1C (required for V2 keychain signatures) and execute transaction
         let mut evm = create_funded_evm_t1(caller);
@@ -1023,12 +1023,12 @@ mod tests {
         let signed_tx = key_pair.sign_tx_keychain(tx2)?;
         let tx_env = TempoTxEnv::from_recovered_tx(&signed_tx, caller);
 
-        // Explicitly test tempo_tx_env.signature.as_keychain()
-        let tempo_env_keychain = tx_env
-            .tempo_tx_env
+        // Explicitly test magnus_tx_env.signature.as_keychain()
+        let magnus_env_keychain = tx_env
+            .magnus_tx_env
             .as_ref()
-            .expect("Transaction should have tempo_tx_env");
-        let keychain_sig = tempo_env_keychain
+            .expect("Transaction should have magnus_tx_env");
+        let keychain_sig = magnus_env_keychain
             .signature
             .as_keychain()
             .expect("Signature should be a KeychainSignature");
@@ -1045,7 +1045,7 @@ mod tests {
 
         // Verify key_id recovery works correctly using the transaction signature hash
         let recovered_key_id = keychain_sig
-            .key_id(&tempo_env_keychain.signature_hash)
+            .key_id(&magnus_env_keychain.signature_hash)
             .expect("Key ID recovery should succeed");
         assert_eq!(recovered_key_id, caller,);
 
@@ -1076,9 +1076,9 @@ mod tests {
         let signed_tx_2d = key_pair.sign_tx_keychain(tx_2d)?;
         let tx_env_2d = TempoTxEnv::from_recovered_tx(&signed_tx_2d, caller);
 
-        assert!(tx_env_2d.tempo_tx_env.is_some());
+        assert!(tx_env_2d.magnus_tx_env.is_some());
         assert_eq!(
-            tx_env_2d.tempo_tx_env.as_ref().unwrap().nonce_key,
+            tx_env_2d.magnus_tx_env.as_ref().unwrap().nonce_key,
             nonce_key_2d
         );
 
@@ -1199,9 +1199,9 @@ mod tests {
         .abi_encode();
 
         let key_auth = KeyAuthorization::unrestricted(1, SignatureType::WebAuthn, caller)
-            .with_allowed_calls(vec![tempo_primitives::transaction::CallScope {
+            .with_allowed_calls(vec![magnus_primitives::transaction::CallScope {
                 target: PATH_USD_ADDRESS,
-                selector_rules: vec![tempo_primitives::transaction::SelectorRule {
+                selector_rules: vec![magnus_primitives::transaction::SelectorRule {
                     selector: ITIP20::transferCall::SELECTOR,
                     recipients: Vec::new(),
                 }],
@@ -1986,7 +1986,7 @@ mod tests {
     /// This validates the fix for audit issue #182.
     #[test]
     fn test_aa_tx_gas_create_with_expiring_nonce() -> eyre::Result<()> {
-        use tempo_primitives::transaction::TEMPO_EXPIRING_NONCE_KEY;
+        use magnus_primitives::transaction::TEMPO_EXPIRING_NONCE_KEY;
 
         let key_pair = P256KeyPair::random();
         let caller = key_pair.address;
@@ -2214,7 +2214,7 @@ mod tests {
     /// precompile execution and reverts it on OOG. This ensures storage consistency.
     #[test]
     fn test_key_authorization_t1() -> eyre::Result<()> {
-        use tempo_precompiles::account_keychain::AccountKeychain;
+        use magnus_precompiles::account_keychain::AccountKeychain;
 
         let key_pair = P256KeyPair::random();
         let caller = key_pair.address;
@@ -2393,7 +2393,7 @@ mod tests {
     /// replay is impossible.
     #[test]
     fn test_create_nonce_replay_regression() -> eyre::Result<()> {
-        use tempo_precompiles::account_keychain::AccountKeychain;
+        use magnus_precompiles::account_keychain::AccountKeychain;
 
         /// Run a CREATE+KeyAuth transaction on the given hardfork and return
         /// (caller_nonce_after, key_expiry).
@@ -2407,7 +2407,7 @@ mod tests {
             let db = CacheDB::new(EmptyDB::new());
             let mut cfg = CfgEnv::<TempoHardfork>::default();
             cfg.spec = spec;
-            cfg.gas_params = tempo_gas_params(spec);
+            cfg.gas_params = magnus_gas_params(spec);
 
             let ctx = Context::mainnet()
                 .with_db(db)
@@ -2525,7 +2525,7 @@ mod tests {
             let db = CacheDB::new(EmptyDB::new());
             let mut cfg = CfgEnv::<TempoHardfork>::default();
             cfg.spec = spec;
-            cfg.gas_params = tempo_gas_params(spec);
+            cfg.gas_params = magnus_gas_params(spec);
 
             let ctx = Context::mainnet()
                 .with_db(db)

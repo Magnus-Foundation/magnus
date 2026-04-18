@@ -5,10 +5,10 @@
 
 // Re-export modules that macro-generated code expects
 pub mod storage_primitives {
-    pub use tempo_precompiles::storage::*;
+    pub use magnus_precompiles::storage::*;
 }
 pub use storage_primitives as storage;
-pub use tempo_precompiles::error;
+pub use magnus_precompiles::error;
 
 // Import the storage test modules
 mod storage_tests;

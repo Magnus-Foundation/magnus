@@ -6,7 +6,7 @@ use alloy::{
     signers::local::MnemonicBuilder,
 };
 use alloy_network::TransactionResponse;
-use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_get_transaction_by_sender_and_nonce() -> eyre::Result<()> {

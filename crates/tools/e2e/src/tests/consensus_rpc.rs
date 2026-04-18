@@ -24,15 +24,15 @@ use commonware_runtime::{
 };
 use futures::{channel::oneshot, future::join_all};
 use jsonrpsee::{http_client::HttpClientBuilder, ws_client::WsClientBuilder};
-use tempo_commonware_node::consensus::Digest;
-use tempo_node::rpc::consensus::{Event, Query, TempoConsensusApiClient};
+use magnus_commonware_node::consensus::Digest;
+use magnus_node::rpc::consensus::{Event, Query, TempoConsensusApiClient};
 
 /// Test that subscribing to consensus events works and that finalization
 /// can be queried via HTTP after receiving a finalization event.
 #[tokio::test]
 #[test_traced]
 async fn consensus_subscribe_and_query_finalization() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let initial_height = 3;
     let setup = Setup::new().how_many_signers(1).epoch_length(100);
@@ -154,7 +154,7 @@ async fn wait_for_height(context: &Context, target_height: u64) {
 /// 5. Querying from epoch 0 returns no transitions
 #[test_traced]
 fn get_identity_transition_proof_after_full_dkg() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let how_many_signers = 1;
     let epoch_length = 10;
@@ -336,7 +336,7 @@ fn get_identity_transition_proof_after_full_dkg() {
         assert!(
             finalization.verify(
                 &mut context,
-                &Scheme::certificate_verifier(tempo_commonware_node::NAMESPACE, old_pubkey),
+                &Scheme::certificate_verifier(magnus_commonware_node::NAMESPACE, old_pubkey),
                 &commonware_parallel::Sequential
             ),
             "BLS signature verification failed"

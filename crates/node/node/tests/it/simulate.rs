@@ -4,8 +4,8 @@ use alloy::{
     signers::local::MnemonicBuilder,
 };
 use serde_json::json;
-use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
-use tempo_node::rpc::simulate::TempoSimulateV1Response;
+use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_node::rpc::simulate::TempoSimulateV1Response;
 
 use crate::utils::{TestNodeBuilder, setup_test_token};
 
@@ -49,7 +49,7 @@ async fn test_tempo_simulate_v1() -> eyre::Result<()> {
     });
 
     let response: TempoSimulateV1Response<serde_json::Value> = provider
-        .raw_request("tempo_simulateV1".into(), (payload,))
+        .raw_request("magnus_simulateV1".into(), (payload,))
         .await?;
     assert!(!response.blocks.is_empty());
 
@@ -74,7 +74,7 @@ async fn test_tempo_simulate_v1() -> eyre::Result<()> {
     });
 
     let response: TempoSimulateV1Response<serde_json::Value> = provider
-        .raw_request("tempo_simulateV1".into(), (payload,))
+        .raw_request("magnus_simulateV1".into(), (payload,))
         .await?;
 
     assert!(

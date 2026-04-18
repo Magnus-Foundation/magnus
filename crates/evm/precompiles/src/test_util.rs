@@ -15,9 +15,9 @@ use alloy::{
 };
 use revm::precompile::PrecompileError;
 #[cfg(any(test, feature = "test-utils"))]
-use tempo_contracts::precompiles::TIP20Error;
-use tempo_contracts::precompiles::{TIP20_FACTORY_ADDRESS, UnknownFunctionSelector};
-use tempo_primitives::{MasterId, TempoAddressExt, UserTag};
+use magnus_contracts::precompiles::TIP20Error;
+use magnus_contracts::precompiles::{TIP20_FACTORY_ADDRESS, UnknownFunctionSelector};
+use magnus_primitives::{MasterId, TempoAddressExt, UserTag};
 
 /// Checks that all selectors in an interface have dispatch handlers.
 ///
@@ -385,7 +385,7 @@ fn is_initialized(address: Address) -> Result<bool> {
 #[cfg(any(test, feature = "test-utils"))]
 fn get_tip20_admin(token: Address) -> Option<Address> {
     use alloy::{primitives::Log, sol_types::SolEvent};
-    use tempo_contracts::precompiles::ITIP20Factory;
+    use magnus_contracts::precompiles::ITIP20Factory;
 
     let events = StorageCtx.get_events(TIP20_FACTORY_ADDRESS);
     for log_data in events {

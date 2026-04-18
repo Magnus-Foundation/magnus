@@ -147,7 +147,7 @@ mod codec {
         /// See reth's `HeaderExt` pattern:
         /// <https://github.com/paradigmxyz/reth-core/blob/0476d1bc4b71f3c3b080622be297edd91ee4e70c/crates/codecs/src/alloy/header.rs>
         #[test]
-        fn tempo_header_has_unused_compact_bits() {
+        fn magnus_header_has_unused_compact_bits() {
             assert_ne!(
                 TempoHeaderCompact::bitflag_unused_bits(),
                 0,
@@ -156,7 +156,7 @@ mod codec {
         }
 
         #[test]
-        fn tempo_header_trailing_has_unused_compact_bits() {
+        fn magnus_header_trailing_has_unused_compact_bits() {
             assert_ne!(
                 TempoHeaderTrailingCompact::bitflag_unused_bits(),
                 0,
@@ -165,7 +165,7 @@ mod codec {
         }
 
         #[test]
-        fn tempo_header_compact_roundtrip() {
+        fn magnus_header_compact_roundtrip() {
             let header = TempoHeader {
                 general_gas_limit: 30_000_000,
                 shared_gas_limit: 10_000_000,

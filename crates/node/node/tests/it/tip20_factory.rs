@@ -4,10 +4,10 @@ use alloy::{
     signers::local::MnemonicBuilder,
     sol_types::SolEvent,
 };
-use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
-use tempo_contracts::precompiles::{ITIP20, ITIP20Factory};
-use tempo_precompiles::{PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS};
-use tempo_primitives::TempoAddressExt;
+use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_contracts::precompiles::{ITIP20, ITIP20Factory};
+use magnus_precompiles::{PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS};
+use magnus_primitives::TempoAddressExt;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_create_token() -> eyre::Result<()> {

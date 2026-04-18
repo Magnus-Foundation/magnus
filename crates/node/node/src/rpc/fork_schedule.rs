@@ -3,9 +3,9 @@ use reth_chainspec::{EthereumHardfork, ForkCondition, Hardforks, Head};
 use reth_primitives_traits::AlloyBlockHeader as _;
 use reth_provider::{BlockNumReader, ChainSpecProvider, HeaderProvider};
 use serde::{Deserialize, Serialize};
-use tempo_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
+use magnus_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
 
-/// Response for `tempo_forkSchedule`.
+/// Response for `magnus_forkSchedule`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ForkSchedule {
@@ -38,7 +38,7 @@ pub trait TempoForkScheduleApi {
     async fn fork_schedule(&self) -> RpcResult<ForkSchedule>;
 }
 
-/// Implementation of `tempo_forkSchedule`.
+/// Implementation of `magnus_forkSchedule`.
 #[derive(Debug, Clone)]
 pub struct TempoForkScheduleRpc<P> {
     provider: P,
@@ -113,7 +113,7 @@ where
             .collect();
 
         let active = chain_spec
-            .tempo_hardfork_at(head_timestamp)
+            .magnus_hardfork_at(head_timestamp)
             .name()
             .to_string();
 

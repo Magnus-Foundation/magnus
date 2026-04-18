@@ -21,11 +21,11 @@ use reth_rpc_eth_api::{FromEthApiError, IntoEthApiError, RpcTxReq};
 use reth_transaction_pool::{PoolPooledTx, TransactionOrigin};
 pub use simulate::{TempoSimulate, TempoSimulateApiServer, TempoSimulateV1Response};
 use std::sync::Arc;
-pub use tempo_alloy::rpc::TempoTransactionRequest;
-use tempo_chainspec::TempoChainSpec;
-use tempo_evm::TempoStateAccess;
-use tempo_precompiles::{NONCE_PRECOMPILE_ADDRESS, nonce::NonceManager};
-use tempo_primitives::transaction::TEMPO_EXPIRING_NONCE_KEY;
+pub use magnus_alloy::rpc::TempoTransactionRequest;
+use magnus_chainspec::TempoChainSpec;
+use magnus_evm::TempoStateAccess;
+use magnus_precompiles::{NONCE_PRECOMPILE_ADDRESS, nonce::NonceManager};
+use magnus_primitives::transaction::TEMPO_EXPIRING_NONCE_KEY;
 pub use token::{TempoToken, TempoTokenApiServer};
 
 use crate::{node::TempoNode, rpc::error::TempoEthApiError};
@@ -59,9 +59,9 @@ use reth_rpc_eth_types::{
     EthApiError, EthStateCache, FeeHistoryCache, GasPriceOracle, PendingBlock, SignError,
     builder::config::PendingBlockKind, receipt::EthReceiptConverter,
 };
-use tempo_alloy::{TempoNetwork, rpc::TempoTransactionReceipt};
-use tempo_evm::TempoEvmConfig;
-use tempo_primitives::{
+use magnus_alloy::{TempoNetwork, rpc::TempoTransactionReceipt};
+use magnus_evm::TempoEvmConfig;
+use magnus_primitives::{
     TEMPO_GAS_PRICE_SCALING_FACTOR, TempoPrimitives, TempoReceipt, TempoTxEnvelope,
     subblock::PartialValidatorKey,
 };

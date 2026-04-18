@@ -29,7 +29,7 @@ use crate::{
 /// a snapshot.
 #[test_traced]
 fn joins_from_snapshot() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let epoch_length = 20;
     // Create a verifier that we will never start. It just the private keys
@@ -240,7 +240,7 @@ fn joins_from_snapshot() {
 // /// snapshot.
 #[test_traced]
 fn can_restart_after_joining_from_snapshot() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let epoch_length = 20;
     // Create a verifier that we will never start. It just the private keys

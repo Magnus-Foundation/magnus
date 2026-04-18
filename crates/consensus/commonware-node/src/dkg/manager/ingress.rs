@@ -10,7 +10,7 @@ use commonware_cryptography::{
 use commonware_utils::acknowledgement::Exact;
 use eyre::WrapErr as _;
 use futures::channel::{mpsc, oneshot};
-use tempo_dkg_onchain_artifacts::OnchainDkgOutcome;
+use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
 use tracing::{Span, warn};
 
 use crate::consensus::{Digest, block::Block};

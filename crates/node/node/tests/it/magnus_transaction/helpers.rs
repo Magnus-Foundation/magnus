@@ -20,16 +20,16 @@ use core::num::NonZeroU64;
 use reth_node_api::BuiltPayload;
 use reth_primitives_traits::transaction::TxHashRef;
 use reth_transaction_pool::TransactionPool;
-use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
-use tempo_contracts::precompiles::DEFAULT_FEE_TOKEN;
-use tempo_node::rpc::TempoTransactionRequest;
-use tempo_precompiles::tip20::ITIP20::{self, transferCall};
-use tempo_primitives::{
+use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_contracts::precompiles::DEFAULT_FEE_TOKEN;
+use magnus_node::rpc::TempoTransactionRequest;
+use magnus_precompiles::tip20::ITIP20::{self, transferCall};
+use magnus_primitives::{
     SignatureType, TempoTransaction, TempoTxEnvelope,
     transaction::{
         CallScope, KeyAuthorization, SelectorRule, SignedKeyAuthorization,
         TEMPO_EXPIRING_NONCE_KEY, TEMPO_EXPIRING_NONCE_MAX_EXPIRY_SECS, TokenLimit,
-        tempo_transaction::Call,
+        magnus_transaction::Call,
         tt_signature::{
             KeychainSignature, P256SignatureWithPreHash, PrimitiveSignature, TempoSignature,
             WebAuthnSignature, normalize_p256_s,
@@ -53,17 +53,17 @@ fn try_nonzero_timestamp(timestamp: Option<u64>, field: &str) -> eyre::Result<Op
 }
 
 fn decoded_tempo_rpc_error_message(err: &RpcError<TransportErrorKind>) -> Option<String> {
-    tempo_precompiles::error::decode_error(&err.as_error_resp()?.as_revert_data()?.0)
+    magnus_precompiles::error::decode_error(&err.as_error_resp()?.as_revert_data()?.0)
         .map(|decoded| format!("execution reverted: {}", decoded.error))
 }
 
 /// Returns a decoded Tempo revert message when possible, else the original RPC error string.
-pub(super) fn tempo_rpc_error_message(err: &RpcError<TransportErrorKind>) -> String {
+pub(super) fn magnus_rpc_error_message(err: &RpcError<TransportErrorKind>) -> String {
     decoded_tempo_rpc_error_message(err).unwrap_or_else(|| err.to_string())
 }
 
 pub(super) fn rpc_error_contains_reason(err: &RpcError<TransportErrorKind>, reason: &str) -> bool {
-    tempo_rpc_error_message(err)
+    magnus_rpc_error_message(err)
         .to_ascii_lowercase()
         .contains(&reason.to_ascii_lowercase())
 }
@@ -81,7 +81,7 @@ mod legacy_compat {
         transports::{RpcError, TransportErrorKind},
     };
     use serde::de::DeserializeOwned;
-    use tempo_node::rpc::TempoTransactionRequest;
+    use magnus_node::rpc::TempoTransactionRequest;
 
     fn should_retry_with_selector_arrays(err: &RpcError<TransportErrorKind>) -> bool {
         let err_str = err.to_string().to_lowercase();
@@ -376,7 +376,7 @@ pub(super) fn compute_authorization_signature_hash(
 ) -> B256 {
     use alloy_rlp::Encodable as _;
     let mut sig_buf = Vec::new();
-    sig_buf.push(tempo_primitives::transaction::tt_authorization::MAGIC);
+    sig_buf.push(magnus_primitives::transaction::tt_authorization::MAGIC);
     auth.encode(&mut sig_buf);
     alloy::primitives::keccak256(&sig_buf)
 }
@@ -442,7 +442,7 @@ pub(crate) fn generate_p256_access_key() -> (
     let pub_key_x = alloy::primitives::B256::from_slice(encoded_point.x().unwrap().as_ref());
     let pub_key_y = alloy::primitives::B256::from_slice(encoded_point.y().unwrap().as_ref());
     let key_addr =
-        tempo_primitives::transaction::tt_signature::derive_p256_address(&pub_key_x, &pub_key_y);
+        magnus_primitives::transaction::tt_signature::derive_p256_address(&pub_key_x, &pub_key_y);
     (signing_key, pub_key_x, pub_key_y, key_addr)
 }
 
@@ -453,7 +453,7 @@ pub(crate) fn create_key_authorization(
     access_key_signature: TempoSignature,
     chain_id: u64,
     expiry: Option<std::num::NonZeroU64>,
-    spending_limits: Option<Vec<tempo_primitives::transaction::TokenLimit>>,
+    spending_limits: Option<Vec<magnus_primitives::transaction::TokenLimit>>,
 ) -> eyre::Result<SignedKeyAuthorization> {
     // Infer key_type from the access key signature
     let key_type = access_key_signature.signature_type();
@@ -695,7 +695,7 @@ pub(super) fn create_balance_of_call(account: Address) -> Call {
 /// but we need to specify the access key's public key coordinates
 pub(crate) fn create_mock_p256_sig(pub_key_x: B256, pub_key_y: B256) -> TempoSignature {
     TempoSignature::Primitive(PrimitiveSignature::P256(
-        tempo_primitives::transaction::tt_signature::P256SignatureWithPreHash {
+        magnus_primitives::transaction::tt_signature::P256SignatureWithPreHash {
             r: B256::ZERO,
             s: B256::ZERO,
             pub_key_x,
@@ -728,8 +728,8 @@ pub(crate) fn create_mock_webauthn_sig(pub_key_x: B256, pub_key_y: B256) -> Temp
 /// Helper to create default token spending limits derived from the funded amount.
 pub(crate) fn create_default_token_limit(
     funded: U256,
-) -> Vec<tempo_primitives::transaction::TokenLimit> {
-    use tempo_primitives::transaction::TokenLimit;
+) -> Vec<magnus_primitives::transaction::TokenLimit> {
+    use magnus_primitives::transaction::TokenLimit;
 
     vec![TokenLimit {
         token: DEFAULT_FEE_TOKEN,
@@ -762,7 +762,7 @@ pub(crate) fn create_basic_aa_tx(
         valid_after: None,
         access_list: Default::default(),
         key_authorization: None,
-        tempo_authorization_list: vec![],
+        magnus_authorization_list: vec![],
     }
 }
 
@@ -951,7 +951,7 @@ pub(crate) async fn assert_fee_payer_spent(
     fee_payer: FeePayerContext,
     receipt: &serde_json::Value,
 ) -> eyre::Result<()> {
-    use tempo_primitives::transaction::calc_gas_balance_spending;
+    use magnus_primitives::transaction::calc_gas_balance_spending;
 
     let gas_used = parse_hex_u64(receipt, "gasUsed")?
         .ok_or_else(|| eyre::eyre!("Receipt missing 'gasUsed'"))?;
@@ -1137,7 +1137,7 @@ pub(crate) fn parse_filled_tx(filled: &serde_json::Value) -> eyre::Result<TempoT
                         })
                         .transpose()?
                         .unwrap_or_default();
-                    Ok(tempo_primitives::transaction::tempo_transaction::Call { to, value, input })
+                    Ok(magnus_primitives::transaction::magnus_transaction::Call { to, value, input })
                 })
                 .collect::<eyre::Result<Vec<_>>>()
         })
@@ -1321,7 +1321,7 @@ pub(crate) fn assert_fill_request_expectations(
 mod tests {
     use super::*;
     use alloy::sol_types::SolInterface;
-    use tempo_contracts::precompiles::TIP20Error;
+    use magnus_contracts::precompiles::TIP20Error;
 
     #[test]
     fn normalize_tempo_rpc_error_decodes_raw_revert_data() {

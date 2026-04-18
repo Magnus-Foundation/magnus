@@ -14,7 +14,7 @@ use crate::{CONSENSUS_NODE_PREFIX, Setup, setup_validators};
 
 #[test_traced]
 fn blocks_have_consensus_context() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let setup = Setup::new()
         .how_many_signers(4)

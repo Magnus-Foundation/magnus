@@ -147,18 +147,18 @@ use reth_node_builder::{NodeBuilder, NodeConfig, NodeHandle, rpc::RethRpcAddOns}
 use reth_node_core::args::RpcServerArgs;
 use reth_rpc_builder::RpcModuleSelection;
 use std::{sync::Arc, time::Duration};
-use tempo_chainspec::{
+use magnus_chainspec::{
     hardfork::{TempoHardfork, TempoHardforks},
     spec::TempoChainSpec,
 };
-use tempo_contracts::precompiles::{
+use magnus_contracts::precompiles::{
     IRolesAuth,
     ITIP20::{self, ITIP20Instance},
     ITIP20Factory,
 };
-use tempo_node::node::TempoNode;
-use tempo_payload_types::TempoPayloadAttributes;
-use tempo_precompiles::{PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS, tip20::ISSUER_ROLE};
+use magnus_node::node::TempoNode;
+use magnus_payload_types::TempoPayloadAttributes;
+use magnus_precompiles::{PATH_USD_ADDRESS, TIP20_FACTORY_ADDRESS, tip20::ISSUER_ROLE};
 
 /// Creates a test TIP20 token with issuer role granted to the caller
 pub(crate) async fn setup_test_token<P>(
@@ -363,7 +363,7 @@ impl TestNodeBuilder {
         }
 
         let chain_spec = self.build_chain_spec()?;
-        let hardfork = chain_spec.tempo_hardfork_at(0);
+        let hardfork = chain_spec.magnus_hardfork_at(0);
 
         let (mut nodes, _wallet) = setup::<TempoNode>(
             1,

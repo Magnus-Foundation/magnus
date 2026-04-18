@@ -5,8 +5,8 @@
 
 use super::*;
 use alloy_primitives::{Address, FixedBytes};
-use tempo_precompiles::storage::Mapping;
-use tempo_precompiles_macros::{
+use magnus_precompiles::storage::Mapping;
+use magnus_precompiles_macros::{
     gen_test_fields_layout as layout_fields, gen_test_fields_struct as struct_fields,
 };
 use utils::*;

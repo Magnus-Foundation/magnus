@@ -1,7 +1,7 @@
 //! Reth-specific transaction trait implementations.
 
 mod envelope;
-mod tempo_transaction;
+mod magnus_transaction;
 mod tt_signed;
 
 #[cfg(feature = "reth-codec")]

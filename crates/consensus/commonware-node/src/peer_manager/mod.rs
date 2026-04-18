@@ -31,7 +31,7 @@ use commonware_cryptography::ed25519::PublicKey;
 use commonware_p2p::AddressableManager;
 use commonware_runtime::{Clock, Metrics, Spawner};
 use futures::channel::mpsc;
-use tempo_node::TempoFullNode;
+use magnus_node::TempoFullNode;
 
 mod actor;
 mod ingress;

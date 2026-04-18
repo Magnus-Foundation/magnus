@@ -4,7 +4,7 @@ use super::*;
 use crate::{Precompile, charge_input_cost, dispatch_call, mutate, mutate_void, view};
 use alloy::{primitives::Address, sol_types::SolInterface};
 use revm::precompile::PrecompileResult;
-use tempo_contracts::precompiles::IValidatorConfigV2::IValidatorConfigV2Calls;
+use magnus_contracts::precompiles::IValidatorConfigV2::IValidatorConfigV2Calls;
 
 impl Precompile for ValidatorConfigV2 {
     fn call(&mut self, calldata: &[u8], msg_sender: Address) -> PrecompileResult {
@@ -99,8 +99,8 @@ mod tests {
         primitives::{Address, FixedBytes},
         sol_types::{SolCall, SolValue},
     };
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::{
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::{
         IValidatorConfigV2, IValidatorConfigV2::IValidatorConfigV2Calls, ValidatorConfigV2Error,
     };
 
@@ -193,7 +193,7 @@ mod tests {
             let mut msg_data = Vec::new();
             msg_data.extend_from_slice(&1u64.to_be_bytes());
             msg_data.extend_from_slice(
-                tempo_contracts::precompiles::VALIDATOR_CONFIG_V2_ADDRESS.as_slice(),
+                magnus_contracts::precompiles::VALIDATOR_CONFIG_V2_ADDRESS.as_slice(),
             );
             msg_data.extend_from_slice(validator_addr.as_slice());
             msg_data.push(u8::try_from("192.168.1.1:8000".len()).unwrap());

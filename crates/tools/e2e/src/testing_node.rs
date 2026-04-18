@@ -22,13 +22,13 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-use tempo_commonware_node::{
+use magnus_commonware_node::{
     BROADCASTER_CHANNEL_IDENT, BROADCASTER_LIMIT, CERTIFICATES_CHANNEL_IDENT, CERTIFICATES_LIMIT,
     DKG_CHANNEL_IDENT, DKG_LIMIT, MARSHAL_CHANNEL_IDENT, MARSHAL_LIMIT, RESOLVER_CHANNEL_IDENT,
     RESOLVER_LIMIT, SUBBLOCKS_CHANNEL_IDENT, SUBBLOCKS_LIMIT, VOTES_CHANNEL_IDENT, VOTES_LIMIT,
     consensus,
 };
-use tempo_node::node::TempoNode;
+use magnus_node::node::TempoNode;
 use tracing::{debug, instrument};
 
 /// A testing node that can start and stop both consensus and execution layers.
@@ -429,7 +429,7 @@ where
     ///
     /// # Panics
     /// Panics if the execution node is not running.
-    pub fn execution(&self) -> &tempo_node::TempoFullNode {
+    pub fn execution(&self) -> &magnus_node::TempoFullNode {
         &self
             .execution_node
             .as_ref()
@@ -529,7 +529,7 @@ mod tests {
     #[tokio::test]
     async fn just_restart() {
         // Ensures that the node can be stopped completely and brought up inside a test.
-        let _ = tempo_eyre::install();
+        let _ = magnus_eyre::install();
 
         let runner = Runner::from(Config::default().with_seed(0));
         let (tx_msg, mut rx_msg) = tokio::sync::mpsc::unbounded_channel::<Message>();

@@ -12,7 +12,7 @@ use reth_e2e_test_utils::wallet::Wallet;
 use reth_node_api::BuiltPayload;
 use reth_node_metrics::recorder::install_prometheus_recorder;
 use reth_primitives_traits::{AlloyBlockHeader as _, transaction::TxHashRef};
-use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
 
 /// Test that verifies backfill sync works correctly.
 ///
@@ -242,7 +242,7 @@ async fn test_backfill_sync() -> eyre::Result<()> {
     );
 
     assert!(
-        tempo_e2e::get_pipeline_runs(metrics_recorder) == 1,
+        magnus_e2e::get_pipeline_runs(metrics_recorder) == 1,
         "Backfill was never triggered"
     );
 

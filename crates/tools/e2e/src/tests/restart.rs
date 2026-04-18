@@ -63,7 +63,7 @@ impl SimpleRestart {
             stop_at,
             connect_execution_layer,
         } = self;
-        let _ = tempo_eyre::install();
+        let _ = magnus_eyre::install();
 
         let setup = Setup::new()
             .how_many_signers(committee_size)
@@ -116,7 +116,7 @@ impl SimpleRestart {
 
 #[test_traced]
 fn validator_catches_up_to_network_during_epoch() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     RestartSetup {
         epoch_length: 100,
@@ -131,7 +131,7 @@ fn validator_catches_up_to_network_during_epoch() {
 
 #[test_traced]
 fn validator_catches_up_with_gap_of_one_epoch() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let epoch_length = 30;
     RestartSetup {
@@ -147,7 +147,7 @@ fn validator_catches_up_with_gap_of_one_epoch() {
 
 #[test_traced]
 fn validator_catches_up_with_gap_of_three_epochs() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let epoch_length = 30;
     RestartSetup {
@@ -249,7 +249,7 @@ impl RestartSetup {
             assert_skips,
             connect_execution_layer,
         } = self;
-        let _ = tempo_eyre::install();
+        let _ = magnus_eyre::install();
 
         let setup = Setup::new().epoch_length(epoch_length);
 
@@ -462,7 +462,7 @@ struct AssertNodeRecoversAfterFinalizingBlock {
 
 impl AssertNodeRecoversAfterFinalizingBlock {
     fn run(self) {
-        let _ = tempo_eyre::install();
+        let _ = magnus_eyre::install();
 
         let Self {
             n_validators,

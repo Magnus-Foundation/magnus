@@ -44,7 +44,7 @@ fn run_payload_builder_test(
     share_sparse_trie_with_payload_builder: &[bool],
     target_height: u64,
 ) -> MetricDelta {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
     let metrics_recorder = install_prometheus_recorder();
     let initial_finalization_count =
         prometheus_histogram_count(metrics_recorder, PAYLOAD_FINALIZATION_COUNT_METRIC);

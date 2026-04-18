@@ -7,8 +7,8 @@ use alloy::{
     sol_types::{SolCall, SolInterface},
 };
 use revm::precompile::PrecompileResult;
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_contracts::precompiles::{
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_contracts::precompiles::{
     AccountKeychainError,
     IAccountKeychain::{self, IAccountKeychainCalls},
 };
@@ -118,8 +118,8 @@ mod tests {
         primitives::U256,
         sol_types::{SolCall, SolError},
     };
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::{UnknownFunctionSelector, legacyAuthorizeKeyCall};
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::{UnknownFunctionSelector, legacyAuthorizeKeyCall};
 
     #[test]
     fn test_account_keychain_selector_coverage() -> eyre::Result<()> {
@@ -159,11 +159,11 @@ mod tests {
             let calldata = legacyAuthorizeKeyCall {
                 keyId: key_id,
                 signatureType:
-                    tempo_contracts::precompiles::IAccountKeychain::SignatureType::Secp256k1,
+                    magnus_contracts::precompiles::IAccountKeychain::SignatureType::Secp256k1,
                 expiry: u64::MAX,
                 enforceLimits: true,
                 limits: vec![
-                    tempo_contracts::precompiles::IAccountKeychain::LegacyTokenLimit {
+                    magnus_contracts::precompiles::IAccountKeychain::LegacyTokenLimit {
                         token,
                         amount: U256::from(100),
                     },

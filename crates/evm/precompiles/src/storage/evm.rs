@@ -5,7 +5,7 @@ use revm::{
     context_interface::cfg::{GasParams, gas},
     state::{AccountInfo, Bytecode},
 };
-use tempo_chainspec::hardfork::TempoHardfork;
+use magnus_chainspec::hardfork::TempoHardfork;
 
 use crate::{error::TempoPrecompileError, storage::PrecompileStorageProvider};
 
@@ -333,7 +333,7 @@ mod tests {
         database::{CacheDB, EmptyDB},
         interpreter::StateLoad,
     };
-    use tempo_evm::TempoEvmFactory;
+    use magnus_evm::TempoEvmFactory;
 
     #[test]
     fn test_sstore_sload() -> eyre::Result<()> {

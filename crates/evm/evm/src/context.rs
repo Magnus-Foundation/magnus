@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use alloy_evm::eth::EthBlockExecutionCtx;
 use alloy_primitives::{Address, B256};
 use reth_evm::NextBlockEnvAttributes;
-use tempo_primitives::{TempoConsensusContext, subblock::PartialValidatorKey};
+use magnus_primitives::{TempoConsensusContext, subblock::PartialValidatorKey};
 
 /// Execution context for Tempo block.
 #[derive(Debug, Clone, derive_more::Deref)]
@@ -49,10 +49,10 @@ pub struct TempoNextBlockEnvAttributes {
 }
 
 #[cfg(feature = "rpc")]
-impl reth_rpc_eth_api::helpers::pending_block::BuildPendingEnv<tempo_primitives::TempoHeader>
+impl reth_rpc_eth_api::helpers::pending_block::BuildPendingEnv<magnus_primitives::TempoHeader>
     for TempoNextBlockEnvAttributes
 {
-    fn build_pending_env(parent: &crate::SealedHeader<tempo_primitives::TempoHeader>) -> Self {
+    fn build_pending_env(parent: &crate::SealedHeader<magnus_primitives::TempoHeader>) -> Self {
         Self {
             inner: NextBlockEnvAttributes::build_pending_env(parent),
             general_gas_limit: parent.general_gas_limit,
@@ -69,7 +69,7 @@ mod tests {
     use super::*;
     use reth_primitives_traits::SealedHeader;
     use reth_rpc_eth_api::helpers::pending_block::BuildPendingEnv;
-    use tempo_primitives::TempoHeader;
+    use magnus_primitives::TempoHeader;
 
     #[test]
     fn test_build_pending_env_uses_parent_values() {

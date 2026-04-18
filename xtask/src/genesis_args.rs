@@ -37,17 +37,17 @@ use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
 };
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_commonware_node_config::{SigningKey, SigningShare};
-use tempo_contracts::{
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_commonware_node_config::{SigningKey, SigningShare};
+use magnus_contracts::{
     ARACHNID_CREATE2_FACTORY_ADDRESS, CREATEX_ADDRESS, MULTICALL3_ADDRESS, PERMIT2_ADDRESS,
     PERMIT2_SALT, SAFE_DEPLOYER_ADDRESS,
     contracts::{ARACHNID_CREATE2_FACTORY_BYTECODE, CreateX, Multicall3, SafeDeployer},
     precompiles::{ITIP20Factory, IValidatorConfigV2},
 };
-use tempo_dkg_onchain_artifacts::OnchainDkgOutcome;
-use tempo_evm::evm::{TempoEvm, TempoEvmFactory};
-use tempo_precompiles::{
+use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
+use magnus_evm::evm::{TempoEvm, TempoEvmFactory};
+use magnus_precompiles::{
     PATH_USD_ADDRESS,
     account_keychain::AccountKeychain,
     address_registry::AddressRegistry,
@@ -603,7 +603,7 @@ fn deploy_arachnid_create2_factory(evm: &mut TempoEvm<CacheDB<EmptyDB>>) {
 /// Deploys Permit2 contract via the Arachnid CREATE2 factory.
 fn deploy_permit2(evm: &mut TempoEvm<CacheDB<EmptyDB>>) -> eyre::Result<()> {
     // Build calldata for Arachnid CREATE2 factory: salt (32 bytes) || creation bytecode
-    let bytecode = &tempo_contracts::Permit2::BYTECODE;
+    let bytecode = &magnus_contracts::Permit2::BYTECODE;
     let calldata: Bytes = PERMIT2_SALT
         .as_slice()
         .iter()
@@ -965,7 +965,7 @@ fn initialize_validator_config_v2(
                 let pubkey: B256 = public_key.encode().as_ref().try_into().unwrap();
                 let addr = validator.addr;
 
-                let config = tempo_validator_config::ValidatorConfig {
+                let config = magnus_validator_config::ValidatorConfig {
                     chain_id,
                     validator_address,
                     public_key: pubkey,
@@ -976,7 +976,7 @@ fn initialize_validator_config_v2(
                 let message = config.add_validator_message_hash(validator_address);
                 let private_key = validator.signing_key.clone().into_inner();
                 let signature = private_key.sign(
-                    tempo_precompiles::validator_config_v2::VALIDATOR_NS_ADD,
+                    magnus_precompiles::validator_config_v2::VALIDATOR_NS_ADD,
                     message.as_slice(),
                 );
 

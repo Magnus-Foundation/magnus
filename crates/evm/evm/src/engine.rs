@@ -7,9 +7,9 @@ use reth_evm::{
 };
 use reth_primitives_traits::{SealedBlock, SignedTransaction};
 use std::sync::Arc;
-use tempo_payload_types::TempoExecutionData;
-use tempo_primitives::{Block, TempoTxEnvelope};
-use tempo_revm::TempoTxEnv;
+use magnus_payload_types::TempoExecutionData;
+use magnus_primitives::{Block, TempoTxEnvelope};
+use magnus_revm::TempoTxEnv;
 
 impl ConfigureEngineEvm<TempoExecutionData> for TempoEvmConfig {
     fn evm_env_for_payload(
@@ -93,8 +93,8 @@ impl RecoveredTx<TempoTxEnvelope> for RecoveredInBlock {
 impl ToTxEnv<TempoTxEnv> for RecoveredInBlock {
     fn to_tx_env(&self) -> TempoTxEnv {
         let mut tx_env = TempoTxEnv::from_recovered_tx(self.tx(), *self.signer());
-        if let Some(tempo_tx_env) = tx_env.tempo_tx_env.as_mut() {
-            tempo_tx_env.expiring_nonce_idx = self.expiring_nonce_idx;
+        if let Some(magnus_tx_env) = tx_env.magnus_tx_env.as_mut() {
+            magnus_tx_env.expiring_nonce_idx = self.expiring_nonce_idx;
         }
 
         tx_env
@@ -118,8 +118,8 @@ mod tests {
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
     use reth_chainspec::EthChainSpec;
     use reth_evm::{ConfigureEngineEvm, ConvertTx, ExecutableTxTuple};
-    use tempo_chainspec::{TempoChainSpec, spec::MODERATO};
-    use tempo_primitives::{
+    use magnus_chainspec::{TempoChainSpec, spec::MODERATO};
+    use magnus_primitives::{
         BlockBody, SubBlockMetadata, TempoHeader, transaction::envelope::TEMPO_SYSTEM_TX_SIGNATURE,
     };
 

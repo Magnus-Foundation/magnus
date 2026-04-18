@@ -8,11 +8,11 @@ use revm::{
     context::JournalTr,
     state::{AccountInfo, Bytecode},
 };
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_contracts::precompiles::{
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_contracts::precompiles::{
     DEFAULT_FEE_TOKEN, IFeeManager, IStablecoinDEX, STABLECOIN_DEX_ADDRESS,
 };
-use tempo_precompiles::{
+use magnus_precompiles::{
     TIP_FEE_MANAGER_ADDRESS,
     error::{Result as TempoResult, TempoPrecompileError},
     storage::{Handler, PrecompileStorageProvider, StorageCtx},
@@ -20,7 +20,7 @@ use tempo_precompiles::{
     tip20::{ITIP20, TIP20Token},
     tip403_registry::{AuthRole, TIP403Registry},
 };
-use tempo_primitives::{TempoAddressExt, TempoTxEnvelope};
+use magnus_primitives::{TempoAddressExt, TempoTxEnvelope};
 
 /// Returns true if the calldata is for a TIP-20 function that should trigger fee token inference.
 /// Only `transfer`, `transferWithMemo`, and `distributeReward` qualify.
@@ -57,11 +57,11 @@ impl TempoTx for TempoTxEnv {
     }
 
     fn is_aa(&self) -> bool {
-        self.tempo_tx_env.is_some()
+        self.magnus_tx_env.is_some()
     }
 
     fn calls(&self) -> impl Iterator<Item = (TxKind, &Bytes)> {
-        if let Some(aa) = self.tempo_tx_env.as_ref() {
+        if let Some(aa) = self.magnus_tx_env.as_ref() {
             Either::Left(aa.aa_calls.iter().map(|call| (call.to, &call.input)))
         } else {
             Either::Right(core::iter::once((self.inner.kind, &self.inner.data)))
@@ -457,7 +457,7 @@ mod tests {
         Context, MainContext, context::TxEnv, database::EmptyDB,
         interpreter::instructions::utility::IntoU256,
     };
-    use tempo_precompiles::{
+    use magnus_precompiles::{
         PATH_USD_ADDRESS,
         storage::{StorageCtx, evm::EvmPrecompileStorageProvider},
         test_util::TIP20Setup,

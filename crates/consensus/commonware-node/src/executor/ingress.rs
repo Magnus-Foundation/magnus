@@ -5,7 +5,7 @@ use futures::{
     SinkExt as _,
     channel::{mpsc, oneshot},
 };
-use tempo_payload_types::TempoPayloadAttributes;
+use magnus_payload_types::TempoPayloadAttributes;
 use tracing::Span;
 
 use crate::consensus::{Digest, block::Block};

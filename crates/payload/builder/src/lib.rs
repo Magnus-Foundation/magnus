@@ -44,14 +44,14 @@ use std::{
     },
     time::{Duration, Instant},
 };
-use tempo_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
-use tempo_consensus::TEMPO_SHARED_GAS_DIVISOR;
-use tempo_evm::{TempoEvmConfig, TempoNextBlockEnvAttributes, evm::TempoEvm};
-use tempo_payload_types::{TempoBuiltPayload, TempoPayloadAttributes};
-use tempo_precompiles::{
+use magnus_chainspec::{TempoChainSpec, hardfork::TempoHardforks};
+use magnus_consensus::TEMPO_SHARED_GAS_DIVISOR;
+use magnus_evm::{TempoEvmConfig, TempoNextBlockEnvAttributes, evm::TempoEvm};
+use magnus_payload_types::{TempoBuiltPayload, TempoPayloadAttributes};
+use magnus_precompiles::{
     storage::StorageCtx, tip_fee_manager::TipFeeManager, validator_config_v2::ValidatorConfigV2,
 };
-use tempo_primitives::{
+use magnus_primitives::{
     RecoveredSubBlock, SubBlockMetadata, TempoHeader, TempoTxEnvelope,
     subblock::PartialValidatorKey,
     transaction::{
@@ -59,7 +59,7 @@ use tempo_primitives::{
         envelope::{TEMPO_SYSTEM_TX_SENDER, TEMPO_SYSTEM_TX_SIGNATURE},
     },
 };
-use tempo_transaction_pool::{
+use magnus_transaction_pool::{
     TempoTransactionPool,
     transaction::{TempoPoolTransactionError, TempoPooledTransaction},
 };
@@ -559,7 +559,7 @@ where
                 if fee_token == validator_fee_token {
                     total_fees += nominal_spending;
                 } else {
-                    total_fees += tempo_precompiles::tip_fee_manager::amm::compute_amount_out(
+                    total_fees += magnus_precompiles::tip_fee_manager::amm::compute_amount_out(
                         nominal_spending,
                     )
                     .map_err(PayloadBuilderError::other)?;
@@ -915,7 +915,7 @@ mod tests {
     use alloy_primitives::{Address, B256, Bytes, Signature};
     use core::num::NonZeroU64;
     use reth_primitives_traits::SealedBlock;
-    use tempo_primitives::{
+    use magnus_primitives::{
         AASigned, Block, SignedSubBlock, SubBlock, SubBlockVersion, TempoSignature,
         TempoTransaction,
     };

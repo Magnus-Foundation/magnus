@@ -6,13 +6,13 @@ use alloy::{
 };
 use alloy_eips::BlockId;
 use alloy_primitives::{Address, uint};
-use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
-use tempo_contracts::precompiles::{
+use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_contracts::precompiles::{
     IFeeManager,
     ITIP20::{self, ITIP20Instance},
     ITIPFeeAMM,
 };
-use tempo_precompiles::{
+use magnus_precompiles::{
     DEFAULT_FEE_TOKEN, PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS,
     tip_fee_manager::amm::{MIN_LIQUIDITY, PoolKey},
 };

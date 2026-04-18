@@ -15,7 +15,7 @@ use crate::{CONSENSUS_NODE_PREFIX, Setup, setup_validators};
 
 #[test_traced]
 fn consensus_context_appears_after_t4_activation() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     // T3 active at genesis, T4 activates at timestamp 5.
     let t4_time = 5;

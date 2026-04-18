@@ -37,9 +37,9 @@ use prometheus_client::metrics::{counter::Counter, gauge::Gauge};
 use rand_core::CryptoRngCore;
 use reth_ethereum::{chainspec::EthChainSpec, rpc::eth::primitives::BlockNumHash};
 use reth_provider::{BlockIdReader as _, HeaderProvider as _};
-use tempo_dkg_onchain_artifacts::OnchainDkgOutcome;
-use tempo_node::TempoFullNode;
-use tempo_precompiles::validator_config_v2::ValidatorConfigV2;
+use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
+use magnus_node::TempoFullNode;
+use magnus_precompiles::validator_config_v2::ValidatorConfigV2;
 use tracing::{Level, Span, debug, info, info_span, instrument, warn, warn_span};
 
 use crate::{
@@ -710,7 +710,7 @@ where
 
         info!("reached last block of epoch; reading DKG outcome from header");
 
-        let onchain_outcome = tempo_dkg_onchain_artifacts::OnchainDkgOutcome::read(
+        let onchain_outcome = magnus_dkg_onchain_artifacts::OnchainDkgOutcome::read(
             &mut block.header().extra_data().as_ref(),
         )
         .expect("the last block of an epoch must contain the DKG outcome");
@@ -876,7 +876,7 @@ where
 
         info!("found boundary block; reading DKG outcome from header");
 
-        let onchain_outcome = tempo_dkg_onchain_artifacts::OnchainDkgOutcome::read(
+        let onchain_outcome = magnus_dkg_onchain_artifacts::OnchainDkgOutcome::read(
             &mut block.header().extra_data().as_ref(),
         )
         .expect("the last block of an epoch must contain the DKG outcome");
@@ -1300,7 +1300,7 @@ where
             format!("failed to read header for latest boundary block number `{latest_boundary}`")
         })?;
 
-    let onchain_outcome = tempo_dkg_onchain_artifacts::OnchainDkgOutcome::read(
+    let onchain_outcome = magnus_dkg_onchain_artifacts::OnchainDkgOutcome::read(
         &mut boundary_header.extra_data().as_ref(),
     )
     .wrap_err("the boundary header did not contain the on-chain DKG outcome")?;

@@ -16,7 +16,7 @@ use poem::{Response, handler};
 use rand_distr::num_traits::Zero;
 use reqwest::Url;
 use std::sync::Arc;
-use tempo_precompiles::{
+use magnus_precompiles::{
     TIP_FEE_MANAGER_ADDRESS,
     tip_fee_manager::ITIPFeeAMM::{self, ITIPFeeAMMInstance, Mint, Pool},
     tip20::ITIP20,
@@ -118,11 +118,11 @@ impl MonitorConfig {
                 let token = ITIP20::new(*addr, provider.clone());
                 async move {
                     let decimals = token.decimals().call().await.map_err(|e| {
-                        counter!("tempo_fee_amm_errors", "request" => "decimals").increment(1);
+                        counter!("magnus_fee_amm_errors", "request" => "decimals").increment(1);
                         eyre!("failed to fetch token decimals for {}: {}", addr, e)
                     })?;
                     let name = token.name().call().await.map_err(|e| {
-                        counter!("tempo_fee_amm_errors", "request" => "name").increment(1);
+                        counter!("magnus_fee_amm_errors", "request" => "name").increment(1);
                         eyre!("failed to fetch token name for {}: {}", addr, e)
                     })?;
                     Ok::<_, eyre::Error>((*addr, TIP20Token { decimals, name }))
@@ -159,7 +159,7 @@ impl MonitorConfig {
                             }
                         }
                         Err(e) => {
-                            counter!("tempo_fee_amm_errors", "request" => "pool").increment(1);
+                            counter!("magnus_fee_amm_errors", "request" => "pool").increment(1);
                             error!(%token_a, %token_b, "failed to fetch pool: {}", e);
                             None
                         }
@@ -241,7 +241,7 @@ impl Monitor {
                     self.pools.insert((token_a, token_b), pool);
                 }
                 Err(e) => {
-                    counter!("tempo_fee_amm_errors", "request" => "pool").increment(1);
+                    counter!("magnus_fee_amm_errors", "request" => "pool").increment(1);
 
                     return Err(eyre!(
                         "failed to fetch pool {} -> {}: {}",
@@ -273,7 +273,7 @@ impl Monitor {
             };
 
             gauge!(
-                "tempo_fee_amm_user_token_reserves",
+                "magnus_fee_amm_user_token_reserves",
                 "token_a" => token_a_address.to_string(),
                 "token_b" => token_b_address.to_string(),
                 "token_a_name" => token_a.name.to_string(),
@@ -282,7 +282,7 @@ impl Monitor {
             .set((token_a_balance / 10u128.pow(token_a.decimals as u32)) as f64);
 
             gauge!(
-                "tempo_fee_amm_validator_token_reserves",
+                "magnus_fee_amm_validator_token_reserves",
                 "token_a" => token_a_address.to_string(),
                 "token_b" => token_b_address.to_string(),
                 "token_a_name" => token_a.name.to_string(),

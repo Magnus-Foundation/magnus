@@ -6,13 +6,13 @@ use alloy::{
     transports::http::reqwest::Url,
 };
 use futures::future::try_join_all;
-use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
-use tempo_contracts::precompiles::{IAddressRegistry, ITIP20, ITIP403Registry, TIP20Error};
-use tempo_precompiles::{
+use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_contracts::precompiles::{IAddressRegistry, ITIP20, ITIP403Registry, TIP20Error};
+use magnus_precompiles::{
     ADDRESS_REGISTRY_ADDRESS, TIP403_REGISTRY_ADDRESS,
     test_util::{VIRTUAL_MASTER, VIRTUAL_SALT},
 };
-use tempo_primitives::TempoAddressExt;
+use magnus_primitives::TempoAddressExt;
 
 use crate::utils::{TestNodeBuilder, await_receipts, setup_test_token};
 
@@ -784,8 +784,8 @@ async fn test_tip20_rewards() -> eyre::Result<()> {
 /// and subsequent transactions fail at fee collection.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_tip20_pause_blocks_fee_collection() -> eyre::Result<()> {
-    use tempo_contracts::precompiles::{IFeeManager, IRolesAuth, ITIPFeeAMM};
-    use tempo_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, tip20::PAUSE_ROLE};
+    use magnus_contracts::precompiles::{IFeeManager, IRolesAuth, ITIPFeeAMM};
+    use magnus_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, tip20::PAUSE_ROLE};
 
     reth_tracing::init_test_tracing();
 

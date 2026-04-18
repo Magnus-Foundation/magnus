@@ -5,9 +5,9 @@
 
 pub mod dispatch;
 
-pub use tempo_contracts::precompiles::INonce;
-use tempo_contracts::precompiles::{NonceError, NonceEvent};
-use tempo_precompiles_macros::contract;
+pub use magnus_contracts::precompiles::INonce;
+use magnus_contracts::precompiles::{NonceError, NonceEvent};
+use magnus_precompiles_macros::contract;
 
 use crate::{
     NONCE_PRECOMPILE_ADDRESS,

@@ -18,8 +18,8 @@ pub(crate) fn public_key_to_b256(key: &PublicKey) -> B256 {
 
 pub(crate) fn public_key_to_tempo_primitive(
     key: &PublicKey,
-) -> tempo_primitives::ed25519::PublicKey {
-    tempo_primitives::ed25519::PublicKey::try_from(B256::from_slice(key.as_ref()))
+) -> magnus_primitives::ed25519::PublicKey {
+    magnus_primitives::ed25519::PublicKey::try_from(B256::from_slice(key.as_ref()))
         .expect("shared implementation of ed25519 pub keys")
 }
 
@@ -84,16 +84,16 @@ mod tests {
 
     use commonware_cryptography::ed25519::PublicKey as CommonwarePublicKey;
     use futures::{channel::oneshot, executor::block_on, pin_mut};
-    use tempo_primitives::ed25519::PublicKey as TempoPublicKey;
+    use magnus_primitives::ed25519::PublicKey as TempoPublicKey;
 
     use crate::utils::{OptionFuture, public_key_to_tempo_primitive};
 
     #[test]
     fn commonware_public_key_to_tempo_primitive_conversion() {
-        let tempo_key = TempoPublicKey::from_seed([42u8; 32]);
-        let cw_key = CommonwarePublicKey::from(tempo_key.get());
-        assert_eq!(public_key_to_tempo_primitive(&cw_key), tempo_key);
-        assert_eq!(tempo_key.get().to_bytes(), cw_key.as_ref());
+        let magnus_key = TempoPublicKey::from_seed([42u8; 32]);
+        let cw_key = CommonwarePublicKey::from(magnus_key.get());
+        assert_eq!(public_key_to_tempo_primitive(&cw_key), magnus_key);
+        assert_eq!(magnus_key.get().to_bytes(), cw_key.as_ref());
     }
 
     #[test]

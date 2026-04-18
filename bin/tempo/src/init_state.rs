@@ -34,7 +34,7 @@ use reth_provider::{BlockNumReader, DatabaseProviderFactory, HashingWriter};
 use reth_storage_api::{DBProvider, StorageSettingsCache, TrieWriter};
 use reth_trie::{IntermediateStateRootState, StateRootProgress};
 use reth_trie_db::DatabaseStateRoot;
-use tempo_chainspec::spec::TempoChainSpecParser;
+use magnus_chainspec::spec::TempoChainSpecParser;
 use tracing::info;
 
 /// Magic bytes for the state bloat binary format (8 bytes)

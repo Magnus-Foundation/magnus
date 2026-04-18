@@ -3,22 +3,22 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub use tempo_payload_types::{TempoExecutionData, TempoPayloadTypes};
+pub use magnus_payload_types::{TempoExecutionData, TempoPayloadTypes};
 pub use version::{init_version_metadata, version_metadata};
 
 use crate::node::{TempoAddOns, TempoNode};
 pub use crate::node::{TempoNodeArgs, TempoPoolBuilder};
 use reth_ethereum::provider::db::DatabaseEnv;
 use reth_node_builder::{FullNode, NodeAdapter, RethFullAdapter};
-pub use tempo_transaction_pool::validator::DEFAULT_AA_VALID_AFTER_MAX_SECS;
+pub use magnus_transaction_pool::validator::DEFAULT_AA_VALID_AFTER_MAX_SECS;
 
 pub mod engine;
 pub mod node;
 pub mod rpc;
 pub mod telemetry;
-pub use tempo_consensus as consensus;
-pub use tempo_evm as evm;
-pub use tempo_primitives as primitives;
+pub use magnus_consensus as consensus;
+pub use magnus_evm as evm;
+pub use magnus_primitives as primitives;
 
 mod version;
 

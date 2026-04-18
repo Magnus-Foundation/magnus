@@ -13,7 +13,7 @@ use alloy_provider::fillers::{
 };
 use alloy_rpc_types_eth::{AccessList, Block, Transaction};
 use alloy_signer_local::PrivateKeySigner;
-use tempo_primitives::{
+use magnus_primitives::{
     TempoHeader, TempoReceipt, TempoTxEnvelope, TempoTxType, transaction::TempoTypedTransaction,
 };
 
@@ -164,7 +164,7 @@ impl NetworkTransactionBuilder<TempoNetwork> for TempoTransactionRequest {
         if !self.calls.is_empty()
             || self.nonce_key.is_some()
             || self.fee_token.is_some()
-            || !self.tempo_authorization_list.is_empty()
+            || !self.magnus_authorization_list.is_empty()
             || self.key_authorization.is_some()
             || self.key_id.is_some()
             || self.key_type.is_some()
@@ -313,7 +313,7 @@ mod tests {
     use alloy_eips::eip7702::SignedAuthorization;
     use alloy_primitives::{B256, Signature};
     use alloy_rpc_types_eth::{AccessListItem, Authorization, TransactionRequest};
-    use tempo_primitives::{
+    use magnus_primitives::{
         SignatureType, TempoSignature,
         transaction::{KeyAuthorization, PrimitiveSignature, TempoSignedAuthorization},
     };
@@ -476,7 +476,7 @@ mod tests {
     #[test]
     fn output_tx_type_tempo_authorization_list_is_aa() {
         let req = TempoTransactionRequest {
-            tempo_authorization_list: vec![TempoSignedAuthorization::new_unchecked(
+            magnus_authorization_list: vec![TempoSignedAuthorization::new_unchecked(
                 Authorization {
                     chain_id: U256::ZERO,
                     address: Address::ZERO,

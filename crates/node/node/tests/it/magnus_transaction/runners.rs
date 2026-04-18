@@ -13,13 +13,13 @@ use alloy::{
 use alloy_eips::{Decodable2718, Encodable2718};
 use alloy_primitives::TxKind;
 use reth_primitives_traits::transaction::TxHashRef;
-use tempo_contracts::precompiles::DEFAULT_FEE_TOKEN;
-use tempo_node::rpc::TempoTransactionRequest;
-use tempo_primitives::{
+use magnus_contracts::precompiles::DEFAULT_FEE_TOKEN;
+use magnus_node::rpc::TempoTransactionRequest;
+use magnus_primitives::{
     SignatureType, TempoTransaction, TempoTxEnvelope,
     transaction::{
         KeyAuthorization, SignedKeyAuthorization, TEMPO_EXPIRING_NONCE_KEY, TokenLimit,
-        tempo_transaction::Call,
+        magnus_transaction::Call,
         tt_signature::{PrimitiveSignature, TempoSignature},
     },
 };
@@ -884,7 +884,7 @@ pub(crate) async fn run_raw_case<E: TestEnv>(
                 *amount,
             )]
         }
-        TestAction::AdminCall => vec![tempo_alloy::provider::keychain::update_spending_limit(
+        TestAction::AdminCall => vec![magnus_alloy::provider::keychain::update_spending_limit(
             Address::random(),
             DEFAULT_FEE_TOKEN,
             U256::from(20u64) * U256::from(10).pow(U256::from(18)),
@@ -905,7 +905,7 @@ pub(crate) async fn run_raw_case<E: TestEnv>(
             // Sign with root key directly (handled below)
         }
         KeySetup::ZeroPubKey => {
-            use tempo_alloy::provider::keychain::{
+            use magnus_alloy::provider::keychain::{
                 KeyRestrictions, authorize_key, authorize_key_legacy,
             };
 
@@ -1083,7 +1083,7 @@ pub(crate) async fn run_raw_case<E: TestEnv>(
                 }
                 _ => {
                     // P256 / WebAuthn path (existing logic)
-                    use tempo_primitives::transaction::tt_signature::{
+                    use magnus_primitives::transaction::tt_signature::{
                         P256SignatureWithPreHash, normalize_p256_s,
                     };
 
@@ -1867,7 +1867,7 @@ pub(super) async fn run_fee_payer_cosign_scenario<E: TestEnv>(env: &mut E) -> ey
     let user_addr = user_signer.address();
 
     let fee_payer_balance_before =
-        tempo_precompiles::tip20::ITIP20::new(DEFAULT_FEE_TOKEN, env.provider())
+        magnus_precompiles::tip20::ITIP20::new(DEFAULT_FEE_TOKEN, env.provider())
             .balanceOf(fee_payer_addr)
             .call()
             .await?;
@@ -1927,7 +1927,7 @@ pub(super) async fn run_fee_payer_cosign_scenario<E: TestEnv>(env: &mut E) -> ey
 
 /// EIP-7702 authorization list with 3 key types.
 pub(super) async fn run_authorization_list_scenario<E: TestEnv>(env: &mut E) -> eyre::Result<()> {
-    use tempo_primitives::transaction::TempoSignedAuthorization;
+    use magnus_primitives::transaction::TempoSignedAuthorization;
 
     println!("\n=== Authorization list scenario ===\n");
 
@@ -1937,7 +1937,7 @@ pub(super) async fn run_authorization_list_scenario<E: TestEnv>(env: &mut E) -> 
     let sender_addr = sender_signer.address();
     let _ = env.fund_account(sender_addr).await?;
 
-    let delegate_address = tempo_precompiles::ACCOUNT_KEYCHAIN_ADDRESS;
+    let delegate_address = magnus_precompiles::ACCOUNT_KEYCHAIN_ADDRESS;
 
     // Authority 1: Secp256k1
     let auth1_signer = PrivateKeySigner::random();
@@ -1974,8 +1974,8 @@ pub(super) async fn run_authorization_list_scenario<E: TestEnv>(env: &mut E) -> 
             to: Some(recipient.into()),
             value: Some(U256::ZERO),
             gas: Some(2_000_000),
-            max_fee_per_gas: Some(tempo_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
-            max_priority_fee_per_gas: Some(tempo_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
+            max_fee_per_gas: Some(magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
+            max_priority_fee_per_gas: Some(magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
             nonce: Some(env.provider().get_transaction_count(sender_addr).await?),
             chain_id: Some(chain_id),
             ..Default::default()
@@ -1986,7 +1986,7 @@ pub(super) async fn run_authorization_list_scenario<E: TestEnv>(env: &mut E) -> 
             input: Bytes::new(),
         }],
         fee_token: Some(DEFAULT_FEE_TOKEN),
-        tempo_authorization_list: vec![auth1_signed, auth2_signed, auth3_signed],
+        magnus_authorization_list: vec![auth1_signed, auth2_signed, auth3_signed],
         ..Default::default()
     };
 
@@ -2027,7 +2027,7 @@ pub(super) async fn run_authorization_list_scenario<E: TestEnv>(env: &mut E) -> 
 pub(super) async fn run_keychain_auth_list_skipped_scenario<E: TestEnv>(
     env: &mut E,
 ) -> eyre::Result<()> {
-    use tempo_primitives::transaction::{
+    use magnus_primitives::transaction::{
         TempoSignedAuthorization, tt_signature::KeychainSignature,
     };
 
@@ -2069,8 +2069,8 @@ pub(super) async fn run_keychain_auth_list_skipped_scenario<E: TestEnv>(
             to: Some(recipient.into()),
             value: Some(U256::ZERO),
             gas: Some(2_000_000),
-            max_fee_per_gas: Some(tempo_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
-            max_priority_fee_per_gas: Some(tempo_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
+            max_fee_per_gas: Some(magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
+            max_priority_fee_per_gas: Some(magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128),
             nonce: Some(sender_nonce_before),
             chain_id: Some(chain_id),
             ..Default::default()
@@ -2081,7 +2081,7 @@ pub(super) async fn run_keychain_auth_list_skipped_scenario<E: TestEnv>(
             input: Bytes::new(),
         }],
         fee_token: Some(DEFAULT_FEE_TOKEN),
-        tempo_authorization_list: vec![spoofed_auth],
+        magnus_authorization_list: vec![spoofed_auth],
         ..Default::default()
     };
 
@@ -2670,8 +2670,8 @@ pub(super) async fn run_create_contract_address_scenario<E: TestEnv>(
 
     let tx = TempoTransaction {
         chain_id,
-        max_priority_fee_per_gas: tempo_chainspec::spec::TEMPO_T1_BASE_FEE as u128,
-        max_fee_per_gas: tempo_chainspec::spec::TEMPO_T1_BASE_FEE as u128,
+        max_priority_fee_per_gas: magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128,
+        max_fee_per_gas: magnus_chainspec::spec::TEMPO_T1_BASE_FEE as u128,
         gas_limit: 2_000_000,
         calls: vec![Call {
             to: TxKind::Create,
@@ -2752,7 +2752,7 @@ pub(super) async fn run_fill_transaction_error_decoding_scenario<E: TestEnv>(
         .await;
 
     let err = result.expect_err("eth_fillTransaction should fail for unfunded address");
-    let err_str = tempo_rpc_error_message(&err);
+    let err_str = magnus_rpc_error_message(&err);
 
     // The error must contain the decoded error name, not raw hex.
     assert!(

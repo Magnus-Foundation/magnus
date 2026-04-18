@@ -6,13 +6,13 @@ use reth_chainspec::EthChainSpec;
 use reth_evm::block::StateDB;
 use reth_revm::context::BlockEnv;
 use revm::inspector::NoOpInspector;
-use tempo_chainspec::{TempoChainSpec, spec::MODERATO};
-use tempo_revm::TempoBlockEnv;
+use magnus_chainspec::{TempoChainSpec, spec::MODERATO};
+use magnus_revm::TempoBlockEnv;
 
 use crate::{TempoBlockExecutionCtx, block::TempoBlockExecutor, evm::TempoEvm};
 use alloy_evm::eth::EthBlockExecutionCtx;
 use alloy_primitives::U256;
-use tempo_primitives::subblock::PartialValidatorKey;
+use magnus_primitives::subblock::PartialValidatorKey;
 
 pub(crate) fn test_chainspec() -> Arc<TempoChainSpec> {
     Arc::new(TempoChainSpec::from_genesis(MODERATO.genesis().clone()))
@@ -43,7 +43,7 @@ pub(crate) fn test_evm_with_basefee<DB: Database>(
 }
 
 use crate::block::BlockSection;
-use tempo_primitives::TempoTxEnvelope;
+use magnus_primitives::TempoTxEnvelope;
 
 pub(crate) struct TestExecutorBuilder {
     pub(crate) block_number: u64,

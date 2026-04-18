@@ -9,7 +9,7 @@ use reth_rpc_eth_types::{
     EthApiError,
     error::api::{FromEvmHalt, FromRevert},
 };
-use tempo_evm::TempoHaltReason;
+use magnus_evm::TempoHaltReason;
 
 #[derive(Debug, thiserror::Error)]
 pub enum TempoEthApiError {
@@ -67,7 +67,7 @@ impl FromEvmHalt<TempoHaltReason> for TempoEthApiError {
 
 impl FromRevert for TempoEthApiError {
     fn from_revert(revert: Bytes) -> Self {
-        match tempo_precompiles::error::decode_error(&revert.0) {
+        match magnus_precompiles::error::decode_error(&revert.0) {
             Some(error) => Self::EthApiError(EthApiError::Other(Box::new(rpc_err(
                 3,
                 format!("execution reverted: {}", error.error),

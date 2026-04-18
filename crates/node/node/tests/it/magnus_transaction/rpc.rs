@@ -18,11 +18,11 @@ use alloy::{
 };
 use alloy_eips::Encodable2718;
 use reth_primitives_traits::transaction::TxHashRef;
-use tempo_chainspec::{
+use magnus_chainspec::{
     hardfork::{TempoHardfork, TempoHardforks},
     spec::{DEV, MODERATO, PRESTO},
 };
-use tempo_primitives::{TempoTxEnvelope, transaction::tempo_transaction::Call};
+use magnus_primitives::{TempoTxEnvelope, transaction::magnus_transaction::Call};
 
 use super::helpers::*;
 
@@ -95,7 +95,7 @@ impl RpcEnv {
             .get_block_by_number(Default::default())
             .await?
             .ok_or_else(|| eyre::eyre!("latest block missing"))?;
-        let hardfork = chain_spec.tempo_hardfork_at(latest_block.header.timestamp());
+        let hardfork = chain_spec.magnus_hardfork_at(latest_block.header.timestamp());
 
         Ok(Self {
             provider,
@@ -141,15 +141,15 @@ impl super::types::TestEnv for RpcEnv {
     async fn fund_account(&mut self, addr: Address) -> eyre::Result<U256> {
         let tx_hashes: Vec<B256> = self
             .provider
-            .raw_request("tempo_fundAddress".into(), [addr])
+            .raw_request("magnus_fundAddress".into(), [addr])
             .await?;
 
         for tx_hash in tx_hashes {
             wait_for_receipt(&self.provider, tx_hash).await?;
         }
 
-        let balance = tempo_precompiles::tip20::ITIP20::new(
-            tempo_contracts::precompiles::DEFAULT_FEE_TOKEN,
+        let balance = magnus_precompiles::tip20::ITIP20::new(
+            magnus_contracts::precompiles::DEFAULT_FEE_TOKEN,
             &self.provider,
         )
         .balanceOf(addr)

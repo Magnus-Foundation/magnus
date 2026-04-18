@@ -35,13 +35,13 @@ use commonware_utils::{N3f1, TryFromIterator as _, ordered};
 use futures::future::join_all;
 use itertools::Itertools as _;
 use reth_node_metrics::recorder::PrometheusRecorder;
-use tempo_commonware_node::{consensus, feed::FeedStateHandle};
+use magnus_commonware_node::{consensus, feed::FeedStateHandle};
 
 pub mod execution_runtime;
 pub use execution_runtime::ExecutionNodeConfig;
 pub mod testing_node;
 pub use execution_runtime::ExecutionRuntime;
-use tempo_dkg_onchain_artifacts::OnchainDkgOutcome;
+use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
 pub use testing_node::TestingNode;
 
 #[cfg(test)]

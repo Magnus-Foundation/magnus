@@ -11,14 +11,14 @@ use alloy_network::{Ethereum, ReceiptResponse, TxSignerSync};
 use alloy_primitives::Bytes;
 use alloy_rpc_types_eth::TransactionRequest;
 use reth_node_api::BuiltPayload;
-use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
-use tempo_contracts::precompiles::{IFeeManager, IRolesAuth, ITIP20, ITIP20Factory, ITIPFeeAMM};
-use tempo_node::node::TempoNode;
-use tempo_precompiles::{
+use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_contracts::precompiles::{IFeeManager, IRolesAuth, ITIP20, ITIP20Factory, ITIPFeeAMM};
+use magnus_node::node::TempoNode;
+use magnus_precompiles::{
     PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, TIP20_FACTORY_ADDRESS,
     tip_fee_manager::amm::compute_amount_out, tip20::ISSUER_ROLE,
 };
-use tempo_primitives::{TempoTxEnvelope, transaction::calc_gas_balance_spending};
+use magnus_primitives::{TempoTxEnvelope, transaction::calc_gas_balance_spending};
 
 /// Helper to setup a test token by manually injecting transactions and advancing blocks
 async fn setup_token_manual<P>(

@@ -3,7 +3,7 @@ use alloy_network::ReceiptResponse;
 use alloy_primitives::{Address, B256, BlockHash, TxHash};
 use alloy_rpc_types_eth::{Log, TransactionReceipt};
 use serde::{Deserialize, Serialize};
-use tempo_primitives::TempoReceipt;
+use magnus_primitives::TempoReceipt;
 
 /// Tempo RPC receipt type.
 #[derive(Debug, Clone, Serialize, Deserialize, derive_more::Deref, derive_more::DerefMut)]

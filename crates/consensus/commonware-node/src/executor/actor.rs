@@ -23,8 +23,8 @@ use futures::{
     select_biased,
 };
 use reth_provider::{BlockHashReader, BlockNumReader as _};
-use tempo_node::{TempoExecutionData, TempoFullNode};
-use tempo_payload_types::TempoPayloadAttributes;
+use magnus_node::{TempoExecutionData, TempoFullNode};
+use magnus_payload_types::TempoPayloadAttributes;
 use tracing::{
     Level, Span, debug, error, error_span, info, info_span, instrument, warn, warn_span,
 };

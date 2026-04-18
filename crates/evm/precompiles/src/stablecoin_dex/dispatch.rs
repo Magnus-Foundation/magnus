@@ -2,7 +2,7 @@
 
 use alloy::{primitives::Address, sol_types::SolInterface};
 use revm::precompile::PrecompileResult;
-use tempo_contracts::precompiles::IStablecoinDEX::IStablecoinDEXCalls;
+use magnus_contracts::precompiles::IStablecoinDEX::IStablecoinDEXCalls;
 
 use crate::{
     Precompile, charge_input_cost, dispatch_call, mutate, mutate_void,
@@ -117,7 +117,7 @@ mod tests {
         primitives::{Address, U256},
         sol_types::{SolCall, SolValue},
     };
-    use tempo_contracts::precompiles::IStablecoinDEX::IStablecoinDEXCalls;
+    use magnus_contracts::precompiles::IStablecoinDEX::IStablecoinDEXCalls;
 
     /// Setup a basic exchange with tokens and liquidity for swap tests
     fn setup_exchange_with_liquidity() -> eyre::Result<(StablecoinDEX, Address, Address, Address)> {

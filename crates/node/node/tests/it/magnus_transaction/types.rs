@@ -8,9 +8,9 @@ use alloy::{
     providers::Provider,
     signers::local::PrivateKeySigner,
 };
-use tempo_chainspec::hardfork::TempoHardfork;
-use tempo_node::rpc::TempoTransactionRequest;
-use tempo_primitives::{SignatureType, transaction::SignedKeyAuthorization};
+use magnus_chainspec::hardfork::TempoHardfork;
+use magnus_node::rpc::TempoTransactionRequest;
+use magnus_primitives::{SignatureType, transaction::SignedKeyAuthorization};
 
 /// Test environment abstraction for matrix tests and scenario runners.
 ///

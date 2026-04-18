@@ -13,8 +13,8 @@ use eyre::{OptionExt as _, WrapErr as _};
 use reth_ethereum::evm::revm::{State, database::StateProviderDatabase};
 use reth_node_builder::ConfigureEvm as _;
 use reth_provider::{HeaderProvider as _, StateProviderFactory as _};
-use tempo_node::TempoFullNode;
-use tempo_precompiles::{
+use magnus_node::TempoFullNode;
+use magnus_precompiles::{
     storage::StorageCtx,
     validator_config_v2::{IValidatorConfigV2, ValidatorConfigV2},
 };

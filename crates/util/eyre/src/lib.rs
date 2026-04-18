@@ -8,14 +8,14 @@
 //! by the tracing subscriber.
 //!
 //! Because errors without their source chain are nigh useless, this crate
-//! provides the `tempo_eyre::install()` hook to install an error handler that
+//! provides the `magnus_eyre::install()` hook to install an error handler that
 //! formats errors in a list style like `[error 0, error 1, error 2]`.
 //!
 //! # Example
 //!
 //! ```rust
 //! # use eyre::{eyre, WrapErr as _};
-//! tempo_eyre::install();
+//! magnus_eyre::install();
 //!
 //! let err = eyre!("bottom error")
 //!     .wrap_err("middle error")

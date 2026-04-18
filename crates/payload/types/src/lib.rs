@@ -17,7 +17,7 @@ use reth_node_api::{BlockBody, ExecutionPayload, PayloadTypes};
 use reth_payload_primitives::{BuiltPayload, BuiltPayloadExecutedBlock};
 use reth_primitives_traits::{AlloyBlockHeader as _, SealedBlock};
 use serde::{Deserialize, Serialize};
-use tempo_primitives::{Block, TempoPrimitives};
+use magnus_primitives::{Block, TempoPrimitives};
 
 /// Payload types for Tempo node.
 #[derive(Debug, Clone, Copy, Default)]

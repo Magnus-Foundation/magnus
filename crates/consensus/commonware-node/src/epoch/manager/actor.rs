@@ -472,7 +472,7 @@ where
                 .await
                 .await
                 .map_err(|_| eyre!("marshal never returned the block"))?;
-            let onchain_outcome = tempo_dkg_onchain_artifacts::OnchainDkgOutcome::read(
+            let onchain_outcome = magnus_dkg_onchain_artifacts::OnchainDkgOutcome::read(
                 &mut block.header().extra_data().as_ref(),
             )
             .expect("boundary blocks must contain DKG outcomes");

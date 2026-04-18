@@ -6,8 +6,8 @@ use reth_evm::execute::{BlockAssembler, BlockAssemblerInput};
 use reth_evm_ethereum::EthBlockAssembler;
 use reth_primitives_traits::SealedHeader;
 use std::sync::Arc;
-use tempo_chainspec::TempoChainSpec;
-use tempo_primitives::TempoHeader;
+use magnus_chainspec::TempoChainSpec;
+use magnus_primitives::TempoHeader;
 
 /// Assembler for Tempo blocks.
 #[derive(Debug, Clone)]
@@ -24,7 +24,7 @@ impl TempoBlockAssembler {
 }
 
 impl BlockAssembler<TempoEvmConfig> for TempoBlockAssembler {
-    type Block = tempo_primitives::Block;
+    type Block = magnus_primitives::Block;
 
     fn assemble_block(
         &self,
@@ -90,11 +90,11 @@ mod tests {
     use reth_storage_api::noop::NoopProvider;
     use revm::{context::BlockEnv, database::BundleState};
     use std::collections::HashMap;
-    use tempo_chainspec::spec::MODERATO;
-    use tempo_primitives::{
+    use magnus_chainspec::spec::MODERATO;
+    use magnus_primitives::{
         TempoHeader, TempoPrimitives, TempoReceipt, TempoTxEnvelope, TempoTxType,
     };
-    use tempo_revm::TempoBlockEnv;
+    use magnus_revm::TempoBlockEnv;
 
     fn create_legacy_tx() -> TempoTxEnvelope {
         let tx = TxLegacy {
@@ -235,10 +235,10 @@ mod tests {
         let general_gas_limit = 10_000_000u64;
         let shared_gas_limit = 10_000_000u64;
 
-        let ctx = tempo_primitives::TempoConsensusContext {
+        let ctx = magnus_primitives::TempoConsensusContext {
             epoch: 1,
             view: 5,
-            proposer: tempo_primitives::ed25519::PublicKey::from_seed([0xab; 32]),
+            proposer: magnus_primitives::ed25519::PublicKey::from_seed([0xab; 32]),
             parent_view: 4,
         };
 

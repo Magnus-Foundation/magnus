@@ -16,10 +16,10 @@ use std::{
     collections::{BTreeMap, HashSet},
     sync::LazyLock,
 };
-use tempo_chainspec::hardfork::TempoHardforks;
-use tempo_evm::TempoStateAccess;
-use tempo_precompiles::{error::TempoPrecompileError, tip20::TIP20Token};
-use tempo_primitives::TempoAddressExt;
+use magnus_chainspec::hardfork::TempoHardforks;
+use magnus_evm::TempoStateAccess;
+use magnus_precompiles::{error::TempoPrecompileError, tip20::TIP20Token};
+use magnus_primitives::TempoAddressExt;
 
 /// keccak256("Transfer(address,address,uint256)")
 static TRANSFER_TOPIC: LazyLock<B256> =
@@ -36,7 +36,7 @@ pub struct Tip20TokenMetadata {
     pub currency: String,
 }
 
-/// Response for `tempo_simulateV1`.
+/// Response for `magnus_simulateV1`.
 ///
 /// Wraps the standard `eth_simulateV1` response with a top-level `tokenMetadata` map
 /// containing TIP-20 token info for all tokens involved in transfer logs.
@@ -60,13 +60,13 @@ pub trait TempoSimulateApi {
     async fn simulate_v1(
         &self,
         payload: alloy_rpc_types_eth::simulate::SimulatePayload<
-            tempo_alloy::rpc::TempoTransactionRequest,
+            magnus_alloy::rpc::TempoTransactionRequest,
         >,
         block: Option<alloy_eips::BlockId>,
-    ) -> RpcResult<TempoSimulateV1Response<RpcBlock<tempo_alloy::TempoNetwork>>>;
+    ) -> RpcResult<TempoSimulateV1Response<RpcBlock<magnus_alloy::TempoNetwork>>>;
 }
 
-/// Implementation of `tempo_simulateV1`.
+/// Implementation of `magnus_simulateV1`.
 #[derive(Debug, Clone)]
 pub struct TempoSimulate<N: FullNodeTypes<Types = TempoNode>> {
     eth_api: TempoEthApi<N>,
@@ -83,7 +83,7 @@ impl<N: FullNodeTypes<Types = TempoNode>> TempoSimulate<N> {
 /// This allows metadata resolution to start before simulation completes.
 fn extract_tip20_targets(
     payload: &alloy_rpc_types_eth::simulate::SimulatePayload<
-        tempo_alloy::rpc::TempoTransactionRequest,
+        magnus_alloy::rpc::TempoTransactionRequest,
     >,
 ) -> Vec<Address> {
     let mut addrs = std::collections::BTreeSet::new();
@@ -119,10 +119,10 @@ impl<N: FullNodeTypes<Types = TempoNode>> TempoSimulateApiServer for TempoSimula
     async fn simulate_v1(
         &self,
         payload: alloy_rpc_types_eth::simulate::SimulatePayload<
-            tempo_alloy::rpc::TempoTransactionRequest,
+            magnus_alloy::rpc::TempoTransactionRequest,
         >,
         block: Option<alloy_eips::BlockId>,
-    ) -> RpcResult<TempoSimulateV1Response<RpcBlock<tempo_alloy::TempoNetwork>>> {
+    ) -> RpcResult<TempoSimulateV1Response<RpcBlock<magnus_alloy::TempoNetwork>>> {
         // Pre-extract TIP-20 addresses from call targets so we can start
         // metadata resolution concurrently with the simulation.
         let prefetched = extract_tip20_targets(&payload);
@@ -201,7 +201,7 @@ impl<N: FullNodeTypes<Types = TempoNode>> TempoSimulate<N> {
                     })
                     .unwrap_or(u64::MAX);
 
-                let spec = this.provider().chain_spec().tempo_hardfork_at(timestamp);
+                let spec = this.provider().chain_spec().magnus_hardfork_at(timestamp);
                 let mut db = StateProviderDatabase::new(state);
 
                 let mut metadata = BTreeMap::new();

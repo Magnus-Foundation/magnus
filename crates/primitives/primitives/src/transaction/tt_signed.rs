@@ -1,5 +1,5 @@
 use super::{
-    tempo_transaction::{TEMPO_TX_TYPE_ID, TempoTransaction},
+    magnus_transaction::{TEMPO_TX_TYPE_ID, TempoTransaction},
     tt_signature::TempoSignature,
 };
 use alloc::vec::Vec;
@@ -430,7 +430,7 @@ mod serde_impl {
     #[cfg(test)]
     mod tests {
         use crate::transaction::{
-            tempo_transaction::{Call, TempoTransaction},
+            magnus_transaction::{Call, TempoTransaction},
             tt_signature::{PrimitiveSignature, TempoSignature},
         };
         use alloy_primitives::{Address, Bytes, Signature, TxKind, U256};
@@ -479,7 +479,7 @@ mod serde_impl {
 mod tests {
     use super::*;
     use crate::transaction::{
-        tempo_transaction::Call,
+        magnus_transaction::Call,
         tt_authorization::tests::{generate_secp256k1_keypair, sign_hash},
         tt_signature::PrimitiveSignature,
     };

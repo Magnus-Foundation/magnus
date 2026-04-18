@@ -6,7 +6,7 @@ use commonware_p2p::simulated::Link;
 
 #[test_traced]
 fn only_good_links() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     // FIXME(janis): figure out how to run this test in a loop.
     //
@@ -63,7 +63,7 @@ fn only_good_links() {
 
 #[test_traced]
 fn many_bad_links() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let link = Link {
         latency: Duration::from_millis(200),
@@ -114,7 +114,7 @@ fn many_bad_links() {
 // this test.
 #[test_traced]
 fn reach_height_20_with_a_few_bad_links() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let link = Link {
         latency: Duration::from_millis(80),

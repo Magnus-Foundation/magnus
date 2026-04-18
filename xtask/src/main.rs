@@ -96,7 +96,7 @@ fn generate_config_to_add_peer(
         mnemonic,
     }: GenerateAddPeer,
 ) -> eyre::Result<()> {
-    use tempo_precompiles::VALIDATOR_CONFIG_ADDRESS;
+    use magnus_precompiles::VALIDATOR_CONFIG_ADDRESS;
     let public_key_bytes = const_hex::decode(&public_key)?;
     let public_key = commonware_cryptography::ed25519::PublicKey::decode(&public_key_bytes[..])?;
 

@@ -11,7 +11,7 @@ use revm::context::{
         AccessList, AccessListItem, RecoveredAuthority, RecoveredAuthorization, SignedAuthorization,
     },
 };
-use tempo_primitives::{
+use magnus_primitives::{
     AASigned, TempoSignature, TempoTransaction, TempoTxEnvelope,
     transaction::{
         Call, RecoveredTempoAuthorization, SignedKeyAuthorization, calc_gas_balance_spending,
@@ -37,7 +37,7 @@ pub struct TempoBatchCallEnv {
     ///
     /// Each authorization lazily recovers the authority on first access and caches the result.
     /// The signature is preserved for gas calculation.
-    pub tempo_authorization_list: Vec<RecoveredTempoAuthorization>,
+    pub magnus_authorization_list: Vec<RecoveredTempoAuthorization>,
 
     /// Nonce key for 2D nonce system
     pub nonce_key: U256,
@@ -92,7 +92,7 @@ pub struct TempoTxEnv {
     pub fee_payer: Option<Option<Address>>,
 
     /// AA-specific transaction environment (boxed to keep TempoTxEnv lean for non-AA tx)
-    pub tempo_tx_env: Option<Box<TempoBatchCallEnv>>,
+    pub magnus_tx_env: Option<Box<TempoBatchCallEnv>>,
 }
 
 impl TempoTxEnv {
@@ -112,14 +112,14 @@ impl TempoTxEnv {
 
     /// Returns true if the transaction is a subblock transaction.
     pub fn is_subblock_transaction(&self) -> bool {
-        self.tempo_tx_env
+        self.magnus_tx_env
             .as_ref()
             .is_some_and(|aa| aa.subblock_transaction)
     }
 
     /// Returns the first top-level call in the transaction.
     pub fn first_call(&self) -> Option<(&TxKind, &[u8])> {
-        if let Some(aa) = self.tempo_tx_env.as_ref() {
+        if let Some(aa) = self.magnus_tx_env.as_ref() {
             aa.aa_calls
                 .first()
                 .map(|call| (&call.to, call.input.as_ref()))
@@ -133,7 +133,7 @@ impl TempoTxEnv {
     /// For AA transactions, iterates over `aa_calls`. For non-AA transactions,
     /// returns a single-element iterator with the inner transaction's kind and data.
     pub fn calls(&self) -> impl Iterator<Item = (&TxKind, &[u8])> {
-        if let Some(aa) = self.tempo_tx_env.as_ref() {
+        if let Some(aa) = self.magnus_tx_env.as_ref() {
             Either::Left(
                 aa.aa_calls
                     .iter()
@@ -293,7 +293,7 @@ impl FromRecoveredTx<AASigned> for TempoTxEnv {
             valid_before,
             valid_after,
             key_authorization,
-            tempo_authorization_list,
+            magnus_authorization_list,
         } = tx;
 
         // Extract to/value/input from calls (use first call or defaults)
@@ -321,7 +321,7 @@ impl FromRecoveredTx<AASigned> for TempoTxEnv {
                 gas_priority_fee: Some(*max_priority_fee_per_gas),
                 access_list: access_list.clone(),
                 // Convert Tempo authorization list to RecoveredAuthorization upfront
-                authorization_list: tempo_authorization_list
+                authorization_list: magnus_authorization_list
                     .iter()
                     .map(|auth| {
                         let authority = auth
@@ -341,13 +341,13 @@ impl FromRecoveredTx<AASigned> for TempoTxEnv {
                 secp256k1::recover_signer(&sig, tx.fee_payer_signature_hash(caller)).ok()
             }),
             // Bundle AA-specific fields into TempoBatchCallEnv
-            tempo_tx_env: Some(Box::new(TempoBatchCallEnv {
+            magnus_tx_env: Some(Box::new(TempoBatchCallEnv {
                 signature: signature.clone(),
                 valid_before: valid_before.map(NonZeroU64::get),
                 valid_after: valid_after.map(NonZeroU64::get),
                 aa_calls: calls.clone(),
                 // Recover authorizations upfront to avoid recovery during execution
-                tempo_authorization_list: tempo_authorization_list
+                magnus_authorization_list: magnus_authorization_list
                     .iter()
                     .map(|auth| RecoveredTempoAuthorization::recover(auth.clone()))
                     .collect(),
@@ -377,7 +377,7 @@ impl FromRecoveredTx<TempoTxEnvelope> for TempoTxEnv {
                 fee_token: None,
                 is_system_tx: tx.is_system_tx(),
                 fee_payer: None,
-                tempo_tx_env: None, // Non-AA transaction
+                magnus_tx_env: None, // Non-AA transaction
             },
             TempoTxEnvelope::Eip2930(tx) => TxEnv::from_recovered_tx(tx.tx(), sender).into(),
             TempoTxEnvelope::Eip1559(tx) => TxEnv::from_recovered_tx(tx.tx(), sender).into(),
@@ -416,9 +416,9 @@ mod tests {
     use core::num::NonZeroU64;
     use proptest::prelude::*;
     use revm::context::{Transaction, TxEnv, result::InvalidTransaction};
-    use tempo_primitives::transaction::{
+    use magnus_primitives::transaction::{
         Call, calc_gas_balance_spending,
-        tempo_transaction::TEMPO_EXPIRING_NONCE_KEY,
+        magnus_transaction::TEMPO_EXPIRING_NONCE_KEY,
         tt_signature::{PrimitiveSignature, TempoSignature},
         tt_signed::AASigned,
         validate_calls,
@@ -509,7 +509,7 @@ mod tests {
         let caller = Address::repeat_byte(0xAA);
 
         let make_aa_signed = |nonce_key: U256| -> AASigned {
-            let tx = tempo_primitives::transaction::TempoTransaction {
+            let tx = magnus_primitives::transaction::TempoTransaction {
                 chain_id: 1,
                 gas_limit: 1_000_000,
                 nonce_key,
@@ -531,10 +531,10 @@ mod tests {
         // Expiring nonce tx: expiring_nonce_hash should be Some and match direct computation
         let expiring_signed = make_aa_signed(TEMPO_EXPIRING_NONCE_KEY);
         let expiring_env = TempoTxEnv::from_recovered_tx(&expiring_signed, caller);
-        let tempo_env = expiring_env.tempo_tx_env.as_ref().unwrap();
+        let magnus_env = expiring_env.magnus_tx_env.as_ref().unwrap();
         let expected_hash = expiring_signed.expiring_nonce_hash(caller);
         assert_eq!(
-            tempo_env.expiring_nonce_hash,
+            magnus_env.expiring_nonce_hash,
             Some(expected_hash),
             "expiring nonce tx must have expiring_nonce_hash set"
         );
@@ -542,7 +542,7 @@ mod tests {
         // Regular 2D nonce tx: expiring_nonce_hash should be None
         let regular_signed = make_aa_signed(U256::from(42));
         let regular_env = super::TempoTxEnv::from_recovered_tx(&regular_signed, caller);
-        let regular_tempo_env = regular_env.tempo_tx_env.as_ref().unwrap();
+        let regular_tempo_env = regular_env.magnus_tx_env.as_ref().unwrap();
         assert_eq!(
             regular_tempo_env.expiring_nonce_hash, None,
             "regular 2D nonce tx must NOT have expiring_nonce_hash"
@@ -559,7 +559,7 @@ mod tests {
         assert!(tx_env.fee_token.is_none());
         assert!(!tx_env.is_system_tx);
         assert!(tx_env.fee_payer.is_none());
-        assert!(tx_env.tempo_tx_env.is_none());
+        assert!(tx_env.magnus_tx_env.is_none());
     }
 
     #[test]
@@ -722,7 +722,7 @@ mod tests {
         assert!(tx_env.fee_token.is_none());
         assert!(!tx_env.is_system_tx);
         assert!(tx_env.fee_payer.is_none());
-        assert!(tx_env.tempo_tx_env.is_none());
+        assert!(tx_env.magnus_tx_env.is_none());
     }
 
     #[test]
@@ -730,7 +730,7 @@ mod tests {
         use alloy_primitives::{Address, Bytes};
         use revm::context::TxEnv;
 
-        // Test without tempo_tx_env (non-AA transaction)
+        // Test without magnus_tx_env (non-AA transaction)
         let addr = Address::repeat_byte(0x42);
         let data = Bytes::from(vec![0x01, 0x02, 0x03]);
 
@@ -753,16 +753,16 @@ mod tests {
     #[test]
     fn test_first_call_with_aa() {
         use alloy_primitives::{Address, Bytes, U256};
-        use tempo_primitives::transaction::Call;
+        use magnus_primitives::transaction::Call;
 
-        // Test with tempo_tx_env (AA transaction)
+        // Test with magnus_tx_env (AA transaction)
         let addr1 = Address::repeat_byte(0x11);
         let addr2 = Address::repeat_byte(0x22);
         let input1 = Bytes::from(vec![0xAA, 0xBB]);
         let input2 = Bytes::from(vec![0xCC, 0xDD]);
 
         let tx_env = super::TempoTxEnv {
-            tempo_tx_env: Some(Box::new(super::TempoBatchCallEnv {
+            magnus_tx_env: Some(Box::new(super::TempoBatchCallEnv {
                 aa_calls: vec![
                     Call {
                         to: TxKind::Call(addr1),
@@ -789,9 +789,9 @@ mod tests {
 
     #[test]
     fn test_first_call_with_empty_aa_calls() {
-        // Test with tempo_tx_env but empty calls list
+        // Test with magnus_tx_env but empty calls list
         let tx_env = super::TempoTxEnv {
-            tempo_tx_env: Some(Box::new(super::TempoBatchCallEnv {
+            magnus_tx_env: Some(Box::new(super::TempoBatchCallEnv {
                 aa_calls: vec![],
                 ..Default::default()
             })),
@@ -805,7 +805,7 @@ mod tests {
     fn test_calls() {
         use alloy_primitives::{Address, Bytes, U256};
         use revm::context::TxEnv;
-        use tempo_primitives::transaction::Call;
+        use magnus_primitives::transaction::Call;
 
         let addr1 = Address::repeat_byte(0x11);
         let addr2 = Address::repeat_byte(0x22);
@@ -829,7 +829,7 @@ mod tests {
 
         // AA transaction with multiple calls
         let aa_tx = super::TempoTxEnv {
-            tempo_tx_env: Some(Box::new(super::TempoBatchCallEnv {
+            magnus_tx_env: Some(Box::new(super::TempoBatchCallEnv {
                 aa_calls: vec![
                     Call {
                         to: TxKind::Call(addr1),
@@ -862,7 +862,7 @@ mod tests {
 
         // AA transaction with empty calls list
         let empty_aa_tx = super::TempoTxEnv {
-            tempo_tx_env: Some(Box::new(super::TempoBatchCallEnv {
+            magnus_tx_env: Some(Box::new(super::TempoBatchCallEnv {
                 aa_calls: vec![],
                 ..Default::default()
             })),
@@ -993,7 +993,7 @@ mod tests {
         #[test]
         fn proptest_calls_count_aa_tx(num_calls in 0usize..20) {
             let aa_tx = super::TempoTxEnv {
-                tempo_tx_env: Some(Box::new(super::TempoBatchCallEnv {
+                magnus_tx_env: Some(Box::new(super::TempoBatchCallEnv {
                     aa_calls: (0..num_calls)
                         .map(|_| Call {
                             to: TxKind::Call(alloy_primitives::Address::ZERO),

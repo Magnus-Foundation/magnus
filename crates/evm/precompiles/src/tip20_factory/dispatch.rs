@@ -5,7 +5,7 @@ use crate::{
 };
 use alloy::{primitives::Address, sol_types::SolInterface};
 use revm::precompile::PrecompileResult;
-use tempo_contracts::precompiles::ITIP20Factory::ITIP20FactoryCalls;
+use magnus_contracts::precompiles::ITIP20Factory::ITIP20FactoryCalls;
 
 impl Precompile for TIP20Factory {
     fn call(&mut self, calldata: &[u8], msg_sender: Address) -> PrecompileResult {
@@ -37,7 +37,7 @@ mod tests {
         storage::{StorageCtx, hashmap::HashMapStorageProvider},
         test_util::{assert_full_coverage, check_selector_coverage},
     };
-    use tempo_contracts::precompiles::ITIP20Factory::ITIP20FactoryCalls;
+    use magnus_contracts::precompiles::ITIP20Factory::ITIP20FactoryCalls;
 
     #[test]
     fn tip20_factory_test_selector_coverage() {

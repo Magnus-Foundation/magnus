@@ -45,16 +45,16 @@ use reth_node_core::{
 };
 use reth_rpc_builder::RpcModuleSelection;
 use tempfile::TempDir;
-use tempo_chainspec::TempoChainSpec;
-use tempo_commonware_node::feed::FeedStateHandle;
-use tempo_dkg_onchain_artifacts::OnchainDkgOutcome;
-use tempo_node::{
+use magnus_chainspec::TempoChainSpec;
+use magnus_commonware_node::feed::FeedStateHandle;
+use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
+use magnus_node::{
     TempoFullNode,
     evm::{TempoEvmFactory, evm::TempoEvm},
     node::TempoNode,
     rpc::consensus::{TempoConsensusApiServer, TempoConsensusRpc},
 };
-use tempo_precompiles::{
+use magnus_precompiles::{
     VALIDATOR_CONFIG_V2_ADDRESS,
     storage::StorageCtx,
     validator_config_v2::{
@@ -310,7 +310,7 @@ impl ExecutionRuntime {
     pub fn with_chain_spec(chain_spec: TempoChainSpec) -> Self {
         let tempdir = tempfile::Builder::new()
             // TODO(janis): cargo manifest prefix?
-            .prefix("tempo_e2e_test")
+            .prefix("magnus_e2e_test")
             .disable_cleanup(true)
             .tempdir()
             .expect("must be able to create a temp directory run tun tests");
@@ -893,7 +893,7 @@ pub async fn launch_execution_node<P: AsRef<Path>>(
             c
         });
 
-    let tempo_node = TempoNode::default().with_validator_key(validator_key);
+    let magnus_node = TempoNode::default().with_validator_key(validator_key);
 
     let node_handle = if let Some(rocksdb) = rocksdb {
         NodeBuilder::new(node_config)
@@ -903,7 +903,7 @@ pub async fn launch_execution_node<P: AsRef<Path>>(
         NodeBuilder::new(node_config).with_database(database)
     }
     .with_launch_context(runtime.clone())
-    .node(tempo_node)
+    .node(magnus_node)
     .extend_rpc_modules(move |ctx| {
         if let Some(feed_state) = feed_state {
             ctx.modules

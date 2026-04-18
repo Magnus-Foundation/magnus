@@ -8,8 +8,8 @@ use std::net::{IpAddr, SocketAddr};
 use alloy_primitives::{Address, B256, Keccak256};
 use commonware_codec::DecodeExt as _;
 use commonware_cryptography::{Verifier as _, ed25519};
-use tempo_contracts::precompiles::VALIDATOR_CONFIG_V2_ADDRESS;
-use tempo_precompiles::validator_config_v2::{VALIDATOR_NS_ADD, VALIDATOR_NS_ROTATE};
+use magnus_contracts::precompiles::VALIDATOR_CONFIG_V2_ADDRESS;
+use magnus_precompiles::validator_config_v2::{VALIDATOR_NS_ADD, VALIDATOR_NS_ROTATE};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidatorConfigError {

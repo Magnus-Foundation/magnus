@@ -10,7 +10,7 @@ use commonware_cryptography::ed25519::PublicKey;
 use commonware_utils::{N3f1, NZU64};
 use eyre::{Context as _, eyre};
 use serde::Serialize;
-use tempo_dkg_onchain_artifacts::OnchainDkgOutcome;
+use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
 
 #[derive(Debug, clap::Args)]
 #[clap(group = clap::ArgGroup::new("target").required(true))]

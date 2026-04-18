@@ -14,10 +14,10 @@ pub mod rpc;
 pub mod fillers;
 
 #[doc(inline)]
-pub use tempo_primitives as primitives;
+pub use magnus_primitives as primitives;
 
 #[doc(inline)]
-pub use tempo_contracts as contracts;
+pub use magnus_contracts as contracts;
 
 #[doc(inline)]
-pub use tempo_chainspec as chainspec;
+pub use magnus_chainspec as chainspec;

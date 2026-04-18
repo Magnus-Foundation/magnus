@@ -6,13 +6,13 @@ use alloy::{
 };
 use alloy_eips::Encodable2718;
 use alloy_primitives::TxKind;
-use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
-use tempo_contracts::precompiles::{DEFAULT_FEE_TOKEN, ITIP20};
-use tempo_primitives::{
+use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
+use magnus_contracts::precompiles::{DEFAULT_FEE_TOKEN, ITIP20};
+use magnus_primitives::{
     TempoTransaction, TempoTxEnvelope,
     transaction::{
         KeyAuthorization,
-        tempo_transaction::Call,
+        magnus_transaction::Call,
         tt_signature::{PrimitiveSignature, TempoSignature},
     },
 };
@@ -30,7 +30,7 @@ fn build_create_key_auth_tx(
 ) -> eyre::Result<Vec<u8>> {
     let key_auth = KeyAuthorization::unrestricted(
         chain_id,
-        tempo_primitives::SignatureType::Secp256k1,
+        magnus_primitives::SignatureType::Secp256k1,
         Address::random(),
     );
     let sig = signer.sign_hash_sync(&key_auth.signature_hash())?;
@@ -103,7 +103,7 @@ fn build_2d_nonce_transfer_tx(
 }
 
 fn make_pre_t1b_genesis() -> String {
-    make_genesis_at(tempo_chainspec::hardfork::TempoHardfork::T1A)
+    make_genesis_at(magnus_chainspec::hardfork::TempoHardfork::T1A)
 }
 
 /// Pre-T1B fee-drain replay: the poisoned KeyAuth CREATE tx is followed by a

@@ -4,7 +4,7 @@
 //! including auto-assignment, explicit slots, base_slot, and string literal slots.
 
 use super::*;
-use tempo_precompiles::storage::Mapping;
+use magnus_precompiles::storage::Mapping;
 
 #[test]
 fn test_mixed_slot_allocation() {
@@ -54,7 +54,7 @@ fn test_mixed_slot_allocation() {
         assert_eq!(slots::FIELD_D, U256::from(16));
         assert_eq!(slots::FIELD_E, U256::from(10));
 
-        Ok::<(), tempo_precompiles::error::TempoPrecompileError>(())
+        Ok::<(), magnus_precompiles::error::TempoPrecompileError>(())
     })
     .unwrap();
 }
@@ -85,7 +85,7 @@ fn test_default_values() {
         assert_eq!(defaults.amount.slot(), U256::ONE);
         assert_eq!(defaults.amount.offset(), None);
 
-        Ok::<(), tempo_precompiles::error::TempoPrecompileError>(())
+        Ok::<(), magnus_precompiles::error::TempoPrecompileError>(())
     })
     .unwrap();
 }
@@ -146,7 +146,7 @@ fn test_base_slots() {
         assert_eq!(slots::FIELD_F, U256::from(50));
         assert_eq!(slots::FIELD_G, U256::from(51));
 
-        Ok::<(), tempo_precompiles::error::TempoPrecompileError>(())
+        Ok::<(), magnus_precompiles::error::TempoPrecompileError>(())
     })
     .unwrap();
 }
@@ -195,7 +195,7 @@ fn test_base_slot_with_regular_slot() {
         assert_eq!(slots::FIELD_D, U256::from(50));
         assert_eq!(slots::FIELD_E, U256::from(102));
 
-        Ok::<(), tempo_precompiles::error::TempoPrecompileError>(())
+        Ok::<(), magnus_precompiles::error::TempoPrecompileError>(())
     })
     .unwrap();
 }
@@ -223,7 +223,7 @@ fn test_string_literal_slots() {
         assert_eq!(layout.field.slot(), slot);
         assert_eq!(slots::FIELD, slot);
 
-        Ok::<(), tempo_precompiles::error::TempoPrecompileError>(())
+        Ok::<(), magnus_precompiles::error::TempoPrecompileError>(())
     })
     .unwrap();
 }

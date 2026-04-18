@@ -54,7 +54,7 @@ impl From<SignatureType> for u8 {
     }
 }
 
-use tempo_contracts::precompiles::IAccountKeychain::SignatureType as AbiSignatureType;
+use magnus_contracts::precompiles::IAccountKeychain::SignatureType as AbiSignatureType;
 
 impl From<SignatureType> for AbiSignatureType {
     fn from(sig_type: SignatureType) -> Self {
@@ -256,7 +256,7 @@ pub struct TempoTransaction {
 
     /// Authorization list (EIP-7702 style with Tempo signatures)
     #[cfg_attr(feature = "serde", serde(rename = "aaAuthorizationList"))]
-    pub tempo_authorization_list: Vec<TempoSignedAuthorization>,
+    pub magnus_authorization_list: Vec<TempoSignedAuthorization>,
 }
 
 /// Validates the calls list structure for Tempo transactions.
@@ -321,7 +321,7 @@ impl TempoTransaction {
     /// the transaction pool validator and execution handler where hardfork context is available.
     pub fn validate(&self) -> Result<(), &'static str> {
         // Validate calls list structure using the shared function
-        validate_calls(&self.calls, !self.tempo_authorization_list.is_empty())?;
+        validate_calls(&self.calls, !self.magnus_authorization_list.is_empty())?;
 
         // validBefore must be greater than validAfter if both are set
         if let Some(valid_after) = self.valid_after
@@ -342,7 +342,7 @@ impl TempoTransaction {
             + self.access_list.size()
             + self.key_authorization.as_ref().map_or(0, |k| k.size())
             + self
-                .tempo_authorization_list
+                .magnus_authorization_list
                 .iter()
                 .map(|auth| auth.size())
                 .sum::<usize>()
@@ -430,7 +430,7 @@ impl TempoTransaction {
             } +
             signature_length(&self.fee_payer_signature) +
             // authorization_list
-            self.tempo_authorization_list.length() +
+            self.magnus_authorization_list.length() +
             // key_authorization (only included if present)
             if let Some(key_auth) = &self.key_authorization {
                 key_auth.length()
@@ -475,7 +475,7 @@ impl TempoTransaction {
         encode_signature(&self.fee_payer_signature, out);
 
         // Encode authorization_list
-        self.tempo_authorization_list.encode(out);
+        self.magnus_authorization_list.encode(out);
 
         // Encode key_authorization (truly optional - only encoded if present)
         if let Some(key_auth) = &self.key_authorization {
@@ -556,7 +556,7 @@ impl TempoTransaction {
             return Err(alloy_rlp::Error::InputTooShort);
         };
 
-        let tempo_authorization_list = Decodable::decode(buf)?;
+        let magnus_authorization_list = Decodable::decode(buf)?;
 
         // Decode optional key_authorization field at the end
         // Check if the next byte looks like it could be a KeyAuthorization (RLP list)
@@ -590,7 +590,7 @@ impl TempoTransaction {
             valid_before,
             valid_after,
             key_authorization,
-            tempo_authorization_list,
+            magnus_authorization_list,
         };
 
         // Validate the transaction
@@ -868,7 +868,7 @@ impl<'a> arbitrary::Arbitrary<'a> for TempoTransaction {
             valid_before,
             valid_after,
             key_authorization: u.arbitrary()?,
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
         })
     }
 }
@@ -948,7 +948,7 @@ mod tests {
         let tx1 = TempoTransaction {
             valid_before: Some(nz(100)),
             valid_after: Some(nz(50)),
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
             calls: vec![dummy_call.clone()],
             ..Default::default()
         };
@@ -958,7 +958,7 @@ mod tests {
         let tx2 = TempoTransaction {
             valid_before: Some(nz(50)),
             valid_after: Some(nz(100)),
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
             calls: vec![dummy_call.clone()],
             ..Default::default()
         };
@@ -968,7 +968,7 @@ mod tests {
         let tx3 = TempoTransaction {
             valid_before: Some(nz(100)),
             valid_after: Some(nz(100)),
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
             calls: vec![dummy_call.clone()],
             ..Default::default()
         };
@@ -978,7 +978,7 @@ mod tests {
         let tx4 = TempoTransaction {
             valid_before: Some(nz(100)),
             valid_after: None,
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
             calls: vec![dummy_call],
             ..Default::default()
         };
@@ -1039,7 +1039,7 @@ mod tests {
             valid_before: Some(nz(1000000)),
             valid_after: Some(nz(500000)),
             key_authorization: None,
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
         };
 
         // Encode
@@ -1091,7 +1091,7 @@ mod tests {
             valid_before: Some(nz(1000)),
             valid_after: None,
             key_authorization: None,
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
         };
 
         // Encode
@@ -1385,7 +1385,7 @@ mod tests {
             fee_payer_signature: None, // No fee payer
             valid_before: Some(nz(1000)),
             valid_after: None,
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
             access_list: Default::default(),
             key_authorization: None,
         };
@@ -1447,7 +1447,7 @@ mod tests {
             fee_payer_signature: Some(Signature::test_signature()),
             valid_before: Some(nz(1000)),
             valid_after: None,
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
             access_list: Default::default(),
             key_authorization: None,
         };
@@ -1511,7 +1511,7 @@ mod tests {
             fee_payer_signature: None,
             valid_before: Some(nz(1000)),
             valid_after: None,
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
             access_list: Default::default(),
             key_authorization: None,
         };
@@ -1584,7 +1584,7 @@ mod tests {
             valid_before: Some(nz(1000000)),
             valid_after: Some(nz(500000)),
             key_authorization: None, // No key authorization
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
         };
 
         // Encode the transaction
@@ -1673,7 +1673,7 @@ mod tests {
             valid_before: None,
             valid_after: None,
             key_authorization: None, // No key_authorization
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
         };
 
         let signature =
@@ -1713,7 +1713,7 @@ mod tests {
             valid_before: None,
             valid_after: None,
             key_authorization: None, // No key_authorization
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
         };
 
         let signature =
@@ -1790,7 +1790,7 @@ mod tests {
             valid_before: Some(nz(1000000)),
             valid_after: Some(nz(500000)),
             key_authorization: None,
-            tempo_authorization_list: vec![],
+            magnus_authorization_list: vec![],
         };
 
         // Encode the transaction normally
@@ -1906,7 +1906,7 @@ mod tests {
         // Invalid: CREATE call with auth list
         let tx = TempoTransaction {
             calls: vec![create_call],
-            tempo_authorization_list: vec![signed_auth],
+            magnus_authorization_list: vec![signed_auth],
             ..Default::default()
         };
 
@@ -2049,7 +2049,7 @@ mod compact_tests {
     }
 
     #[test]
-    fn tempo_transaction_compact_roundtrip() {
+    fn magnus_transaction_compact_roundtrip() {
         let tx = TempoTransaction {
             chain_id: 42170,
             fee_token: Some(address!("0x0000000000000000000000000000000000000abc")),
@@ -2102,7 +2102,7 @@ mod compact_tests {
                     pre_hash: false,
                 }),
             }),
-            tempo_authorization_list: vec![TempoSignedAuthorization::new_unchecked(
+            magnus_authorization_list: vec![TempoSignedAuthorization::new_unchecked(
                 Authorization {
                     chain_id: U256::from(42170u64),
                     address: address!("0x0000000000000000000000000000000000000099"),

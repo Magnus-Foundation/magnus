@@ -89,7 +89,7 @@ impl AssertStaticTransitions {
             epoch_length,
             transitions,
         } = self;
-        let _ = tempo_eyre::install();
+        let _ = magnus_eyre::install();
 
         let setup = Setup::new()
             .how_many_signers(how_many)

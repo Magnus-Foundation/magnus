@@ -13,11 +13,11 @@ use crate::{
     tip20_factory::TIP20Factory,
 };
 use alloy::primitives::{Address, B256, U256, uint};
-pub use tempo_contracts::precompiles::{
+pub use magnus_contracts::precompiles::{
     DEFAULT_FEE_TOKEN, FeeManagerError, FeeManagerEvent, IFeeManager, ITIPFeeAMM,
     TIP_FEE_MANAGER_ADDRESS, TIPFeeAMMError, TIPFeeAMMEvent,
 };
-use tempo_precompiles_macros::contract;
+use magnus_precompiles_macros::contract;
 
 /// Fee manager precompile that handles transaction fee collection and distribution.
 ///
@@ -287,8 +287,8 @@ impl TipFeeManager {
 
 #[cfg(test)]
 mod tests {
-    use tempo_chainspec::hardfork::TempoHardfork;
-    use tempo_contracts::precompiles::TIP20Error;
+    use magnus_chainspec::hardfork::TempoHardfork;
+    use magnus_contracts::precompiles::TIP20Error;
 
     use super::*;
     use crate::{

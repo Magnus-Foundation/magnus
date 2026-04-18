@@ -6,8 +6,8 @@ use crate::{
     storage::{Handler, Mapping},
 };
 use alloy::primitives::{Address, B256, U256, keccak256};
-use tempo_contracts::precompiles::StablecoinDEXError;
-use tempo_precompiles_macros::Storable;
+use magnus_contracts::precompiles::StablecoinDEXError;
+use magnus_precompiles_macros::Storable;
 
 /// Minimum allowed tick value (corresponds to `MIN_PRICE`).
 pub const MIN_TICK: i16 = -2000;

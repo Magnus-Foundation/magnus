@@ -4,14 +4,14 @@
 //! match their Solidity equivalents, ensuring compatibility with the EVM.
 
 use super::*;
-use tempo_precompiles_macros::{
+use magnus_precompiles_macros::{
     gen_test_fields_layout as layout_fields, gen_test_fields_struct as struct_fields,
 };
 use utils::*;
 
 #[test]
 fn test_tip403_registry_layout() {
-    use tempo_precompiles::tip403_registry::{__packing_policy_record::*, slots};
+    use magnus_precompiles::tip403_registry::{__packing_policy_record::*, slots};
 
     let sol_path = testdata("tip403_registry.sol");
     let solc_layout = load_solc_layout(&sol_path);
@@ -32,7 +32,7 @@ fn test_tip403_registry_layout() {
 
     // Verify `PolicyData` struct members (nested in PolicyRecord.base)
     {
-        use tempo_precompiles::tip403_registry::__packing_policy_data::*;
+        use magnus_precompiles::tip403_registry::__packing_policy_data::*;
         let rust_policy_data = struct_fields!(base_slot, policy_type, admin);
         if let Err(errors) =
             compare_nested_struct_type(&solc_layout, "PolicyData", &rust_policy_data)
@@ -43,7 +43,7 @@ fn test_tip403_registry_layout() {
 
     // Verify `CompoundPolicyData` struct members (nested in PolicyRecord.compound)
     {
-        use tempo_precompiles::tip403_registry::__packing_compound_policy_data::*;
+        use magnus_precompiles::tip403_registry::__packing_compound_policy_data::*;
         let rust_compound = struct_fields!(
             base_slot,
             sender_policy_id,
@@ -60,7 +60,7 @@ fn test_tip403_registry_layout() {
 
 #[test]
 fn test_fee_manager_layout() {
-    use tempo_precompiles::tip_fee_manager::{amm::__packing_pool::*, slots};
+    use magnus_precompiles::tip_fee_manager::{amm::__packing_pool::*, slots};
 
     let sol_path = testdata("fee_manager.sol");
     let solc_layout = load_solc_layout(&sol_path);
@@ -88,7 +88,7 @@ fn test_fee_manager_layout() {
 
 #[test]
 fn test_stablecoin_dex_layout() {
-    use tempo_precompiles::stablecoin_dex::{
+    use magnus_precompiles::stablecoin_dex::{
         order::__packing_order::*, orderbook::__packing_orderbook::*, slots,
     };
 
@@ -141,7 +141,7 @@ fn test_stablecoin_dex_layout() {
 
 #[test]
 fn test_tip20_layout() {
-    use tempo_precompiles::tip20::{rewards::__packing_user_reward_info::*, slots};
+    use magnus_precompiles::tip20::{rewards::__packing_user_reward_info::*, slots};
 
     let sol_path = testdata("tip20.sol");
     let solc_layout = load_solc_layout(&sol_path);
@@ -221,19 +221,19 @@ fn export_all_storage_constants() {
 
     // TIP403 Registry
     {
-        use tempo_precompiles::tip403_registry::{__packing_policy_record::*, slots};
+        use magnus_precompiles::tip403_registry::{__packing_policy_record::*, slots};
 
         let fields = layout_fields!(policy_id_counter, policy_records, policy_set);
         let base_slot = slots::POLICY_RECORDS;
         let policy_record_struct = struct_fields!(base_slot, base, compound);
 
         let policy_data_struct = {
-            use tempo_precompiles::tip403_registry::__packing_policy_data::*;
+            use magnus_precompiles::tip403_registry::__packing_policy_data::*;
             struct_fields!(base_slot, policy_type, admin)
         };
 
         let compound_policy_data_struct = {
-            use tempo_precompiles::tip403_registry::__packing_compound_policy_data::*;
+            use magnus_precompiles::tip403_registry::__packing_compound_policy_data::*;
             struct_fields!(
                 base_slot,
                 sender_policy_id,
@@ -257,7 +257,7 @@ fn export_all_storage_constants() {
 
     // Fee Manager
     {
-        use tempo_precompiles::tip_fee_manager::{amm::__packing_pool::*, slots};
+        use magnus_precompiles::tip_fee_manager::{amm::__packing_pool::*, slots};
 
         let fields = layout_fields!(
             validator_tokens,
@@ -283,7 +283,7 @@ fn export_all_storage_constants() {
 
     // Stablecoin DEX
     {
-        use tempo_precompiles::stablecoin_dex::{
+        use magnus_precompiles::stablecoin_dex::{
             order::__packing_order::*, orderbook::__packing_orderbook::*, slots,
         };
 
@@ -332,7 +332,7 @@ fn export_all_storage_constants() {
 
     // TIP20 Token
     {
-        use tempo_precompiles::tip20::{rewards::__packing_user_reward_info::*, slots};
+        use magnus_precompiles::tip20::{rewards::__packing_user_reward_info::*, slots};
 
         let fields = layout_fields!(
             // RolesAuth

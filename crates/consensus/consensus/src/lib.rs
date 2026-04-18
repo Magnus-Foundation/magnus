@@ -14,11 +14,11 @@ use reth_consensus_common::validation::{
 use reth_ethereum_consensus::EthBeaconConsensus;
 use reth_primitives_traits::{RecoveredBlock, SealedBlock, SealedHeader};
 use std::sync::Arc;
-use tempo_chainspec::{
+use magnus_chainspec::{
     hardfork::TempoHardforks,
     spec::{SYSTEM_TX_ADDRESSES, SYSTEM_TX_COUNT, TempoChainSpec},
 };
-use tempo_primitives::{
+use magnus_primitives::{
     Block, BlockBody, TempoHeader, TempoPrimitives, TempoReceipt, TempoTxEnvelope,
 };
 
@@ -223,7 +223,7 @@ mod tests {
     use alloy_primitives::{Address, B256, Signature, TxKind, U256};
     use reth_primitives_traits::SealedHeader;
     use std::time::{SystemTime, UNIX_EPOCH};
-    use tempo_chainspec::{
+    use magnus_chainspec::{
         hardfork::TempoHardfork,
         spec::{MODERATO, TempoChainSpec},
     };
@@ -301,7 +301,7 @@ mod tests {
             // Default to T1 fixed general gas limit
             let general_gas_limit = self
                 .general_gas_limit
-                .unwrap_or(tempo_chainspec::spec::TEMPO_T1_GENERAL_GAS_LIMIT);
+                .unwrap_or(magnus_chainspec::spec::TEMPO_T1_GENERAL_GAS_LIMIT);
 
             TempoHeader {
                 inner: Header {
@@ -311,7 +311,7 @@ mod tests {
                     parent_hash: self.parent_hash,
                     base_fee_per_gas: Some(
                         self.base_fee
-                            .unwrap_or(tempo_chainspec::spec::TEMPO_T0_BASE_FEE),
+                            .unwrap_or(magnus_chainspec::spec::TEMPO_T0_BASE_FEE),
                     ),
                     withdrawals_root: Some(EMPTY_ROOT_HASH),
                     blob_gas_used: Some(0),
@@ -589,7 +589,7 @@ mod tests {
 
     #[test]
     fn test_validate_header_against_parent() {
-        use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
+        use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
 
         let consensus = TempoConsensus::new(MODERATO.clone());
         let parent_ts = current_timestamp_millis() - 1;
@@ -618,7 +618,7 @@ mod tests {
 
     #[test]
     fn test_validate_header_against_parent_timestamp_not_increasing() {
-        use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
+        use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
 
         let consensus = TempoConsensus::new(MODERATO.clone());
         let parent_ts = current_timestamp_millis();
@@ -649,7 +649,7 @@ mod tests {
 
     #[test]
     fn test_validate_header_against_parent_t1() {
-        use tempo_chainspec::spec::TEMPO_T1_BASE_FEE;
+        use magnus_chainspec::spec::TEMPO_T1_BASE_FEE;
 
         let chainspec = create_t1_chainspec();
         let consensus = TempoConsensus::new(chainspec);
@@ -682,7 +682,7 @@ mod tests {
 
     #[test]
     fn test_validate_header_against_parent_t1_wrong_base_fee() {
-        use tempo_chainspec::spec::{TEMPO_T0_BASE_FEE, TEMPO_T1_BASE_FEE};
+        use magnus_chainspec::spec::{TEMPO_T0_BASE_FEE, TEMPO_T1_BASE_FEE};
 
         let chainspec = create_t1_chainspec();
         let consensus = TempoConsensus::new(chainspec);
@@ -849,7 +849,7 @@ mod tests {
         let recovered = RecoveredBlock::new_unhashed(block, vec![Address::ZERO, Address::ZERO]);
 
         let receipt = TempoReceipt {
-            tx_type: tempo_primitives::TempoTxType::Legacy,
+            tx_type: magnus_primitives::TempoTxType::Legacy,
             success: true,
             cumulative_gas_used: 0,
             logs: vec![],

@@ -7,7 +7,7 @@ use commonware_p2p::simulated::Link;
 
 #[test_traced]
 fn single_node() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let setup = Setup::new().how_many_signers(1).epoch_length(100).seed(0);
     let _first = run(setup, |metric, value| {
@@ -22,7 +22,7 @@ fn single_node() {
 
 #[test_traced]
 fn only_good_links() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let setup = Setup::new().epoch_length(100).seed(42);
     let _first = run(setup, |metric, value| {
@@ -37,7 +37,7 @@ fn only_good_links() {
 
 #[test_traced]
 fn many_bad_links() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let link = Link {
         latency: Duration::from_millis(200),
@@ -59,7 +59,7 @@ fn many_bad_links() {
 
 #[test_traced]
 fn reach_height_20_with_a_few_bad_links() {
-    let _ = tempo_eyre::install();
+    let _ = magnus_eyre::install();
 
     let link = Link {
         latency: Duration::from_millis(80),

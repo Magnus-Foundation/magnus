@@ -19,7 +19,7 @@ use revm::{
     context::journaled_state::JournalLoadError,
     precompile::{PrecompileError, PrecompileHalt, PrecompileOutput, PrecompileResult},
 };
-use tempo_contracts::precompiles::{
+use magnus_contracts::precompiles::{
     AccountKeychainError, AddrRegistryError, FeeManagerError, NonceError, RolesAuthError,
     SignatureVerifierError, StablecoinDEXError, TIP20FactoryError, TIP403RegistryError,
     TIPFeeAMMError, UnknownFunctionSelector, ValidatorConfigError, ValidatorConfigV2Error,
@@ -311,7 +311,7 @@ impl<T> IntoPrecompileResult<T> for Result<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempo_contracts::precompiles::StablecoinDEXError;
+    use magnus_contracts::precompiles::StablecoinDEXError;
 
     #[test]
     fn test_add_errors_to_registry_populates_registry() {
