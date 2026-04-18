@@ -6,11 +6,11 @@ pub mod amm;
 pub mod dispatch;
 
 use crate::{
-    error::{Result, MagnusPrecompileError},
-    storage::{Handler, Mapping},
+    error::{MagnusPrecompileError, Result},
     mip_fee_manager::amm::{Pool, PoolKey, compute_amount_out},
     mip20::{IMIP20, MIP20Token, validate_usd_currency},
     mip20_factory::MIP20Factory,
+    storage::{Handler, Mapping},
 };
 use alloy::primitives::{Address, B256, U256, uint};
 pub use magnus_contracts::precompiles::{
@@ -294,9 +294,9 @@ mod tests {
     use crate::{
         TIP_FEE_MANAGER_ADDRESS,
         error::MagnusPrecompileError,
+        mip20::{IMIP20, MIP20Token},
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
         test_util::MIP20Setup,
-        mip20::{IMIP20, MIP20Token},
     };
 
     #[test]

@@ -1,17 +1,18 @@
 //! ABI dispatch for the [`MipFeeManager`] precompile.
 
 use crate::{
-    Precompile, charge_input_cost, dispatch_call, metadata, mutate, mutate_void,
-    storage::Handler,
+    Precompile, charge_input_cost, dispatch_call, metadata,
     mip_fee_manager::{
         ITIPFeeAMM, MipFeeManager,
         amm::{M, MIN_LIQUIDITY, N, SCALE},
     },
+    mutate, mutate_void,
+    storage::Handler,
     view,
 };
 use alloy::{primitives::Address, sol_types::SolInterface};
-use revm::precompile::PrecompileResult;
 use magnus_contracts::precompiles::{IFeeManager::IFeeManagerCalls, ITIPFeeAMM::ITIPFeeAMMCalls};
+use revm::precompile::PrecompileResult;
 
 /// Unified calldata discriminant for both `IFeeManager` and `ITIPFeeAMM` selectors.
 enum TipFeeManagerCall {
@@ -138,12 +139,12 @@ mod tests {
     use super::*;
     use crate::{
         Precompile, expect_precompile_revert,
-        storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
-        test_util::{MIP20Setup, assert_full_coverage, check_selector_coverage},
         mip_fee_manager::{
             FeeManagerError,
             amm::{M, MIN_LIQUIDITY, N, PoolKey, SCALE},
         },
+        storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
+        test_util::{MIP20Setup, assert_full_coverage, check_selector_coverage},
     };
     use alloy::{
         primitives::{Address, B256, U256},
