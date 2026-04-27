@@ -43,7 +43,7 @@ pub enum MagnusPrecompileError {
     #[error("MIP20 factory error: {0:?}")]
     MIP20Factory(MIP20FactoryError),
 
-    /// Error from MIP20 issuer registry (multi-currency-fees-design.md §4)
+    /// Error from MIP20 issuer registry
     #[error("MIP20 issuer registry error: {0:?}")]
     MIP20IssuerRegistry(MIP20IssuerRegistryError),
 
@@ -369,9 +369,6 @@ mod tests {
         ));
     }
 
-    /// Verifies the new MIP20IssuerRegistry errors round-trip through the
-    /// global decoder registry. If the registry is missing the new variant,
-    /// decode_error would return None for valid registry-error revert bytes.
     #[test]
     fn test_decode_error_handles_issuer_registry_errors() {
         use alloy_primitives::Address;
@@ -395,8 +392,6 @@ mod tests {
         }
     }
 
-    /// Verifies the new FeeManager errors (G0 additions) round-trip through
-    /// the global decoder registry.
     #[test]
     fn test_decode_error_handles_new_fee_manager_errors() {
         use alloy_primitives::Address;
@@ -440,13 +435,8 @@ mod tests {
         }
     }
 
-    // Note: `IssuerNotApproved(address,string)` is defined only on the
-    // IssuerRegistry ABI (not on the factory). The factory bubbles up the
-    // registry's error directly when its issuer-allowlist gate fails, which
-    // avoids a Solidity selector collision (two errors with identical
-    // signatures would produce the same 4-byte selector and ambiguate the
-    // decoder). The handler-roundtrip test for that error lives in
-    // `test_decode_error_handles_issuer_registry_errors` above.
+    // `IssuerNotApproved` lives only on the IssuerRegistry ABI; factory bubbles it up.
+    // Roundtrip test in `test_decode_error_handles_issuer_registry_errors` above.
 
     #[test]
     fn test_decode_error_data_length_boundary() {

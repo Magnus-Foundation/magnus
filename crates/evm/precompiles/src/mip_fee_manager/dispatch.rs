@@ -71,7 +71,7 @@ impl Precompile for MipFeeManager {
                     })
                 }
 
-                // ─── G1: Currency registry views ──────────────────────────────────
+                // Currency registry
                 TipFeeManagerCall::FeeManager(IFeeManagerCalls::governanceAdmin(call)) => {
                     view(call, |_| self.governance_admin())
                 }
@@ -90,7 +90,6 @@ impl Precompile for MipFeeManager {
                     view(call, |c| self.is_currency_enabled(&c.code))
                 }
 
-                // ─── G1: Currency registry governance setters ─────────────────────
                 TipFeeManagerCall::FeeManager(IFeeManagerCalls::addCurrency(call)) => {
                     mutate_void(call, msg_sender, |s, c| {
                         let block = self.storage.block_number();
@@ -109,7 +108,7 @@ impl Precompile for MipFeeManager {
                     })
                 }
 
-                // ─── G2a: Validator multi-token accept-set ────────────────────────
+                // Validator accept-set
                 TipFeeManagerCall::FeeManager(IFeeManagerCalls::addAcceptedToken(call)) => {
                     mutate_void(call, msg_sender, |s, c| {
                         let beneficiary = self.storage.beneficiary();

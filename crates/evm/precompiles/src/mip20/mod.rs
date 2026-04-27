@@ -57,37 +57,20 @@ pub fn validate_usd_currency(token: Address) -> Result<()> {
     Ok(())
 }
 
-/// Validates that the given token's currency is registered AND enabled in the FeeManager's
-/// currency registry (multi-currency-fees-design.md §4 / G1).
-///
-/// Reads cross-precompile from the FeeManager's `supported_currencies` map. The token's
-/// currency is read via the standard `MIP20Token::currency()` getter; the registry lookup
-/// uses `keccak256(currency)` per the storage convention defined in
-/// `mip_fee_manager/currency_registry.rs`.
-///
-/// **Replaces** `validate_usd_currency` for fee-related checks once G2 wires the fee path
-/// through this helper. `validate_usd_currency` itself stays available for any path that
-/// is intentionally USD-only.
+/// Validates that `token`'s currency is registered AND enabled in the FeeManager's
+/// currency registry. Distinguishes `CurrencyNotRegistered` from `CurrencyDisabled`.
 ///
 /// # Errors
-/// - `InvalidToken` — address does not have the MIP-20 prefix
-/// - `CurrencyNotRegistered` — currency has not been added to the registry
-/// - `CurrencyDisabled` — currency was added but is not currently enabled (G6 will also
-///   produce this for currencies in their post-grace deprecated state)
+/// - `InvalidToken` — `token` does not have the MIP-20 prefix
+/// - `CurrencyNotRegistered` — currency has not been added
+/// - `CurrencyDisabled` — currency was added but is not enabled
 pub fn validate_supported_currency(token: Address) -> Result<()> {
     use crate::mip_fee_manager::MipFeeManager;
     use magnus_contracts::precompiles::FeeManagerError;
 
     let currency = MIP20Token::from_address(token)?.currency()?;
-    let fee_manager = MipFeeManager::new();
-    let config = fee_manager.get_currency_config(&currency)?;
+    let config = MipFeeManager::new().get_currency_config(&currency)?;
 
-    // We surface different errors so wallets and callers can distinguish "this currency
-    // doesn't exist" from "this currency was added but is currently disabled". The
-    // `registered` flag is the existence marker; `enabled` is the gas-eligibility flag.
-    // (Note: G6 will introduce additional disable states — deprecation grace period —
-    // which will need their own dedicated error per spec §11.1; for G1 we treat
-    // registered-but-not-enabled as `CurrencyDisabled`.)
     if !config.registered {
         return Err(FeeManagerError::currency_not_registered(currency).into());
     }
@@ -3643,7 +3626,6 @@ pub(crate) mod tests {
     }
 }
 
-// ─── G1: validate_supported_currency tests (multi-currency-fees-design.md §4) ──
 #[cfg(test)]
 mod validate_supported_currency_tests {
     use super::*;
@@ -3654,8 +3636,6 @@ mod validate_supported_currency_tests {
     };
     use magnus_contracts::precompiles::FeeManagerError;
 
-    /// Bootstrap: set governance admin via zero-address path so tests can configure the
-    /// currency registry. Mirrors the genesis-init flow at T4 activation.
     fn fee_manager_bootstrap(admin: Address) -> Result<MipFeeManager> {
         let mut fm = MipFeeManager::new();
         fm.initialize()?;

@@ -384,13 +384,7 @@ impl GenesisArgs {
             PATH_USD_ADDRESS
         };
 
-        // ─── G1: choose initial currency registry state per chain ─────────────
-        // multi-currency-fees-design.md §3.3 / §10:
-        //   - testnet (chainId 42431): USD only
-        //   - mainnet (chainId 4217):  USD + VND day 1
-        //   - dev / other:             empty registry; tests register manually
-        // Genesis sets `governance_admin` to the coinbase as a default; real deployments
-        // override this via `setGovernanceAdmin` in a post-launch governance tx.
+        // Initial currency registry per chain.
         let initial_currencies: &[&str] = match self.chain_id {
             4217 => &["USD", "VND"],
             42431 => &["USD"],
@@ -851,25 +845,15 @@ fn initialize_fee_manager(
                     .expect("Could not set validator fee token");
             }
 
-            // ─── G1: Currency registry bootstrap ─────────────────────────────
-            // Genesis sets the governance admin (zero-address bootstrap path) and pre-registers
-            // the launch-day currencies so the fee path has something to validate against on
-            // T4 activation. Per multi-currency-fees-design.md §10:
-            //   - testnet: USD only
-            //   - mainnet: USD + VND from day 1 (Path A launch)
-            // The admin is the only address that can subsequently `addCurrency`/`enableCurrency`.
-            //
-            // NOTE: governance_admin == Address::ZERO is allowed and means "leave unset; the
-            // multisig will bootstrap via setGovernanceAdmin in a post-launch tx". For most
-            // genesis flows we want a real admin baked in.
+            // Currency registry bootstrap: set admin and pre-register launch currencies.
+            // governance_admin == zero means "leave unset; multisig bootstraps post-launch".
             if !governance_admin.is_zero() {
                 println!("Setting governance admin to {governance_admin}");
                 fee_manager
                     .set_governance_admin(Address::ZERO, governance_admin)
                     .expect("Could not set governance admin");
 
-                // Block 0 is the canonical genesis block. add+enable in one shot so the
-                // currency is gas-eligible from block 1 onward.
+                // add+enable at block 0 so the currency is gas-eligible from block 1.
                 for code in initial_currencies {
                     println!("Registering and enabling currency {code}");
                     fee_manager

@@ -8,11 +8,9 @@ crate::sol! {
     #[derive(Debug, PartialEq, Eq)]
     #[sol(abi)]
     interface IMIP20IssuerRegistry {
-        // View Functions
         function isApprovedIssuer(string memory currency, address issuer) external view returns (bool);
         function getApprovedIssuers(string memory currency) external view returns (address[] memory);
 
-        // State-Changing Functions (governance-gated)
         function addApprovedIssuer(
             string memory currency,
             address issuer,
@@ -29,11 +27,9 @@ crate::sol! {
             bytes calldata governanceSig
         ) external;
 
-        // Events
         event IssuerApproved(string currency, address indexed issuer);
         event IssuerRevoked(string currency, address indexed issuer);
 
-        // Errors
         error IssuerNotApproved(address issuer, string currency);
         error IssuerAlreadyApproved(address issuer, string currency);
         error CurrencyNotRegistered(string currency);
@@ -42,12 +38,10 @@ crate::sol! {
 }
 
 impl MIP20IssuerRegistryError {
-    /// Creates an error when the issuer is not approved for the given currency.
     pub fn issuer_not_approved(issuer: Address, currency: alloc::string::String) -> Self {
         Self::IssuerNotApproved(IMIP20IssuerRegistry::IssuerNotApproved { issuer, currency })
     }
 
-    /// Creates an error when an issuer is already approved for the given currency.
     pub fn issuer_already_approved(issuer: Address, currency: alloc::string::String) -> Self {
         Self::IssuerAlreadyApproved(IMIP20IssuerRegistry::IssuerAlreadyApproved {
             issuer,
@@ -55,12 +49,10 @@ impl MIP20IssuerRegistryError {
         })
     }
 
-    /// Creates an error when the currency is not in the FeeManager's currency registry.
     pub fn currency_not_registered(currency: alloc::string::String) -> Self {
         Self::CurrencyNotRegistered(IMIP20IssuerRegistry::CurrencyNotRegistered { currency })
     }
 
-    /// Creates an error when the governance signature fails verification.
     pub const fn invalid_governance_signature() -> Self {
         Self::InvalidGovernanceSignature(IMIP20IssuerRegistry::InvalidGovernanceSignature {})
     }
@@ -118,8 +110,6 @@ mod tests {
         ));
     }
 
-    /// All four error selectors on the new precompile must be unique. A
-    /// collision would break ABI decoding from clients.
     #[test]
     fn issuer_registry_error_selectors_are_distinct() {
         let selectors = [
@@ -131,11 +121,7 @@ mod tests {
 
         for i in 0..selectors.len() {
             for j in (i + 1)..selectors.len() {
-                assert_ne!(
-                    selectors[i], selectors[j],
-                    "issuer-registry error selectors {} and {} collide",
-                    i, j
-                );
+                assert_ne!(selectors[i], selectors[j]);
             }
         }
     }

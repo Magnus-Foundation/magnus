@@ -37,34 +37,16 @@ pub struct MipFeeManager {
     total_supply: Mapping<B256, U256>,
     liquidity_balances: Mapping<B256, Mapping<Address, U256>>,
 
-    // ─── G1: Currency registry (multi-currency-fees-design.md §4) ──────────────
-    //
-    // Authentication for governance-gated functions is `sender == governance_admin`.
-    // The admin is intended to be the address of an off-chain or on-chain multisig
-    // contract; signature aggregation happens at that layer, the precompile only
-    // checks `msg.sender`. Future shared-infrastructure groups may upgrade this to
-    // EIP-712 multisig verification embedded directly here, at which point this
-    // field would be replaced with a signer-set + threshold pair.
+    /// Address authorized to call governance-gated setters (currency registry).
+    /// Intended to be a multisig contract; signature aggregation lives at that layer.
     governance_admin: Address,
-    /// Per-currency configuration map. Key = `keccak256(ISO 4217 code)` (B256).
-    /// Solidity ABI takes the human-readable code; the precompile hashes internally.
+    /// Per-currency config. Key = `keccak256(ISO 4217 code)`.
     supported_currencies: Mapping<B256, CurrencyConfig>,
 
-    // ─── G2a: Validator multi-token accept-set (design §6, §7) ────────────────
-    //
-    // Replaces the single-token `validator_tokens` model. Each validator-org chooses a
-    // SET of tokens it will accept as fee payout. G2a only adds the new storage and
-    // API; the legacy `validator_tokens` field stays in place for backward compatibility
-    // until G2b/G3 rewire the fee-collection path.
-    //
-    // Storage layout:
-    //   `validator_accepted_tokens[validator][token] -> bool`  membership flag
-    //   `validator_token_list[validator] -> Vec<Address>`       enumeration order
-    //
-    // Both must stay in sync. Insertion appends to the list and flips the flag;
-    // removal flips the flag and swap-removes from the list. The list exists so
-    // off-chain readers can enumerate without scanning every (validator, token) pair.
+    /// Validator → token → accepted? Multi-token accept-set replacing the legacy
+    /// single-token `validator_tokens` model. Map + list stay in sync.
     validator_accepted_tokens: Mapping<Address, Mapping<Address, bool>>,
+    /// Validator → enumeration of accepted tokens. Mirror of the map above.
     validator_token_list: Mapping<Address, Vec<Address>>,
 
     // WARNING(rusowsky): transient storage slots must always be placed at the very end until the `contract`
@@ -83,10 +65,7 @@ impl MipFeeManager {
     /// Minimum MIP-20 balance required for fee operations (1e9).
     pub const MINIMUM_BALANCE: U256 = uint!(1_000_000_000_U256);
 
-    /// G2a: Maximum number of tokens a single validator may accept.
-    /// Caps state bloat from a misbehaving validator that calls `addAcceptedToken`
-    /// repeatedly. 32 is comfortably more than the realistic mainnet count
-    /// (likely 5-10 currencies × 2-3 issuers each = 10-30 tokens).
+    /// Cap on per-validator accept-set size. Prevents state-bloat abuse.
     pub const MAX_ACCEPT_SET_SIZE: usize = 32;
 
     /// Initializes the fee manager precompile.
@@ -322,39 +301,23 @@ impl MipFeeManager {
         self.user_tokens[call.user].read()
     }
 
-    // ─── G1: Currency registry (multi-currency-fees-design.md §4) ──────────────
-    //
-    // Governance-gated setters: `addCurrency`, `enableCurrency`, `setGovernanceAdmin`.
-    // Authentication is `sender == governance_admin`. Reads are public.
+    // Currency registry: governance-gated setters use `sender == governance_admin`.
 
-    /// Returns the address authorized to call governance-gated setters.
-    /// Zero address means "not yet configured" — all governance setters revert until
-    /// genesis or a one-time bootstrap call sets it.
+    /// Address authorized to call governance setters. Zero = unconfigured.
     pub fn governance_admin(&self) -> Result<Address> {
         self.governance_admin.read()
     }
 
-    /// Reads the on-chain config for a registered currency.
-    /// Returns `CurrencyConfig::default()` (`enabled = false`, blocks = 0) for codes that
-    /// have never been registered. Use `is_currency_enabled` for the explicit check.
+    /// Returns default-zero config for unregistered codes.
     pub fn get_currency_config(&self, code: &str) -> Result<CurrencyConfig> {
         self.supported_currencies[currency_key(code)].read()
     }
 
-    /// Returns `true` if `code` is registered AND currently enabled (gas-eligible).
     pub fn is_currency_enabled(&self, code: &str) -> Result<bool> {
-        let config = self.get_currency_config(code)?;
-        Ok(config.enabled)
+        Ok(self.get_currency_config(code)?.enabled)
     }
 
-    /// Registers a new currency (initially disabled) — must be `enable`d separately.
-    /// Two-step add → enable lets governance pre-stage a currency without making it
-    /// gas-eligible until the issuer + validator-org coordination is done.
-    ///
-    /// # Errors
-    /// - `OnlyGovernanceAdmin` — caller is not `governance_admin`
-    /// - `InvalidCurrencyCode` — code fails ISO-4217 syntax check
-    /// - `CurrencyAlreadyAdded` — code is already in the registry
+    /// Registers a currency in disabled state. Must be `enable`d separately.
     pub fn add_currency(&mut self, sender: Address, code: &str, current_block: u64) -> Result<()> {
         self.assert_governance(sender)?;
         if !is_valid_currency_code(code) {
@@ -378,14 +341,7 @@ impl MipFeeManager {
         Ok(())
     }
 
-    /// Marks a registered currency as gas-eligible. Idempotent: re-enable on an
-    /// already-enabled currency reverts with `CurrencyAlreadyEnabled`.
-    ///
-    /// # Errors
-    /// - `OnlyGovernanceAdmin` — caller is not `governance_admin`
-    /// - `InvalidCurrencyCode` — code fails ISO-4217 syntax check
-    /// - `CurrencyNotRegistered` — code has not been added via `addCurrency`
-    /// - `CurrencyAlreadyEnabled` — code is already enabled
+    /// Marks a registered currency as gas-eligible.
     pub fn enable_currency(
         &mut self,
         sender: Address,
@@ -418,20 +374,12 @@ impl MipFeeManager {
         Ok(())
     }
 
-    /// Transfers governance authority to a new admin address. Only the current admin
-    /// (or zero-address sentinel during genesis bootstrap) may call.
-    ///
-    /// # Errors
-    /// - `OnlyGovernanceAdmin` — caller is not the current admin
-    /// - `ZeroAddressGovernanceAdmin` — `new_admin == address(0)` would brick the registry
+    /// Rotates governance authority. Bootstrap: when current admin is zero, any caller may set.
     pub fn set_governance_admin(&mut self, sender: Address, new_admin: Address) -> Result<()> {
         if new_admin.is_zero() {
             return Err(FeeManagerError::zero_address_governance_admin().into());
         }
         let old_admin = self.governance_admin.read()?;
-        // Bootstrap rule: while admin is zero, anyone may set the initial admin (e.g. via the
-        // genesis-init transaction or a privileged setup call). After that, only the current
-        // admin can rotate authority.
         if !old_admin.is_zero() && sender != old_admin {
             return Err(FeeManagerError::only_governance_admin(sender).into());
         }
@@ -447,7 +395,6 @@ impl MipFeeManager {
         Ok(())
     }
 
-    /// Internal helper: enforces `sender == governance_admin` for governance-gated setters.
     fn assert_governance(&self, sender: Address) -> Result<()> {
         let admin = self.governance_admin.read()?;
         if sender != admin {
@@ -456,76 +403,44 @@ impl MipFeeManager {
         Ok(())
     }
 
-    // ─── G2a: Validator multi-token accept-set API (design §6) ────────────────
-    //
-    // The legacy single-token `set_validator_token` / `get_validator_token` API stays
-    // intact in this commit; G2b removes it and rewires the fee-collection path to
-    // call `accepts_token` instead.
+    // Validator multi-token accept-set API.
 
-    /// Returns whether `validator` has added `token` to its accept-set.
-    /// Returns `false` for any validator that has never called `add_accepted_token`.
     pub fn accepts_token(&self, validator: Address, token: Address) -> Result<bool> {
         self.validator_accepted_tokens[validator][token].read()
     }
 
-    /// Returns the list of tokens `validator` accepts as fee payout.
-    /// Empty for any validator that has never called `add_accepted_token`.
     pub fn get_accepted_tokens(&self, validator: Address) -> Result<Vec<Address>> {
         self.validator_token_list[validator].read()
     }
 
-    /// Returns `true` if at least one validator in storage accepts `token`. The naive
-    /// implementation here would require scanning every validator; the cheap
-    /// G2a-compatible answer is "we don't know without an off-chain index". For now
-    /// this is a placeholder that the wallet SDK queries via off-chain state-trie
-    /// scanning; G4+ may add an explicit `accepted_token_validator_count[token]`
-    /// counter mapping to make the answer cheap on-chain.
-    ///
-    /// **G2a stub:** always returns `false`. A wallet that needs the answer must
-    /// query each validator individually via `accepts_token`. G2b/G4 may add the
-    /// reverse-index mapping if real-world UX shows the on-chain answer is needed.
+    /// Stub: always returns `false`. Wallets enumerate per-validator via
+    /// `accepts_token` until a reverse-index mapping is added.
     pub fn is_accepted_by_any_validator(&self, _token: Address) -> Result<bool> {
         Ok(false)
     }
 
-    /// Adds `token` to the caller's (validator's) accept-set.
-    ///
-    /// # Errors
-    /// - `InvalidToken` — `token` is not a deployed MIP-20
-    /// - `CurrencyNotRegistered` / `CurrencyDisabled` — token's currency is not gas-eligible
-    /// - `CannotChangeWithinBlock` — caller is the current block's beneficiary
-    /// - `MaxAcceptSetReached` — caller's accept-set already holds `MAX_ACCEPT_SET_SIZE` tokens
-    /// - `TokenAlreadyAccepted` — `token` is already in the caller's accept-set
+    /// Adds `token` to the caller's accept-set.
     pub fn add_accepted_token(
         &mut self,
         sender: Address,
         token: Address,
         beneficiary: Address,
     ) -> Result<()> {
-        // Token validity: must be a deployed MIP-20 with a registered+enabled currency.
         if !MIP20Factory::new().is_tip20(token)? {
             return Err(FeeManagerError::invalid_token().into());
         }
         crate::mip20::validate_supported_currency(token)?;
-
-        // Same-block-as-beneficiary protection: a validator producing the current block
-        // cannot mutate its own accept-set in that block — it would change fee
-        // semantics mid-block and create a foot-gun for downstream caching.
         if sender == beneficiary {
             return Err(FeeManagerError::cannot_change_within_block().into());
         }
-
-        // Idempotency check.
         if self.validator_accepted_tokens[sender][token].read()? {
             return Err(FeeManagerError::token_already_accepted(sender, token).into());
         }
 
-        // Cap on accept-set size.
         let mut list = self.validator_token_list[sender].read()?;
         if list.len() >= Self::MAX_ACCEPT_SET_SIZE {
             return Err(FeeManagerError::max_accept_set_reached(sender).into());
         }
-
         list.push(token);
         self.validator_token_list[sender].write(list)?;
         self.validator_accepted_tokens[sender][token].write(true)?;
@@ -536,15 +451,10 @@ impl MipFeeManager {
                 token,
             },
         ))?;
-
         Ok(())
     }
 
-    /// Removes `token` from the caller's (validator's) accept-set.
-    ///
-    /// # Errors
-    /// - `CannotChangeWithinBlock` — caller is the current block's beneficiary
-    /// - `TokenNotInAcceptSet` — `token` is not in the caller's accept-set
+    /// Removes `token` from the caller's accept-set.
     pub fn remove_accepted_token(
         &mut self,
         sender: Address,
@@ -554,17 +464,13 @@ impl MipFeeManager {
         if sender == beneficiary {
             return Err(FeeManagerError::cannot_change_within_block().into());
         }
-
         if !self.validator_accepted_tokens[sender][token].read()? {
             return Err(FeeManagerError::token_not_in_accept_set(sender, token).into());
         }
 
-        // Swap-remove from the list to keep it dense; order is irrelevant to consumers.
+        // Map and list must stay in sync; mismatch is a real bug, not silent cleanup.
         let mut list = self.validator_token_list[sender].read()?;
         let pos = list.iter().position(|t| *t == token).ok_or_else(|| {
-            // Storage inconsistency: flag was set but list doesn't contain the token.
-            // This should be unreachable; treat it as a fatal error rather than a
-            // silent cleanup so the underlying bug is visible.
             MagnusPrecompileError::Fatal(
                 "validator_accepted_tokens flag set but token missing from list".into(),
             )
@@ -579,7 +485,6 @@ impl MipFeeManager {
                 token,
             },
         ))?;
-
         Ok(())
     }
 }
@@ -1264,7 +1169,6 @@ mod tests {
     }
 }
 
-// ─── G1: Currency registry tests (multi-currency-fees-design.md §4) ──────────
 #[cfg(test)]
 mod currency_registry_tests {
     use super::*;
@@ -1274,13 +1178,9 @@ mod currency_registry_tests {
         test_util::MIP20Setup,
     };
 
-    /// Bootstrap helper: a fresh FeeManager with `governance_admin` set to `admin` via the
-    /// zero-address bootstrap path. Mirrors what the genesis-init transaction does at T4
-    /// activation.
     fn fee_manager_with_admin(admin: Address) -> Result<MipFeeManager> {
         let mut fee_manager = MipFeeManager::new();
         fee_manager.initialize()?;
-        // Bootstrap: admin == zero, so any caller can set the initial admin.
         fee_manager.set_governance_admin(Address::ZERO, admin)?;
         Ok(fee_manager)
     }
@@ -1536,10 +1436,6 @@ mod currency_registry_tests {
         })
     }
 
-    // ─── G2a: validator accept-set API tests ──────────────────────────────────
-
-    /// Bootstrap fee manager with admin + USD enabled so add_accepted_token can validate
-    /// against the currency registry.
     fn fee_manager_with_admin_and_usd(admin: Address) -> Result<MipFeeManager> {
         let mut fm = fee_manager_with_admin(admin)?;
         fm.add_currency(admin, "USD", 0)?;
@@ -1681,9 +1577,7 @@ mod currency_registry_tests {
         StorageCtx::enter(&mut storage, || {
             let mut fm = fee_manager_with_admin_and_usd(admin)?;
 
-            // Fill the accept-set to MAX_ACCEPT_SET_SIZE. Use distinct salts so the
-            // factory derives different deterministic addresses; the underlying name
-            // doesn't need to be unique for the storage layer.
+            // Distinct salts -> distinct deterministic factory addresses.
             for i in 0..MipFeeManager::MAX_ACCEPT_SET_SIZE {
                 let token = MIP20Setup::create("USDC", "USDC", admin)
                     .currency("USD")
@@ -1775,7 +1669,6 @@ mod currency_registry_tests {
         let beneficiary = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut fm = fee_manager_with_admin_and_usd(admin)?;
-            // Distinct salts ensure distinct deterministic factory addresses.
             let usdc = MIP20Setup::create("USDC", "USDC", admin)
                 .currency("USD")
                 .with_salt(B256::from(U256::from(1)))
@@ -1878,7 +1771,7 @@ mod currency_registry_tests {
     }
 
     #[test]
-    fn is_accepted_by_any_validator_g2a_stub_always_false() -> eyre::Result<()> {
+    fn is_accepted_by_any_validator_stub_always_false() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new(1);
         let admin = Address::random();
         let validator = Address::random();
@@ -1889,10 +1782,6 @@ mod currency_registry_tests {
                 .currency("USD")
                 .apply()?;
             fm.add_accepted_token(validator, token.address(), beneficiary)?;
-
-            // G2a stub: always false even though the token IS accepted by `validator`.
-            // G2b/G4 may add a real reverse-index. Pin the stub behavior so a future
-            // accidental change is caught.
             assert!(!fm.is_accepted_by_any_validator(token.address())?);
             Ok(())
         })

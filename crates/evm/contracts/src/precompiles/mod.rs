@@ -32,8 +32,7 @@ pub const PATH_USD_ADDRESS: Address = address!("0x20C000000000000000000000000000
 pub const DEFAULT_FEE_TOKEN: Address = PATH_USD_ADDRESS;
 pub const MIP403_REGISTRY_ADDRESS: Address = address!("0x403C000000000000000000000000000000000000");
 pub const MIP20_FACTORY_ADDRESS: Address = address!("0x20FC000000000000000000000000000000000000");
-/// MIP-20 Issuer Registry — per-currency allowlist of governance-approved issuers.
-/// Per multi-currency-fees-design.md §4 (v3.8.2). Introduced in T4 hardfork.
+/// Per-currency issuer allowlist; introduced in T4.
 pub const MIP20_ISSUER_REGISTRY_ADDRESS: Address =
     address!("0x20FA000000000000000000000000000000000000");
 pub const STABLECOIN_DEX_ADDRESS: Address = address!("0xdec0000000000000000000000000000000000000");

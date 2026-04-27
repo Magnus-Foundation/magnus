@@ -12,11 +12,9 @@ crate::sol! {
         error InvalidQuoteToken();
         error TokenAlreadyExists(address token);
 
-        // Multi-currency-fees v3.8.2 §4: when public createToken is called by an
-        // address not in IMIP20IssuerRegistry.approvedIssuers[currency], the factory
-        // bubbles up `MIP20IssuerRegistryError::IssuerNotApproved` directly rather than
-        // declaring a duplicate error here. Avoids ABI selector collision between two
-        // identical error definitions (IssuerNotApproved(address,string) in both ABIs).
+        // For unapproved-issuer rejection, the factory bubbles up
+        // `MIP20IssuerRegistryError::IssuerNotApproved` directly (avoids selector collision
+        // with a duplicate error definition).
 
         event TokenCreated(address indexed token, string name, string symbol, string currency, address quoteToken, address admin, bytes32 salt);
 

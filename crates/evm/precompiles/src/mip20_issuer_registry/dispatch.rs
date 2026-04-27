@@ -1,8 +1,4 @@
-//! ABI dispatch for the [`MIP20IssuerRegistry`] precompile.
-//!
-//! **G0 status:** scaffold only — view selectors route to stub methods returning empty
-//! results. Governance-gated state-changing functions (`addApprovedIssuer`,
-//! `removeApprovedIssuer`) land in G4.
+//! ABI dispatch for [`MIP20IssuerRegistry`].
 
 use crate::{
     Precompile, charge_input_cost, dispatch_call, mip20_issuer_registry::MIP20IssuerRegistry,
@@ -29,17 +25,13 @@ impl Precompile for MIP20IssuerRegistry {
                 IMIP20IssuerRegistryCalls::getApprovedIssuers(call) => {
                     view(call, |c| self.get_approved_issuers(&c.currency))
                 }
-                // G0: governance-gated mutators are stubbed. Filled in by G4.
+                // Governance setters are not implemented yet.
                 IMIP20IssuerRegistryCalls::addApprovedIssuer(_)
-                | IMIP20IssuerRegistryCalls::removeApprovedIssuer(_) => {
-                    // Until G4 lands the real EIP-712 governance verification, these
-                    // selectors return a deterministic "fatal: not implemented" error so
-                    // callers can detect the unimplemented state without confusing it for
-                    // a normal business-logic revert.
-                    StorageCtx.error_result(crate::error::MagnusPrecompileError::Fatal(
-                        "MIP20IssuerRegistry governance functions not implemented in G0".into(),
-                    ))
-                }
+                | IMIP20IssuerRegistryCalls::removeApprovedIssuer(_) => StorageCtx.error_result(
+                    crate::error::MagnusPrecompileError::Fatal(
+                        "MIP20IssuerRegistry governance functions not implemented".into(),
+                    ),
+                ),
             },
         )
     }

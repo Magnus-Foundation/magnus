@@ -139,9 +139,7 @@ pub fn extend_magnus_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<
         } else if *address == SIGNATURE_VERIFIER_ADDRESS && cfg.spec.is_t3() {
             Some(SignatureVerifier::create_precompile(&cfg))
         } else if *address == MIP20_ISSUER_REGISTRY_ADDRESS && cfg.spec.is_t4() {
-            // T4 hardfork: multi-currency fees + issuer-allowlist gate
-            // (multi-currency-fees-design.md §4, v3.8.2). Stub implementation in G0;
-            // governance-gated allowlist logic lands in G4.
+            // T4: multi-currency fees + issuer-allowlist gate. Stub for now.
             Some(MIP20IssuerRegistry::create_precompile(&cfg))
         } else {
             None
@@ -843,9 +841,6 @@ mod tests {
         );
     }
 
-    /// MIP20IssuerRegistry is the new precompile introduced in T4 hardfork
-    /// (multi-currency-fees-design.md §4, v3.8.2). At every hardfork before
-    /// T4 it must be unresolvable; at T4 it must resolve.
     #[test]
     fn test_issuer_registry_not_registered_pre_t4() {
         for spec in [
@@ -882,9 +877,6 @@ mod tests {
         );
     }
 
-    /// Verifies the issuer-registry address sits adjacent to the factory
-    /// (per design doc §2.2 architecture diagram) and does not collide with
-    /// any other Magnus-allocated precompile address constant.
     #[test]
     fn test_issuer_registry_address_does_not_collide() {
         let other_addresses = [

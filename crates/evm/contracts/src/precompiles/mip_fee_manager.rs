@@ -23,13 +23,9 @@ crate::sol! {
             bool hasBeenSet;
         }
 
-        /// On-chain config for a registered fiat currency (multi-currency-fees-design.md §4.3).
-        /// Returned by `getCurrencyConfig`. G6 will extend this struct with deprecation fields.
-        ///
-        /// `registered` is the existence flag — `false` for any never-added code (a default
-        /// zero slot is indistinguishable from "registered USD at block 0"). Off-chain readers
-        /// MUST check `registered` before interpreting `enabled` / `addedAtBlock` /
-        /// `enabledAtBlock`.
+        /// `registered` is the existence flag — `false` for any never-added code
+        /// (default-zero slot is indistinguishable from "added at block 0"). Off-chain
+        /// readers MUST check `registered` before interpreting other fields.
         struct CurrencyConfig {
             bool   registered;
             bool   enabled;
@@ -49,20 +45,15 @@ crate::sol! {
         // NOTE: collectFeePreTx is a protocol-internal function called directly by the
         // execution handler, not exposed via the dispatch interface.
 
-        // ─── G1: Currency registry (multi-currency-fees-design.md §4) ──────────────
-        // Governance-only setters (caller must equal `governanceAdmin`):
+        // Currency registry (governance-gated by `governanceAdmin`).
         function addCurrency(string calldata code) external;
         function enableCurrency(string calldata code) external;
         function setGovernanceAdmin(address newAdmin) external;
-        // Read-only views:
         function getCurrencyConfig(string calldata code) external view returns (CurrencyConfig memory);
         function isCurrencyEnabled(string calldata code) external view returns (bool);
         function governanceAdmin() external view returns (address);
 
-        // ─── G2a: Validator multi-token accept-set (design §6) ────────────────────
-        // Validators choose a *set* of tokens they accept as fee payout, replacing
-        // the legacy single-token preference. The legacy `setValidatorToken` /
-        // `validatorTokens` API stays in this commit; G2b removes it.
+        // Validator multi-token accept-set.
         function addAcceptedToken(address token) external;
         function removeAcceptedToken(address token) external;
         function acceptsToken(address validator, address token) external view returns (bool);
@@ -73,12 +64,9 @@ crate::sol! {
         event UserTokenSet(address indexed user, address indexed token);
         event ValidatorTokenSet(address indexed validator, address indexed token);
         event FeesDistributed(address indexed validator, address indexed token, uint256 amount);
-        // G1 events:
         event CurrencyAdded(string code, uint64 atBlock);
         event CurrencyEnabled(string code, uint64 atBlock);
         event GovernanceAdminChanged(address indexed oldAdmin, address indexed newAdmin);
-
-        // G2a events:
         event AcceptedTokenAdded(address indexed validator, address indexed token);
         event AcceptedTokenRemoved(address indexed validator, address indexed token);
 
@@ -93,34 +81,18 @@ crate::sol! {
         error CannotChangeWithPendingFees();
         error TokenPolicyForbids();
 
-        // Multi-currency-fees v3.8.2 — added in G0, semantics implemented in G1/G2/G6/G8.
-        // CurrencyNotRegistered: governance has not added this ISO 4217 code (§4.3).
-        // CurrencyDisabled: currency exists but is disabled (post-grace deprecation, §11.1).
-        // FeeTokenNotAccepted: validator's accept-set does not include the user's fee token (§5.1).
-        // FeeTokenNotInferable: protocol cannot infer a fee token from tx calldata (§11.3).
-        // ValidatorAcceptSetEmpty: producing validator has no tokens in its accept-set (§4.5a).
         error CurrencyNotRegistered(string currency);
         error CurrencyDisabled(string currency);
         error FeeTokenNotAccepted(address validator, address token);
         error FeeTokenNotInferable();
         error ValidatorAcceptSetEmpty(address validator);
 
-        // G1 errors:
-        // OnlyGovernanceAdmin: caller of a governance-gated function is not `governanceAdmin`.
-        // CurrencyAlreadyAdded: addCurrency called for a code that is already registered.
-        // CurrencyAlreadyEnabled: enableCurrency called for a code that is already enabled.
-        // InvalidCurrencyCode: code fails the ISO-4217 syntax check (3 uppercase ASCII letters).
-        // ZeroAddressGovernanceAdmin: setGovernanceAdmin(address(0)) is rejected — would brick the registry.
         error OnlyGovernanceAdmin(address caller);
         error CurrencyAlreadyAdded(string currency);
         error CurrencyAlreadyEnabled(string currency);
         error InvalidCurrencyCode(string currency);
         error ZeroAddressGovernanceAdmin();
 
-        // G2a errors:
-        // TokenAlreadyAccepted: addAcceptedToken called for a token already in caller's accept-set.
-        // TokenNotInAcceptSet: removeAcceptedToken called for a token not in caller's accept-set.
-        // MaxAcceptSetReached: caller's accept-set already holds MAX_ACCEPT_SET_SIZE tokens.
         error TokenAlreadyAccepted(address validator, address token);
         error TokenNotInAcceptSet(address validator, address token);
         error MaxAcceptSetReached(address validator);
@@ -253,36 +225,26 @@ impl FeeManagerError {
         Self::ValidatorAcceptSetEmpty(IFeeManager::ValidatorAcceptSetEmpty { validator })
     }
 
-    // ─── G1 error constructors ────────────────────────────────────────────────
-
-    /// Creates an error when a non-governance-admin address calls a gov-gated function.
     pub fn only_governance_admin(caller: alloy_primitives::Address) -> Self {
         Self::OnlyGovernanceAdmin(IFeeManager::OnlyGovernanceAdmin { caller })
     }
 
-    /// Creates an error when `addCurrency` is called for an already-registered currency.
     pub fn currency_already_added(currency: alloc::string::String) -> Self {
         Self::CurrencyAlreadyAdded(IFeeManager::CurrencyAlreadyAdded { currency })
     }
 
-    /// Creates an error when `enableCurrency` is called for an already-enabled currency.
     pub fn currency_already_enabled(currency: alloc::string::String) -> Self {
         Self::CurrencyAlreadyEnabled(IFeeManager::CurrencyAlreadyEnabled { currency })
     }
 
-    /// Creates an error when a currency code fails the ISO 4217 syntax check.
     pub fn invalid_currency_code(currency: alloc::string::String) -> Self {
         Self::InvalidCurrencyCode(IFeeManager::InvalidCurrencyCode { currency })
     }
 
-    /// Creates an error when setGovernanceAdmin would set the admin to the zero address.
     pub const fn zero_address_governance_admin() -> Self {
         Self::ZeroAddressGovernanceAdmin(IFeeManager::ZeroAddressGovernanceAdmin {})
     }
 
-    // ─── G2a error constructors ───────────────────────────────────────────────
-
-    /// Creates an error when `addAcceptedToken` is called for an already-accepted token.
     pub const fn token_already_accepted(
         validator: alloy_primitives::Address,
         token: alloy_primitives::Address,
@@ -290,7 +252,6 @@ impl FeeManagerError {
         Self::TokenAlreadyAccepted(IFeeManager::TokenAlreadyAccepted { validator, token })
     }
 
-    /// Creates an error when `removeAcceptedToken` is called for a token not in the accept-set.
     pub const fn token_not_in_accept_set(
         validator: alloy_primitives::Address,
         token: alloy_primitives::Address,
@@ -298,7 +259,6 @@ impl FeeManagerError {
         Self::TokenNotInAcceptSet(IFeeManager::TokenNotInAcceptSet { validator, token })
     }
 
-    /// Creates an error when the caller's accept-set has reached `MAX_ACCEPT_SET_SIZE`.
     pub const fn max_accept_set_reached(validator: alloy_primitives::Address) -> Self {
         Self::MaxAcceptSetReached(IFeeManager::MaxAcceptSetReached { validator })
     }
@@ -366,11 +326,8 @@ mod fee_manager_error_tests {
         }
     }
 
-    /// All five new G0 error selectors must be distinct from each other AND
-    /// from every pre-existing FeeManager error. A collision would make ABI
-    /// decoding ambiguous.
     #[test]
-    fn new_g0_error_selectors_are_distinct_from_each_other() {
+    fn currency_error_selectors_are_distinct_from_each_other() {
         let new_selectors = [
             IFeeManager::CurrencyNotRegistered::SELECTOR,
             IFeeManager::CurrencyDisabled::SELECTOR,
@@ -383,14 +340,14 @@ mod fee_manager_error_tests {
             for j in (i + 1)..new_selectors.len() {
                 assert_ne!(
                     new_selectors[i], new_selectors[j],
-                    "G0 error selectors {} and {} collide", i, j
+                    "currency error selectors {} and {} collide", i, j
                 );
             }
         }
     }
 
     #[test]
-    fn new_g0_error_selectors_are_distinct_from_existing_errors() {
+    fn currency_error_selectors_are_distinct_from_existing_errors() {
         let new_selectors = [
             IFeeManager::CurrencyNotRegistered::SELECTOR,
             IFeeManager::CurrencyDisabled::SELECTOR,
@@ -414,7 +371,7 @@ mod fee_manager_error_tests {
             for existing in existing_selectors {
                 assert_ne!(
                     new, existing,
-                    "G0 error selector {:?} collides with existing FeeManager error {:?}",
+                    "currency error selector {:?} collides with existing FeeManager error {:?}",
                     new, existing
                 );
             }
