@@ -109,6 +109,29 @@ impl Precompile for MipFeeManager {
                     })
                 }
 
+                // ─── G2a: Validator multi-token accept-set ────────────────────────
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::addAcceptedToken(call)) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        let beneficiary = self.storage.beneficiary();
+                        self.add_accepted_token(s, c.token, beneficiary)
+                    })
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::removeAcceptedToken(call)) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        let beneficiary = self.storage.beneficiary();
+                        self.remove_accepted_token(s, c.token, beneficiary)
+                    })
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::acceptsToken(call)) => {
+                    view(call, |c| self.accepts_token(c.validator, c.token))
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::getAcceptedTokens(call)) => {
+                    view(call, |c| self.get_accepted_tokens(c.validator))
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::isAcceptedByAnyValidator(call)) => {
+                    view(call, |c| self.is_accepted_by_any_validator(c.token))
+                }
+
                 // ITIPFeeAMM metadata functions
                 TipFeeManagerCall::Amm(ITIPFeeAMMCalls::M(_)) => {
                     metadata::<ITIPFeeAMM::MCall>(|| Ok(M))

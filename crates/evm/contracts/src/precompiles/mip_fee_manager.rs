@@ -59,6 +59,16 @@ crate::sol! {
         function isCurrencyEnabled(string calldata code) external view returns (bool);
         function governanceAdmin() external view returns (address);
 
+        // ─── G2a: Validator multi-token accept-set (design §6) ────────────────────
+        // Validators choose a *set* of tokens they accept as fee payout, replacing
+        // the legacy single-token preference. The legacy `setValidatorToken` /
+        // `validatorTokens` API stays in this commit; G2b removes it.
+        function addAcceptedToken(address token) external;
+        function removeAcceptedToken(address token) external;
+        function acceptsToken(address validator, address token) external view returns (bool);
+        function getAcceptedTokens(address validator) external view returns (address[] memory);
+        function isAcceptedByAnyValidator(address token) external view returns (bool);
+
         // Events
         event UserTokenSet(address indexed user, address indexed token);
         event ValidatorTokenSet(address indexed validator, address indexed token);
@@ -67,6 +77,10 @@ crate::sol! {
         event CurrencyAdded(string code, uint64 atBlock);
         event CurrencyEnabled(string code, uint64 atBlock);
         event GovernanceAdminChanged(address indexed oldAdmin, address indexed newAdmin);
+
+        // G2a events:
+        event AcceptedTokenAdded(address indexed validator, address indexed token);
+        event AcceptedTokenRemoved(address indexed validator, address indexed token);
 
         // Errors
         error OnlyValidator();
@@ -102,6 +116,14 @@ crate::sol! {
         error CurrencyAlreadyEnabled(string currency);
         error InvalidCurrencyCode(string currency);
         error ZeroAddressGovernanceAdmin();
+
+        // G2a errors:
+        // TokenAlreadyAccepted: addAcceptedToken called for a token already in caller's accept-set.
+        // TokenNotInAcceptSet: removeAcceptedToken called for a token not in caller's accept-set.
+        // MaxAcceptSetReached: caller's accept-set already holds MAX_ACCEPT_SET_SIZE tokens.
+        error TokenAlreadyAccepted(address validator, address token);
+        error TokenNotInAcceptSet(address validator, address token);
+        error MaxAcceptSetReached(address validator);
     }
 }
 
@@ -256,6 +278,29 @@ impl FeeManagerError {
     /// Creates an error when setGovernanceAdmin would set the admin to the zero address.
     pub const fn zero_address_governance_admin() -> Self {
         Self::ZeroAddressGovernanceAdmin(IFeeManager::ZeroAddressGovernanceAdmin {})
+    }
+
+    // ─── G2a error constructors ───────────────────────────────────────────────
+
+    /// Creates an error when `addAcceptedToken` is called for an already-accepted token.
+    pub const fn token_already_accepted(
+        validator: alloy_primitives::Address,
+        token: alloy_primitives::Address,
+    ) -> Self {
+        Self::TokenAlreadyAccepted(IFeeManager::TokenAlreadyAccepted { validator, token })
+    }
+
+    /// Creates an error when `removeAcceptedToken` is called for a token not in the accept-set.
+    pub const fn token_not_in_accept_set(
+        validator: alloy_primitives::Address,
+        token: alloy_primitives::Address,
+    ) -> Self {
+        Self::TokenNotInAcceptSet(IFeeManager::TokenNotInAcceptSet { validator, token })
+    }
+
+    /// Creates an error when the caller's accept-set has reached `MAX_ACCEPT_SET_SIZE`.
+    pub const fn max_accept_set_reached(validator: alloy_primitives::Address) -> Self {
+        Self::MaxAcceptSetReached(IFeeManager::MaxAcceptSetReached { validator })
     }
 }
 

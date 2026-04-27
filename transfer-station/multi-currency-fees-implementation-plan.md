@@ -652,7 +652,7 @@ The G0 inline doc-comments referencing the design doc (e.g. "see `multi-currency
 
 ## Out of scope for this plan
 
-- **MBS bridge integration.** Separate plan at [`docs/superpowers/plans/2026-04-24-mbs-phase-0-prereqs.md`](../docs/superpowers/plans/2026-04-24-mbs-phase-0-prereqs.md).
+- **MBS bridge integration.** Separate workstream on its own feature branch (`feat/mbs-phase-0`); see `docs/superpowers/plans/2026-04-24-mbs-phase-0-prereqs.md` on that branch. Not present in `feat/multi-currency-fees` by design — the two tracks are independent.
 - **`@magnus/wallet-sdk` development.** Post-launch deliverable; not blocking T4.
 - **Mobile SDKs** (Swift, Kotlin). 90 days post-launch.
 - **External wallet integration partnerships** (Trust Wallet, Coin98, MetaMask). BD work, not engineering.
@@ -682,6 +682,7 @@ When all checkboxes are green, engineering kicks off G0.
 
 ## Change log
 
+- **2026-04-28 (v1.3):** G2a landed (additive half of G2; per the v1 split-recommendation). `MipFeeManager` now has `validator_accepted_tokens: Mapping<Address, Mapping<Address, bool>>` + `validator_token_list: Mapping<Address, Vec<Address>>`. New API: `addAcceptedToken` / `removeAcceptedToken` / `acceptsToken` / `getAcceptedTokens` / `isAcceptedByAnyValidator`. `MAX_ACCEPT_SET_SIZE = 32` cap. Legacy `set_validator_token` / `get_validator_token` / `user_tokens` retained for backward compat — G2b removes them and rewires the fee path. `add_accepted_token` validates token is a registered+enabled MIP-20 (calls G1's `validate_supported_currency`) and respects the same-block-as-beneficiary protection. `is_accepted_by_any_validator` is a stub returning `false` until G2b/G4 add a reverse-index mapping. 13 new unit tests.
 - **2026-04-28 (v1.2):** G1 landed. `MipFeeManager` now has `governance_admin` + `supported_currencies` storage; `addCurrency`/`enableCurrency`/`setGovernanceAdmin` governance functions; `getCurrencyConfig`/`isCurrencyEnabled`/`governanceAdmin` views; `validate_supported_currency` helper in `mip20/mod.rs`. `CurrencyConfig` gained an explicit `registered` flag because `added_at_block == 0` is indistinguishable from default state. Genesis-init populates USD (testnet) or USD+VND (mainnet) per chain ID. 22 new unit tests. G-handoff checklist updated to mark G1 stubs as resolved.
 - **2026-04-28 (v1.1):** Added "G-handoff stub-removal checklist" section enumerating every G0 stub by file:line and the group whose PR removes it. Per-group exit criteria includes a `grep` check for residual G0-stub markers. Clarified that durable design-doc cross-references stay; only `**G0 stub:**` / `**G0 status:**` markers are removed.
 - **2026-04-27 (v1):** Initial implementation plan covering 8 deliverable groups with effort estimates, dependency ordering, audit checkpoint placement, testnet/mainnet sequencing, risk register.

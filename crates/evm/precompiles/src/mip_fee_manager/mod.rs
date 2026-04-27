@@ -50,6 +50,23 @@ pub struct MipFeeManager {
     /// Solidity ABI takes the human-readable code; the precompile hashes internally.
     supported_currencies: Mapping<B256, CurrencyConfig>,
 
+    // ─── G2a: Validator multi-token accept-set (design §6, §7) ────────────────
+    //
+    // Replaces the single-token `validator_tokens` model. Each validator-org chooses a
+    // SET of tokens it will accept as fee payout. G2a only adds the new storage and
+    // API; the legacy `validator_tokens` field stays in place for backward compatibility
+    // until G2b/G3 rewire the fee-collection path.
+    //
+    // Storage layout:
+    //   `validator_accepted_tokens[validator][token] -> bool`  membership flag
+    //   `validator_token_list[validator] -> Vec<Address>`       enumeration order
+    //
+    // Both must stay in sync. Insertion appends to the list and flips the flag;
+    // removal flips the flag and swap-removes from the list. The list exists so
+    // off-chain readers can enumerate without scanning every (validator, token) pair.
+    validator_accepted_tokens: Mapping<Address, Mapping<Address, bool>>,
+    validator_token_list: Mapping<Address, Vec<Address>>,
+
     // WARNING(rusowsky): transient storage slots must always be placed at the very end until the `contract`
     // macro is refactored and has 2 independent layouts (persistent and transient).
     // If new (persistent) storage fields need to be added to the precompile, they must go above this one.
@@ -65,6 +82,12 @@ impl MipFeeManager {
     pub const BASIS_POINTS: u64 = 10000;
     /// Minimum MIP-20 balance required for fee operations (1e9).
     pub const MINIMUM_BALANCE: U256 = uint!(1_000_000_000_U256);
+
+    /// G2a: Maximum number of tokens a single validator may accept.
+    /// Caps state bloat from a misbehaving validator that calls `addAcceptedToken`
+    /// repeatedly. 32 is comfortably more than the realistic mainnet count
+    /// (likely 5-10 currencies × 2-3 issuers each = 10-30 tokens).
+    pub const MAX_ACCEPT_SET_SIZE: usize = 32;
 
     /// Initializes the fee manager precompile.
     pub fn initialize(&mut self) -> Result<()> {
@@ -430,6 +453,133 @@ impl MipFeeManager {
         if sender != admin {
             return Err(FeeManagerError::only_governance_admin(sender).into());
         }
+        Ok(())
+    }
+
+    // ─── G2a: Validator multi-token accept-set API (design §6) ────────────────
+    //
+    // The legacy single-token `set_validator_token` / `get_validator_token` API stays
+    // intact in this commit; G2b removes it and rewires the fee-collection path to
+    // call `accepts_token` instead.
+
+    /// Returns whether `validator` has added `token` to its accept-set.
+    /// Returns `false` for any validator that has never called `add_accepted_token`.
+    pub fn accepts_token(&self, validator: Address, token: Address) -> Result<bool> {
+        self.validator_accepted_tokens[validator][token].read()
+    }
+
+    /// Returns the list of tokens `validator` accepts as fee payout.
+    /// Empty for any validator that has never called `add_accepted_token`.
+    pub fn get_accepted_tokens(&self, validator: Address) -> Result<Vec<Address>> {
+        self.validator_token_list[validator].read()
+    }
+
+    /// Returns `true` if at least one validator in storage accepts `token`. The naive
+    /// implementation here would require scanning every validator; the cheap
+    /// G2a-compatible answer is "we don't know without an off-chain index". For now
+    /// this is a placeholder that the wallet SDK queries via off-chain state-trie
+    /// scanning; G4+ may add an explicit `accepted_token_validator_count[token]`
+    /// counter mapping to make the answer cheap on-chain.
+    ///
+    /// **G2a stub:** always returns `false`. A wallet that needs the answer must
+    /// query each validator individually via `accepts_token`. G2b/G4 may add the
+    /// reverse-index mapping if real-world UX shows the on-chain answer is needed.
+    pub fn is_accepted_by_any_validator(&self, _token: Address) -> Result<bool> {
+        Ok(false)
+    }
+
+    /// Adds `token` to the caller's (validator's) accept-set.
+    ///
+    /// # Errors
+    /// - `InvalidToken` — `token` is not a deployed MIP-20
+    /// - `CurrencyNotRegistered` / `CurrencyDisabled` — token's currency is not gas-eligible
+    /// - `CannotChangeWithinBlock` — caller is the current block's beneficiary
+    /// - `MaxAcceptSetReached` — caller's accept-set already holds `MAX_ACCEPT_SET_SIZE` tokens
+    /// - `TokenAlreadyAccepted` — `token` is already in the caller's accept-set
+    pub fn add_accepted_token(
+        &mut self,
+        sender: Address,
+        token: Address,
+        beneficiary: Address,
+    ) -> Result<()> {
+        // Token validity: must be a deployed MIP-20 with a registered+enabled currency.
+        if !MIP20Factory::new().is_tip20(token)? {
+            return Err(FeeManagerError::invalid_token().into());
+        }
+        crate::mip20::validate_supported_currency(token)?;
+
+        // Same-block-as-beneficiary protection: a validator producing the current block
+        // cannot mutate its own accept-set in that block — it would change fee
+        // semantics mid-block and create a foot-gun for downstream caching.
+        if sender == beneficiary {
+            return Err(FeeManagerError::cannot_change_within_block().into());
+        }
+
+        // Idempotency check.
+        if self.validator_accepted_tokens[sender][token].read()? {
+            return Err(FeeManagerError::token_already_accepted(sender, token).into());
+        }
+
+        // Cap on accept-set size.
+        let mut list = self.validator_token_list[sender].read()?;
+        if list.len() >= Self::MAX_ACCEPT_SET_SIZE {
+            return Err(FeeManagerError::max_accept_set_reached(sender).into());
+        }
+
+        list.push(token);
+        self.validator_token_list[sender].write(list)?;
+        self.validator_accepted_tokens[sender][token].write(true)?;
+
+        self.emit_event(FeeManagerEvent::AcceptedTokenAdded(
+            IFeeManager::AcceptedTokenAdded {
+                validator: sender,
+                token,
+            },
+        ))?;
+
+        Ok(())
+    }
+
+    /// Removes `token` from the caller's (validator's) accept-set.
+    ///
+    /// # Errors
+    /// - `CannotChangeWithinBlock` — caller is the current block's beneficiary
+    /// - `TokenNotInAcceptSet` — `token` is not in the caller's accept-set
+    pub fn remove_accepted_token(
+        &mut self,
+        sender: Address,
+        token: Address,
+        beneficiary: Address,
+    ) -> Result<()> {
+        if sender == beneficiary {
+            return Err(FeeManagerError::cannot_change_within_block().into());
+        }
+
+        if !self.validator_accepted_tokens[sender][token].read()? {
+            return Err(FeeManagerError::token_not_in_accept_set(sender, token).into());
+        }
+
+        // Swap-remove from the list to keep it dense; order is irrelevant to consumers.
+        let mut list = self.validator_token_list[sender].read()?;
+        let pos = list.iter().position(|t| *t == token).ok_or_else(|| {
+            // Storage inconsistency: flag was set but list doesn't contain the token.
+            // This should be unreachable; treat it as a fatal error rather than a
+            // silent cleanup so the underlying bug is visible.
+            MagnusPrecompileError::Fatal(
+                "validator_accepted_tokens flag set but token missing from list".into(),
+            )
+        })?;
+        list.swap_remove(pos);
+        self.validator_token_list[sender].write(list)?;
+        self.validator_accepted_tokens[sender][token].write(false)?;
+
+        self.emit_event(FeeManagerEvent::AcceptedTokenRemoved(
+            IFeeManager::AcceptedTokenRemoved {
+                validator: sender,
+                token,
+            },
+        ))?;
+
         Ok(())
     }
 }
@@ -1120,7 +1270,8 @@ mod currency_registry_tests {
     use super::*;
     use crate::{
         error::MagnusPrecompileError,
-        storage::{StorageCtx, hashmap::HashMapStorageProvider},
+        storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
+        test_util::MIP20Setup,
     };
 
     /// Bootstrap helper: a fresh FeeManager with `governance_admin` set to `admin` via the
@@ -1381,6 +1532,368 @@ mod currency_registry_tests {
             assert_eq!(config.added_at_block, 0);
             assert_eq!(config.enabled_at_block, 0);
             assert!(!fee_manager.is_currency_enabled("USD")?);
+            Ok(())
+        })
+    }
+
+    // ─── G2a: validator accept-set API tests ──────────────────────────────────
+
+    /// Bootstrap fee manager with admin + USD enabled so add_accepted_token can validate
+    /// against the currency registry.
+    fn fee_manager_with_admin_and_usd(admin: Address) -> Result<MipFeeManager> {
+        let mut fm = fee_manager_with_admin(admin)?;
+        fm.add_currency(admin, "USD", 0)?;
+        fm.enable_currency(admin, "USD", 0)?;
+        Ok(fm)
+    }
+
+    #[test]
+    fn add_accepted_token_happy_path() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+            fm.clear_emitted_events();
+
+            fm.add_accepted_token(validator, token.address(), beneficiary)?;
+
+            assert!(fm.accepts_token(validator, token.address())?);
+            let list = fm.get_accepted_tokens(validator)?;
+            assert_eq!(list, vec![token.address()]);
+
+            fm.assert_emitted_events(vec![FeeManagerEvent::AcceptedTokenAdded(
+                IFeeManager::AcceptedTokenAdded {
+                    validator,
+                    token: token.address(),
+                },
+            )]);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn add_accepted_token_rejects_non_tip20() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let bogus = Address::random();
+
+            let err = fm
+                .add_accepted_token(validator, bogus, beneficiary)
+                .unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::invalid_token())
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn add_accepted_token_rejects_unregistered_currency_token() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+            // USD never registered.
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+
+            let err = fm
+                .add_accepted_token(validator, token.address(), beneficiary)
+                .unwrap_err();
+            assert!(matches!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::CurrencyNotRegistered(_))
+            ));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn add_accepted_token_rejects_same_block_as_beneficiary() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+
+            let err = fm
+                .add_accepted_token(validator, token.address(), validator)
+                .unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::cannot_change_within_block()
+                )
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn add_accepted_token_rejects_double_add() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+
+            fm.add_accepted_token(validator, token.address(), beneficiary)?;
+            let err = fm
+                .add_accepted_token(validator, token.address(), beneficiary)
+                .unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::token_already_accepted(
+                    validator,
+                    token.address()
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn add_accepted_token_enforces_max_size() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+
+            // Fill the accept-set to MAX_ACCEPT_SET_SIZE. Use distinct salts so the
+            // factory derives different deterministic addresses; the underlying name
+            // doesn't need to be unique for the storage layer.
+            for i in 0..MipFeeManager::MAX_ACCEPT_SET_SIZE {
+                let token = MIP20Setup::create("USDC", "USDC", admin)
+                    .currency("USD")
+                    .with_salt(B256::from(U256::from(i as u64)))
+                    .apply()?;
+                fm.add_accepted_token(validator, token.address(), beneficiary)?;
+            }
+
+            // The 33rd add must revert.
+            let extra_token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .with_salt(B256::from(U256::from(
+                    MipFeeManager::MAX_ACCEPT_SET_SIZE as u64,
+                )))
+                .apply()?;
+            let err = fm
+                .add_accepted_token(validator, extra_token.address(), beneficiary)
+                .unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::max_accept_set_reached(
+                    validator
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn remove_accepted_token_happy_path() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+            fm.add_accepted_token(validator, token.address(), beneficiary)?;
+            fm.clear_emitted_events();
+
+            fm.remove_accepted_token(validator, token.address(), beneficiary)?;
+
+            assert!(!fm.accepts_token(validator, token.address())?);
+            assert!(fm.get_accepted_tokens(validator)?.is_empty());
+
+            fm.assert_emitted_events(vec![FeeManagerEvent::AcceptedTokenRemoved(
+                IFeeManager::AcceptedTokenRemoved {
+                    validator,
+                    token: token.address(),
+                },
+            )]);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn remove_accepted_token_rejects_unaccepted() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+
+            let err = fm
+                .remove_accepted_token(validator, token.address(), beneficiary)
+                .unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::token_not_in_accept_set(
+                    validator,
+                    token.address()
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn remove_accepted_token_keeps_other_tokens_in_list() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            // Distinct salts ensure distinct deterministic factory addresses.
+            let usdc = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .with_salt(B256::from(U256::from(1)))
+                .apply()?;
+            let usdt = MIP20Setup::create("USDT", "USDT", admin)
+                .currency("USD")
+                .with_salt(B256::from(U256::from(2)))
+                .apply()?;
+            let pyusd = MIP20Setup::create("PYUSD", "PYUSD", admin)
+                .currency("USD")
+                .with_salt(B256::from(U256::from(3)))
+                .apply()?;
+
+            fm.add_accepted_token(validator, usdc.address(), beneficiary)?;
+            fm.add_accepted_token(validator, usdt.address(), beneficiary)?;
+            fm.add_accepted_token(validator, pyusd.address(), beneficiary)?;
+
+            // Remove USDT (the middle one). Order is allowed to change (swap-remove).
+            fm.remove_accepted_token(validator, usdt.address(), beneficiary)?;
+
+            assert!(fm.accepts_token(validator, usdc.address())?);
+            assert!(!fm.accepts_token(validator, usdt.address())?);
+            assert!(fm.accepts_token(validator, pyusd.address())?);
+
+            let list = fm.get_accepted_tokens(validator)?;
+            assert_eq!(list.len(), 2);
+            assert!(list.contains(&usdc.address()));
+            assert!(list.contains(&pyusd.address()));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn accepts_token_returns_false_for_unconfigured_validator() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let validator = Address::random();
+        let token = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let fm = MipFeeManager::new();
+            assert!(!fm.accepts_token(validator, token)?);
+            assert!(fm.get_accepted_tokens(validator)?.is_empty());
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn add_then_remove_then_re_add_works() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+
+            fm.add_accepted_token(validator, token.address(), beneficiary)?;
+            fm.remove_accepted_token(validator, token.address(), beneficiary)?;
+            // Re-add must succeed cleanly (state was fully cleaned up).
+            fm.add_accepted_token(validator, token.address(), beneficiary)?;
+
+            assert!(fm.accepts_token(validator, token.address())?);
+            assert_eq!(fm.get_accepted_tokens(validator)?, vec![token.address()]);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn multiple_validators_have_independent_accept_sets() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let v1 = Address::random();
+        let v2 = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let usdc = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .with_salt(B256::from(U256::from(11)))
+                .apply()?;
+            let usdt = MIP20Setup::create("USDT", "USDT", admin)
+                .currency("USD")
+                .with_salt(B256::from(U256::from(12)))
+                .apply()?;
+
+            fm.add_accepted_token(v1, usdc.address(), beneficiary)?;
+            fm.add_accepted_token(v1, usdt.address(), beneficiary)?;
+            fm.add_accepted_token(v2, usdc.address(), beneficiary)?;
+
+            assert!(fm.accepts_token(v1, usdc.address())?);
+            assert!(fm.accepts_token(v1, usdt.address())?);
+            assert!(fm.accepts_token(v2, usdc.address())?);
+            assert!(!fm.accepts_token(v2, usdt.address())?);
+
+            assert_eq!(fm.get_accepted_tokens(v1)?.len(), 2);
+            assert_eq!(fm.get_accepted_tokens(v2)?.len(), 1);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn is_accepted_by_any_validator_g2a_stub_always_false() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+            fm.add_accepted_token(validator, token.address(), beneficiary)?;
+
+            // G2a stub: always false even though the token IS accepted by `validator`.
+            // G2b/G4 may add a real reverse-index. Pin the stub behavior so a future
+            // accidental change is caught.
+            assert!(!fm.is_accepted_by_any_validator(token.address())?);
             Ok(())
         })
     }
