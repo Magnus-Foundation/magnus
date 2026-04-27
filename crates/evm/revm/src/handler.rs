@@ -4340,7 +4340,7 @@ mod tests {
                 let key = Address::random();
                 let signed = sign_key_auth(
                     &signer,
-                    KeyAuthorization::unrestricted(50500, SignatureType::Secp256k1, key),
+                    KeyAuthorization::unrestricted(79941, SignatureType::Secp256k1, key),
                 );
                 let (mut evm, h) = make_evm(user, key, Some(signed), spec, None, true);
                 assert!(

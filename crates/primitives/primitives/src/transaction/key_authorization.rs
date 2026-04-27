@@ -1035,7 +1035,7 @@ mod tests {
 
     #[test]
     fn test_validate_chain_id_pre_t1c() {
-        let expected = 50500;
+        let expected = 79941;
 
         // Matching chain_id → ok
         assert!(
@@ -1061,7 +1061,7 @@ mod tests {
 
     #[test]
     fn test_validate_chain_id_post_t1c() {
-        let expected = 50500;
+        let expected = 79941;
 
         // Matching chain_id → ok
         assert!(

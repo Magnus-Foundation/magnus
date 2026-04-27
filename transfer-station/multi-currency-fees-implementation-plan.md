@@ -685,7 +685,7 @@ Before engineering picks up this plan, verify:
 - [ ] Magnus Foundation legal/regulatory track for MagnusUSD started in parallel
 - [ ] VN partner bank BD discussion confirmed; expected close date set
 - [ ] Multisig signer roster confirmed for IssuerRegistry governance
-- [ ] Chain ID + naming decision finalized (or accepted as carry-forward from existing 5050/50500 pending separate decision)
+- [ ] Chain ID + naming decision finalized (or accepted as carry-forward from existing 83866/79941 pending separate decision)
 - [ ] T4 activation timestamp tentatively set in chainspec constants
 - [ ] CI capacity available for Foundry-style fuzzing of new precompiles
 

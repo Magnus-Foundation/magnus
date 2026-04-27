@@ -69,7 +69,7 @@ You can connect to Magnus's public testnet using the following details:
 | ------------------ | ---------------------------------- |
 | **Network Name**   | Magnus Testnet (Moderato)           |
 | **Currency**       | `USD`                              |
-| **Chain ID**       | `50500`                            |
+| **Chain ID**       | `79941`                            |
 | **HTTP URL**       | `https://rpc.allegro.magnus.xyz`   |
 | **WebSocket URL**  | `wss://rpc.allegro.magnus.xyz`     |
 | **Block Explorer** | `https://explore.magnus.xyz`        |

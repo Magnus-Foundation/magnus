@@ -272,7 +272,7 @@ impl MagnusTransactionRequest {
         }
 
         Ok(MagnusTransaction {
-            chain_id: self.inner.chain_id.unwrap_or(5050),
+            chain_id: self.inner.chain_id.unwrap_or(83866),
             nonce,
             fee_payer_signature: self.fee_payer_signature,
             valid_before: self.valid_before,
@@ -700,7 +700,7 @@ mod tests {
     #[test]
     fn test_build_aa_preserves_key_authorization() {
         let key_auth = KeyAuthorization::unrestricted(
-            5050,
+            83866,
             SignatureType::Secp256k1,
             address!("0x1111111111111111111111111111111111111111"),
         )
@@ -742,7 +742,7 @@ mod tests {
     #[test]
     fn test_keychain_builder_helpers() {
         let key_auth = KeyAuthorization::unrestricted(
-            5050,
+            83866,
             SignatureType::Secp256k1,
             address!("0x1111111111111111111111111111111111111111"),
         )
@@ -766,7 +766,7 @@ mod tests {
     #[test]
     fn test_aa_roundtrip_preserves_count() {
         let base = MagnusTransaction {
-            chain_id: 5050,
+            chain_id: 83866,
             nonce: 1,
             gas_limit: 100_000,
             max_fee_per_gas: 1_000_000_000,
