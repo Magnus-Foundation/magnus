@@ -13,7 +13,7 @@ use alloy::{
 use eyre::Context;
 use rand_distr::{Distribution, Exp, Zipf};
 use reqwest::Url;
-use magnus_precompiles::{TIP_FEE_MANAGER_ADDRESS, mip_fee_manager::IFeeManager, mip20::IMIP20};
+use magnus_precompiles::{MIP_FEE_MANAGER_ADDRESS, mip_fee_manager::IFeeManager, mip20::IMIP20};
 use magnus_telemetry_util::error_field;
 use tracing::{debug, info, warn};
 

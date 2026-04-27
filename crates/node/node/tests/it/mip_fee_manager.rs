@@ -18,7 +18,7 @@ use magnus_contracts::precompiles::{
     IFeeManager, IMIP20, IMIP403Registry,
     ITIPFeeAMM::{self},
 };
-use magnus_precompiles::{MAGNUS_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS};
+use magnus_precompiles::{MAGNUS_USD_ADDRESS, MIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS};
 use magnus_primitives::{
     MagnusTransaction, MagnusTxEnvelope,
     transaction::{calc_gas_balance_spending, magnus_transaction::Call},
@@ -38,7 +38,7 @@ async fn test_set_user_token() -> eyre::Result<()> {
     // Create test tokens
     let user_token = setup_test_token(provider.clone(), user_address).await?;
     let validator_token = IMIP20::new(MAGNUS_USD_ADDRESS, &provider);
-    let fee_manager = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, provider.clone());
+    let fee_manager = IFeeManager::new(MIP_FEE_MANAGER_ADDRESS, provider.clone());
 
     user_token
         .mint(user_address, U256::from(1e10))
@@ -63,7 +63,7 @@ async fn test_set_user_token() -> eyre::Result<()> {
 
     let validator_balance_before = validator_token.balanceOf(validator).call().await?;
 
-    let fee_amm = ITIPFeeAMM::new(TIP_FEE_MANAGER_ADDRESS, provider.clone());
+    let fee_amm = ITIPFeeAMM::new(MIP_FEE_MANAGER_ADDRESS, provider.clone());
 
     // Track collected fees before this transaction
     let collected_fees_before = fee_manager
@@ -198,7 +198,7 @@ async fn test_set_validator_token() -> eyre::Result<()> {
     let provider = ProviderBuilder::new().wallet(wallet).connect_http(http_url);
 
     let validator_token = setup_test_token(provider.clone(), validator_address).await?;
-    let fee_manager = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, provider);
+    let fee_manager = IFeeManager::new(MIP_FEE_MANAGER_ADDRESS, provider);
 
     let initial_token = fee_manager
         .validatorTokens(validator_address)
@@ -242,7 +242,7 @@ async fn test_fee_token_tx() -> eyre::Result<()> {
     let user_address = provider.default_signer_address();
 
     let user_token = setup_test_token(provider.clone(), user_address).await?;
-    let fee_amm = ITIPFeeAMM::new(TIP_FEE_MANAGER_ADDRESS, provider.clone());
+    let fee_amm = ITIPFeeAMM::new(MIP_FEE_MANAGER_ADDRESS, provider.clone());
 
     let fees = provider.estimate_eip1559_fees().await?;
 
@@ -364,7 +364,7 @@ async fn test_fee_payer_tx() -> eyre::Result<()> {
     let tx: MagnusTxEnvelope = tx.into_signed(user_signature.into()).into();
 
     // Query the fee payer's actual fee token from the FeeManager
-    let fee_manager = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, &provider);
+    let fee_manager = IFeeManager::new(MIP_FEE_MANAGER_ADDRESS, &provider);
     let fee_payer_token = fee_manager.userTokens(fee_payer.address()).call().await?;
 
     assert!(
@@ -441,7 +441,7 @@ async fn test_fee_payer_transfer_whitelist_post_t1c() -> eyre::Result<()> {
         .await?;
 
     // Provide AMM liquidity so admin_token can be swapped to MAGNUS_USD for fee settlement
-    let fee_amm = ITIPFeeAMM::new(TIP_FEE_MANAGER_ADDRESS, provider.clone());
+    let fee_amm = ITIPFeeAMM::new(MIP_FEE_MANAGER_ADDRESS, provider.clone());
     fee_amm
         .mint(
             token_addr,
@@ -458,7 +458,7 @@ async fn test_fee_payer_transfer_whitelist_post_t1c() -> eyre::Result<()> {
     let fee_payer_provider = ProviderBuilder::new()
         .wallet(fee_payer_signer.clone())
         .connect_http(setup.http_url.clone());
-    let fee_manager_fp = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, fee_payer_provider.clone());
+    let fee_manager_fp = IFeeManager::new(MIP_FEE_MANAGER_ADDRESS, fee_payer_provider.clone());
     fee_manager_fp
         .setUserToken(token_addr)
         .send()
@@ -516,7 +516,7 @@ async fn test_fee_payer_transfer_whitelist_post_t1c() -> eyre::Result<()> {
 
     // Whitelist FeeManager — now fee_payer's tx should go through
     registry
-        .modifyPolicyWhitelist(policy_id, TIP_FEE_MANAGER_ADDRESS, true)
+        .modifyPolicyWhitelist(policy_id, MIP_FEE_MANAGER_ADDRESS, true)
         .gas(1_000_000)
         .send()
         .await?

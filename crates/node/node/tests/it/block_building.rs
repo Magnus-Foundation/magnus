@@ -15,7 +15,7 @@ use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 use magnus_contracts::precompiles::{IFeeManager, IRolesAuth, IMIP20, IMIP20Factory, ITIPFeeAMM};
 use magnus_node::node::MagnusNode;
 use magnus_precompiles::{
-    MAGNUS_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS,
+    MAGNUS_USD_ADDRESS, MIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS,
     mip_fee_manager::amm::compute_amount_out, mip20::ISSUER_ROLE,
 };
 use magnus_primitives::{MagnusTxEnvelope, transaction::calc_gas_balance_spending};
@@ -601,8 +601,8 @@ async fn test_payload_fees_account_for_amm_haircut() -> eyre::Result<()> {
     let user_fee_token =
         setup_token_manual(&mut setup.node, &user_provider, &user_signer, chain_id).await?;
 
-    let fee_amm = ITIPFeeAMM::new(TIP_FEE_MANAGER_ADDRESS, user_provider.clone());
-    let fee_manager = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, user_provider.clone());
+    let fee_amm = ITIPFeeAMM::new(MIP_FEE_MANAGER_ADDRESS, user_provider.clone());
+    let fee_manager = IFeeManager::new(MIP_FEE_MANAGER_ADDRESS, user_provider.clone());
 
     // Seed AMM liquidity for user_token <-> MAGNUS_USD
     let liquidity = U256::from(500_000u64);

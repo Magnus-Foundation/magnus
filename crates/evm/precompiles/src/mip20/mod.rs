@@ -21,7 +21,7 @@ pub use magnus_contracts::precompiles::{
 pub use slots as mip20_slots;
 
 use crate::{
-    MAGNUS_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS,
+    MAGNUS_USD_ADDRESS, MIP_FEE_MANAGER_ADDRESS,
     account_keychain::AccountKeychain,
     address_registry::AddressRegistry,
     error::{Result, MagnusPrecompileError},
@@ -537,7 +537,7 @@ impl MIP20Token {
         self.check_role(msg_sender, *BURN_BLOCKED_ROLE)?;
 
         // Prevent burning from `FeeManager` and `StablecoinDEX` to protect accounting invariants
-        if matches!(call.from, TIP_FEE_MANAGER_ADDRESS | STABLECOIN_DEX_ADDRESS) {
+        if matches!(call.from, MIP_FEE_MANAGER_ADDRESS | STABLECOIN_DEX_ADDRESS) {
             return Err(MIP20Error::protected_address().into());
         }
 
@@ -1080,11 +1080,11 @@ impl MIP20Token {
 
         self.set_balance(from, new_from_balance)?;
 
-        let to_balance = self.get_balance(TIP_FEE_MANAGER_ADDRESS)?;
+        let to_balance = self.get_balance(MIP_FEE_MANAGER_ADDRESS)?;
         let new_to_balance = to_balance
             .checked_add(amount)
             .ok_or(MIP20Error::supply_cap_exceeded())?;
-        self.set_balance(TIP_FEE_MANAGER_ADDRESS, new_to_balance)
+        self.set_balance(MIP_FEE_MANAGER_ADDRESS, new_to_balance)
     }
 
     /// Refunds unused fee tokens from the fee manager back to `to` and emits a transfer event for
@@ -1099,7 +1099,7 @@ impl MIP20Token {
     ) -> Result<()> {
         self.emit_event(MIP20Event::Transfer(IMIP20::Transfer {
             from: to,
-            to: TIP_FEE_MANAGER_ADDRESS,
+            to: MIP_FEE_MANAGER_ADDRESS,
             amount: actual_spending,
         }))?;
 
@@ -1127,7 +1127,7 @@ impl MIP20Token {
             )?;
         }
 
-        let from_balance = self.get_balance(TIP_FEE_MANAGER_ADDRESS)?;
+        let from_balance = self.get_balance(MIP_FEE_MANAGER_ADDRESS)?;
         let new_from_balance =
             from_balance
                 .checked_sub(refund)
@@ -1137,7 +1137,7 @@ impl MIP20Token {
                     self.address,
                 ))?;
 
-        self.set_balance(TIP_FEE_MANAGER_ADDRESS, new_from_balance)?;
+        self.set_balance(MIP_FEE_MANAGER_ADDRESS, new_from_balance)?;
 
         let to_balance = self.get_balance(to)?;
         let new_to_balance = to_balance
@@ -1576,7 +1576,7 @@ pub(crate) mod tests {
             token.transfer_fee_pre_tx(user, fee_amount)?;
 
             assert_eq!(token.get_balance(user)?, fee_amount);
-            assert_eq!(token.get_balance(TIP_FEE_MANAGER_ADDRESS)?, fee_amount);
+            assert_eq!(token.get_balance(MIP_FEE_MANAGER_ADDRESS)?, fee_amount);
 
             Ok(())
         })
@@ -1644,21 +1644,21 @@ pub(crate) mod tests {
         StorageCtx::enter(&mut storage, || {
             let mut token = MIP20Setup::create("Test", "TST", admin)
                 .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, initial_fee)
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, initial_fee)
                 .apply()?;
 
             token.transfer_fee_post_tx(user, refund_amount, gas_used)?;
 
             assert_eq!(token.get_balance(user)?, refund_amount);
             assert_eq!(
-                token.get_balance(TIP_FEE_MANAGER_ADDRESS)?,
+                token.get_balance(MIP_FEE_MANAGER_ADDRESS)?,
                 initial_fee - refund_amount
             );
             assert_eq!(
                 token.emitted_events().last().unwrap(),
                 &MIP20Event::Transfer(IMIP20::Transfer {
                     from: user,
-                    to: TIP_FEE_MANAGER_ADDRESS,
+                    to: MIP_FEE_MANAGER_ADDRESS,
                     amount: gas_used
                 })
                 .into_log_data()
@@ -1681,7 +1681,7 @@ pub(crate) mod tests {
         StorageCtx::enter(&mut storage, || {
             let mut token = MIP20Setup::create("Test", "TST", admin)
                 .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, max_fee)
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, max_fee)
                 .apply()?;
 
             let token_address = token.address;
@@ -1755,7 +1755,7 @@ pub(crate) mod tests {
         StorageCtx::enter(&mut storage, || {
             let mut token = MIP20Setup::create("Test", "TST", admin)
                 .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, max_fee)
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, max_fee)
                 .apply()?;
 
             let token_address = token.address;
@@ -2318,7 +2318,7 @@ pub(crate) mod tests {
                 // Grant BURN_BLOCKED_ROLE to burner
                 .with_role(burner, *BURN_BLOCKED_ROLE)
                 // Simulate collected fees
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, amount)
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, amount)
                 // Mint tokens to StablecoinDEX
                 .with_mint(STABLECOIN_DEX_ADDRESS, amount)
                 .apply()?;
@@ -2327,7 +2327,7 @@ pub(crate) mod tests {
             let result = token.burn_blocked(
                 burner,
                 IMIP20::burnBlockedCall {
-                    from: TIP_FEE_MANAGER_ADDRESS,
+                    from: MIP_FEE_MANAGER_ADDRESS,
                     amount: amount / U256::from(2),
                 },
             );
@@ -2339,7 +2339,7 @@ pub(crate) mod tests {
 
             // Verify FeeManager balance is unchanged
             let balance = token.balance_of(IMIP20::balanceOfCall {
-                account: TIP_FEE_MANAGER_ADDRESS,
+                account: MIP_FEE_MANAGER_ADDRESS,
             })?;
             assert_eq!(balance, amount);
 

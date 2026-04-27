@@ -25,7 +25,7 @@ use std::{
 use magnus_chainspec::MagnusChainSpec;
 use magnus_contracts::precompiles::{IAccountKeychain, IFeeManager, IMIP20, IMIP403Registry};
 use magnus_precompiles::{
-    ACCOUNT_KEYCHAIN_ADDRESS, TIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS,
+    ACCOUNT_KEYCHAIN_ADDRESS, MIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS,
 };
 use magnus_primitives::{MagnusAddressExt, MagnusHeader, MagnusPrimitives};
 use tracing::{debug, error};

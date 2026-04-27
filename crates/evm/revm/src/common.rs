@@ -11,7 +11,7 @@ use revm::{
 use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_contracts::precompiles::FeeManagerError;
 use magnus_precompiles::{
-    TIP_FEE_MANAGER_ADDRESS,
+    MIP_FEE_MANAGER_ADDRESS,
     error::{Result as MagnusResult, MagnusPrecompileError},
     storage::{Handler, PrecompileStorageProvider, StorageCtx},
     mip_fee_manager::MipFeeManager,
@@ -239,7 +239,7 @@ pub trait MagnusStateAccess<M = ()> {
             let token = MIP20Token::from_address(fee_token)?;
             if spec.is_t1c() {
                 // Check both the fee payer and the fee manager is authorized
-                token.is_transfer_authorized(fee_payer, TIP_FEE_MANAGER_ADDRESS)
+                token.is_transfer_authorized(fee_payer, MIP_FEE_MANAGER_ADDRESS)
             } else {
                 let policy_id = token.transfer_policy_id.read()?;
                 MIP403Registry::new().is_authorized_as(policy_id, fee_payer, AuthRole::sender())
@@ -667,7 +667,7 @@ mod tests {
                     admin,
                     IMIP403Registry::modifyPolicyWhitelistCall {
                         policyId: policy_id,
-                        account: TIP_FEE_MANAGER_ADDRESS,
+                        account: MIP_FEE_MANAGER_ADDRESS,
                         allowed: true,
                     },
                 )

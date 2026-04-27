@@ -343,12 +343,12 @@ async fn test_eth_estimate_gas_different_fee_tokens() -> eyre::Result<()> {
 
     // Setup fee manager to configure different tokens
     let fee_manager =
-        IFeeManager::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
+        IFeeManager::new(magnus_precompiles::MIP_FEE_MANAGER_ADDRESS, provider.clone());
 
     // Supply liquidity to enable fee token swapping
     let validator_token_address = MAGNUS_USD_ADDRESS;
 
-    let fee_amm = ITIPFeeAMM::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
+    let fee_amm = ITIPFeeAMM::new(magnus_precompiles::MIP_FEE_MANAGER_ADDRESS, provider.clone());
 
     // Provide liquidity for the fee token pair
     let liquidity_amount = U256::from(u32::MAX);
@@ -445,8 +445,8 @@ async fn test_eth_estimate_gas_validator_fee_token_mismatch() -> eyre::Result<()
     let provider = ProviderBuilder::new().wallet(wallet).connect_http(http_url);
 
     let fee_manager =
-        IFeeManager::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
-    let fee_amm = ITIPFeeAMM::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
+        IFeeManager::new(magnus_precompiles::MIP_FEE_MANAGER_ADDRESS, provider.clone());
+    let fee_amm = ITIPFeeAMM::new(magnus_precompiles::MIP_FEE_MANAGER_ADDRESS, provider.clone());
 
     let validator_custom_token = setup_test_token(provider.clone(), wallet_address).await?;
     let user_fee_token = setup_test_token(provider.clone(), wallet_address).await?;
@@ -531,7 +531,7 @@ async fn test_eth_estimate_gas_validator_fee_token_mismatch() -> eyre::Result<()
 /// estimation, so `get_validator_token(Address::ZERO)` returned DONOTUSE instead of falling
 /// back to `MAGNUS_USD_ADDRESS` (PathUSD), causing gas estimation to fail.
 ///
-/// The fix uses `TIP_FEE_MANAGER_ADDRESS` as the sentinel beneficiary, which is guaranteed to
+/// The fix uses `MIP_FEE_MANAGER_ADDRESS` as the sentinel beneficiary, which is guaranteed to
 /// have no validator token set (its mapping is always zero → falls back to PathUSD).
 #[tokio::test(flavor = "multi_thread")]
 async fn test_eth_estimate_gas_preseeded_zero_address_validator_token() -> eyre::Result<()> {
@@ -568,7 +568,7 @@ async fn test_eth_estimate_gas_preseeded_zero_address_validator_token() -> eyre:
 
     // Verify the pre-seeded state: validatorTokens[address(0)] should be non-PathUSD
     let fee_manager =
-        IFeeManager::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
+        IFeeManager::new(magnus_precompiles::MIP_FEE_MANAGER_ADDRESS, provider.clone());
     let zero_addr_token = fee_manager.validatorTokens(Address::ZERO).call().await?;
     assert_ne!(
         zero_addr_token, MAGNUS_USD_ADDRESS,
@@ -585,7 +585,7 @@ async fn test_eth_estimate_gas_preseeded_zero_address_validator_token() -> eyre:
         .get_receipt()
         .await?;
 
-    let fee_amm = ITIPFeeAMM::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
+    let fee_amm = ITIPFeeAMM::new(magnus_precompiles::MIP_FEE_MANAGER_ADDRESS, provider.clone());
     fee_amm
         .mint(
             *user_fee_token.address(),
@@ -605,7 +605,7 @@ async fn test_eth_estimate_gas_preseeded_zero_address_validator_token() -> eyre:
         .get_receipt()
         .await?;
 
-    // Gas estimation should succeed because the fix uses TIP_FEE_MANAGER_ADDRESS as
+    // Gas estimation should succeed because the fix uses MIP_FEE_MANAGER_ADDRESS as
     // beneficiary, which has no validator token set and falls back to PathUSD.
     let recipient = Address::random();
     let calldata = user_fee_token

@@ -53,7 +53,7 @@ use revm::{
 pub use magnus_contracts::precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS, ADDRESS_REGISTRY_ADDRESS, MAGNUS_USD_ADDRESS,
     NONCE_PRECOMPILE_ADDRESS, SIGNATURE_VERIFIER_ADDRESS, STABLECOIN_DEX_ADDRESS,
-    TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS, MIP20_ISSUER_REGISTRY_ADDRESS,
+    MIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS, MIP20_ISSUER_REGISTRY_ADDRESS,
     MIP403_REGISTRY_ADDRESS, VALIDATOR_CONFIG_ADDRESS, VALIDATOR_CONFIG_V2_ADDRESS,
 };
 
@@ -124,7 +124,7 @@ pub fn extend_magnus_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<
             Some(AddressRegistry::create_precompile(&cfg))
         } else if *address == MIP403_REGISTRY_ADDRESS {
             Some(MIP403Registry::create_precompile(&cfg))
-        } else if *address == TIP_FEE_MANAGER_ADDRESS {
+        } else if *address == MIP_FEE_MANAGER_ADDRESS {
             Some(MipFeeManager::create_precompile(&cfg))
         } else if *address == STABLECOIN_DEX_ADDRESS {
             Some(StablecoinDEX::create_precompile(&cfg))
@@ -766,7 +766,7 @@ mod tests {
         );
 
         // MipFeeManager should be registered
-        let fee_manager_precompile = precompiles.get(&TIP_FEE_MANAGER_ADDRESS);
+        let fee_manager_precompile = precompiles.get(&MIP_FEE_MANAGER_ADDRESS);
         assert!(
             fee_manager_precompile.is_some(),
             "MipFeeManager should be registered"
@@ -880,7 +880,7 @@ mod tests {
     #[test]
     fn test_issuer_registry_address_does_not_collide() {
         let other_addresses = [
-            TIP_FEE_MANAGER_ADDRESS,
+            MIP_FEE_MANAGER_ADDRESS,
             MAGNUS_USD_ADDRESS,
             MIP403_REGISTRY_ADDRESS,
             MIP20_FACTORY_ADDRESS,

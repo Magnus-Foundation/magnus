@@ -18,7 +18,7 @@ use crate::{
 };
 use alloy::primitives::{Address, B256, U256};
 pub use magnus_contracts::precompiles::{
-    FeeManagerError, FeeManagerEvent, IFeeManager, TIP_FEE_MANAGER_ADDRESS,
+    FeeManagerError, FeeManagerEvent, IFeeManager, MIP_FEE_MANAGER_ADDRESS,
 };
 use magnus_precompiles_macros::contract;
 
@@ -26,7 +26,7 @@ use magnus_precompiles_macros::contract;
 /// accept-set, and exposes governance APIs for currency registration, validator
 /// off-boarding, and the router selector registry that drives fee-token
 /// inference.
-#[contract(addr = TIP_FEE_MANAGER_ADDRESS)]
+#[contract(addr = MIP_FEE_MANAGER_ADDRESS)]
 pub struct MipFeeManager {
     /// Per-(validator, token) accumulated fees pending distribution.
     collected_fees: Mapping<Address, Mapping<Address, U256>>,
@@ -2017,7 +2017,7 @@ mod currency_registry_tests {
             let token = MIP20Setup::create("USDC", "USDC", admin)
                 .currency("USD")
                 .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(500u64))
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, U256::from(500u64))
                 .apply()?;
             fm.add_accepted_token(validator, token.address(), beneficiary)?;
             fm.collected_fees[validator][token.address()].write(U256::from(500u64))?;
@@ -2109,7 +2109,7 @@ mod currency_registry_tests {
             let token = MIP20Setup::create("USDC", "USDC", admin)
                 .currency("USD")
                 .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(900u64))
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, U256::from(900u64))
                 .apply()?;
 
             // Force escrow path by zeroing FeeManager balance after mint? Instead,
@@ -2199,7 +2199,7 @@ mod currency_registry_tests {
             let token = MIP20Setup::create("USDC", "USDC", admin)
                 .currency("USD")
                 .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(200u64))
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, U256::from(200u64))
                 .apply()?;
             fm.escrow_claims[validator].write(ClaimRecord::new(0, 100))?;
             fm.escrowed_fees[validator][token.address()].write(U256::from(200u64))?;
@@ -2224,7 +2224,7 @@ mod currency_registry_tests {
             let token2 = MIP20Setup::create("USDD", "USDD", admin)
                 .currency("USD")
                 .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(123u64))
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, U256::from(123u64))
                 .apply()?;
             fm.escrow_claims[validator].write(ClaimRecord::new(0, 100))?;
             fm.escrowed_fees[validator][token2.address()].write(U256::from(123u64))?;

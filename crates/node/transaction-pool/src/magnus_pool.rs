@@ -34,7 +34,7 @@ use magnus_chainspec::{
     hardfork::{MagnusHardfork, MagnusHardforks},
 };
 use magnus_precompiles::{
-    MAGNUS_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS,
+    MAGNUS_USD_ADDRESS, MIP_FEE_MANAGER_ADDRESS,
     account_keychain::AccountKeychain,
     error::Result as MagnusPrecompileResult,
     storage::Handler,
@@ -151,19 +151,19 @@ where
         // so eviction matches events emitted with sub-policy IDs.
         let mut policy_cache: AddressMap<Vec<u64>> = AddressMap::default();
 
-        // Pre-collect policy IDs where TIP_FEE_MANAGER_ADDRESS (the fee recipient) was
+        // Pre-collect policy IDs where MIP_FEE_MANAGER_ADDRESS (the fee recipient) was
         // blacklisted or un-whitelisted. This is constant across all txs so we compute
         // it once instead of re-scanning the updates list per transaction.
         let fee_manager_blacklisted: Vec<u64> = updates
             .blacklist_additions
             .iter()
-            .filter(|(_, account)| *account == TIP_FEE_MANAGER_ADDRESS)
+            .filter(|(_, account)| *account == MIP_FEE_MANAGER_ADDRESS)
             .map(|(policy_id, _)| *policy_id)
             .collect();
         let fee_manager_unwhitelisted: Vec<u64> = updates
             .whitelist_removals
             .iter()
-            .filter(|(_, account)| *account == TIP_FEE_MANAGER_ADDRESS)
+            .filter(|(_, account)| *account == MIP_FEE_MANAGER_ADDRESS)
             .map(|(policy_id, _)| *policy_id)
             .collect();
 
@@ -340,7 +340,7 @@ where
 
                 // Check if the fee manager (recipient) was blacklisted on this token's
                 // recipient policy — the tx would fail at execution since the fee
-                // transfer to TIP_FEE_MANAGER_ADDRESS would be rejected.
+                // transfer to MIP_FEE_MANAGER_ADDRESS would be rejected.
                 let recipient_evicted = !sender_evicted
                     && !fee_manager_blacklisted.is_empty()
                     && get_recipient_policy_ids(provider, fee_token, spec)

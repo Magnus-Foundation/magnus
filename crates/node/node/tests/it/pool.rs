@@ -421,7 +421,7 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
 async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
     use alloy::sol_types::SolCall;
     use magnus_contracts::precompiles::{IMIP20, IMIP403Registry};
-    use magnus_precompiles::{TIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS};
+    use magnus_precompiles::{MIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS};
 
     reth_tracing::init_test_tracing();
 
@@ -483,7 +483,7 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
                 value: U256::ZERO,
                 input: IMIP403Registry::modifyPolicyWhitelistCall {
                     policyId: new_policy_id,
-                    account: TIP_FEE_MANAGER_ADDRESS,
+                    account: MIP_FEE_MANAGER_ADDRESS,
                     allowed: true,
                 }
                 .abi_encode()

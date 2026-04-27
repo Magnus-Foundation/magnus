@@ -67,7 +67,7 @@ use magnus_contracts::precompiles::{
     IMIP20Factory, STABLECOIN_DEX_ADDRESS, MIP20_FACTORY_ADDRESS,
 };
 use magnus_precompiles::{
-    MAGNUS_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS,
+    MAGNUS_USD_ADDRESS, MIP_FEE_MANAGER_ADDRESS,
     address_registry::MasterId,
     stablecoin_dex::{MAX_TICK, MIN_ORDER_AMOUNT, MIN_TICK, TICK_SPACING},
     mip20::ISSUER_ROLE,
