@@ -3,6 +3,7 @@
 //! [Fee manager]: <https://docs.magnus.xyz/protocol/fees>
 
 pub mod amm;
+pub mod currency_registry;
 pub mod dispatch;
 
 use crate::{

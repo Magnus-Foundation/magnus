@@ -16,6 +16,7 @@ pub mod signature_verifier;
 pub mod stablecoin_dex;
 pub mod mip20;
 pub mod mip20_factory;
+pub mod mip20_issuer_registry;
 pub mod mip403_registry;
 pub mod mip_fee_manager;
 pub mod validator_config;
@@ -28,8 +29,8 @@ use crate::{
     account_keychain::AccountKeychain, address_registry::AddressRegistry, nonce::NonceManager,
     signature_verifier::SignatureVerifier, stablecoin_dex::StablecoinDEX, storage::StorageCtx,
     mip_fee_manager::MipFeeManager, mip20::MIP20Token, mip20_factory::MIP20Factory,
-    mip403_registry::MIP403Registry, validator_config::ValidatorConfig,
-    validator_config_v2::ValidatorConfigV2,
+    mip20_issuer_registry::MIP20IssuerRegistry, mip403_registry::MIP403Registry,
+    validator_config::ValidatorConfig, validator_config_v2::ValidatorConfigV2,
 };
 use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_primitives::MagnusAddressExt;
@@ -52,8 +53,8 @@ use revm::{
 pub use magnus_contracts::precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS, ADDRESS_REGISTRY_ADDRESS, DEFAULT_FEE_TOKEN,
     NONCE_PRECOMPILE_ADDRESS, PATH_USD_ADDRESS, SIGNATURE_VERIFIER_ADDRESS, STABLECOIN_DEX_ADDRESS,
-    TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS, MIP403_REGISTRY_ADDRESS,
-    VALIDATOR_CONFIG_ADDRESS, VALIDATOR_CONFIG_V2_ADDRESS,
+    TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS, MIP20_ISSUER_REGISTRY_ADDRESS,
+    MIP403_REGISTRY_ADDRESS, VALIDATOR_CONFIG_ADDRESS, VALIDATOR_CONFIG_V2_ADDRESS,
 };
 
 // Re-export storage layout helpers for read-only contexts (e.g., pool validation)
@@ -137,6 +138,11 @@ pub fn extend_magnus_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<
             Some(ValidatorConfigV2::create_precompile(&cfg))
         } else if *address == SIGNATURE_VERIFIER_ADDRESS && cfg.spec.is_t3() {
             Some(SignatureVerifier::create_precompile(&cfg))
+        } else if *address == MIP20_ISSUER_REGISTRY_ADDRESS && cfg.spec.is_t4() {
+            // T4 hardfork: multi-currency fees + issuer-allowlist gate
+            // (multi-currency-fees-design.md §4, v3.8.2). Stub implementation in G0;
+            // governance-gated allowlist logic lands in G4.
+            Some(MIP20IssuerRegistry::create_precompile(&cfg))
         } else {
             None
         }
@@ -200,6 +206,13 @@ impl MIP20Factory {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<MagnusHardfork>) -> DynPrecompile {
         magnus_precompile!("MIP20Factory", cfg, |input| { Self::new() })
+    }
+}
+
+impl MIP20IssuerRegistry {
+    /// Creates the EVM precompile for this type.
+    pub fn create_precompile(cfg: &CfgEnv<MagnusHardfork>) -> DynPrecompile {
+        magnus_precompile!("MIP20IssuerRegistry", cfg, |input| { Self::new() })
     }
 }
 
@@ -828,6 +841,72 @@ mod tests {
             precompiles.get(&SIGNATURE_VERIFIER_ADDRESS).is_none(),
             "SignatureVerifier should NOT be registered before T3"
         );
+    }
+
+    /// MIP20IssuerRegistry is the new precompile introduced in T4 hardfork
+    /// (multi-currency-fees-design.md §4, v3.8.2). At every hardfork before
+    /// T4 it must be unresolvable; at T4 it must resolve.
+    #[test]
+    fn test_issuer_registry_not_registered_pre_t4() {
+        for spec in [
+            MagnusHardfork::Genesis,
+            MagnusHardfork::T0,
+            MagnusHardfork::T1,
+            MagnusHardfork::T1A,
+            MagnusHardfork::T1B,
+            MagnusHardfork::T1C,
+            MagnusHardfork::T2,
+            MagnusHardfork::T3,
+        ] {
+            let mut cfg = CfgEnv::<MagnusHardfork>::default();
+            cfg.set_spec_and_mainnet_gas_params(spec);
+            let precompiles = magnus_precompiles(&cfg);
+
+            assert!(
+                precompiles.get(&MIP20_ISSUER_REGISTRY_ADDRESS).is_none(),
+                "MIP20IssuerRegistry must NOT be registered at {spec:?} (pre-T4)"
+            );
+        }
+    }
+
+    #[test]
+    fn test_issuer_registry_registered_at_t4() {
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
+        cfg.set_spec_and_mainnet_gas_params(MagnusHardfork::T4);
+        let precompiles = magnus_precompiles(&cfg);
+
+        let registry_precompile = precompiles.get(&MIP20_ISSUER_REGISTRY_ADDRESS);
+        assert!(
+            registry_precompile.is_some(),
+            "MIP20IssuerRegistry MUST be registered at T4"
+        );
+    }
+
+    /// Verifies the issuer-registry address sits adjacent to the factory
+    /// (per design doc §2.2 architecture diagram) and does not collide with
+    /// any other Magnus-allocated precompile address constant.
+    #[test]
+    fn test_issuer_registry_address_does_not_collide() {
+        let other_addresses = [
+            TIP_FEE_MANAGER_ADDRESS,
+            PATH_USD_ADDRESS,
+            MIP403_REGISTRY_ADDRESS,
+            MIP20_FACTORY_ADDRESS,
+            STABLECOIN_DEX_ADDRESS,
+            NONCE_PRECOMPILE_ADDRESS,
+            VALIDATOR_CONFIG_ADDRESS,
+            ACCOUNT_KEYCHAIN_ADDRESS,
+            VALIDATOR_CONFIG_V2_ADDRESS,
+            ADDRESS_REGISTRY_ADDRESS,
+            SIGNATURE_VERIFIER_ADDRESS,
+        ];
+
+        for addr in other_addresses {
+            assert_ne!(
+                addr, MIP20_ISSUER_REGISTRY_ADDRESS,
+                "MIP20_ISSUER_REGISTRY_ADDRESS must not collide with {addr}"
+            );
+        }
     }
 
     #[test]

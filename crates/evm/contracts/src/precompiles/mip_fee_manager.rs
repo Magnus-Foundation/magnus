@@ -50,6 +50,18 @@ crate::sol! {
         error CannotChangeWithinBlock();
         error CannotChangeWithPendingFees();
         error TokenPolicyForbids();
+
+        // Multi-currency-fees v3.8.2 — added in G0, semantics implemented in G1/G2/G6/G8.
+        // CurrencyNotRegistered: governance has not added this ISO 4217 code (§4.3).
+        // CurrencyDisabled: currency exists but is disabled (post-grace deprecation, §11.1).
+        // FeeTokenNotAccepted: validator's accept-set does not include the user's fee token (§5.1).
+        // FeeTokenNotInferable: protocol cannot infer a fee token from tx calldata (§11.3).
+        // ValidatorAcceptSetEmpty: producing validator has no tokens in its accept-set (§4.5a).
+        error CurrencyNotRegistered(string currency);
+        error CurrencyDisabled(string currency);
+        error FeeTokenNotAccepted(address validator, address token);
+        error FeeTokenNotInferable();
+        error ValidatorAcceptSetEmpty(address validator);
     }
 }
 
@@ -152,6 +164,149 @@ impl FeeManagerError {
     /// Creates an error for token policy forbids.
     pub const fn token_policy_forbids() -> Self {
         Self::TokenPolicyForbids(IFeeManager::TokenPolicyForbids {})
+    }
+
+    /// Creates an error for an unregistered currency.
+    pub fn currency_not_registered(currency: alloc::string::String) -> Self {
+        Self::CurrencyNotRegistered(IFeeManager::CurrencyNotRegistered { currency })
+    }
+
+    /// Creates an error for a disabled currency.
+    pub fn currency_disabled(currency: alloc::string::String) -> Self {
+        Self::CurrencyDisabled(IFeeManager::CurrencyDisabled { currency })
+    }
+
+    /// Creates an error when the validator's accept-set does not include `token`.
+    pub fn fee_token_not_accepted(validator: alloy_primitives::Address, token: alloy_primitives::Address) -> Self {
+        Self::FeeTokenNotAccepted(IFeeManager::FeeTokenNotAccepted { validator, token })
+    }
+
+    /// Creates an error when no fee token can be inferred from the tx calldata.
+    pub const fn fee_token_not_inferable() -> Self {
+        Self::FeeTokenNotInferable(IFeeManager::FeeTokenNotInferable {})
+    }
+
+    /// Creates an error when the producing validator has no tokens in its accept-set.
+    pub fn validator_accept_set_empty(validator: alloy_primitives::Address) -> Self {
+        Self::ValidatorAcceptSetEmpty(IFeeManager::ValidatorAcceptSetEmpty { validator })
+    }
+}
+
+#[cfg(test)]
+mod fee_manager_error_tests {
+    use super::*;
+    use alloc::string::ToString;
+    use alloy_primitives::Address;
+    use alloy_sol_types::SolError;
+
+    #[test]
+    fn currency_not_registered_constructor_preserves_field() {
+        let err = FeeManagerError::currency_not_registered("XYZ".to_string());
+        match err {
+            FeeManagerError::CurrencyNotRegistered(inner) => {
+                assert_eq!(inner.currency, "XYZ");
+            }
+            _ => panic!("expected CurrencyNotRegistered variant"),
+        }
+    }
+
+    #[test]
+    fn currency_disabled_constructor_preserves_field() {
+        let err = FeeManagerError::currency_disabled("USD".to_string());
+        match err {
+            FeeManagerError::CurrencyDisabled(inner) => {
+                assert_eq!(inner.currency, "USD");
+            }
+            _ => panic!("expected CurrencyDisabled variant"),
+        }
+    }
+
+    #[test]
+    fn fee_token_not_accepted_constructor_preserves_fields() {
+        let validator = Address::repeat_byte(0xAB);
+        let token = Address::repeat_byte(0xCD);
+        let err = FeeManagerError::fee_token_not_accepted(validator, token);
+
+        match err {
+            FeeManagerError::FeeTokenNotAccepted(inner) => {
+                assert_eq!(inner.validator, validator);
+                assert_eq!(inner.token, token);
+            }
+            _ => panic!("expected FeeTokenNotAccepted variant"),
+        }
+    }
+
+    #[test]
+    fn fee_token_not_inferable_is_unit_variant() {
+        let err = FeeManagerError::fee_token_not_inferable();
+        assert!(matches!(err, FeeManagerError::FeeTokenNotInferable(_)));
+    }
+
+    #[test]
+    fn validator_accept_set_empty_constructor_preserves_field() {
+        let validator = Address::repeat_byte(0x42);
+        let err = FeeManagerError::validator_accept_set_empty(validator);
+        match err {
+            FeeManagerError::ValidatorAcceptSetEmpty(inner) => {
+                assert_eq!(inner.validator, validator);
+            }
+            _ => panic!("expected ValidatorAcceptSetEmpty variant"),
+        }
+    }
+
+    /// All five new G0 error selectors must be distinct from each other AND
+    /// from every pre-existing FeeManager error. A collision would make ABI
+    /// decoding ambiguous.
+    #[test]
+    fn new_g0_error_selectors_are_distinct_from_each_other() {
+        let new_selectors = [
+            IFeeManager::CurrencyNotRegistered::SELECTOR,
+            IFeeManager::CurrencyDisabled::SELECTOR,
+            IFeeManager::FeeTokenNotAccepted::SELECTOR,
+            IFeeManager::FeeTokenNotInferable::SELECTOR,
+            IFeeManager::ValidatorAcceptSetEmpty::SELECTOR,
+        ];
+
+        for i in 0..new_selectors.len() {
+            for j in (i + 1)..new_selectors.len() {
+                assert_ne!(
+                    new_selectors[i], new_selectors[j],
+                    "G0 error selectors {} and {} collide", i, j
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn new_g0_error_selectors_are_distinct_from_existing_errors() {
+        let new_selectors = [
+            IFeeManager::CurrencyNotRegistered::SELECTOR,
+            IFeeManager::CurrencyDisabled::SELECTOR,
+            IFeeManager::FeeTokenNotAccepted::SELECTOR,
+            IFeeManager::FeeTokenNotInferable::SELECTOR,
+            IFeeManager::ValidatorAcceptSetEmpty::SELECTOR,
+        ];
+        let existing_selectors = [
+            IFeeManager::OnlyValidator::SELECTOR,
+            IFeeManager::OnlySystemContract::SELECTOR,
+            IFeeManager::InvalidToken::SELECTOR,
+            IFeeManager::PoolDoesNotExist::SELECTOR,
+            IFeeManager::InsufficientFeeTokenBalance::SELECTOR,
+            IFeeManager::InternalError::SELECTOR,
+            IFeeManager::CannotChangeWithinBlock::SELECTOR,
+            IFeeManager::CannotChangeWithPendingFees::SELECTOR,
+            IFeeManager::TokenPolicyForbids::SELECTOR,
+        ];
+
+        for new in new_selectors {
+            for existing in existing_selectors {
+                assert_ne!(
+                    new, existing,
+                    "G0 error selector {:?} collides with existing FeeManager error {:?}",
+                    new, existing
+                );
+            }
+        }
     }
 }
 

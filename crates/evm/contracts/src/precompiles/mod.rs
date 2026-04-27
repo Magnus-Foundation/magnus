@@ -6,6 +6,7 @@ pub mod signature_verifier;
 pub mod stablecoin_dex;
 pub mod mip20;
 pub mod mip20_factory;
+pub mod mip20_issuer_registry;
 pub mod mip403_registry;
 pub mod mip_fee_manager;
 pub mod validator_config;
@@ -21,6 +22,7 @@ pub use stablecoin_dex::*;
 pub use mip_fee_manager::*;
 pub use mip20::*;
 pub use mip20_factory::*;
+pub use mip20_issuer_registry::*;
 pub use mip403_registry::*;
 pub use validator_config::*;
 pub use validator_config_v2::*;
@@ -30,6 +32,10 @@ pub const PATH_USD_ADDRESS: Address = address!("0x20C000000000000000000000000000
 pub const DEFAULT_FEE_TOKEN: Address = PATH_USD_ADDRESS;
 pub const MIP403_REGISTRY_ADDRESS: Address = address!("0x403C000000000000000000000000000000000000");
 pub const MIP20_FACTORY_ADDRESS: Address = address!("0x20FC000000000000000000000000000000000000");
+/// MIP-20 Issuer Registry — per-currency allowlist of governance-approved issuers.
+/// Per multi-currency-fees-design.md §4 (v3.8.2). Introduced in T4 hardfork.
+pub const MIP20_ISSUER_REGISTRY_ADDRESS: Address =
+    address!("0x20FA000000000000000000000000000000000000");
 pub const STABLECOIN_DEX_ADDRESS: Address = address!("0xdec0000000000000000000000000000000000000");
 pub const NONCE_PRECOMPILE_ADDRESS: Address =
     address!("0x4E4F4E4345000000000000000000000000000000");

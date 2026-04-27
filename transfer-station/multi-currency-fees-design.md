@@ -381,12 +381,12 @@ If either fails, wallet shows error or suggests alternative.
   ```rust
   let registry = MIP20IssuerRegistry::new();
   if !registry.is_approved_issuer(&call.currency, sender)? {
-      return Err(MIP20FactoryError::issuer_not_approved(sender, call.currency.clone()).into());
+      return Err(MIP20IssuerRegistryError::issuer_not_approved(sender, call.currency.clone()).into());
   }
   ```
 - Relax cross-currency quote rule (lines 126-130, 201-205): "currency must match quoteToken's currency, IF quoteToken is non-zero."
 - Allow `quoteToken == address(0)` in public factory (first-of-currency case still useful for non-Foundation issuers).
-- Add error `IssuerNotApproved(address issuer, string currency)`.
+- The factory bubbles up the IssuerRegistry's `IssuerNotApproved(address, string)` error directly. **Do NOT** add a duplicate `IssuerNotApproved` to `IMIP20Factory` — Solidity assigns the same 4-byte selector to identically-named errors with the same signature, which would ambiguate the global decoder registry.
 
 ### 9.5 Modified: [`crates/evm/precompiles/src/mip20/mod.rs`](../crates/evm/precompiles/src/mip20/mod.rs)
 

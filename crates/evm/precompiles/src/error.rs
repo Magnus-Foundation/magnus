@@ -21,8 +21,9 @@ use revm::{
 };
 use magnus_contracts::precompiles::{
     AccountKeychainError, AddrRegistryError, FeeManagerError, NonceError, RolesAuthError,
-    SignatureVerifierError, StablecoinDEXError, MIP20FactoryError, MIP403RegistryError,
-    TIPFeeAMMError, UnknownFunctionSelector, ValidatorConfigError, ValidatorConfigV2Error,
+    SignatureVerifierError, StablecoinDEXError, MIP20FactoryError, MIP20IssuerRegistryError,
+    MIP403RegistryError, TIPFeeAMMError, UnknownFunctionSelector, ValidatorConfigError,
+    ValidatorConfigV2Error,
 };
 
 /// Top-level error type for all Magnus precompile operations
@@ -41,6 +42,10 @@ pub enum MagnusPrecompileError {
     /// Error from MIP20 factory
     #[error("MIP20 factory error: {0:?}")]
     MIP20Factory(MIP20FactoryError),
+
+    /// Error from MIP20 issuer registry (multi-currency-fees-design.md §4)
+    #[error("MIP20 issuer registry error: {0:?}")]
+    MIP20IssuerRegistry(MIP20IssuerRegistryError),
 
     /// Error from roles auth
     #[error("Roles auth error: {0:?}")]
@@ -139,6 +144,7 @@ impl MagnusPrecompileError {
             | Self::MIP20(_)
             | Self::NonceError(_)
             | Self::MIP20Factory(_)
+            | Self::MIP20IssuerRegistry(_)
             | Self::RolesAuthError(_)
             | Self::AddrRegistryError(_)
             | Self::TIPFeeAMMError(_)
@@ -177,6 +183,7 @@ impl MagnusPrecompileError {
             Self::StablecoinDEX(e) => e.abi_encode().into(),
             Self::MIP20(e) => e.abi_encode().into(),
             Self::MIP20Factory(e) => e.abi_encode().into(),
+            Self::MIP20IssuerRegistry(e) => e.abi_encode().into(),
             Self::RolesAuthError(e) => e.abi_encode().into(),
             Self::AddrRegistryError(e) => e.abi_encode().into(),
             Self::MIP403RegistryError(e) => e.abi_encode().into(),
@@ -251,6 +258,7 @@ pub fn error_decoder_registry() -> MagnusPrecompileErrorRegistry {
     add_errors_to_registry(&mut registry, MagnusPrecompileError::StablecoinDEX);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::MIP20);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::MIP20Factory);
+    add_errors_to_registry(&mut registry, MagnusPrecompileError::MIP20IssuerRegistry);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::RolesAuthError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::AddrRegistryError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::MIP403RegistryError);
@@ -360,6 +368,85 @@ mod tests {
             MagnusPrecompileError::StablecoinDEX(StablecoinDEXError::OrderDoesNotExist(_))
         ));
     }
+
+    /// Verifies the new MIP20IssuerRegistry errors round-trip through the
+    /// global decoder registry. If the registry is missing the new variant,
+    /// decode_error would return None for valid registry-error revert bytes.
+    #[test]
+    fn test_decode_error_handles_issuer_registry_errors() {
+        use alloy_primitives::Address;
+        use magnus_contracts::precompiles::MIP20IssuerRegistryError;
+
+        let issuer = Address::repeat_byte(0xAA);
+        let err = MIP20IssuerRegistryError::issuer_not_approved(issuer, "USD".into());
+        let encoded = err.abi_encode();
+
+        let decoded = decode_error(&encoded).expect("decoder must recognize IssuerNotApproved");
+        match decoded.error {
+            MagnusPrecompileError::MIP20IssuerRegistry(
+                MIP20IssuerRegistryError::IssuerNotApproved(inner),
+            ) => {
+                assert_eq!(inner.issuer, issuer);
+                assert_eq!(inner.currency, "USD");
+            }
+            other => panic!(
+                "expected MIP20IssuerRegistry::IssuerNotApproved, got {other:?}"
+            ),
+        }
+    }
+
+    /// Verifies the new FeeManager errors (G0 additions) round-trip through
+    /// the global decoder registry.
+    #[test]
+    fn test_decode_error_handles_new_fee_manager_errors() {
+        use alloy_primitives::Address;
+        use magnus_contracts::precompiles::FeeManagerError;
+
+        // CurrencyNotRegistered
+        let err = FeeManagerError::currency_not_registered("XYZ".into());
+        let encoded = err.abi_encode();
+        let decoded =
+            decode_error(&encoded).expect("decoder must recognize CurrencyNotRegistered");
+        assert!(matches!(
+            decoded.error,
+            MagnusPrecompileError::FeeManagerError(FeeManagerError::CurrencyNotRegistered(_))
+        ));
+
+        // FeeTokenNotInferable (unit error)
+        let err = FeeManagerError::fee_token_not_inferable();
+        let encoded = err.abi_encode();
+        let decoded =
+            decode_error(&encoded).expect("decoder must recognize FeeTokenNotInferable");
+        assert!(matches!(
+            decoded.error,
+            MagnusPrecompileError::FeeManagerError(FeeManagerError::FeeTokenNotInferable(_))
+        ));
+
+        // FeeTokenNotAccepted (with field check)
+        let validator = Address::repeat_byte(0xBB);
+        let token = Address::repeat_byte(0xCC);
+        let err = FeeManagerError::fee_token_not_accepted(validator, token);
+        let encoded = err.abi_encode();
+        let decoded =
+            decode_error(&encoded).expect("decoder must recognize FeeTokenNotAccepted");
+        match decoded.error {
+            MagnusPrecompileError::FeeManagerError(
+                FeeManagerError::FeeTokenNotAccepted(inner),
+            ) => {
+                assert_eq!(inner.validator, validator);
+                assert_eq!(inner.token, token);
+            }
+            other => panic!("expected FeeTokenNotAccepted, got {other:?}"),
+        }
+    }
+
+    // Note: `IssuerNotApproved(address,string)` is defined only on the
+    // IssuerRegistry ABI (not on the factory). The factory bubbles up the
+    // registry's error directly when its issuer-allowlist gate fails, which
+    // avoids a Solidity selector collision (two errors with identical
+    // signatures would produce the same 4-byte selector and ambiguate the
+    // decoder). The handler-roundtrip test for that error lives in
+    // `test_decode_error_handles_issuer_registry_errors` above.
 
     #[test]
     fn test_decode_error_data_length_boundary() {

@@ -52,7 +52,7 @@ G0 (scaffold) ┤                               │
 - Wire stub precompile into `extend_magnus_precompiles` at [`crates/evm/precompiles/src/lib.rs:114`](../crates/evm/precompiles/src/lib.rs#L114).
 - New file `crates/evm/precompiles/src/mip_fee_manager/currency_registry.rs` (empty stub).
 - New error variants in `MipFeeManager` and `MIP20Factory` ABIs (used by G1+):
-  - `IssuerNotApproved(address, string)`
+  - `IssuerNotApproved(address, string)` — declared ONCE on `IMIP20IssuerRegistry`; factory bubbles up the registry's error rather than duplicating it (avoids selector collision)
   - `CurrencyNotRegistered(string)`
   - `CurrencyDisabled(string)`
   - `FeeTokenNotInferable`
@@ -242,10 +242,10 @@ G2 (uses `accepts_token` view from G2).
   // In mip20_factory/mod.rs at the top of create_token:
   let registry = MIP20IssuerRegistry::new();
   if !registry.is_approved_issuer(&call.currency, sender)? {
-      return Err(MIP20FactoryError::issuer_not_approved(sender, call.currency.clone()).into());
+      return Err(MIP20IssuerRegistryError::issuer_not_approved(sender, call.currency.clone()).into());
   }
   ```
-- Update `IMIP20Factory` ABI: add `IssuerNotApproved(address, string)` error.
+- Factory bubbles up the IssuerRegistry's `IssuerNotApproved` error directly. **Do NOT** declare a duplicate `IssuerNotApproved(address,string)` on `IMIP20Factory` — identical Solidity error definitions produce the same 4-byte selector, ambiguating the global decoder registry. The G0 implementation already enforces this.
 - Reserved-address path (`create_token_reserved_address`) does NOT check the registry — bypass is intentional and documented.
 
 ### Tests
@@ -599,6 +599,43 @@ This matches the §10 6-week target only with parallelized engineering AND aggre
 
 ---
 
+## G-handoff stub-removal checklist
+
+G0 deliberately ships scaffolding with stubs that subsequent groups replace. This table enumerates every G0 stub by file:line and which group's PR removes it. Each downstream PR's review checklist should include verification that the listed stubs are gone (replaced with real logic) and that the corresponding `**G0 stub:**` / `**G0 status:**` markers in code/comments are removed.
+
+| Stub | File:line (G0) | Removed by | Replacement |
+|---|---|---|---|
+| `MIP20IssuerRegistry::is_approved_issuer` returns `false` for everyone | [mip20_issuer_registry/mod.rs:46](../crates/evm/precompiles/src/mip20_issuer_registry/mod.rs#L46) | **G4** | Real lookup from `approved_issuers[currency][issuer]` storage |
+| `MIP20IssuerRegistry::get_approved_issuers` returns empty vec | [mip20_issuer_registry/mod.rs:53](../crates/evm/precompiles/src/mip20_issuer_registry/mod.rs#L53) | **G4** | Iterate `approved_issuer_list[currency]` storage |
+| Governance `addApprovedIssuer` / `removeApprovedIssuer` return `Fatal` error | [mip20_issuer_registry/dispatch.rs:35-42](../crates/evm/precompiles/src/mip20_issuer_registry/dispatch.rs#L35-L42) | **G4** | EIP-712 signature verification + state mutation; emit `IssuerApproved` / `IssuerRevoked` events |
+| `MIP20IssuerRegistry` struct has no storage fields | [mip20_issuer_registry/mod.rs:32-33](../crates/evm/precompiles/src/mip20_issuer_registry/mod.rs#L32-L33) | **G4** | Add `approved_issuers: Mapping<String, Mapping<Address, bool>>` + `approved_issuer_list: Mapping<String, Vec<Address>>` + `_nonce_used: Mapping<bytes32, bool>` |
+| `currency_registry.rs` has only validator + struct definition; no storage | [mip_fee_manager/currency_registry.rs](../crates/evm/precompiles/src/mip_fee_manager/currency_registry.rs) | **G1** | Add `supportedCurrencies: Mapping<String, CurrencyConfig>` to `MipFeeManager`; implement `addCurrency` / `enableCurrency` |
+| `CurrencyConfig` Solidity struct has only 3 fields | [mip_fee_manager/currency_registry.rs:23-29](../crates/evm/precompiles/src/mip_fee_manager/currency_registry.rs#L23-L29) | **G6** | Extend with `deprecating: bool`, `deprecationActivatesAt: u64`, `lastPrunedAtBlock: u64` for the disable-currency hybrid |
+| `disableCurrency` / `emergencyDisableCurrency` / `pruneCurrency` not declared | (not yet present) | **G6** | Add to `IFeeManager` ABI + implement in `MipFeeManager` |
+| `FeeManagerError::CurrencyNotRegistered` constructor exists, never called | [mip_fee_manager.rs](../crates/evm/contracts/src/precompiles/mip_fee_manager.rs) | **G1** | Called from `addCurrency` / `enableCurrency` / `disableCurrency` paths |
+| `FeeManagerError::CurrencyDisabled` constructor exists, never called | [mip_fee_manager.rs](../crates/evm/contracts/src/precompiles/mip_fee_manager.rs) | **G6** | Called from grace-expiry check in `settle_fee` and from emergency-disable path |
+| `FeeManagerError::FeeTokenNotAccepted` constructor exists, never called | [mip_fee_manager.rs](../crates/evm/contracts/src/precompiles/mip_fee_manager.rs) | **G2/G3** | Called from `swap_fee` revert when validator's accept-set lacks the user's token |
+| `FeeManagerError::FeeTokenNotInferable` constructor exists, never called | [mip_fee_manager.rs](../crates/evm/contracts/src/precompiles/mip_fee_manager.rs) | **G8** | Called from `infer_fee_token` when calldata cannot be parsed |
+| `FeeManagerError::ValidatorAcceptSetEmpty` constructor exists, never called | [mip_fee_manager.rs](../crates/evm/contracts/src/precompiles/mip_fee_manager.rs) | **G2** | Called from `get_validator_token` when validator has no tokens (replaces removed `DEFAULT_FEE_TOKEN` fallback) |
+| `MIP20IssuerRegistryError` registered in error decoder but no path emits | [error.rs](../crates/evm/precompiles/src/error.rs) | **G4** | Emitted from registry governance functions |
+| T4 wiring resolves `MIP20_ISSUER_REGISTRY_ADDRESS` to a stub precompile | [lib.rs:140-145](../crates/evm/precompiles/src/lib.rs#L140-L145) | **G4** | Stub precompile is replaced when G4 lands real logic; the wiring itself stays |
+| Factory does NOT yet call `IssuerRegistry.is_approved_issuer` | [mip20_factory/mod.rs:104-161](../crates/evm/precompiles/src/mip20_factory/mod.rs#L104-L161) | **G4** | Add the gate at the top of `create_token`; bubble up `MIP20IssuerRegistryError::issuer_not_approved` |
+
+**Per-group exit criteria addition:** before merging any of G1/G2/G3/G4/G6/G8, run:
+
+```bash
+# Verify the rows for this group's "Removed by" column no longer match the source
+grep -rn "G0 stub\|G0 status" crates/evm/precompiles/src/<group's affected files>
+```
+
+If any G0-stub markers remain in the affected files after the group's PR, the PR is incomplete. Reviewer should flag.
+
+**Stubs explicitly NOT removed by any group:**
+
+The G0 inline doc-comments referencing the design doc (e.g. "see `multi-currency-fees-design.md` §4") stay forever — those are durable references, not stubs. Only `**G0 stub:**` / `**G0 status:**` markers are stub indicators.
+
+---
+
 ## Risk register
 
 | Risk | Likelihood | Impact | Mitigation |
@@ -645,4 +682,5 @@ When all checkboxes are green, engineering kicks off G0.
 
 ## Change log
 
+- **2026-04-28 (v1.1):** Added "G-handoff stub-removal checklist" section enumerating every G0 stub by file:line and the group whose PR removes it. Per-group exit criteria includes a `grep` check for residual G0-stub markers. Clarified that durable design-doc cross-references stay; only `**G0 stub:**` / `**G0 status:**` markers are removed.
 - **2026-04-27 (v1):** Initial implementation plan covering 8 deliverable groups with effort estimates, dependency ordering, audit checkpoint placement, testnet/mainnet sequencing, risk register.
