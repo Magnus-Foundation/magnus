@@ -477,7 +477,7 @@ mod tests {
     fn create_t1_chainspec() -> Arc<MagnusChainSpec> {
         let genesis_json = r#"{
             "config": {
-                "chainId": 99999,
+                "chainId": 50500,
                 "homesteadBlock": 0,
                 "daoForkSupport": false,
                 "eip150Block": 0,

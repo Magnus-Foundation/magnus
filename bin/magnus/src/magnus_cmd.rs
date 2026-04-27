@@ -1286,7 +1286,7 @@ mod tests {
             "--chain",
             "moderato",
             "--port",
-            "9999",
+            "5050",
             "--discovery-port",
             "9998",
             "--max-inbound",

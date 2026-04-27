@@ -87,8 +87,8 @@ impl RpcEnv {
 
         // Chain IDs from genesis/*.json (mirrors bootnodes() in spec.rs)
         let chain_spec = match chain_id {
-            4217 => MAESTOSO.clone(), // mainnet
-            42431 => ALLEGRO.clone(),
+            5050 => MAESTOSO.clone(), // mainnet
+            50500 => ALLEGRO.clone(),
             _ => DEV.clone(),
         };
         let latest_block: alloy::rpc::types::Block = provider

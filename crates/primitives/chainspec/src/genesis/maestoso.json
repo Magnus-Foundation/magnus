@@ -4,7 +4,7 @@
       "message": "Time is money"
   },
   "config": {
-    "chainId": 4217,
+    "chainId": 5050,
     "homesteadBlock": 0,
     "daoForkSupport": false,
     "eip150Block": 0,

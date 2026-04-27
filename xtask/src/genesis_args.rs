@@ -386,8 +386,8 @@ impl GenesisArgs {
 
         // Initial currency registry per chain.
         let initial_currencies: &[&str] = match self.chain_id {
-            4217 => &["USD", "VND"],
-            42431 => &["USD"],
+            5050 => &["USD", "VND"],
+            50500 => &["USD"],
             _ => &[],
         };
         let governance_admin = self.coinbase;

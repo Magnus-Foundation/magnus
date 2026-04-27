@@ -84,7 +84,7 @@ impl Default for TxBuilder {
             fee_token: None,
             valid_after: None,
             valid_before: None,
-            chain_id: 42431, // ALLEGRO chain_id
+            chain_id: 50500, // ALLEGRO chain_id
             calls: None,
             authorization_list: None,
             access_list: Default::default(),

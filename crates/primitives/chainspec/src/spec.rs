@@ -126,14 +126,14 @@ impl reth_cli::chainspec::ChainSpecParser for MagnusChainSpecParser {
 /// Returns `None` for unknown chain ids.
 ///
 /// Magnus is a fresh L1, not a Tempo continuation. The chain IDs
-/// returned here (4217 / 42431) are inherited from the Tempo
+/// returned here (5050 / 50500) are inherited from the Tempo
 /// genesis files this crate ships with as placeholders; the Magnus
 /// network operator must pick its own chain IDs and replace those
 /// genesis files before launch.
 pub fn chainspec_from_chain_id(chain_id: u64) -> Option<Arc<MagnusChainSpec>> {
     match chain_id {
-        4217 => Some(MAESTOSO.clone()),
-        42431 => Some(ALLEGRO.clone()),
+        5050 => Some(MAESTOSO.clone()),
+        50500 => Some(ALLEGRO.clone()),
         _ => None,
     }
 }
@@ -319,8 +319,8 @@ impl EthChainSpec for MagnusChainSpec {
 
     fn bootnodes(&self) -> Option<Vec<NodeRecord>> {
         match self.inner.chain_id() {
-            4217 => Some(maestoso_nodes()),
-            42431 => Some(allegro_nodes()),
+            5050 => Some(maestoso_nodes()),
+            50500 => Some(allegro_nodes()),
             _ => self.inner.bootnodes(),
         }
     }
