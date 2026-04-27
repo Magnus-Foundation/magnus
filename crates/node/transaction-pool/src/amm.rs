@@ -11,7 +11,7 @@ use std::sync::Arc;
 use alloy_primitives::{Address, U256};
 use parking_lot::RwLock;
 use reth_primitives_traits::SealedHeader;
-use reth_provider::{ExecutionOutcome, ProviderResult, StateProviderFactory};
+use reth_provider::{ExecutionOutcome, ProviderResult};
 use magnus_primitives::{MagnusHeader, MagnusReceipt};
 
 #[derive(Debug, Clone, Default)]

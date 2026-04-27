@@ -146,7 +146,7 @@ mod tests {
     fn unconfigured_returns_false_and_empty() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            let mut registry = registry_initialized()?;
+            let registry = registry_initialized()?;
             assert!(!registry.is_approved_issuer("USD", Address::random())?);
             assert!(registry.get_approved_issuers("USD")?.is_empty());
             Ok(())

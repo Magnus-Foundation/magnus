@@ -443,7 +443,7 @@ where
 mod tests {
     use super::*;
     use crate::{MagnusBlockEnv, MagnusEvm};
-    use alloy_primitives::{address, uint};
+    use alloy_primitives::uint;
     use reth_evm::EvmInternals;
     use revm::{
         Context, MainContext, context::TxEnv, database::EmptyDB,

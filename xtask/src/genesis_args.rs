@@ -55,7 +55,7 @@ use magnus_precompiles::{
     signature_verifier::SignatureVerifier,
     stablecoin_dex::StablecoinDEX,
     storage::{ContractStorage, StorageCtx},
-    mip_fee_manager::{IFeeManager, MipFeeManager},
+    mip_fee_manager::MipFeeManager,
     mip20::{ISSUER_ROLE, IMIP20, MIP20Token},
     mip20_factory::MIP20Factory,
     mip403_registry::MIP403Registry,

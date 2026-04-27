@@ -49,7 +49,7 @@ use magnus_consensus::MAGNUS_SHARED_GAS_DIVISOR;
 use magnus_evm::{MagnusEvmConfig, MagnusNextBlockEnvAttributes, evm::MagnusEvm};
 use magnus_payload_types::{MagnusBuiltPayload, MagnusPayloadAttributes};
 use magnus_precompiles::{
-    storage::StorageCtx, mip_fee_manager::MipFeeManager, validator_config_v2::ValidatorConfigV2,
+    storage::StorageCtx, validator_config_v2::ValidatorConfigV2,
 };
 use magnus_primitives::{
     RecoveredSubBlock, SubBlockMetadata, MagnusHeader, MagnusTxEnvelope,
