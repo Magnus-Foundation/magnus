@@ -420,24 +420,13 @@ impl GenesisArgs {
             initialize_signature_verifier(&mut evm)?;
         }
 
-        if !self.no_pairwise_liquidity {
-            if let (Some(alpha), Some(beta), Some(theta)) =
-                (alpha_token_address, beta_token_address, theta_token_address)
-            {
-                println!("Minting pairwise FeeAMM liquidity");
-                mint_pairwise_liquidity(
-                    alpha,
-                    vec![MAGNUS_USD_ADDRESS, beta, theta],
-                    U256::from(10u64.pow(10)),
-                    pathusd_admin,
-                    &mut evm,
-                );
-            } else {
-                println!("Skipping pairwise liquidity (extra tokens not created)");
-            }
-        } else {
-            println!("Skipping pairwise liquidity (--no-pairwise-liquidity)");
-        }
+        // FeeAMM pairwise-liquidity bootstrap is gone with G3b: no AMM, no pools.
+        let _ = (
+            alpha_token_address,
+            beta_token_address,
+            theta_token_address,
+            self.no_pairwise_liquidity,
+        );
 
         evm.ctx_mut()
             .journaled_state
@@ -813,49 +802,14 @@ fn initialize_fee_manager(
                 .initialize()
                 .expect("Could not init fee manager");
 
-            // Legacy single-token preferences are deprecated at T4 (set_* reverts).
-            // Pre-T4 chains still need them populated; T4-from-genesis chains use
-            // governance-bootstrapped accept-sets instead.
-            if !StorageCtx.spec().is_t4() {
-                println!(
-                    "Setting user fee token {user_fee_token_address} for {} accounts",
-                    initial_accounts.len()
-                );
-                for address in initial_accounts.iter().progress() {
-                    fee_manager
-                        .set_user_token(
-                            *address,
-                            IFeeManager::setUserTokenCall {
-                                token: user_fee_token_address,
-                            },
-                        )
-                        .expect("Could not set fee token");
-                }
-
-                for validator in &validators {
-                    println!(
-                        "Setting validator token for {validator} {validator_fee_token_address}"
-                    );
-                    fee_manager
-                        .set_validator_token(
-                            *validator,
-                            IFeeManager::setValidatorTokenCall {
-                                token: validator_fee_token_address,
-                            },
-                            Address::random(),
-                        )
-                        .expect("Could not set validator fee token");
-                }
-            } else {
-                println!(
-                    "Skipping legacy user/validator token bootstrap (T4 active at genesis)"
-                );
-                let _ = (
-                    user_fee_token_address,
-                    validator_fee_token_address,
-                    &validators,
-                );
-            }
+            // Per-user/per-validator single-token preferences were removed at T4.
+            // Validator accept-sets are bootstrapped post-launch via governance.
+            let _ = (
+                user_fee_token_address,
+                validator_fee_token_address,
+                &initial_accounts,
+                &validators,
+            );
 
             // Currency registry bootstrap: set admin and pre-register launch currencies.
             // governance_admin == zero means "leave unset; multisig bootstraps post-launch".
@@ -1131,27 +1085,3 @@ fn generate_consensus_config(
     Some(ConsensusConfig { output, validators })
 }
 
-fn mint_pairwise_liquidity(
-    a_token: Address,
-    b_tokens: Vec<Address>,
-    amount: U256,
-    admin: Address,
-    evm: &mut MagnusEvm<CacheDB<EmptyDB>>,
-) {
-    let ctx = evm.ctx_mut();
-    StorageCtx::enter_evm(
-        &mut ctx.journaled_state,
-        &ctx.block,
-        &ctx.cfg,
-        &ctx.tx,
-        || {
-            let mut fee_manager = MipFeeManager::new();
-
-            for b_token_address in b_tokens {
-                fee_manager
-                    .mint(admin, a_token, b_token_address, amount, admin)
-                    .expect("Could not mint A -> B Liquidity pool");
-            }
-        },
-    );
-}

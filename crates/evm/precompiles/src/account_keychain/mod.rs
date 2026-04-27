@@ -1306,7 +1306,7 @@ mod tests {
     use alloy::primitives::{Address, B256, TxKind, U256};
     use revm::state::Bytecode;
     use magnus_chainspec::hardfork::MagnusHardfork;
-    use magnus_contracts::precompiles::{DEFAULT_FEE_TOKEN, IAccountKeychain::SignatureType};
+    use magnus_contracts::precompiles::{PATH_USD_ADDRESS, IAccountKeychain::SignatureType};
 
     // Helper function to assert unauthorized error
     fn assert_unauthorized_error(error: MagnusPrecompileError) {
@@ -3711,7 +3711,7 @@ mod tests {
         let account = Address::random();
         let revoked_key = Address::random();
         let expiring_key = Address::random();
-        let target = DEFAULT_FEE_TOKEN;
+        let target = PATH_USD_ADDRESS;
 
         storage.set_timestamp(U256::from(1_000u64));
         StorageCtx::enter(&mut storage, || {
@@ -4149,7 +4149,7 @@ mod tests {
         let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
-        let target = DEFAULT_FEE_TOKEN;
+        let target = PATH_USD_ADDRESS;
 
         StorageCtx::enter(&mut storage, || {
             let mut keychain = AccountKeychain::new();
@@ -4209,7 +4209,7 @@ mod tests {
         let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
         let account = Address::random();
         let key_id = Address::random();
-        let target = DEFAULT_FEE_TOKEN;
+        let target = PATH_USD_ADDRESS;
         let allowed_recipient = Address::repeat_byte(0x22);
         let denied_recipient = Address::repeat_byte(0x33);
 

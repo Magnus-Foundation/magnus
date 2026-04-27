@@ -33,9 +33,7 @@ use revm::{
     },
     precompile::PrecompileError,
 };
-use magnus_contracts::precompiles::{
-    IAccountKeychain::SignatureType as PrecompileSignatureType, TIPFeeAMMError,
-};
+use magnus_contracts::precompiles::IAccountKeychain::SignatureType as PrecompileSignatureType;
 use magnus_precompiles::{
     ECRECOVER_GAS,
     account_keychain::{
@@ -1442,16 +1440,8 @@ where
             journal.checkpoint_revert(checkpoint);
 
             // Map fee collection errors to transaction validation errors since they
-            // indicate the transaction cannot be included (e.g., insufficient liquidity
-            // in FeeAMM pool for fee swaps)
+            // indicate the transaction cannot be included.
             Err(match err {
-                MagnusPrecompileError::TIPFeeAMMError(TIPFeeAMMError::InsufficientLiquidity(_)) => {
-                    FeePaymentError::InsufficientAmmLiquidity {
-                        fee: gas_balance_spending,
-                    }
-                    .into()
-                }
-
                 MagnusPrecompileError::MIP20(MIP20Error::InsufficientBalance(
                     InsufficientBalance { available, .. },
                 )) => FeePaymentError::InsufficientFeeTokenBalance {
@@ -2277,7 +2267,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_fee_token() -> eyre::Result<()> {
+    fn test_get_fee_token_explicit() -> eyre::Result<()> {
         let journal = create_test_journal();
         let mut ctx: MagnusContext<_> = Context::mainnet()
             .with_db(CacheDB::new(EmptyDB::default()))
@@ -2287,48 +2277,9 @@ mod tests {
             .with_new_journal(journal);
         let user = Address::random();
         ctx.tx.inner.caller = user;
-        let validator = Address::random();
-        ctx.block.beneficiary = validator;
-        let user_fee_token = Address::random();
-        let validator_fee_token = Address::random();
+        ctx.block.beneficiary = Address::random();
         let tx_fee_token = Address::random();
 
-        // Set validator token
-        let validator_slot = MipFeeManager::new().validator_tokens[validator].slot();
-        ctx.journaled_state.load_account(TIP_FEE_MANAGER_ADDRESS)?;
-        ctx.journaled_state
-            .sstore(
-                TIP_FEE_MANAGER_ADDRESS,
-                validator_slot,
-                validator_fee_token.into_u256(),
-            )
-            .unwrap();
-
-        {
-            let fee_token = ctx
-                .journaled_state
-                .get_fee_token(&ctx.tx, user, ctx.cfg.spec)?;
-            assert_eq!(DEFAULT_FEE_TOKEN, fee_token);
-        }
-
-        // Set user token
-        let user_slot = MipFeeManager::new().user_tokens[user].slot();
-        ctx.journaled_state
-            .sstore(
-                TIP_FEE_MANAGER_ADDRESS,
-                user_slot,
-                user_fee_token.into_u256(),
-            )
-            .unwrap();
-
-        {
-            let fee_token = ctx
-                .journaled_state
-                .get_fee_token(&ctx.tx, user, ctx.cfg.spec)?;
-            assert_eq!(user_fee_token, fee_token);
-        }
-
-        // Set tx fee token
         ctx.tx.fee_token = Some(tx_fee_token);
         let fee_token = ctx
             .journaled_state

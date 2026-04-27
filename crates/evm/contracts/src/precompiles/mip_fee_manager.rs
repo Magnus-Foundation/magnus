@@ -1,19 +1,12 @@
 pub use IFeeManager::{IFeeManagerErrors as FeeManagerError, IFeeManagerEvents as FeeManagerEvent};
-pub use ITIPFeeAMM::{ITIPFeeAMMErrors as TIPFeeAMMError, ITIPFeeAMMEvents as TIPFeeAMMEvent};
 
 crate::sol! {
     /// FeeManager interface for managing gas fee collection and distribution.
     ///
-    /// IMPORTANT: FeeManager inherits from TIPFeeAMM and shares the same storage layout.
-    /// This means:
-    /// - FeeManager has all the functionality of TIPFeeAMM (pool management, swaps, liquidity operations)
-    /// - Both contracts use the same storage slots for AMM data (pools, reserves, liquidity balances)
-    /// - FeeManager extends TIPFeeAMM with additional storage slots (4-15) for fee-specific data
-    /// - When deployed, FeeManager IS a TIPFeeAMM with additional fee management capabilities
-    ///
-    /// Storage layout:
-    /// - Slots 0-3: TIPFeeAMM storage (pools, pool exists, liquidity data)
-    /// - Slots 4+: FeeManager-specific storage (validator tokens, user tokens, collected fees, etc.)
+    /// At T4 the legacy AMM (`TIPFeeAMM`), the per-user/per-validator single-token
+    /// preferences, and the slots reserved for AMM pool state were removed. Fees
+    /// are settled via the multi-token validator accept-set; conversion happens
+    /// off-protocol via the Stablecoin DEX (registered in the router registry).
     #[derive(Debug, PartialEq, Eq)]
     #[sol(abi)]
     interface IFeeManager {
@@ -36,17 +29,10 @@ crate::sol! {
             uint64 lastPrunedAtBlock;
         }
 
-        // User preferences
-        function userTokens(address user) external view returns (address);
-        function validatorTokens(address validator) external view returns (address);
-        function setUserToken(address token) external;
-        function setValidatorToken(address token) external;
-
-        // Fee functions
+        // Fee functions. `collectFeePreTx`/`collectFeePostTx` are protocol-internal
+        // calls invoked by the execution handler and intentionally absent here.
         function distributeFees(address validator, address token) external;
         function collectedFees(address validator, address token) external view returns (uint256);
-        // NOTE: collectFeePreTx is a protocol-internal function called directly by the
-        // execution handler, not exposed via the dispatch interface.
 
         // Currency registry (governance-gated by `governanceAdmin`).
         function addCurrency(string calldata code) external;
@@ -88,8 +74,6 @@ crate::sol! {
         function isAcceptedByAnyValidator(address token) external view returns (bool);
 
         // Events
-        event UserTokenSet(address indexed user, address indexed token);
-        event ValidatorTokenSet(address indexed validator, address indexed token);
         event FeesDistributed(address indexed validator, address indexed token, uint256 amount);
         event CurrencyAdded(string code, uint64 atBlock);
         event CurrencyEnabled(string code, uint64 atBlock);
@@ -140,8 +124,6 @@ crate::sol! {
         error TokenNotInAcceptSet(address validator, address token);
         error MaxAcceptSetReached(address validator);
 
-        error UserTokenApiRemoved();
-
         error CurrencyDeprecating(string currency, uint64 graceEndsAt);
         error CurrencyAlreadyDeprecating(string currency);
         error GracePeriodOutOfRange(uint64 grace);
@@ -159,66 +141,6 @@ crate::sol! {
         error RouterSelectorNotFound(address router, bytes4 selector);
         error RouterSelectorAlreadyRegistered(address router, bytes4 selector);
         error CalldataDecodeFailed();
-    }
-}
-
-sol! {
-    /// TIPFeeAMM interface defining the base AMM functionality for stablecoin pools.
-    /// This interface provides core liquidity pool management and swap operations.
-    ///
-    /// NOTE: The FeeManager contract inherits from TIPFeeAMM and shares the same storage layout.
-    /// When FeeManager is deployed, it effectively "is" a TIPFeeAMM with additional fee management
-    /// capabilities layered on top. Both contracts operate on the same storage slots.
-    #[derive(Debug, PartialEq, Eq)]
-    #[allow(clippy::too_many_arguments)]
-    interface ITIPFeeAMM {
-        // Structs
-        struct Pool {
-            uint128 reserveUserToken;
-            uint128 reserveValidatorToken;
-        }
-
-        struct PoolKey {
-            address token0;
-            address token1;
-        }
-
-
-        // Constants
-        function M() external view returns (uint256);
-        function N() external view returns (uint256);
-        function SCALE() external view returns (uint256);
-        function MIN_LIQUIDITY() external view returns (uint256);
-
-        // Pool Management
-        function getPoolId(address userToken, address validatorToken) external pure returns (bytes32);
-        function getPool(address userToken, address validatorToken) external view returns (Pool memory);
-        function pools(bytes32 poolId) external view returns (Pool memory);
-
-        // Liquidity Operations
-        function mint(address userToken, address validatorToken, uint256 amountValidatorToken, address to) external returns (uint256 liquidity);
-        function burn(address userToken, address validatorToken, uint256 liquidity, address to) external returns (uint256 amountUserToken, uint256 amountValidatorToken);
-
-        // Liquidity Balances
-        function totalSupply(bytes32 poolId) external view returns (uint256);
-        function liquidityBalances(bytes32 poolId, address user) external view returns (uint256);
-
-        // Swapping
-        function rebalanceSwap(address userToken, address validatorToken, uint256 amountOut, address to) external returns (uint256 amountIn);
-
-        // Events
-        event Mint(address sender, address indexed to, address indexed userToken, address indexed validatorToken, uint256 amountValidatorToken, uint256 liquidity);
-        event Burn(address indexed sender, address indexed userToken, address indexed validatorToken, uint256 amountUserToken, uint256 amountValidatorToken, uint256 liquidity, address to);
-        event RebalanceSwap(address indexed userToken, address indexed validatorToken, address indexed swapper, uint256 amountIn, uint256 amountOut);
-
-        // Errors
-        error IdenticalAddresses();
-        error InvalidToken();
-        error InsufficientLiquidity();
-        error InsufficientReserves();
-        error InvalidAmount();
-        error DivisionByZero();
-        error InvalidSwapCalculation();
     }
 }
 
@@ -324,10 +246,6 @@ impl FeeManagerError {
 
     pub const fn max_accept_set_reached(validator: alloy_primitives::Address) -> Self {
         Self::MaxAcceptSetReached(IFeeManager::MaxAcceptSetReached { validator })
-    }
-
-    pub const fn user_token_api_removed() -> Self {
-        Self::UserTokenApiRemoved(IFeeManager::UserTokenApiRemoved {})
     }
 
     pub fn currency_deprecating(currency: alloc::string::String, grace_ends_at: u64) -> Self {
@@ -521,38 +439,3 @@ mod fee_manager_error_tests {
     }
 }
 
-impl TIPFeeAMMError {
-    /// Creates an error for identical token addresses.
-    pub const fn identical_addresses() -> Self {
-        Self::IdenticalAddresses(ITIPFeeAMM::IdenticalAddresses {})
-    }
-
-    /// Creates an error for invalid token.
-    pub const fn invalid_token() -> Self {
-        Self::InvalidToken(ITIPFeeAMM::InvalidToken {})
-    }
-
-    /// Creates an error for insufficient liquidity.
-    pub const fn insufficient_liquidity() -> Self {
-        Self::InsufficientLiquidity(ITIPFeeAMM::InsufficientLiquidity {})
-    }
-
-    /// Creates an error for insufficient reserves.
-    pub const fn insufficient_reserves() -> Self {
-        Self::InsufficientReserves(ITIPFeeAMM::InsufficientReserves {})
-    }
-    /// Creates an error for invalid amount.
-    pub const fn invalid_amount() -> Self {
-        Self::InvalidAmount(ITIPFeeAMM::InvalidAmount {})
-    }
-
-    /// Creates an error for invalid swap calculation.
-    pub const fn invalid_swap_calculation() -> Self {
-        Self::InvalidSwapCalculation(ITIPFeeAMM::InvalidSwapCalculation {})
-    }
-
-    /// Creates an error for division by zero.
-    pub const fn division_by_zero() -> Self {
-        Self::DivisionByZero(ITIPFeeAMM::DivisionByZero {})
-    }
-}

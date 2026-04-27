@@ -136,11 +136,13 @@ mod tests {
     #[test]
     fn test_set_block_and_replay() {
         let db = EmptyDB::new();
+        let mut tx = MagnusTxEnv::default();
+        tx.fee_token = Some(magnus_contracts::precompiles::PATH_USD_ADDRESS);
         let ctx = Context::mainnet()
             .with_db(db)
             .with_block(MagnusBlockEnv::default())
             .with_cfg(Default::default())
-            .with_tx(MagnusTxEnv::default());
+            .with_tx(tx);
         let mut evm = MagnusEvm::new(ctx, ());
 
         // Set block with default fields

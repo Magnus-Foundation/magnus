@@ -22,7 +22,7 @@ use revm::{
 use magnus_contracts::precompiles::{
     AccountKeychainError, AddrRegistryError, FeeManagerError, NonceError, RolesAuthError,
     SignatureVerifierError, StablecoinDEXError, MIP20FactoryError, MIP20IssuerRegistryError,
-    MIP403RegistryError, TIPFeeAMMError, UnknownFunctionSelector, ValidatorConfigError,
+    MIP403RegistryError, UnknownFunctionSelector, ValidatorConfigError,
     ValidatorConfigV2Error,
 };
 
@@ -62,10 +62,6 @@ pub enum MagnusPrecompileError {
     /// Error from MIP fee manager
     #[error("MIP fee manager error: {0:?}")]
     FeeManagerError(FeeManagerError),
-
-    /// Error from MIP fee AMM
-    #[error("MIP fee AMM error: {0:?}")]
-    TIPFeeAMMError(TIPFeeAMMError),
 
     /// Error from Magnus Transaction nonce manager
     #[error("Magnus Transaction nonce error: {0:?}")]
@@ -147,7 +143,6 @@ impl MagnusPrecompileError {
             | Self::MIP20IssuerRegistry(_)
             | Self::RolesAuthError(_)
             | Self::AddrRegistryError(_)
-            | Self::TIPFeeAMMError(_)
             | Self::FeeManagerError(_)
             | Self::MIP403RegistryError(_)
             | Self::ValidatorConfigError(_)
@@ -188,7 +183,6 @@ impl MagnusPrecompileError {
             Self::AddrRegistryError(e) => e.abi_encode().into(),
             Self::MIP403RegistryError(e) => e.abi_encode().into(),
             Self::FeeManagerError(e) => e.abi_encode().into(),
-            Self::TIPFeeAMMError(e) => e.abi_encode().into(),
             Self::NonceError(e) => e.abi_encode().into(),
             Self::Panic(kind) => {
                 let panic = Panic {
@@ -263,7 +257,6 @@ pub fn error_decoder_registry() -> MagnusPrecompileErrorRegistry {
     add_errors_to_registry(&mut registry, MagnusPrecompileError::AddrRegistryError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::MIP403RegistryError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::FeeManagerError);
-    add_errors_to_registry(&mut registry, MagnusPrecompileError::TIPFeeAMMError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::NonceError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::ValidatorConfigError);
     add_errors_to_registry(&mut registry, MagnusPrecompileError::ValidatorConfigV2Error);

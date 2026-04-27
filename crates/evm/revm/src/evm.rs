@@ -632,7 +632,10 @@ mod tests {
         fn build(self) -> MagnusTransaction {
             MagnusTransaction {
                 chain_id: 1,
-                fee_token: None,
+                // Tests deploy pathUSD via MIP20Setup::path_usd; default the
+                // builder's fee_token to that so post-G3b tests don't need to
+                // set it explicitly.
+                fee_token: Some(magnus_contracts::precompiles::PATH_USD_ADDRESS),
                 max_priority_fee_per_gas: self.max_priority_fee_per_gas,
                 max_fee_per_gas: self.max_fee_per_gas,
                 gas_limit: self.gas_limit,
@@ -893,7 +896,18 @@ mod tests {
             MIP20Setup::path_usd(caller)
                 .with_issuer(caller)
                 .with_mint(caller, U256::from(100_000))
-                .apply()
+                .apply()?;
+            // Bootstrap the FeeManager's currency registry + the block
+            // beneficiary's accept-set so post-G3b settle_fee finds pathUSD
+            // acceptable.
+            let admin = Address::random();
+            let mut fm = magnus_precompiles::mip_fee_manager::MipFeeManager::new();
+            fm.initialize()?;
+            fm.set_governance_admin(Address::ZERO, admin)?;
+            fm.add_currency(admin, "USD", 0)?;
+            fm.enable_currency(admin, "USD", 0)?;
+            fm.add_accepted_token(Address::ZERO, PATH_USD_ADDRESS, Address::random())?;
+            Ok::<_, magnus_precompiles::error::MagnusPrecompileError>(())
         })?;
 
         drop(provider);

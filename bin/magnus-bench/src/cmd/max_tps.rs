@@ -67,10 +67,9 @@ use magnus_contracts::precompiles::{
     IMIP20Factory, STABLECOIN_DEX_ADDRESS, MIP20_FACTORY_ADDRESS,
 };
 use magnus_precompiles::{
-    TIP_FEE_MANAGER_ADDRESS,
+    MAGNUS_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS,
     address_registry::MasterId,
     stablecoin_dex::{MAX_TICK, MIN_ORDER_AMOUNT, MIN_TICK, TICK_SPACING},
-    mip_fee_manager::DEFAULT_FEE_TOKEN,
     mip20::ISSUER_ROLE,
 };
 use tokio::{
@@ -105,7 +104,7 @@ pub struct MaxTpsArgs {
     #[arg(short, long, default_value_t = 0)]
     from_mnemonic_index: u32,
 
-    #[arg(long, default_value_t = DEFAULT_FEE_TOKEN)]
+    #[arg(long, default_value_t = MAGNUS_USD_ADDRESS)]
     fee_token: Address,
 
     /// Target URLs for network connections (comma-separated or multiple --target-urls)
@@ -360,22 +359,9 @@ impl MaxTpsArgs {
             .context("Failed to fund accounts from faucet")?;
         }
 
-        info!(fee_token = %self.fee_token, "Setting default fee token");
-        join_all(
-            signer_providers
-                .iter()
-                .map(async |(_, provider)| {
-                    IFeeManagerInstance::new(TIP_FEE_MANAGER_ADDRESS, provider.clone())
-                        .setUserToken(self.fee_token)
-                        .send()
-                        .await
-                })
-                .progress(),
-            self.max_concurrent_requests,
-            self.max_concurrent_transactions,
-        )
-        .await
-        .context("Failed to set default fee token")?;
+        // setUserToken was removed at T4. Each tx carries fee_token via the
+        // envelope; the default-token-per-account flow is no longer used.
+        info!(fee_token = %self.fee_token, "Default fee token (per-tx, not stored)");
 
         // Register virtual-address masters using pre-mined anvil salts.
         // Only signers with a known salt are registered; each master supports

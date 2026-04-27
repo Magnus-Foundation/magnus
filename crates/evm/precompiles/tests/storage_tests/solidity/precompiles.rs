@@ -59,34 +59,6 @@ fn test_tip403_registry_layout() {
 }
 
 #[test]
-fn test_fee_manager_layout() {
-    use magnus_precompiles::mip_fee_manager::{amm::__packing_pool::*, slots};
-
-    let sol_path = testdata("fee_manager.sol");
-    let solc_layout = load_solc_layout(&sol_path);
-
-    // Verify top-level fields
-    let rust_layout = layout_fields!(
-        validator_tokens,
-        user_tokens,
-        collected_fees,
-        pools,
-        total_supply,
-        liquidity_balances
-    );
-    if let Err(errors) = compare_layouts(&solc_layout, &rust_layout) {
-        panic_layout_mismatch("Layout", errors, &sol_path);
-    }
-
-    // Verify `Pool` struct members (used in mapping)
-    let pool_base_slot = slots::POOLS;
-    let rust_pool = struct_fields!(pool_base_slot, reserve_user_token, reserve_validator_token);
-    if let Err(errors) = compare_struct_members(&solc_layout, "pools", &rust_pool) {
-        panic_layout_mismatch("Pool struct member layout", errors, &sol_path);
-    }
-}
-
-#[test]
 fn test_stablecoin_dex_layout() {
     use magnus_precompiles::stablecoin_dex::{
         order::__packing_order::*, orderbook::__packing_orderbook::*, slots,
@@ -255,33 +227,10 @@ fn export_all_storage_constants() {
         );
     }
 
-    // Fee Manager
-    {
-        use magnus_precompiles::mip_fee_manager::{amm::__packing_pool::*, slots};
+    // FeeManager layout removed in G3b: storage was rewritten and the legacy
+    // Solidity reference no longer matches.
 
-        let fields = layout_fields!(
-            validator_tokens,
-            user_tokens,
-            collected_fees,
-            pools,
-            total_supply,
-            liquidity_balances
-        );
-        let base_slot = slots::POOLS;
-        let pool_struct = struct_fields!(base_slot, reserve_user_token, reserve_validator_token);
-
-        all_constants.insert(
-            "mip_fee_manager".to_string(),
-            json!({
-                "fields": fields.iter().map(field_to_json).collect::<Vec<_>>(),
-                "structs": {
-                    "pools": pool_struct.iter().map(field_to_json).collect::<Vec<_>>()
-                }
-            }),
-        );
-    }
-
-    // Stablecoin DEX
+// Stablecoin DEX
     {
         use magnus_precompiles::stablecoin_dex::{
             order::__packing_order::*, orderbook::__packing_orderbook::*, slots,

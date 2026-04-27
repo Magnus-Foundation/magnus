@@ -1,8 +1,7 @@
-//! [Fee manager] precompile for transaction fee collection, distribution, and token swaps.
+//! [Fee manager] precompile for transaction fee collection and distribution.
 //!
 //! [Fee manager]: <https://docs.magnus.xyz/protocol/fees>
 
-pub mod amm;
 pub mod currency_registry;
 pub mod dispatch;
 pub mod escrow;
@@ -10,56 +9,47 @@ pub mod router_registry;
 
 use crate::{
     error::{MagnusPrecompileError, Result},
-    mip_fee_manager::amm::{Pool, PoolKey, compute_amount_out},
     mip_fee_manager::currency_registry::{CurrencyConfig, currency_key, is_valid_currency_code},
     mip_fee_manager::escrow::ClaimRecord,
     mip_fee_manager::router_registry::{RouterDescriptor, selector_key},
-    mip20::{IMIP20, MIP20Token, validate_usd_currency},
+    mip20::{IMIP20, MIP20Token},
     mip20_factory::MIP20Factory,
     storage::{Handler, Mapping},
 };
-use alloy::primitives::{Address, B256, U256, uint};
+use alloy::primitives::{Address, B256, U256};
 pub use magnus_contracts::precompiles::{
-    DEFAULT_FEE_TOKEN, FeeManagerError, FeeManagerEvent, IFeeManager, ITIPFeeAMM,
-    TIP_FEE_MANAGER_ADDRESS, TIPFeeAMMError, TIPFeeAMMEvent,
+    FeeManagerError, FeeManagerEvent, IFeeManager, TIP_FEE_MANAGER_ADDRESS,
 };
 use magnus_precompiles_macros::contract;
 
-/// Fee manager precompile that handles transaction fee collection and distribution.
-///
-/// Users and validators choose their preferred MIP-20 fee token. When they differ, fees are
-/// swapped through the built-in AMM (`TIPFeeAMM`).
-///
-/// The struct fields define the on-chain storage layout; the `#[contract]` macro generates the
-/// storage handlers which provide an ergonomic way to interact with the EVM state.
+/// Fee manager precompile: collects gas fees, settles them via the validator's
+/// accept-set, and exposes governance APIs for currency registration, validator
+/// off-boarding, and the router selector registry that drives fee-token
+/// inference.
 #[contract(addr = TIP_FEE_MANAGER_ADDRESS)]
 pub struct MipFeeManager {
-    validator_tokens: Mapping<Address, Address>,
-    user_tokens: Mapping<Address, Address>,
+    /// Per-(validator, token) accumulated fees pending distribution.
     collected_fees: Mapping<Address, Mapping<Address, U256>>,
-    pools: Mapping<B256, Pool>,
-    total_supply: Mapping<B256, U256>,
-    liquidity_balances: Mapping<B256, Mapping<Address, U256>>,
 
-    /// Address authorized to call governance-gated setters (currency registry).
-    /// Intended to be a multisig contract; signature aggregation lives at that layer.
+    /// Address authorized to call governance-gated setters. Intended to be a
+    /// multisig contract; signature aggregation lives at that layer.
     governance_admin: Address,
     /// Per-currency config. Key = `keccak256(ISO 4217 code)`.
     supported_currencies: Mapping<B256, CurrencyConfig>,
     /// Seconds between `disable_currency` and the currency becoming disabled.
     /// Zero (default) means use `DEFAULT_GRACE_PERIOD_SECS`.
     deprecation_grace_period: u64,
-    /// Multisig threshold required for `emergency_disable_currency`. Zero (default)
-    /// means use `DEFAULT_EMERGENCY_THRESHOLD`. Forward-compat metadata until
-    /// EIP-712 multisig governance lands.
+    /// Multisig threshold required for `emergency_disable_currency`. Zero
+    /// (default) means use `DEFAULT_EMERGENCY_THRESHOLD`. Forward-compat
+    /// metadata until EIP-712 multisig governance lands.
     emergency_disable_threshold: u8,
-    /// Reverse index for `prune_currency`: token → list of validators that have
-    /// added it to their accept-set. Maintained by add/remove_accepted_token.
+    /// Reverse index for prune: token → validators that hold it in their
+    /// accept-set. Maintained by add/remove_accepted_token.
     token_validators: Mapping<Address, Vec<Address>>,
 
     /// Off-boarding escrow recipient when direct fee transfer to a deactivated
-    /// validator fails. Zero = unconfigured (must be set by genesis or governance
-    /// before sweep).
+    /// validator fails. Zero = unconfigured (must be set by genesis or
+    /// governance before sweep).
     foundation_escrow_address: Address,
     /// Escrowed fees by (validator, token) when off-board direct delivery failed.
     escrowed_fees: Mapping<Address, Mapping<Address, U256>>,
@@ -74,28 +64,14 @@ pub struct MipFeeManager {
     /// correct fee token via the registered argument index.
     router_selectors: Mapping<Address, Mapping<B256, RouterDescriptor>>,
 
-    /// Validator → token → accepted? Multi-token accept-set replacing the legacy
-    /// single-token `validator_tokens` model. Map + list stay in sync.
+    /// Validator → token → accepted? Multi-token accept-set. Map + list stay
+    /// in sync.
     validator_accepted_tokens: Mapping<Address, Mapping<Address, bool>>,
     /// Validator → enumeration of accepted tokens. Mirror of the map above.
     validator_token_list: Mapping<Address, Vec<Address>>,
-
-    // WARNING(rusowsky): transient storage slots must always be placed at the very end until the `contract`
-    // macro is refactored and has 2 independent layouts (persistent and transient).
-    // If new (persistent) storage fields need to be added to the precompile, they must go above this one.
-    /// T1C+: Tracks liquidity reserved for a pending fee swap during `collect_fee_pre_tx`.
-    /// Checked by `burn` and `rebalance_swap` to prevent withdrawals that would violate the reservation.
-    pending_fee_swap_reservation: Mapping<B256, u128>,
 }
 
 impl MipFeeManager {
-    /// Swap fee in basis points (0.25%).
-    pub const FEE_BPS: u64 = 25;
-    /// Basis-point denominator (10 000 = 100%).
-    pub const BASIS_POINTS: u64 = 10000;
-    /// Minimum MIP-20 balance required for fee operations (1e9).
-    pub const MINIMUM_BALANCE: U256 = uint!(1_000_000_000_U256);
-
     /// Cap on per-validator accept-set size. Prevents state-bloat abuse.
     pub const MAX_ACCEPT_SET_SIZE: usize = 32;
 
@@ -104,148 +80,25 @@ impl MipFeeManager {
         self.__initialize()
     }
 
-    /// Returns the validator's preferred fee token, falling back to [`DEFAULT_FEE_TOKEN`].
-    pub fn get_validator_token(&self, beneficiary: Address) -> Result<Address> {
-        let token = self.validator_tokens[beneficiary].read()?;
-
-        if token.is_zero() {
-            Ok(DEFAULT_FEE_TOKEN)
-        } else {
-            Ok(token)
-        }
-    }
-
-    /// Sets the caller's preferred fee token as a validator.
-    ///
-    /// Rejects the call if `sender` is the current block's beneficiary (prevents mid-block
-    /// fee-token changes) or if the token is not a valid USD-denominated MIP-20 registered in
-    /// [`MIP20Factory`].
-    ///
-    /// # Errors
-    /// - `InvalidToken` — token is not a deployed MIP-20 in [`MIP20Factory`]
-    /// - `CannotChangeWithinBlock` — `sender` equals the current block `beneficiary`
-    /// - `InvalidCurrency` — token is not USD-denominated
-    pub fn set_validator_token(
-        &mut self,
-        sender: Address,
-        call: IFeeManager::setValidatorTokenCall,
-        beneficiary: Address,
-    ) -> Result<()> {
-        // Validate that the token is a valid deployed MIP20
-        if !MIP20Factory::new().is_tip20(call.token)? {
-            return Err(FeeManagerError::invalid_token().into());
-        }
-
-        // Prevent changing within the validator's own block
-        if sender == beneficiary {
-            return Err(FeeManagerError::cannot_change_within_block().into());
-        }
-
-        // Validate that the fee token is USD
-        validate_usd_currency(call.token)?;
-
-        self.validator_tokens[sender].write(call.token)?;
-
-        // Emit ValidatorTokenSet event
-        self.emit_event(FeeManagerEvent::ValidatorTokenSet(
-            IFeeManager::ValidatorTokenSet {
-                validator: sender,
-                token: call.token,
-            },
-        ))
-    }
-
-    /// Sets the caller's preferred fee token as a user. Must be a valid USD-denominated MIP-20
-    /// registered in [`MIP20Factory`].
-    ///
-    /// # Errors
-    /// - `InvalidToken` — token is not a deployed MIP-20 in [`MIP20Factory`]
-    /// - `InvalidCurrency` — token is not USD-denominated
-    pub fn set_user_token(
-        &mut self,
-        sender: Address,
-        call: IFeeManager::setUserTokenCall,
-    ) -> Result<()> {
-        if self.storage.spec().is_t4() {
-            return Err(FeeManagerError::user_token_api_removed().into());
-        }
-
-        // Validate that the token is a valid deployed MIP20
-        if !MIP20Factory::new().is_tip20(call.token)? {
-            return Err(FeeManagerError::invalid_token().into());
-        }
-
-        // Validate that the fee token is USD
-        validate_usd_currency(call.token)?;
-
-        // T3+: skip write and event if the token is already set to the requested value.
-        // Prevents permissionless callers from forcing redundant pool invalidation scans.
-        if self.storage.spec().is_t3() {
-            let current = self.user_tokens[sender].read()?;
-            if current == call.token {
-                return Ok(());
-            }
-        }
-
-        self.user_tokens[sender].write(call.token)?;
-
-        // Emit UserTokenSet event
-        self.emit_event(FeeManagerEvent::UserTokenSet(IFeeManager::UserTokenSet {
-            user: sender,
-            token: call.token,
-        }))
-    }
-
-    /// Collects fees from `fee_payer` before transaction execution.
-    ///
-    /// Transfers `max_amount` of `user_token` to the fee manager via [`MIP20Token`] and, if the
-    /// validator prefers a different token, verifies sufficient pool liquidity
-    /// (reserving it on T1C+). Returns the user's fee token.
-    ///
-    /// # Errors
-    /// - `InvalidToken` — `user_token` does not have a valid MIP-20 prefix
-    /// - `PolicyForbids` — MIP-403 policy rejects the fee token transfer
-    /// - `InsufficientLiquidity` — AMM pool lacks liquidity for the fee swap
+    /// Pulls `max_amount` of `fee_token` from `fee_payer` into the FeeManager
+    /// before tx execution. Returns the fee token (passed through for handler
+    /// symmetry with the post-tx call).
     pub fn collect_fee_pre_tx(
         &mut self,
         fee_payer: Address,
-        user_token: Address,
+        fee_token: Address,
         max_amount: U256,
-        beneficiary: Address,
-        skip_liquidity_check: bool,
+        _beneficiary: Address,
+        _skip_liquidity_check: bool,
     ) -> Result<Address> {
-        // Get the validator's token preference
-        let validator_token = self.get_validator_token(beneficiary)?;
-
-        let mut mip20_token = MIP20Token::from_address(user_token)?;
-
-        // Ensure that user and FeeManager are authorized to interact with the token
+        let mut mip20_token = MIP20Token::from_address(fee_token)?;
         mip20_token.ensure_transfer_authorized(fee_payer, self.address)?;
         mip20_token.transfer_fee_pre_tx(fee_payer, max_amount)?;
-
-        if user_token != validator_token && !skip_liquidity_check {
-            let pool_id = PoolKey::new(user_token, validator_token).get_id();
-            let amount_out_needed = self.check_sufficient_liquidity(pool_id, max_amount)?;
-
-            if self.storage.spec().is_t1c() {
-                self.reserve_pool_liquidity(pool_id, amount_out_needed)?;
-            }
-        }
-
-        // Return the user's token preference
-        Ok(user_token)
+        Ok(fee_token)
     }
 
-    /// Finalizes fee collection after transaction execution.
-    ///
-    /// T4+: validator must have `fee_token` in its accept-set; direct-credit only,
-    /// no AMM swap. Pre-T4: legacy single-token preference + AMM swap fallback.
-    ///
-    /// # Errors
-    /// - `InvalidToken` — `fee_token` does not have a valid MIP-20 prefix
-    /// - `FeeTokenNotAccepted` (T4+) — validator's accept-set does not include `fee_token`
-    /// - `InsufficientLiquidity` (pre-T4) — AMM pool lacks liquidity for the fee swap
-    /// - `UnderOverflow` — collected-fee accumulator overflows
+    /// Finalizes fee collection after tx execution. The validator must have
+    /// `fee_token` in its accept-set, otherwise the call reverts.
     pub fn collect_fee_post_tx(
         &mut self,
         fee_payer: Address,
@@ -256,31 +109,11 @@ impl MipFeeManager {
     ) -> Result<()> {
         let mut mip20_token = MIP20Token::from_address(fee_token)?;
         mip20_token.transfer_fee_post_tx(fee_payer, refund_amount, actual_spending)?;
-
-        if self.storage.spec().is_t4() {
-            return self.settle_fee_t4(beneficiary, fee_token, actual_spending);
-        }
-
-        // Legacy pre-T4 path: AMM swap when user/validator tokens differ.
-        let validator_token = self.get_validator_token(beneficiary)?;
-
-        if fee_token != validator_token && !actual_spending.is_zero() {
-            self.execute_fee_swap(fee_token, validator_token, actual_spending)?;
-        }
-
-        let amount = if fee_token == validator_token {
-            actual_spending
-        } else {
-            compute_amount_out(actual_spending)?
-        };
-
-        self.increment_collected_fees(beneficiary, validator_token, amount)?;
-        Ok(())
+        self.settle_fee(beneficiary, fee_token, actual_spending)
     }
 
-    /// T4+ fee settlement: direct-credit if validator accepts `fee_token`, else revert.
-    /// No AMM swap, no currency conversion.
-    fn settle_fee_t4(
+    /// Direct-credit fee settlement: validator must accept `fee_token`.
+    fn settle_fee(
         &mut self,
         beneficiary: Address,
         fee_token: Address,
@@ -346,14 +179,6 @@ impl MipFeeManager {
         ))?;
 
         Ok(())
-    }
-
-    /// Reads the stored fee token preference for a user. Returns zero on T4+ (API removed).
-    pub fn user_tokens(&self, call: IFeeManager::userTokensCall) -> Result<Address> {
-        if self.storage.spec().is_t4() {
-            return Ok(Address::ZERO);
-        }
-        self.user_tokens[call.user].read()
     }
 
     // Currency registry: governance-gated setters use `sender == governance_admin`.
@@ -1146,685 +971,6 @@ impl MipFeeManager {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use magnus_chainspec::hardfork::MagnusHardfork;
-    use magnus_contracts::precompiles::MIP20Error;
-
-    use super::*;
-    use crate::{
-        TIP_FEE_MANAGER_ADDRESS,
-        error::MagnusPrecompileError,
-        mip20::{IMIP20, MIP20Token},
-        storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
-        test_util::MIP20Setup,
-    };
-
-    #[test]
-    fn test_set_user_token() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let user = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let token = MIP20Setup::create("Test", "TST", user).apply()?;
-
-            // TODO: loop through and deploy and set user token for some range
-
-            let mut fee_manager = MipFeeManager::new();
-
-            let call = IFeeManager::setUserTokenCall {
-                token: token.address(),
-            };
-            let result = fee_manager.set_user_token(user, call);
-            assert!(result.is_ok());
-
-            let call = IFeeManager::userTokensCall { user };
-            assert_eq!(fee_manager.user_tokens(call)?, token.address());
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_set_user_token_noop_when_unchanged_pre_t3() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
-        let user = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let token = MIP20Setup::create("Test", "TST", user).apply()?;
-            let mut fee_manager = MipFeeManager::new();
-
-            let call = IFeeManager::setUserTokenCall {
-                token: token.address(),
-            };
-
-            fee_manager.set_user_token(user, call.clone())?;
-            fee_manager.set_user_token(user, call)?;
-            let event_count = StorageCtx.get_events(TIP_FEE_MANAGER_ADDRESS).len();
-            assert_eq!(
-                event_count, 2,
-                "pre-T3: event emitted even when token unchanged"
-            );
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_set_user_token_noop_when_unchanged_t3() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
-        let user = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let token = MIP20Setup::create("Test", "TST", user).apply()?;
-            let mut fee_manager = MipFeeManager::new();
-
-            let call = IFeeManager::setUserTokenCall {
-                token: token.address(),
-            };
-
-            fee_manager.set_user_token(user, call.clone())?;
-            let event_count = StorageCtx.get_events(TIP_FEE_MANAGER_ADDRESS).len();
-            assert_eq!(event_count, 1, "first set_user_token should emit event");
-
-            fee_manager.set_user_token(user, call)?;
-            let event_count = StorageCtx.get_events(TIP_FEE_MANAGER_ADDRESS).len();
-            assert_eq!(
-                event_count, 1,
-                "T3+: repeated set_user_token with same token should not emit event"
-            );
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_set_validator_token() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let validator = Address::random();
-        let admin = Address::random();
-        let beneficiary = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let token = MIP20Setup::create("Test", "TST", admin).apply()?;
-            let mut fee_manager = MipFeeManager::new();
-
-            let call = IFeeManager::setValidatorTokenCall {
-                token: token.address(),
-            };
-
-            // Should fail when validator == beneficiary (same block check)
-            let result = fee_manager.set_validator_token(validator, call.clone(), validator);
-            assert_eq!(
-                result,
-                Err(MagnusPrecompileError::FeeManagerError(
-                    FeeManagerError::cannot_change_within_block()
-                ))
-            );
-
-            // Should succeed with different beneficiary
-            let result = fee_manager.set_validator_token(validator, call, beneficiary);
-            assert!(result.is_ok());
-
-            let returned_token = fee_manager.get_validator_token(validator)?;
-            assert_eq!(returned_token, token.address());
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_set_validator_token_cannot_change_within_block() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let validator = Address::random();
-        let beneficiary = Address::random();
-        let admin = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let token = MIP20Setup::create("Test", "TST", admin).apply()?;
-            let mut fee_manager = MipFeeManager::new();
-
-            let call = IFeeManager::setValidatorTokenCall {
-                token: token.address(),
-            };
-
-            // Setting validator token when not beneficiary should succeed
-            let result = fee_manager.set_validator_token(validator, call.clone(), beneficiary);
-            assert!(result.is_ok());
-
-            // But if validator is the beneficiary, should fail with CannotChangeWithinBlock
-            let result = fee_manager.set_validator_token(validator, call, validator);
-            assert_eq!(
-                result,
-                Err(MagnusPrecompileError::FeeManagerError(
-                    FeeManagerError::cannot_change_within_block()
-                ))
-            );
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_collect_fee_pre_tx() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let user = Address::random();
-        let validator = Address::random();
-        let beneficiary = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let max_amount = U256::from(10000);
-
-            let token = MIP20Setup::create("Test", "TST", user)
-                .with_issuer(user)
-                .with_mint(user, U256::from(u64::MAX))
-                .with_approval(user, TIP_FEE_MANAGER_ADDRESS, U256::MAX)
-                .apply()?;
-
-            let mut fee_manager = MipFeeManager::new();
-
-            // Set validator token (use beneficiary to avoid CannotChangeWithinBlock)
-            fee_manager.set_validator_token(
-                validator,
-                IFeeManager::setValidatorTokenCall {
-                    token: token.address(),
-                },
-                beneficiary,
-            )?;
-
-            // Set user token
-            fee_manager.set_user_token(
-                user,
-                IFeeManager::setUserTokenCall {
-                    token: token.address(),
-                },
-            )?;
-
-            // Call collect_fee_pre_tx directly
-            let result =
-                fee_manager.collect_fee_pre_tx(user, token.address(), max_amount, validator, false);
-            assert!(result.is_ok());
-            assert_eq!(result?, token.address());
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_collect_fee_post_tx() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let user = Address::random();
-        let admin = Address::random();
-        let validator = Address::random();
-        let beneficiary = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let actual_used = U256::from(6000);
-            let refund_amount = U256::from(4000);
-
-            // Mint to FeeManager (simulating collect_fee_pre_tx already happened)
-            let token = MIP20Setup::create("Test", "TST", admin)
-                .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(100000000000000_u64))
-                .apply()?;
-
-            let mut fee_manager = MipFeeManager::new();
-
-            // Set validator token (use beneficiary to avoid CannotChangeWithinBlock)
-            fee_manager.set_validator_token(
-                validator,
-                IFeeManager::setValidatorTokenCall {
-                    token: token.address(),
-                },
-                beneficiary,
-            )?;
-
-            // Set user token
-            fee_manager.set_user_token(
-                user,
-                IFeeManager::setUserTokenCall {
-                    token: token.address(),
-                },
-            )?;
-
-            // Call collect_fee_post_tx directly
-            let result = fee_manager.collect_fee_post_tx(
-                user,
-                actual_used,
-                refund_amount,
-                token.address(),
-                validator,
-            );
-            assert!(result.is_ok());
-
-            // Verify fees were tracked
-            let tracked_amount = fee_manager.collected_fees[validator][token.address()].read()?;
-            assert_eq!(tracked_amount, actual_used);
-
-            // Verify user got the refund
-            let balance = token.balance_of(IMIP20::balanceOfCall { account: user })?;
-            assert_eq!(balance, refund_amount);
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_rejects_non_usd() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let admin = Address::random();
-        let user = Address::random();
-        let validator = Address::random();
-        let beneficiary = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            // Create a non-USD token
-            let non_usd_token = MIP20Setup::create("NonUSD", "EUR", admin)
-                .currency("EUR")
-                .apply()?;
-
-            let mut fee_manager = MipFeeManager::new();
-
-            // Try to set non-USD as user token - should fail
-            let call = IFeeManager::setUserTokenCall {
-                token: non_usd_token.address(),
-            };
-            let result = fee_manager.set_user_token(user, call);
-            assert!(matches!(
-                result,
-                Err(MagnusPrecompileError::MIP20(MIP20Error::InvalidCurrency(_)))
-            ));
-
-            // Try to set non-USD as validator token - should also fail
-            let call = IFeeManager::setValidatorTokenCall {
-                token: non_usd_token.address(),
-            };
-            let result = fee_manager.set_validator_token(validator, call, beneficiary);
-            assert!(matches!(
-                result,
-                Err(MagnusPrecompileError::MIP20(MIP20Error::InvalidCurrency(_)))
-            ));
-
-            Ok(())
-        })
-    }
-
-    /// Test collect_fee_pre_tx with different tokens
-    /// Verifies that liquidity is checked (not reserved) and no swap happens yet
-    #[test]
-    fn test_collect_fee_pre_tx_different_tokens() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let admin = Address::random();
-        let user = Address::random();
-        let validator = Address::random();
-
-        StorageCtx::enter(&mut storage, || {
-            // Create two different tokens
-            let user_token = MIP20Setup::create("UserToken", "UTK", admin)
-                .with_issuer(admin)
-                .with_mint(user, U256::from(10000))
-                .with_approval(user, TIP_FEE_MANAGER_ADDRESS, U256::MAX)
-                .apply()?;
-
-            let validator_token = MIP20Setup::create("ValidatorToken", "VTK", admin)
-                .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(10000))
-                .apply()?;
-
-            let mut fee_manager = MipFeeManager::new();
-
-            // Setup pool with liquidity
-            let pool_id = fee_manager.pool_id(user_token.address(), validator_token.address());
-            fee_manager.pools[pool_id].write(crate::mip_fee_manager::amm::Pool {
-                reserve_user_token: 10000,
-                reserve_validator_token: 10000,
-            })?;
-
-            // Set validator's preferred token
-            fee_manager.set_validator_token(
-                validator,
-                IFeeManager::setValidatorTokenCall {
-                    token: validator_token.address(),
-                },
-                Address::random(),
-            )?;
-
-            let max_amount = U256::from(1000);
-
-            // Call collect_fee_pre_tx
-            fee_manager.collect_fee_pre_tx(
-                user,
-                user_token.address(),
-                max_amount,
-                validator,
-                false,
-            )?;
-
-            // With different tokens:
-            // - Liquidity is checked (not reserved)
-            // - No swap happens yet (swap happens in collect_fee_post_tx)
-            // - collected_fees should be zero
-            let collected =
-                fee_manager.collected_fees[validator][validator_token.address()].read()?;
-            assert_eq!(
-                collected,
-                U256::ZERO,
-                "Different tokens: no fees accumulated in pre_tx (swap happens in post_tx)"
-            );
-
-            // Pool reserves should NOT be updated yet
-            let pool = fee_manager.pools[pool_id].read()?;
-            assert_eq!(
-                pool.reserve_user_token, 10000,
-                "Reserves unchanged in pre_tx"
-            );
-            assert_eq!(
-                pool.reserve_validator_token, 10000,
-                "Reserves unchanged in pre_tx"
-            );
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_collect_fee_post_tx_immediate_swap() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let admin = Address::random();
-        let user = Address::random();
-        let validator = Address::random();
-
-        StorageCtx::enter(&mut storage, || {
-            let user_token = MIP20Setup::create("UserToken", "UTK", admin)
-                .with_issuer(admin)
-                .with_mint(user, U256::from(10000))
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(10000))
-                .with_approval(user, TIP_FEE_MANAGER_ADDRESS, U256::MAX)
-                .apply()?;
-
-            let validator_token = MIP20Setup::create("ValidatorToken", "VTK", admin)
-                .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(10000))
-                .apply()?;
-
-            let mut fee_manager = MipFeeManager::new();
-
-            let pool_id = fee_manager.pool_id(user_token.address(), validator_token.address());
-            fee_manager.pools[pool_id].write(crate::mip_fee_manager::amm::Pool {
-                reserve_user_token: 10000,
-                reserve_validator_token: 10000,
-            })?;
-
-            fee_manager.set_validator_token(
-                validator,
-                IFeeManager::setValidatorTokenCall {
-                    token: validator_token.address(),
-                },
-                Address::random(),
-            )?;
-
-            let max_amount = U256::from(1000);
-            let actual_spending = U256::from(800);
-            let refund_amount = U256::from(200);
-
-            // First call collect_fee_pre_tx (checks liquidity)
-            fee_manager.collect_fee_pre_tx(
-                user,
-                user_token.address(),
-                max_amount,
-                validator,
-                false,
-            )?;
-
-            // Then call collect_fee_post_tx (executes swap immediately)
-            fee_manager.collect_fee_post_tx(
-                user,
-                actual_spending,
-                refund_amount,
-                user_token.address(),
-                validator,
-            )?;
-
-            // Expected output: 800 * 9970 / 10000 = 797
-            let expected_fee_amount = (actual_spending * U256::from(9970)) / U256::from(10000);
-            let collected =
-                fee_manager.collected_fees[validator][validator_token.address()].read()?;
-            assert_eq!(collected, expected_fee_amount);
-
-            // Pool reserves should be updated
-            let pool = fee_manager.pools[pool_id].read()?;
-            assert_eq!(pool.reserve_user_token, 10000 + 800);
-            assert_eq!(pool.reserve_validator_token, 10000 - 797);
-
-            // User balance: started with 10000, paid 1000 in pre_tx, got 200 refund = 9200
-            let mip20_token = MIP20Token::from_address(user_token.address())?;
-            let user_balance = mip20_token.balance_of(IMIP20::balanceOfCall { account: user })?;
-            assert_eq!(user_balance, U256::from(10000) - max_amount + refund_amount);
-
-            Ok(())
-        })
-    }
-
-    /// Test collect_fee_pre_tx fails with insufficient liquidity
-    #[test]
-    fn test_collect_fee_pre_tx_insufficient_liquidity() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let admin = Address::random();
-        let user = Address::random();
-        let validator = Address::random();
-
-        StorageCtx::enter(&mut storage, || {
-            let user_token = MIP20Setup::create("UserToken", "UTK", admin)
-                .with_issuer(admin)
-                .with_mint(user, U256::from(10000))
-                .with_approval(user, TIP_FEE_MANAGER_ADDRESS, U256::MAX)
-                .apply()?;
-
-            let validator_token = MIP20Setup::create("ValidatorToken", "VTK", admin)
-                .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(100))
-                .apply()?;
-
-            let mut fee_manager = MipFeeManager::new();
-
-            let pool_id = fee_manager.pool_id(user_token.address(), validator_token.address());
-            // Pool with very little validator token liquidity
-            fee_manager.pools[pool_id].write(crate::mip_fee_manager::amm::Pool {
-                reserve_user_token: 10000,
-                reserve_validator_token: 100,
-            })?;
-
-            fee_manager.set_validator_token(
-                validator,
-                IFeeManager::setValidatorTokenCall {
-                    token: validator_token.address(),
-                },
-                Address::random(),
-            )?;
-
-            // Try to collect fee that would require more liquidity than available
-            // 1000 * 0.997 = 997 output needed, but only 100 available
-            let max_amount = U256::from(1000);
-
-            let result = fee_manager.collect_fee_pre_tx(
-                user,
-                user_token.address(),
-                max_amount,
-                validator,
-                false,
-            );
-
-            assert!(result.is_err(), "Should fail with insufficient liquidity");
-
-            Ok(())
-        })
-    }
-
-    /// Test that `skip_liquidity_check = true` bypasses the insufficient-liquidity error
-    /// when `user_token != validator_token`.
-    #[test]
-    fn test_collect_fee_pre_tx_skip_liquidity_check() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let admin = Address::random();
-        let user = Address::random();
-        let validator = Address::random();
-
-        StorageCtx::enter(&mut storage, || {
-            let user_token = MIP20Setup::create("UserToken", "UTK", admin)
-                .with_issuer(admin)
-                .with_mint(user, U256::from(10000))
-                .with_approval(user, TIP_FEE_MANAGER_ADDRESS, U256::MAX)
-                .apply()?;
-
-            let validator_token = MIP20Setup::create("ValidatorToken", "VTK", admin)
-                .with_issuer(admin)
-                .apply()?;
-
-            let mut fee_manager = MipFeeManager::new();
-            fee_manager.set_validator_token(
-                validator,
-                IFeeManager::setValidatorTokenCall {
-                    token: validator_token.address(),
-                },
-                Address::random(),
-            )?;
-
-            // Skip liquidity check = false should fail
-            let result = fee_manager.collect_fee_pre_tx(
-                user,
-                user_token.address(),
-                U256::from(1000),
-                validator,
-                false,
-            );
-            assert!(
-                result.is_err(),
-                "Should fail without liquidity, got: {result:?}"
-            );
-
-            // Skip liquidity check = true should pass
-            let result = fee_manager.collect_fee_pre_tx(
-                user,
-                user_token.address(),
-                U256::from(1000),
-                validator,
-                true,
-            );
-            assert!(result.is_ok());
-            assert_eq!(result?, user_token.address());
-
-            Ok(())
-        })
-    }
-
-    /// Test distribute_fees with zero balance is a no-op
-    #[test]
-    fn test_distribute_fees_zero_balance() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let admin = Address::random();
-        let validator = Address::random();
-
-        StorageCtx::enter(&mut storage, || {
-            let token = MIP20Setup::create("TestToken", "TEST", admin)
-                .with_issuer(admin)
-                .apply()?;
-
-            let mut fee_manager = MipFeeManager::new();
-
-            fee_manager.set_validator_token(
-                validator,
-                IFeeManager::setValidatorTokenCall {
-                    token: token.address(),
-                },
-                Address::random(),
-            )?;
-
-            // collected_fees is zero by default
-            let collected = fee_manager.collected_fees[validator][token.address()].read()?;
-            assert_eq!(collected, U256::ZERO);
-
-            // distribute_fees should be a no-op
-            let result = fee_manager.distribute_fees(validator, token.address());
-            assert!(result.is_ok(), "Should succeed even with zero balance");
-
-            // Validator balance should still be zero
-            let mip20_token = MIP20Token::from_address(token.address())?;
-            let balance = mip20_token.balance_of(IMIP20::balanceOfCall { account: validator })?;
-            assert_eq!(balance, U256::ZERO);
-
-            Ok(())
-        })
-    }
-
-    /// Test distribute_fees transfers accumulated fees to validator
-    #[test]
-    fn test_distribute_fees() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let admin = Address::random();
-        let validator = Address::random();
-
-        StorageCtx::enter(&mut storage, || {
-            // Initialize token and give fee manager some tokens
-            let token = MIP20Setup::create("TestToken", "TEST", admin)
-                .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(1000))
-                .apply()?;
-
-            let mut fee_manager = MipFeeManager::new();
-
-            // Set validator's preferred token
-            fee_manager.set_validator_token(
-                validator,
-                IFeeManager::setValidatorTokenCall {
-                    token: token.address(),
-                },
-                Address::random(), // beneficiary != validator
-            )?;
-
-            // Simulate accumulated fees
-            let fee_amount = U256::from(500);
-            fee_manager.collected_fees[validator][token.address()].write(fee_amount)?;
-
-            // Check validator balance before
-            let mip20_token = MIP20Token::from_address(token.address())?;
-            let balance_before =
-                mip20_token.balance_of(IMIP20::balanceOfCall { account: validator })?;
-            assert_eq!(balance_before, U256::ZERO);
-
-            // Distribute fees
-            let mut fee_manager = MipFeeManager::new();
-            fee_manager.distribute_fees(validator, token.address())?;
-
-            // Verify validator received the fees
-            let mip20_token = MIP20Token::from_address(token.address())?;
-            let balance_after =
-                mip20_token.balance_of(IMIP20::balanceOfCall { account: validator })?;
-            assert_eq!(balance_after, fee_amount);
-
-            // Verify collected fees cleared
-            let fee_manager = MipFeeManager::new();
-            let remaining = fee_manager.collected_fees[validator][token.address()].read()?;
-            assert_eq!(remaining, U256::ZERO);
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_initialize_sets_storage_state() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = MipFeeManager::new();
-
-            // Before init, should not be initialized
-            assert!(!fee_manager.is_initialized()?);
-
-            // Initialize
-            fee_manager.initialize()?;
-
-            // After init, should be initialized
-            assert!(fee_manager.is_initialized()?);
-
-            // New handle should still see initialized state
-            let fee_manager2 = MipFeeManager::new();
-            assert!(fee_manager2.is_initialized()?);
-
-            Ok(())
-        })
-    }
-}
 
 #[cfg(test)]
 mod currency_registry_tests {
@@ -2538,63 +1684,6 @@ mod currency_registry_tests {
             let eur = fee_manager.get_currency_config("EUR")?;
             assert_eq!(eur.added_at_block, 30);
             assert_eq!(eur.enabled_at_block, 0);
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn t4_set_user_token_reverts_with_api_removed() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T4);
-        let admin = Address::random();
-        let user = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let _fm = fee_manager_with_admin_and_usd(admin)?;
-            let token = MIP20Setup::create("USDC", "USDC", admin)
-                .currency("USD")
-                .apply()?;
-
-            let mut fm = MipFeeManager::new();
-            let err = fm
-                .set_user_token(
-                    user,
-                    IFeeManager::setUserTokenCall {
-                        token: token.address(),
-                    },
-                )
-                .unwrap_err();
-            assert_eq!(
-                err,
-                MagnusPrecompileError::FeeManagerError(FeeManagerError::user_token_api_removed())
-            );
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn t4_user_tokens_view_returns_zero_even_when_pre_t4_value_stored() -> eyre::Result<()> {
-        // Pre-T4 storage may carry legacy values; T4 view must hide them.
-        let user = Address::random();
-        let pre_t4_token = Address::repeat_byte(0xAB);
-
-        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
-        StorageCtx::enter(&mut storage, || {
-            let mut fm = MipFeeManager::new();
-            fm.user_tokens[user].write(pre_t4_token)?;
-            assert_eq!(
-                fm.user_tokens(IFeeManager::userTokensCall { user })?,
-                pre_t4_token
-            );
-            Ok::<_, MagnusPrecompileError>(())
-        })?;
-
-        // Same provider, spec flipped to T4: legacy slot is hidden by the view.
-        let mut storage = storage.with_spec(MagnusHardfork::T4);
-        StorageCtx::enter(&mut storage, || {
-            let fm = MipFeeManager::new();
-            assert_eq!(
-                fm.user_tokens(IFeeManager::userTokensCall { user })?,
-                Address::ZERO
-            );
             Ok(())
         })
     }

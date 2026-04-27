@@ -1,4 +1,3 @@
-use crate::monitor::prometheus_metrics;
 use alloy::{
     primitives::map::{B256Map, B256Set},
     providers::{Provider, ProviderBuilder, WsConnect},
@@ -7,7 +6,17 @@ use clap::Parser;
 use eyre::{Context, Result};
 use futures::StreamExt;
 use metrics::{describe_gauge, describe_histogram, gauge, histogram};
-use metrics_exporter_prometheus::PrometheusBuilder;
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use poem::{Response, handler, web::Data};
+
+/// Renders the Prometheus snapshot. Inlined here after the FeeAMM monitor
+/// was removed in G3b.
+#[handler]
+async fn prometheus_metrics(handle: Data<&PrometheusHandle>) -> Response {
+    Response::builder()
+        .content_type("text/plain; version=0.0.4")
+        .body(handle.0.render())
+}
 use poem::{EndpointExt, Route, Server, get, listener::TcpListener};
 use reqwest::Url;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};

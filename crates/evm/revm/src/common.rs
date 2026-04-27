@@ -9,9 +9,7 @@ use revm::{
     state::{AccountInfo, Bytecode},
 };
 use magnus_chainspec::hardfork::MagnusHardfork;
-use magnus_contracts::precompiles::{
-    DEFAULT_FEE_TOKEN, IFeeManager, IStablecoinDEX, STABLECOIN_DEX_ADDRESS,
-};
+use magnus_contracts::precompiles::FeeManagerError;
 use magnus_precompiles::{
     TIP_FEE_MANAGER_ADDRESS,
     error::{Result as MagnusResult, MagnusPrecompileError},
@@ -114,7 +112,9 @@ pub trait MagnusStateAccess<M = ()> {
         StorageCtx::enter(&mut ReadOnlyStorageProvider::new(self, spec), f)
     }
 
-    /// Resolves user-level or transaction-level fee token preference.
+    /// Resolves the fee token. After T4 there is no per-user preference and no
+    /// default fallback: tx.fee_token wins, then direct MIP-20 inference, then
+    /// the router selector registry; anything else surfaces FeeTokenNotInferable.
     fn get_fee_token(
         &mut self,
         tx: impl MagnusTx,
@@ -124,95 +124,40 @@ pub trait MagnusStateAccess<M = ()> {
     where
         Self: Sized,
     {
-        // If there is a fee token explicitly set on the tx type, use that.
         if let Some(fee_token) = tx.fee_token() {
             return Ok(fee_token);
         }
 
-        // T4+: per-user fee-token preference removed. Skip the setUserToken shortcut and
-        // user_tokens lookup — fall through to inference.
-        if !spec.is_t4() {
-            // If the fee payer is also the msg.sender and the transaction is calling FeeManager
-            // to set a new preference, the newly set preference should be used immediately
-            // instead of the previously stored one.
-            if !tx.is_aa()
-                && fee_payer == tx.caller()
-                && let Some((kind, input)) = tx.calls().next()
-                && kind.to() == Some(&TIP_FEE_MANAGER_ADDRESS)
-                && let Ok(call) = IFeeManager::setUserTokenCall::abi_decode(input)
-            {
-                return Ok(call.token);
-            }
-
-            // Check stored user token preference.
-            let user_token = self.with_read_only_storage_ctx(spec, || {
-                // ensure TIP_FEE_MANAGER_ADDRESS is loaded
-                MipFeeManager::new().user_tokens[fee_payer].read()
-            })?;
-
-            if !user_token.is_zero() {
-                return Ok(user_token);
-            }
-        }
-
-        // Check if the fee can be inferred from the MIP20 token being called
+        // Direct MIP-20 inference from a same-token transfer/transferWithMemo/
+        // distributeReward batch.
         if let Some(to) = tx.calls().next().and_then(|(kind, _)| kind.to().copied()) {
-            let can_infer_tip20 =
-                // AA txs only when fee_payer == tx.origin.
-                if tx.is_aa() && fee_payer != tx.caller() {
-                    false
-                }
-                // Otherwise, restricted to transfer/transferWithMemo/distributeReward,
-                else {
-                    tx.calls().all(|(kind, input)| {
-                        kind.to() == Some(&to) && is_tip20_fee_inference_call(input)
-                    })
-                }
-            ;
-
+            let can_infer_tip20 = if tx.is_aa() && fee_payer != tx.caller() {
+                false
+            } else {
+                tx.calls().all(|(kind, input)| {
+                    kind.to() == Some(&to) && is_tip20_fee_inference_call(input)
+                })
+            };
             if can_infer_tip20 && self.is_valid_fee_token(spec, to)? {
                 return Ok(to);
             }
         }
 
-        // T4+: consult the router selector registry. Single-call (or AA single-
-        // call) txs targeting a registered router resolve their fee token via
-        // the descriptor's argument index. Any other path returns
-        // FeeTokenNotInferable — no DEFAULT_FEE_TOKEN fallback at T4.
-        if spec.is_t4() {
-            let mut calls = tx.calls();
-            if let Some((kind, input)) = calls.next()
-                && (!tx.is_aa() || calls.next().is_none())
-                && let Some(router) = kind.to().copied()
-                && let Some(selector) = input.first_chunk::<4>().copied()
-                && let Some(token) =
-                    self.lookup_router_fee_token(spec, router, selector, input)?
-            {
-                return Ok(token);
-            }
-            return Err(MagnusPrecompileError::FeeManagerError(
-                magnus_contracts::precompiles::FeeManagerError::fee_token_not_inferable(),
-            ));
-        }
-
-        // Pre-T4: legacy Stablecoin DEX special-case + DEFAULT_FEE_TOKEN fallback.
+        // Router selector registry: single-call (or AA single-call) txs
+        // resolve their fee token via the descriptor's argument index.
         let mut calls = tx.calls();
         if let Some((kind, input)) = calls.next()
-            && kind.to() == Some(&STABLECOIN_DEX_ADDRESS)
             && (!tx.is_aa() || calls.next().is_none())
+            && let Some(router) = kind.to().copied()
+            && let Some(selector) = input.first_chunk::<4>().copied()
+            && let Some(token) = self.lookup_router_fee_token(spec, router, selector, input)?
         {
-            if let Ok(call) = IStablecoinDEX::swapExactAmountInCall::abi_decode(input)
-                && self.is_valid_fee_token(spec, call.tokenIn)?
-            {
-                return Ok(call.tokenIn);
-            } else if let Ok(call) = IStablecoinDEX::swapExactAmountOutCall::abi_decode(input)
-                && self.is_valid_fee_token(spec, call.tokenIn)?
-            {
-                return Ok(call.tokenIn);
-            }
+            return Ok(token);
         }
 
-        Ok(DEFAULT_FEE_TOKEN)
+        Err(MagnusPrecompileError::FeeManagerError(
+            FeeManagerError::fee_token_not_inferable(),
+        ))
     }
 
     /// Looks up `(router, selector)` in the on-chain router registry and, if
@@ -502,7 +447,6 @@ mod tests {
     use reth_evm::EvmInternals;
     use revm::{
         Context, MainContext, context::TxEnv, database::EmptyDB,
-        interpreter::instructions::utility::IntoU256,
     };
     use magnus_precompiles::{
         PATH_USD_ADDRESS,
@@ -535,14 +479,10 @@ mod tests {
     }
 
     #[test]
-    fn test_get_fee_token_fee_manager() -> eyre::Result<()> {
+    fn test_get_fee_token_no_preferences_returns_inferable_error() -> eyre::Result<()> {
+        // T4: no fee_token, no MIP-20 inference target, no router match.
         let caller = Address::random();
-        let token = Address::random();
-
-        let call = IFeeManager::setUserTokenCall { token };
         let tx_env = TxEnv {
-            data: call.abi_encode().into(),
-            kind: TxKind::Call(TIP_FEE_MANAGER_ADDRESS),
             caller,
             ..Default::default()
         };
@@ -552,73 +492,8 @@ mod tests {
         };
 
         let mut db = EmptyDB::default();
-        let result_token = db.get_fee_token(tx, caller, MagnusHardfork::Genesis)?;
-        assert_eq!(result_token, token);
-        Ok(())
-    }
-
-    #[test]
-    fn test_get_fee_token_user_token_set() -> eyre::Result<()> {
-        let caller = Address::random();
-        let user_token = Address::random();
-
-        // Set user stored token preference in the FeeManager
-        let mut db = revm::database::CacheDB::new(EmptyDB::default());
-        let user_slot = MipFeeManager::new().user_tokens[caller].slot();
-        db.insert_account_storage(TIP_FEE_MANAGER_ADDRESS, user_slot, user_token.into_u256())
-            .unwrap();
-
-        let result_token =
-            db.get_fee_token(MagnusTxEnv::default(), caller, MagnusHardfork::Genesis)?;
-        assert_eq!(result_token, user_token);
-        Ok(())
-    }
-
-    #[test]
-    fn t4_get_fee_token_skips_set_user_token_calldata() -> eyre::Result<()> {
-        // Pre-T4: setUserToken-in-calldata wins. T4: ignored, no router match
-        // either, so the call surfaces FeeTokenNotInferable.
-        let caller = Address::random();
-        let proposed_token = Address::random();
-
-        let call = IFeeManager::setUserTokenCall {
-            token: proposed_token,
-        };
-        let tx_env = TxEnv {
-            data: call.abi_encode().into(),
-            kind: TxKind::Call(TIP_FEE_MANAGER_ADDRESS),
-            caller,
-            ..Default::default()
-        };
-        let tx = MagnusTxEnv {
-            inner: tx_env,
-            ..Default::default()
-        };
-
-        let mut db = EmptyDB::default();
-        let err = db.get_fee_token(tx, caller, MagnusHardfork::T4).unwrap_err();
-        assert!(matches!(
-            err,
-            MagnusPrecompileError::FeeManagerError(
-                magnus_contracts::precompiles::FeeManagerError::FeeTokenNotInferable(_)
-            )
-        ));
-        Ok(())
-    }
-
-    #[test]
-    fn t4_get_fee_token_skips_stored_user_token_preference() -> eyre::Result<()> {
-        // Legacy slot value present from pre-T4 era; T4 must not return it.
-        let caller = Address::random();
-        let user_token = Address::random();
-
-        let mut db = revm::database::CacheDB::new(EmptyDB::default());
-        let user_slot = MipFeeManager::new().user_tokens[caller].slot();
-        db.insert_account_storage(TIP_FEE_MANAGER_ADDRESS, user_slot, user_token.into_u256())
-            .unwrap();
-
         let err = db
-            .get_fee_token(MagnusTxEnv::default(), caller, MagnusHardfork::T4)
+            .get_fee_token(tx, caller, MagnusHardfork::T4)
             .unwrap_err();
         assert!(matches!(
             err,
@@ -626,103 +501,6 @@ mod tests {
                 magnus_contracts::precompiles::FeeManagerError::FeeTokenNotInferable(_)
             )
         ));
-        Ok(())
-    }
-
-    #[test]
-    fn test_get_fee_token_tip20() -> eyre::Result<()> {
-        let caller = Address::random();
-        let mip20_token = Address::random();
-
-        let tx_env = TxEnv {
-            data: Bytes::from_static(b"transfer_data"),
-            kind: TxKind::Call(mip20_token),
-            caller,
-            ..Default::default()
-        };
-        let tx = MagnusTxEnv {
-            inner: tx_env,
-            ..Default::default()
-        };
-
-        let mut db = EmptyDB::default();
-        let result_token = db.get_fee_token(tx, caller, MagnusHardfork::Genesis)?;
-        assert_eq!(result_token, DEFAULT_FEE_TOKEN);
-        Ok(())
-    }
-
-    #[test]
-    fn test_get_fee_token_fallback() -> eyre::Result<()> {
-        let caller = Address::random();
-        let tx_env = TxEnv {
-            caller,
-            ..Default::default()
-        };
-        let tx = MagnusTxEnv {
-            inner: tx_env,
-            ..Default::default()
-        };
-
-        let mut db = EmptyDB::default();
-        let result_token = db.get_fee_token(tx, caller, MagnusHardfork::Genesis)?;
-        // Should fallback to DEFAULT_FEE_TOKEN when no preferences are found
-        assert_eq!(result_token, DEFAULT_FEE_TOKEN);
-        Ok(())
-    }
-
-    #[test]
-    fn test_get_fee_token_stablecoin_dex() -> eyre::Result<()> {
-        let caller = Address::random();
-        // Use pathUSD as token_in since it's a known valid USD fee token
-        let token_in = DEFAULT_FEE_TOKEN;
-        let token_out = address!("0x20C0000000000000000000000000000000000001");
-
-        // Test swapExactAmountIn
-        let call = IStablecoinDEX::swapExactAmountInCall {
-            tokenIn: token_in,
-            tokenOut: token_out,
-            amountIn: 1000,
-            minAmountOut: 900,
-        };
-
-        let tx_env = TxEnv {
-            data: call.abi_encode().into(),
-            kind: TxKind::Call(STABLECOIN_DEX_ADDRESS),
-            caller,
-            ..Default::default()
-        };
-        let tx = MagnusTxEnv {
-            inner: tx_env,
-            ..Default::default()
-        };
-
-        let mut db = EmptyDB::default();
-        let token = db.get_fee_token(tx, caller, MagnusHardfork::Genesis)?;
-        assert_eq!(token, token_in);
-
-        // Test swapExactAmountOut
-        let call = IStablecoinDEX::swapExactAmountOutCall {
-            tokenIn: token_in,
-            tokenOut: token_out,
-            amountOut: 900,
-            maxAmountIn: 1000,
-        };
-
-        let tx_env = TxEnv {
-            data: call.abi_encode().into(),
-            kind: TxKind::Call(STABLECOIN_DEX_ADDRESS),
-            caller,
-            ..Default::default()
-        };
-
-        let tx = MagnusTxEnv {
-            inner: tx_env,
-            ..Default::default()
-        };
-
-        let token = db.get_fee_token(tx, caller, MagnusHardfork::Genesis)?;
-        assert_eq!(token, token_in);
-
         Ok(())
     }
 

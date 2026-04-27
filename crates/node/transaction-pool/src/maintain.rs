@@ -134,16 +134,8 @@ impl MagnusPoolUpdates {
                     );
                 }
             }
-            // Validator and user token changes
-            else if log.address == TIP_FEE_MANAGER_ADDRESS {
-                if let Ok(event) = IFeeManager::ValidatorTokenSet::decode_log(log) {
-                    updates
-                        .validator_token_changes
-                        .insert(event.validator, event.token);
-                } else if let Ok(event) = IFeeManager::UserTokenSet::decode_log(log) {
-                    updates.user_token_changes.insert(event.user);
-                }
-            }
+            // Per-validator/per-user token preferences were removed at T4.
+            // FeeManager log decoding is intentionally elided here.
             // MIP403 blacklist additions and whitelist removals
             else if log.address == MIP403_REGISTRY_ADDRESS {
                 if let Ok(event) = IMIP403Registry::BlacklistUpdated::decode_log(log)
