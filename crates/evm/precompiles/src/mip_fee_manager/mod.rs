@@ -45,6 +45,13 @@ pub struct MipFeeManager {
     /// Seconds between `disable_currency` and the currency becoming disabled.
     /// Zero (default) means use `DEFAULT_GRACE_PERIOD_SECS`.
     deprecation_grace_period: u64,
+    /// Multisig threshold required for `emergency_disable_currency`. Zero (default)
+    /// means use `DEFAULT_EMERGENCY_THRESHOLD`. Forward-compat metadata until
+    /// EIP-712 multisig governance lands.
+    emergency_disable_threshold: u8,
+    /// Reverse index for `prune_currency`: token → list of validators that have
+    /// added it to their accept-set. Maintained by add/remove_accepted_token.
+    token_validators: Mapping<Address, Vec<Address>>,
 
     /// Validator → token → accepted? Multi-token accept-set replacing the legacy
     /// single-token `validator_tokens` model. Map + list stay in sync.
@@ -535,10 +542,10 @@ impl MipFeeManager {
         self.validator_token_list[validator].read()
     }
 
-    /// Stub: always returns `false`. Wallets enumerate per-validator via
-    /// `accepts_token` until a reverse-index mapping is added.
-    pub fn is_accepted_by_any_validator(&self, _token: Address) -> Result<bool> {
-        Ok(false)
+    /// True iff at least one validator has `token` in their accept-set. Backed by
+    /// the `token_validators` reverse index maintained by add/remove_accepted_token.
+    pub fn is_accepted_by_any_validator(&self, token: Address) -> Result<bool> {
+        Ok(!self.token_validators[token].read()?.is_empty())
     }
 
     /// Adds `token` to the caller's accept-set.
@@ -581,6 +588,10 @@ impl MipFeeManager {
         self.validator_token_list[sender].write(list)?;
         self.validator_accepted_tokens[sender][token].write(true)?;
 
+        let mut validators = self.token_validators[token].read()?;
+        validators.push(sender);
+        self.token_validators[token].write(validators)?;
+
         self.emit_event(FeeManagerEvent::AcceptedTokenAdded(
             IFeeManager::AcceptedTokenAdded {
                 validator: sender,
@@ -615,6 +626,12 @@ impl MipFeeManager {
         self.validator_token_list[sender].write(list)?;
         self.validator_accepted_tokens[sender][token].write(false)?;
 
+        let mut validators = self.token_validators[token].read()?;
+        if let Some(vpos) = validators.iter().position(|v| *v == sender) {
+            validators.swap_remove(vpos);
+            self.token_validators[token].write(validators)?;
+        }
+
         self.emit_event(FeeManagerEvent::AcceptedTokenRemoved(
             IFeeManager::AcceptedTokenRemoved {
                 validator: sender,
@@ -622,6 +639,164 @@ impl MipFeeManager {
             },
         ))?;
         Ok(())
+    }
+
+    /// Genesis default for `emergency_disable_threshold`: 7 (of a 9-signer multisig).
+    pub const DEFAULT_EMERGENCY_THRESHOLD: u8 = 7;
+    /// Sanity-bound minimum emergency threshold: 6 (must exceed standard 5-of-9).
+    pub const MIN_EMERGENCY_THRESHOLD: u8 = 6;
+    /// Sanity-bound maximum emergency threshold: 9.
+    pub const MAX_EMERGENCY_THRESHOLD: u8 = 9;
+    /// Cap on per-call prune iterations (gas safety).
+    pub const MAX_PRUNE_ITERATIONS: u64 = 256;
+
+    /// Effective emergency threshold; falls back to the default when storage is zero.
+    pub fn emergency_disable_threshold(&self) -> Result<u8> {
+        let raw = self.emergency_disable_threshold.read()?;
+        Ok(if raw == 0 {
+            Self::DEFAULT_EMERGENCY_THRESHOLD
+        } else {
+            raw
+        })
+    }
+
+    /// Updates the emergency threshold. Sanity-bound to `[MIN, MAX]`. Single-admin
+    /// gate today; intended to require the *current* emergency threshold once
+    /// EIP-712 multisig governance lands (spec §11.1).
+    pub fn set_emergency_disable_threshold(
+        &mut self,
+        sender: Address,
+        new_threshold: u8,
+    ) -> Result<()> {
+        self.assert_governance(sender)?;
+        if !(Self::MIN_EMERGENCY_THRESHOLD..=Self::MAX_EMERGENCY_THRESHOLD).contains(&new_threshold)
+        {
+            return Err(FeeManagerError::emergency_threshold_out_of_range(new_threshold).into());
+        }
+        let old = self.emergency_disable_threshold()?;
+        self.emergency_disable_threshold.write(new_threshold)?;
+        self.emit_event(FeeManagerEvent::EmergencyDisableThresholdChanged(
+            IFeeManager::EmergencyDisableThresholdChanged {
+                oldThreshold: old,
+                newThreshold: new_threshold,
+            },
+        ))?;
+        Ok(())
+    }
+
+    /// Immediately flips a currency to disabled (no grace period). Intended for
+    /// security/regulatory crises. Single-admin gate today.
+    pub fn emergency_disable_currency(&mut self, sender: Address, code: &str) -> Result<()> {
+        self.assert_governance(sender)?;
+        if !is_valid_currency_code(code) {
+            return Err(FeeManagerError::invalid_currency_code(code.into()).into());
+        }
+        let key = currency_key(code);
+        let mut config = self.supported_currencies[key].read()?;
+        if !config.registered {
+            return Err(FeeManagerError::currency_not_registered(code.into()).into());
+        }
+        if !config.enabled {
+            return Err(FeeManagerError::currency_disabled(code.into()).into());
+        }
+
+        config.enabled = false;
+        config.deprecating = false;
+        config.deprecation_activates_at = 0;
+        self.supported_currencies[key].write(config)?;
+
+        self.emit_event(FeeManagerEvent::CurrencyDisabledEmergency(
+            IFeeManager::CurrencyDisabledEmergency {
+                code: code.into(),
+                by: sender,
+            },
+        ))?;
+        Ok(())
+    }
+
+    /// Marks `code` as freshly pruned at `current_block`. Permissionless. The
+    /// currency must be disabled (emergency-flipped or expired grace). Per-token
+    /// state cleanup happens via `prune_token`; this call only stamps the
+    /// timestamp and emits `CurrencyPruned` for off-chain coordination.
+    pub fn prune_currency(
+        &mut self,
+        code: &str,
+        _max_iterations: u64,
+        current_block: u64,
+    ) -> Result<()> {
+        if !is_valid_currency_code(code) {
+            return Err(FeeManagerError::invalid_currency_code(code.into()).into());
+        }
+        let key = currency_key(code);
+        let mut config = self.supported_currencies[key].read()?;
+        if !config.registered {
+            return Err(FeeManagerError::currency_not_registered(code.into()).into());
+        }
+        let now_ts = self.storage.timestamp().saturating_to::<u64>();
+        if config.effectively_enabled(now_ts) {
+            return Err(FeeManagerError::currency_not_disabled(code.into()).into());
+        }
+
+        config.last_pruned_at_block = current_block;
+        self.supported_currencies[key].write(config)?;
+
+        self.emit_event(FeeManagerEvent::CurrencyPruned(IFeeManager::CurrencyPruned {
+            code: code.into(),
+            tokensRemoved: U256::ZERO,
+            atBlock: current_block,
+        }))?;
+        Ok(())
+    }
+
+    /// Per-token prune: removes `token` from every validator's accept-set.
+    /// Permissionless. Currency of `token` must be disabled. Returns the
+    /// count of validator entries removed (capped by `max_iterations`).
+    pub fn prune_token(
+        &mut self,
+        token: Address,
+        max_iterations: u64,
+        current_block: u64,
+    ) -> Result<u64> {
+        if !MIP20Factory::new().is_tip20(token)? {
+            return Err(FeeManagerError::invalid_token().into());
+        }
+        let currency = MIP20Token::from_address(token)?.currency()?;
+        let key = currency_key(&currency);
+        let mut config = self.supported_currencies[key].read()?;
+        if !config.registered {
+            return Err(FeeManagerError::currency_not_registered(currency).into());
+        }
+        let now_ts = self.storage.timestamp().saturating_to::<u64>();
+        if config.effectively_enabled(now_ts) {
+            return Err(FeeManagerError::currency_not_disabled(currency).into());
+        }
+
+        let budget = max_iterations.min(Self::MAX_PRUNE_ITERATIONS);
+        let mut validators = self.token_validators[token].read()?;
+        let take = (budget as usize).min(validators.len());
+        let mut removed: u64 = 0;
+
+        for _ in 0..take {
+            let validator = validators
+                .pop()
+                .expect("loop bound matches validators.len()");
+            self.validator_accepted_tokens[validator][token].write(false)?;
+
+            let mut list = self.validator_token_list[validator].read()?;
+            if let Some(pos) = list.iter().position(|t| *t == token) {
+                list.swap_remove(pos);
+                self.validator_token_list[validator].write(list)?;
+            }
+            self.emit_event(FeeManagerEvent::AcceptedTokenRemoved(
+                IFeeManager::AcceptedTokenRemoved { validator, token },
+            ))?;
+            removed += 1;
+        }
+
+        self.token_validators[token].write(validators)?;
+        config.last_pruned_at_block = current_block;
+        self.supported_currencies[key].write(config)?;
+        Ok(removed)
     }
 }
 
@@ -1971,7 +2146,7 @@ mod currency_registry_tests {
     }
 
     #[test]
-    fn is_accepted_by_any_validator_stub_always_false() -> eyre::Result<()> {
+    fn is_accepted_by_any_validator_tracks_reverse_index() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new(1);
         let admin = Address::random();
         let validator = Address::random();
@@ -1981,7 +2156,10 @@ mod currency_registry_tests {
             let token = MIP20Setup::create("USDC", "USDC", admin)
                 .currency("USD")
                 .apply()?;
+            assert!(!fm.is_accepted_by_any_validator(token.address())?);
             fm.add_accepted_token(validator, token.address(), beneficiary)?;
+            assert!(fm.is_accepted_by_any_validator(token.address())?);
+            fm.remove_accepted_token(validator, token.address(), beneficiary)?;
             assert!(!fm.is_accepted_by_any_validator(token.address())?);
             Ok(())
         })
@@ -2235,6 +2413,149 @@ mod currency_registry_tests {
                     cfg.deprecation_activates_at
                 ))
             );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn emergency_disable_currency_flips_immediately() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            assert!(fm.is_currency_enabled("USD")?);
+            fm.emergency_disable_currency(admin, "USD")?;
+            let cfg = fm.get_currency_config("USD")?;
+            assert!(!cfg.enabled);
+            assert!(!cfg.deprecating);
+            assert!(!fm.is_currency_effectively_enabled("USD", 0)?);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn emergency_disable_currency_clears_active_grace() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            fm.disable_currency(admin, "USD", 0)?;
+            assert!(fm.get_currency_config("USD")?.deprecating);
+            fm.emergency_disable_currency(admin, "USD")?;
+            let cfg = fm.get_currency_config("USD")?;
+            assert!(!cfg.enabled);
+            assert!(!cfg.deprecating);
+            assert_eq!(cfg.deprecation_activates_at, 0);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn emergency_disable_currency_rejects_already_disabled() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+            fm.add_currency(admin, "USD", 0)?;
+            // Never enabled.
+            let err = fm.emergency_disable_currency(admin, "USD").unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_disabled(
+                    "USD".into()
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn set_emergency_threshold_enforces_bounds() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+            assert_eq!(
+                fm.emergency_disable_threshold()?,
+                MipFeeManager::DEFAULT_EMERGENCY_THRESHOLD
+            );
+            assert_eq!(
+                fm.set_emergency_disable_threshold(admin, 5).unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::emergency_threshold_out_of_range(5)
+                )
+            );
+            assert_eq!(
+                fm.set_emergency_disable_threshold(admin, 10).unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::emergency_threshold_out_of_range(10)
+                )
+            );
+            fm.set_emergency_disable_threshold(admin, 8)?;
+            assert_eq!(fm.emergency_disable_threshold()?, 8);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn prune_token_removes_validator_accept_set_entries() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let v1 = Address::random();
+        let v2 = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+            fm.add_accepted_token(v1, token.address(), beneficiary)?;
+            fm.add_accepted_token(v2, token.address(), beneficiary)?;
+            assert!(fm.is_accepted_by_any_validator(token.address())?);
+
+            // Prune is rejected while currency is still effectively enabled.
+            assert_eq!(
+                fm.prune_token(token.address(), 100, 1).unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_not_disabled(
+                    "USD".into()
+                ))
+            );
+
+            fm.emergency_disable_currency(admin, "USD")?;
+
+            // First call removes one entry (max_iter = 1, paginated).
+            let removed = fm.prune_token(token.address(), 1, 1)?;
+            assert_eq!(removed, 1);
+            assert_eq!(fm.get_accepted_tokens(v1)?.len() + fm.get_accepted_tokens(v2)?.len(), 1);
+
+            // Second call drains the rest.
+            let removed = fm.prune_token(token.address(), 100, 2)?;
+            assert_eq!(removed, 1);
+            assert!(!fm.is_accepted_by_any_validator(token.address())?);
+            assert_eq!(fm.get_accepted_tokens(v1)?.len(), 0);
+            assert_eq!(fm.get_accepted_tokens(v2)?.len(), 0);
+
+            // Third call is a no-op.
+            assert_eq!(fm.prune_token(token.address(), 100, 3)?, 0);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn prune_currency_stamps_block_when_disabled() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            assert_eq!(
+                fm.prune_currency("USD", 1, 0).unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_not_disabled(
+                    "USD".into()
+                ))
+            );
+            fm.emergency_disable_currency(admin, "USD")?;
+            fm.prune_currency("USD", 1, 42)?;
+            assert_eq!(fm.get_currency_config("USD")?.last_pruned_at_block, 42);
             Ok(())
         })
     }

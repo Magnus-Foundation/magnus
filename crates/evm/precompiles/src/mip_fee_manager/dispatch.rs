@@ -95,6 +95,9 @@ impl Precompile for MipFeeManager {
                 TipFeeManagerCall::FeeManager(IFeeManagerCalls::deprecationGracePeriod(call)) => {
                     view(call, |_| self.deprecation_grace_period())
                 }
+                TipFeeManagerCall::FeeManager(
+                    IFeeManagerCalls::emergencyDisableThreshold(call),
+                ) => view(call, |_| self.emergency_disable_threshold()),
 
                 TipFeeManagerCall::FeeManager(IFeeManagerCalls::addCurrency(call)) => {
                     mutate_void(call, msg_sender, |s, c| {
@@ -116,9 +119,36 @@ impl Precompile for MipFeeManager {
                     })
                 }
                 TipFeeManagerCall::FeeManager(
+                    IFeeManagerCalls::emergencyDisableCurrency(call),
+                ) => mutate_void(call, msg_sender, |s, c| {
+                    self.emergency_disable_currency(s, &c.code)
+                }),
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::pruneCurrency(call)) => {
+                    mutate_void(call, msg_sender, |_, c| {
+                        let block = self.storage.block_number();
+                        self.prune_currency(&c.code, c.maxIterations.saturating_to::<u64>(), block)
+                    })
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::pruneToken(call)) => {
+                    mutate(call, msg_sender, |_, c| {
+                        let block = self.storage.block_number();
+                        let removed = self.prune_token(
+                            c.token,
+                            c.maxIterations.saturating_to::<u64>(),
+                            block,
+                        )?;
+                        Ok(alloy::primitives::U256::from(removed))
+                    })
+                }
+                TipFeeManagerCall::FeeManager(
                     IFeeManagerCalls::setDeprecationGracePeriod(call),
                 ) => mutate_void(call, msg_sender, |s, c| {
                     self.set_deprecation_grace_period(s, c.newGracePeriod)
+                }),
+                TipFeeManagerCall::FeeManager(
+                    IFeeManagerCalls::setEmergencyDisableThreshold(call),
+                ) => mutate_void(call, msg_sender, |s, c| {
+                    self.set_emergency_disable_threshold(s, c.newThreshold)
                 }),
                 TipFeeManagerCall::FeeManager(IFeeManagerCalls::setGovernanceAdmin(call)) => {
                     mutate_void(call, msg_sender, |s, c| {

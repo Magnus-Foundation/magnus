@@ -52,11 +52,16 @@ crate::sol! {
         function addCurrency(string calldata code) external;
         function enableCurrency(string calldata code) external;
         function disableCurrency(string calldata code) external;
+        function emergencyDisableCurrency(string calldata code) external;
+        function pruneCurrency(string calldata code, uint256 maxIterations) external;
+        function pruneToken(address token, uint256 maxIterations) external returns (uint256);
         function setDeprecationGracePeriod(uint64 newGracePeriod) external;
+        function setEmergencyDisableThreshold(uint8 newThreshold) external;
         function setGovernanceAdmin(address newAdmin) external;
         function getCurrencyConfig(string calldata code) external view returns (CurrencyConfig memory);
         function isCurrencyEnabled(string calldata code) external view returns (bool);
         function deprecationGracePeriod() external view returns (uint64);
+        function emergencyDisableThreshold() external view returns (uint8);
         function governanceAdmin() external view returns (address);
 
         // Validator multi-token accept-set.
@@ -73,7 +78,10 @@ crate::sol! {
         event CurrencyAdded(string code, uint64 atBlock);
         event CurrencyEnabled(string code, uint64 atBlock);
         event CurrencyDisabling(string code, uint64 graceEndsAt, address by);
+        event CurrencyDisabledEmergency(string code, address by);
+        event CurrencyPruned(string code, uint256 tokensRemoved, uint64 atBlock);
         event DeprecationGracePeriodChanged(uint64 oldGracePeriod, uint64 newGracePeriod);
+        event EmergencyDisableThresholdChanged(uint8 oldThreshold, uint8 newThreshold);
         event GovernanceAdminChanged(address indexed oldAdmin, address indexed newAdmin);
         event AcceptedTokenAdded(address indexed validator, address indexed token);
         event AcceptedTokenRemoved(address indexed validator, address indexed token);
@@ -110,6 +118,8 @@ crate::sol! {
         error CurrencyDeprecating(string currency, uint64 graceEndsAt);
         error CurrencyAlreadyDeprecating(string currency);
         error GracePeriodOutOfRange(uint64 grace);
+        error EmergencyThresholdOutOfRange(uint8 threshold);
+        error CurrencyNotDisabled(string currency);
     }
 }
 
@@ -294,6 +304,14 @@ impl FeeManagerError {
 
     pub const fn grace_period_out_of_range(grace: u64) -> Self {
         Self::GracePeriodOutOfRange(IFeeManager::GracePeriodOutOfRange { grace })
+    }
+
+    pub const fn emergency_threshold_out_of_range(threshold: u8) -> Self {
+        Self::EmergencyThresholdOutOfRange(IFeeManager::EmergencyThresholdOutOfRange { threshold })
+    }
+
+    pub fn currency_not_disabled(currency: alloc::string::String) -> Self {
+        Self::CurrencyNotDisabled(IFeeManager::CurrencyNotDisabled { currency })
     }
 }
 
