@@ -129,26 +129,30 @@ pub trait MagnusStateAccess<M = ()> {
             return Ok(fee_token);
         }
 
-        // If the fee payer is also the msg.sender and the transaction is calling FeeManager to set a
-        // new preference, the newly set preference should be used immediately instead of the
-        // previously stored one
-        if !tx.is_aa()
-            && fee_payer == tx.caller()
-            && let Some((kind, input)) = tx.calls().next()
-            && kind.to() == Some(&TIP_FEE_MANAGER_ADDRESS)
-            && let Ok(call) = IFeeManager::setUserTokenCall::abi_decode(input)
-        {
-            return Ok(call.token);
-        }
+        // T4+: per-user fee-token preference removed. Skip the setUserToken shortcut and
+        // user_tokens lookup — fall through to inference.
+        if !spec.is_t4() {
+            // If the fee payer is also the msg.sender and the transaction is calling FeeManager
+            // to set a new preference, the newly set preference should be used immediately
+            // instead of the previously stored one.
+            if !tx.is_aa()
+                && fee_payer == tx.caller()
+                && let Some((kind, input)) = tx.calls().next()
+                && kind.to() == Some(&TIP_FEE_MANAGER_ADDRESS)
+                && let Ok(call) = IFeeManager::setUserTokenCall::abi_decode(input)
+            {
+                return Ok(call.token);
+            }
 
-        // Check stored user token preference
-        let user_token = self.with_read_only_storage_ctx(spec, || {
-            // ensure TIP_FEE_MANAGER_ADDRESS is loaded
-            MipFeeManager::new().user_tokens[fee_payer].read()
-        })?;
+            // Check stored user token preference.
+            let user_token = self.with_read_only_storage_ctx(spec, || {
+                // ensure TIP_FEE_MANAGER_ADDRESS is loaded
+                MipFeeManager::new().user_tokens[fee_payer].read()
+            })?;
 
-        if !user_token.is_zero() {
-            return Ok(user_token);
+            if !user_token.is_zero() {
+                return Ok(user_token);
+            }
         }
 
         // Check if the fee can be inferred from the MIP20 token being called
@@ -524,6 +528,51 @@ mod tests {
         let result_token =
             db.get_fee_token(MagnusTxEnv::default(), caller, MagnusHardfork::Genesis)?;
         assert_eq!(result_token, user_token);
+        Ok(())
+    }
+
+    #[test]
+    fn t4_get_fee_token_skips_set_user_token_calldata() -> eyre::Result<()> {
+        // Pre-T4: setUserToken-in-calldata wins. T4: ignored, falls through to default.
+        let caller = Address::random();
+        let proposed_token = Address::random();
+
+        let call = IFeeManager::setUserTokenCall {
+            token: proposed_token,
+        };
+        let tx_env = TxEnv {
+            data: call.abi_encode().into(),
+            kind: TxKind::Call(TIP_FEE_MANAGER_ADDRESS),
+            caller,
+            ..Default::default()
+        };
+        let tx = MagnusTxEnv {
+            inner: tx_env,
+            ..Default::default()
+        };
+
+        let mut db = EmptyDB::default();
+        let result_token = db.get_fee_token(tx, caller, MagnusHardfork::T4)?;
+        assert_ne!(result_token, proposed_token);
+        assert_eq!(result_token, DEFAULT_FEE_TOKEN);
+        Ok(())
+    }
+
+    #[test]
+    fn t4_get_fee_token_skips_stored_user_token_preference() -> eyre::Result<()> {
+        // Legacy slot value present from pre-T4 era; T4 must not return it.
+        let caller = Address::random();
+        let user_token = Address::random();
+
+        let mut db = revm::database::CacheDB::new(EmptyDB::default());
+        let user_slot = MipFeeManager::new().user_tokens[caller].slot();
+        db.insert_account_storage(TIP_FEE_MANAGER_ADDRESS, user_slot, user_token.into_u256())
+            .unwrap();
+
+        let result_token =
+            db.get_fee_token(MagnusTxEnv::default(), caller, MagnusHardfork::T4)?;
+        assert_ne!(result_token, user_token);
+        assert_eq!(result_token, DEFAULT_FEE_TOKEN);
         Ok(())
     }
 

@@ -96,6 +96,8 @@ crate::sol! {
         error TokenAlreadyAccepted(address validator, address token);
         error TokenNotInAcceptSet(address validator, address token);
         error MaxAcceptSetReached(address validator);
+
+        error UserTokenApiRemoved();
     }
 }
 
@@ -261,6 +263,10 @@ impl FeeManagerError {
 
     pub const fn max_accept_set_reached(validator: alloy_primitives::Address) -> Self {
         Self::MaxAcceptSetReached(IFeeManager::MaxAcceptSetReached { validator })
+    }
+
+    pub const fn user_token_api_removed() -> Self {
+        Self::UserTokenApiRemoved(IFeeManager::UserTokenApiRemoved {})
     }
 }
 

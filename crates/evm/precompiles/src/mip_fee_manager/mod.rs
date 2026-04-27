@@ -135,6 +135,10 @@ impl MipFeeManager {
         sender: Address,
         call: IFeeManager::setUserTokenCall,
     ) -> Result<()> {
+        if self.storage.spec().is_t4() {
+            return Err(FeeManagerError::user_token_api_removed().into());
+        }
+
         // Validate that the token is a valid deployed MIP20
         if !MIP20Factory::new().is_tip20(call.token)? {
             return Err(FeeManagerError::invalid_token().into());
@@ -313,8 +317,11 @@ impl MipFeeManager {
         Ok(())
     }
 
-    /// Reads the stored fee token preference for a user.
+    /// Reads the stored fee token preference for a user. Returns zero on T4+ (API removed).
     pub fn user_tokens(&self, call: IFeeManager::userTokensCall) -> Result<Address> {
+        if self.storage.spec().is_t4() {
+            return Ok(Address::ZERO);
+        }
         self.user_tokens[call.user].read()
     }
 
@@ -1895,6 +1902,63 @@ mod currency_registry_tests {
             let eur = fee_manager.get_currency_config("EUR")?;
             assert_eq!(eur.added_at_block, 30);
             assert_eq!(eur.enabled_at_block, 0);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn t4_set_user_token_reverts_with_api_removed() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T4);
+        let admin = Address::random();
+        let user = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let _fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+
+            let mut fm = MipFeeManager::new();
+            let err = fm
+                .set_user_token(
+                    user,
+                    IFeeManager::setUserTokenCall {
+                        token: token.address(),
+                    },
+                )
+                .unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::user_token_api_removed())
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn t4_user_tokens_view_returns_zero_even_when_pre_t4_value_stored() -> eyre::Result<()> {
+        // Pre-T4 storage may carry legacy values; T4 view must hide them.
+        let user = Address::random();
+        let pre_t4_token = Address::repeat_byte(0xAB);
+
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T3);
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = MipFeeManager::new();
+            fm.user_tokens[user].write(pre_t4_token)?;
+            assert_eq!(
+                fm.user_tokens(IFeeManager::userTokensCall { user })?,
+                pre_t4_token
+            );
+            Ok::<_, MagnusPrecompileError>(())
+        })?;
+
+        // Same provider, spec flipped to T4: legacy slot is hidden by the view.
+        let mut storage = storage.with_spec(MagnusHardfork::T4);
+        StorageCtx::enter(&mut storage, || {
+            let fm = MipFeeManager::new();
+            assert_eq!(
+                fm.user_tokens(IFeeManager::userTokensCall { user })?,
+                Address::ZERO
+            );
             Ok(())
         })
     }
