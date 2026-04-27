@@ -254,8 +254,8 @@ impl MagnusHardfork {
         while i > 0 {
             i -= 1;
             let activation = match chain_id {
-                4217 => variants[i].mainnet_activation_timestamp(),
-                42431 => variants[i].moderato_activation_timestamp(),
+                83866 => variants[i].mainnet_activation_timestamp(),
+                79941 => variants[i].moderato_activation_timestamp(),
                 _ => return None,
             };
             if let Some(ts) = activation

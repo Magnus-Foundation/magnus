@@ -7,7 +7,7 @@ use alloy::{
 use alloy_eips::Encodable2718;
 use alloy_primitives::TxKind;
 use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
-use magnus_contracts::precompiles::{DEFAULT_FEE_TOKEN, IMIP20};
+use magnus_contracts::precompiles::{MAGNUS_USD_ADDRESS, IMIP20};
 use magnus_primitives::{
     MagnusTransaction, MagnusTxEnvelope,
     transaction::{
@@ -50,7 +50,7 @@ fn build_create_key_auth_tx(
         }],
         nonce_key: U256::ZERO,
         nonce,
-        fee_token: Some(DEFAULT_FEE_TOKEN),
+        fee_token: Some(MAGNUS_USD_ADDRESS),
         valid_before: None,
         key_authorization: Some(signed_key_auth),
         ..Default::default()
@@ -87,7 +87,7 @@ fn build_2d_nonce_transfer_tx(
         }],
         nonce_key: U256::from(nonce_key),
         nonce,
-        fee_token: Some(DEFAULT_FEE_TOKEN),
+        fee_token: Some(MAGNUS_USD_ADDRESS),
         valid_before: None,
         ..Default::default()
     };
@@ -135,7 +135,7 @@ async fn test_pre_t1b_keyauth_oog_replay() -> eyre::Result<()> {
     let chain_id = provider.get_chain_id().await?;
     let nonce = provider.get_transaction_count(signer_addr).await?;
 
-    let balance_before = IMIP20::new(DEFAULT_FEE_TOKEN, &provider)
+    let balance_before = IMIP20::new(MAGNUS_USD_ADDRESS, &provider)
         .balanceOf(signer_addr)
         .call()
         .await?;
@@ -165,7 +165,7 @@ async fn test_pre_t1b_keyauth_oog_replay() -> eyre::Result<()> {
     setup.node.advance_block().await?;
 
     // Fees burned — block produced with both txs.
-    let balance_after_block1 = IMIP20::new(DEFAULT_FEE_TOKEN, &provider)
+    let balance_after_block1 = IMIP20::new(MAGNUS_USD_ADDRESS, &provider)
         .balanceOf(signer_addr)
         .call()
         .await?;
@@ -197,7 +197,7 @@ async fn test_pre_t1b_keyauth_oog_replay() -> eyre::Result<()> {
     setup.node.advance_block().await?;
 
     // More fees drained on the second block.
-    let balance_after_block2 = IMIP20::new(DEFAULT_FEE_TOKEN, &provider)
+    let balance_after_block2 = IMIP20::new(MAGNUS_USD_ADDRESS, &provider)
         .balanceOf(signer_addr)
         .call()
         .await?;
@@ -277,7 +277,7 @@ async fn test_post_t1b_keyauth_oog_fixed() -> eyre::Result<()> {
     let chain_id = provider.get_chain_id().await?;
     let nonce = provider.get_transaction_count(signer_addr).await?;
 
-    let balance_before = IMIP20::new(DEFAULT_FEE_TOKEN, &provider)
+    let balance_before = IMIP20::new(MAGNUS_USD_ADDRESS, &provider)
         .balanceOf(signer_addr)
         .call()
         .await?;
@@ -298,7 +298,7 @@ async fn test_post_t1b_keyauth_oog_fixed() -> eyre::Result<()> {
     setup.node.advance_block().await?;
 
     // Fees burned.
-    let balance_after = IMIP20::new(DEFAULT_FEE_TOKEN, &provider)
+    let balance_after = IMIP20::new(MAGNUS_USD_ADDRESS, &provider)
         .balanceOf(signer_addr)
         .call()
         .await?;

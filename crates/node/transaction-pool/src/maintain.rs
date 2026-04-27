@@ -23,9 +23,9 @@ use std::{
     time::Instant,
 };
 use magnus_chainspec::MagnusChainSpec;
-use magnus_contracts::precompiles::{IAccountKeychain, IFeeManager, IMIP20, IMIP403Registry};
+use magnus_contracts::precompiles::{IAccountKeychain, IMIP20, IMIP403Registry};
 use magnus_precompiles::{
-    ACCOUNT_KEYCHAIN_ADDRESS, TIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS,
+    ACCOUNT_KEYCHAIN_ADDRESS, MIP403_REGISTRY_ADDRESS,
 };
 use magnus_primitives::{MagnusAddressExt, MagnusHeader, MagnusPrimitives};
 use tracing::{debug, error};
@@ -134,16 +134,8 @@ impl MagnusPoolUpdates {
                     );
                 }
             }
-            // Validator and user token changes
-            else if log.address == TIP_FEE_MANAGER_ADDRESS {
-                if let Ok(event) = IFeeManager::ValidatorTokenSet::decode_log(log) {
-                    updates
-                        .validator_token_changes
-                        .insert(event.validator, event.token);
-                } else if let Ok(event) = IFeeManager::UserTokenSet::decode_log(log) {
-                    updates.user_token_changes.insert(event.user);
-                }
-            }
+            // Per-validator/per-user token preferences were removed at T4.
+            // FeeManager log decoding is intentionally elided here.
             // MIP403 blacklist additions and whitelist removals
             else if log.address == MIP403_REGISTRY_ADDRESS {
                 if let Ok(event) = IMIP403Registry::BlacklistUpdated::decode_log(log)
@@ -1027,7 +1019,7 @@ mod tests {
 
         #[test]
         fn extracts_fee_balance_changes_from_tip20_transfer_logs() {
-            let fee_token = magnus_precompiles::PATH_USD_ADDRESS;
+            let fee_token = magnus_precompiles::MAGNUS_USD_ADDRESS;
             let from = Address::random();
             let to = Address::random();
             let amount = U256::from(42_u64);
@@ -1058,7 +1050,7 @@ mod tests {
         /// TransferPolicyUpdate events are parsed from MIP20 token logs.
         #[test]
         fn extracts_transfer_policy_updates() {
-            let fee_token = magnus_precompiles::PATH_USD_ADDRESS;
+            let fee_token = magnus_precompiles::MAGNUS_USD_ADDRESS;
             let updater = Address::random();
             let new_policy_id = 42u64;
             let log_data = IMIP20::TransferPolicyUpdate {
@@ -1088,7 +1080,7 @@ mod tests {
         /// Duplicate TransferPolicyUpdate events for the same token are deduplicated.
         #[test]
         fn transfer_policy_updates_deduplicates_by_token() {
-            let fee_token = magnus_precompiles::PATH_USD_ADDRESS;
+            let fee_token = magnus_precompiles::MAGNUS_USD_ADDRESS;
 
             let log_data_1 = IMIP20::TransferPolicyUpdate {
                 updater: Address::random(),

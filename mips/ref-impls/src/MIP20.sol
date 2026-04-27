@@ -15,7 +15,7 @@ contract MIP20 is IMIP20, MIP20RolesAuth {
     IAddressRegistry internal constant ADDRESS_REGISTRY =
         IAddressRegistry(0xfDC0000000000000000000000000000000000000);
 
-    address internal constant TIP_FEE_MANAGER_ADDRESS = 0xfeEC000000000000000000000000000000000000;
+    address internal constant MIP_FEE_MANAGER_ADDRESS = 0xfeEC000000000000000000000000000000000000;
     address internal constant STABLECOIN_DEX_ADDRESS = 0xDEc0000000000000000000000000000000000000;
 
     address internal constant FACTORY = 0x20Fc000000000000000000000000000000000000;
@@ -187,7 +187,7 @@ contract MIP20 is IMIP20, MIP20RolesAuth {
 
     function burnBlocked(address from, uint256 amount) external onlyRole(BURN_BLOCKED_ROLE) {
         // Prevent burning from protected precompile addresses
-        if (from == TIP_FEE_MANAGER_ADDRESS || from == STABLECOIN_DEX_ADDRESS) {
+        if (from == MIP_FEE_MANAGER_ADDRESS || from == STABLECOIN_DEX_ADDRESS) {
             revert ProtectedAddress();
         }
 
@@ -439,7 +439,7 @@ contract MIP20 is IMIP20, MIP20RolesAuth {
         notPaused
         returns (bool)
     {
-        require(msg.sender == TIP_FEE_MANAGER_ADDRESS);
+        require(msg.sender == MIP_FEE_MANAGER_ADDRESS);
         ResolvedRecipient memory recipient = _resolveRecipient(to);
         _validateTransfer(from, recipient);
         _transfer(from, recipient, amount);
@@ -454,7 +454,7 @@ contract MIP20 is IMIP20, MIP20RolesAuth {
     //////////////////////////////////////////////////////////////*/
 
     function transferFeePreTx(address from, uint256 amount) external notPaused {
-        require(msg.sender == TIP_FEE_MANAGER_ADDRESS);
+        require(msg.sender == MIP_FEE_MANAGER_ADDRESS);
         require(from != address(0));
 
         if (amount > balanceOf[from]) {
@@ -468,15 +468,15 @@ contract MIP20 is IMIP20, MIP20RolesAuth {
 
         unchecked {
             balanceOf[from] -= amount;
-            balanceOf[TIP_FEE_MANAGER_ADDRESS] += amount;
+            balanceOf[MIP_FEE_MANAGER_ADDRESS] += amount;
         }
     }
 
     function transferFeePostTx(address to, uint256 refund, uint256 actualUsed) external {
-        require(msg.sender == TIP_FEE_MANAGER_ADDRESS);
+        require(msg.sender == MIP_FEE_MANAGER_ADDRESS);
         require(to != address(0));
 
-        uint256 feeManagerBalance = balanceOf[TIP_FEE_MANAGER_ADDRESS];
+        uint256 feeManagerBalance = balanceOf[MIP_FEE_MANAGER_ADDRESS];
         if (refund > feeManagerBalance) {
             revert InsufficientBalance(feeManagerBalance, refund, address(this));
         }
@@ -487,11 +487,11 @@ contract MIP20 is IMIP20, MIP20RolesAuth {
         }
 
         unchecked {
-            balanceOf[TIP_FEE_MANAGER_ADDRESS] -= refund;
+            balanceOf[MIP_FEE_MANAGER_ADDRESS] -= refund;
             balanceOf[to] += refund;
         }
 
-        emit Transfer(to, TIP_FEE_MANAGER_ADDRESS, actualUsed);
+        emit Transfer(to, MIP_FEE_MANAGER_ADDRESS, actualUsed);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -7,6 +7,31 @@ use std::{
 };
 
 use alloy_primitives::{Address, TxKind, U256};
+use magnus_contracts::precompiles::IAccountKeychain::SignatureType as PrecompileSignatureType;
+use magnus_precompiles::{
+    ECRECOVER_GAS,
+    account_keychain::{
+        AccountKeychain, CallScope as PrecompileCallScope, KeyRestrictions,
+        SelectorRule as PrecompileSelectorRule, TokenLimit, authorizeKeyCall,
+    },
+    error::MagnusPrecompileError,
+    mip_fee_manager::MipFeeManager,
+    mip20::{IMIP20::InsufficientBalance, MIP20Error, MIP20Token},
+    nonce::{
+        EXPIRING_NONCE_MAX_EXPIRY_SECS, EXPIRING_NONCE_SET_CAPACITY, INonce::getNonceCall,
+        NonceManager,
+    },
+    storage::{
+        Handler as _, PrecompileStorageProvider, StorageCtx, evm::EvmPrecompileStorageProvider,
+    },
+};
+use magnus_primitives::{
+    MagnusAddressExt,
+    transaction::{
+        MAGNUS_EXPIRING_NONCE_KEY, MagnusSignature, PrimitiveSignature, SignatureType,
+        calc_gas_balance_spending, validate_calls,
+    },
+};
 use reth_evm::{EvmError, EvmInternals};
 use revm::{
     Database,
@@ -32,33 +57,6 @@ use revm::{
         interpreter::EthInterpreter,
     },
     precompile::PrecompileError,
-};
-use magnus_contracts::precompiles::{
-    IAccountKeychain::SignatureType as PrecompileSignatureType, TIPFeeAMMError,
-};
-use magnus_precompiles::{
-    ECRECOVER_GAS,
-    account_keychain::{
-        AccountKeychain, CallScope as PrecompileCallScope, KeyRestrictions,
-        SelectorRule as PrecompileSelectorRule, TokenLimit, authorizeKeyCall,
-    },
-    error::MagnusPrecompileError,
-    nonce::{
-        EXPIRING_NONCE_MAX_EXPIRY_SECS, EXPIRING_NONCE_SET_CAPACITY, INonce::getNonceCall,
-        NonceManager,
-    },
-    storage::{
-        Handler as _, PrecompileStorageProvider, StorageCtx, evm::EvmPrecompileStorageProvider,
-    },
-    mip_fee_manager::MipFeeManager,
-    mip20::{IMIP20::InsufficientBalance, MIP20Error, MIP20Token},
-};
-use magnus_primitives::{
-    MagnusAddressExt,
-    transaction::{
-        PrimitiveSignature, SignatureType, MAGNUS_EXPIRING_NONCE_KEY, MagnusSignature,
-        calc_gas_balance_spending, validate_calls,
-    },
 };
 
 use crate::{
@@ -1442,16 +1440,8 @@ where
             journal.checkpoint_revert(checkpoint);
 
             // Map fee collection errors to transaction validation errors since they
-            // indicate the transaction cannot be included (e.g., insufficient liquidity
-            // in FeeAMM pool for fee swaps)
+            // indicate the transaction cannot be included.
             Err(match err {
-                MagnusPrecompileError::TIPFeeAMMError(TIPFeeAMMError::InsufficientLiquidity(_)) => {
-                    FeePaymentError::InsufficientAmmLiquidity {
-                        fee: gas_balance_spending,
-                    }
-                    .into()
-                }
-
                 MagnusPrecompileError::MIP20(MIP20Error::InsufficientBalance(
                     InsufficientBalance { available, .. },
                 )) => FeePaymentError::InsufficientFeeTokenBalance {
@@ -2125,21 +2115,20 @@ mod tests {
     use super::*;
     use crate::{MagnusBlockEnv, MagnusTxEnv, evm::MagnusEvm, tx::MagnusBatchCallEnv};
     use alloy_primitives::{Address, B256, Bytes, TxKind, U256};
+    use magnus_chainspec::hardfork::MagnusHardfork;
+    use magnus_precompiles::MAGNUS_USD_ADDRESS;
+    use magnus_primitives::transaction::{
+        Call, MagnusSignature,
+        tt_signature::{P256SignatureWithPreHash, WebAuthnSignature},
+    };
     use proptest::prelude::*;
     use revm::{
         Context, Journal, MainContext,
         context::CfgEnv,
         database::{CacheDB, EmptyDB},
         handler::Handler,
-        interpreter::{gas::COLD_ACCOUNT_ACCESS_COST, instructions::utility::IntoU256},
+        interpreter::gas::COLD_ACCOUNT_ACCESS_COST,
         primitives::hardfork::SpecId,
-    };
-    use magnus_chainspec::hardfork::MagnusHardfork;
-    use magnus_contracts::precompiles::DEFAULT_FEE_TOKEN;
-    use magnus_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS};
-    use magnus_primitives::transaction::{
-        Call, MagnusSignature,
-        tt_signature::{P256SignatureWithPreHash, WebAuthnSignature},
     };
 
     fn create_test_journal() -> Journal<CacheDB<EmptyDB>> {
@@ -2258,8 +2247,8 @@ mod tests {
     #[test]
     fn test_get_token_balance() -> eyre::Result<()> {
         let mut journal = create_test_journal();
-        // Use PATH_USD_ADDRESS which has the MIP20 prefix
-        let token = PATH_USD_ADDRESS;
+        // Use MAGNUS_USD_ADDRESS which has the MIP20 prefix
+        let token = MAGNUS_USD_ADDRESS;
         let account = Address::random();
         let expected_balance = U256::random();
 
@@ -2277,7 +2266,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_fee_token() -> eyre::Result<()> {
+    fn test_get_fee_token_explicit() -> eyre::Result<()> {
         let journal = create_test_journal();
         let mut ctx: MagnusContext<_> = Context::mainnet()
             .with_db(CacheDB::new(EmptyDB::default()))
@@ -2287,48 +2276,9 @@ mod tests {
             .with_new_journal(journal);
         let user = Address::random();
         ctx.tx.inner.caller = user;
-        let validator = Address::random();
-        ctx.block.beneficiary = validator;
-        let user_fee_token = Address::random();
-        let validator_fee_token = Address::random();
+        ctx.block.beneficiary = Address::random();
         let tx_fee_token = Address::random();
 
-        // Set validator token
-        let validator_slot = MipFeeManager::new().validator_tokens[validator].slot();
-        ctx.journaled_state.load_account(TIP_FEE_MANAGER_ADDRESS)?;
-        ctx.journaled_state
-            .sstore(
-                TIP_FEE_MANAGER_ADDRESS,
-                validator_slot,
-                validator_fee_token.into_u256(),
-            )
-            .unwrap();
-
-        {
-            let fee_token = ctx
-                .journaled_state
-                .get_fee_token(&ctx.tx, user, ctx.cfg.spec)?;
-            assert_eq!(DEFAULT_FEE_TOKEN, fee_token);
-        }
-
-        // Set user token
-        let user_slot = MipFeeManager::new().user_tokens[user].slot();
-        ctx.journaled_state
-            .sstore(
-                TIP_FEE_MANAGER_ADDRESS,
-                user_slot,
-                user_fee_token.into_u256(),
-            )
-            .unwrap();
-
-        {
-            let fee_token = ctx
-                .journaled_state
-                .get_fee_token(&ctx.tx, user, ctx.cfg.spec)?;
-            assert_eq!(user_fee_token, fee_token);
-        }
-
-        // Set tx fee token
         ctx.tx.fee_token = Some(tx_fee_token);
         let fee_token = ctx
             .journaled_state
@@ -2342,8 +2292,8 @@ mod tests {
     fn test_aa_gas_single_call_vs_normal_tx() {
         use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
-        use revm::interpreter::gas::calculate_initial_tx_gas;
         use magnus_primitives::transaction::{Call, MagnusSignature};
+        use revm::interpreter::gas::calculate_initial_tx_gas;
         let gas_params = GasParams::default();
 
         // Test that AA tx with secp256k1 and single call matches normal tx + per-call overhead
@@ -2395,8 +2345,8 @@ mod tests {
     fn test_aa_gas_multiple_calls_overhead() {
         use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
-        use revm::interpreter::gas::calculate_initial_tx_gas;
         use magnus_primitives::transaction::{Call, MagnusSignature};
+        use revm::interpreter::gas::calculate_initial_tx_gas;
 
         let calldata = Bytes::from(vec![1, 2, 3]); // 3 non-zero bytes
 
@@ -2453,10 +2403,10 @@ mod tests {
     fn test_aa_gas_p256_signature() {
         use crate::MagnusBatchCallEnv;
         use alloy_primitives::{B256, Bytes, TxKind};
-        use revm::interpreter::gas::calculate_initial_tx_gas;
         use magnus_primitives::transaction::{
             Call, MagnusSignature, tt_signature::P256SignatureWithPreHash,
         };
+        use revm::interpreter::gas::calculate_initial_tx_gas;
 
         let spec = SpecId::CANCUN;
         let calldata = Bytes::from(vec![1, 2]);
@@ -2503,8 +2453,8 @@ mod tests {
     fn test_aa_gas_create_call() {
         use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
-        use revm::interpreter::gas::calculate_initial_tx_gas;
         use magnus_primitives::transaction::{Call, MagnusSignature};
+        use revm::interpreter::gas::calculate_initial_tx_gas;
 
         let spec = SpecId::CANCUN; // Post-Shanghai
         let initcode = Bytes::from(vec![0x60, 0x80]); // 2 bytes
@@ -2584,8 +2534,8 @@ mod tests {
     fn test_aa_gas_access_list() {
         use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
-        use revm::interpreter::gas::calculate_initial_tx_gas;
         use magnus_primitives::transaction::{Call, MagnusSignature};
+        use revm::interpreter::gas::calculate_initial_tx_gas;
 
         let spec = SpecId::CANCUN;
         let calldata = Bytes::from(vec![]);
@@ -2676,8 +2626,8 @@ mod tests {
     fn test_aa_gas_floor_gas_prague() {
         use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
-        use revm::interpreter::gas::calculate_initial_tx_gas;
         use magnus_primitives::transaction::{Call, MagnusSignature};
+        use revm::interpreter::gas::calculate_initial_tx_gas;
 
         let spec = SpecId::PRAGUE;
         let calldata = Bytes::from(vec![1, 2, 3, 4, 5]); // 5 non-zero bytes
@@ -2929,11 +2879,11 @@ mod tests {
     fn test_key_authorization_gas_in_batch() {
         use crate::MagnusBatchCallEnv;
         use alloy_primitives::{Bytes, TxKind};
-        use revm::interpreter::gas::calculate_initial_tx_gas;
         use magnus_primitives::transaction::{
-            Call, KeyAuthorization, SignatureType, SignedKeyAuthorization, MagnusSignature,
+            Call, KeyAuthorization, MagnusSignature, SignatureType, SignedKeyAuthorization,
             TokenLimit,
         };
+        use revm::interpreter::gas::calculate_initial_tx_gas;
 
         let calldata = Bytes::from(vec![1, 2, 3]);
 
@@ -3217,7 +3167,7 @@ mod tests {
 
         let caller = Address::repeat_byte(0x11);
         let access_key = Address::repeat_byte(0x22);
-        let target = DEFAULT_FEE_TOKEN;
+        let target = MAGNUS_USD_ADDRESS;
 
         let signature =
             MagnusSignature::Keychain(magnus_primitives::transaction::KeychainSignature::new(
@@ -3237,7 +3187,7 @@ mod tests {
                 kind: TxKind::Call(target),
                 ..Default::default()
             },
-            fee_token: Some(DEFAULT_FEE_TOKEN),
+            fee_token: Some(MAGNUS_USD_ADDRESS),
             magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                 signature,
                 aa_calls: vec![Call {
@@ -3345,7 +3295,7 @@ mod tests {
 
         let caller = Address::repeat_byte(0x11);
         let access_key = Address::repeat_byte(0x22);
-        let target = DEFAULT_FEE_TOKEN;
+        let target = MAGNUS_USD_ADDRESS;
 
         let signature =
             MagnusSignature::Keychain(magnus_primitives::transaction::KeychainSignature::new(
@@ -3365,7 +3315,7 @@ mod tests {
                 kind: TxKind::Call(target),
                 ..Default::default()
             },
-            fee_token: Some(DEFAULT_FEE_TOKEN),
+            fee_token: Some(MAGNUS_USD_ADDRESS),
             magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                 signature,
                 aa_calls: vec![Call {
@@ -3501,6 +3451,7 @@ mod tests {
     fn test_multicall_gas_refund_accounting() {
         use crate::evm::MagnusEvm;
         use alloy_primitives::{Bytes, TxKind};
+        use magnus_primitives::transaction::Call;
         use revm::{
             Context, Journal,
             context::CfgEnv,
@@ -3508,7 +3459,6 @@ mod tests {
             handler::FrameResult,
             interpreter::{CallOutcome, Gas, InstructionResult, InterpreterResult},
         };
-        use magnus_primitives::transaction::Call;
 
         const GAS_LIMIT: u64 = 1_000_000;
         const INTRINSIC_GAS: u64 = 21_000;
@@ -4263,7 +4213,7 @@ mod tests {
                     kind: TxKind::Call(Address::ZERO),
                     ..Default::default()
                 },
-                fee_token: Some(DEFAULT_FEE_TOKEN),
+                fee_token: Some(MAGNUS_USD_ADDRESS),
                 magnus_tx_env: Some(Box::new(MagnusBatchCallEnv {
                     signature: sig,
                     aa_calls: vec![Call {
@@ -4390,7 +4340,7 @@ mod tests {
                 let key = Address::random();
                 let signed = sign_key_auth(
                     &signer,
-                    KeyAuthorization::unrestricted(99999, SignatureType::Secp256k1, key),
+                    KeyAuthorization::unrestricted(79941, SignatureType::Secp256k1, key),
                 );
                 let (mut evm, h) = make_evm(user, key, Some(signed), spec, None, true);
                 assert!(

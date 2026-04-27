@@ -122,7 +122,7 @@ async fn test_gas_estimation_snapshots() -> eyre::Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_matrices_testnet() -> eyre::Result<()> {
     let Some(mut env) = rpc::RpcEnv::testnet().await? else {
-        eprintln!("MAGNUS_TESTNET_RPC_URL not set, skipping");
+        eprintln!("ALLEGRO_RPC_URL not set, skipping");
         return Ok(());
     };
 

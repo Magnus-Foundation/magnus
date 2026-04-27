@@ -689,7 +689,7 @@ mod tests {
     use alloy::{consensus::BlockHeader, primitives::Sealable};
     use reth_eth_wire_types::GetBlockHeaders;
 
-    const MODERATO_RPC: &str = "https://rpc.moderato.magnus.xyz";
+    const MODERATO_RPC: &str = "https://rpc.allegro.magnus.xyz";
 
     fn moderato_provider() -> impl Provider<MagnusNetwork> {
         ProviderBuilder::new_with_network::<MagnusNetwork>()

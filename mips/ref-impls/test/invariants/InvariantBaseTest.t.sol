@@ -25,7 +25,7 @@ abstract contract InvariantBaseTest is BaseTest {
     /// @dev Blacklist policy IDs for each token
     mapping(address => uint64) internal _tokenPolicyIds;
 
-    /// @dev Blacklist policy ID for pathUSD
+    /// @dev Blacklist policy ID for MagnusUSD
     uint64 internal _pathUsdPolicyId;
 
     /// @dev Additional tokens (token3, token4) - token1/token2 from BaseTest
@@ -44,14 +44,14 @@ abstract contract InvariantBaseTest is BaseTest {
     function _setupInvariantBase() internal {
         // Create additional tokens (token1, token2 already created in BaseTest)
         token3 =
-            MIP20(factory.createToken("TOKEN3", "T3", "USD", pathUSD, admin, bytes32("token3")));
+            MIP20(factory.createToken("TOKEN3", "T3", "USD", MagnusUSD, admin, bytes32("token3")));
         token4 =
-            MIP20(factory.createToken("TOKEN4", "T4", "USD", pathUSD, admin, bytes32("token4")));
+            MIP20(factory.createToken("TOKEN4", "T4", "USD", MagnusUSD, admin, bytes32("token4")));
 
-        // Setup pathUSD with issuer role (pathUSDAdmin is the pathUSD admin from BaseTest)
-        vm.startPrank(pathUSDAdmin);
-        pathUSD.grantRole(_ISSUER_ROLE, pathUSDAdmin);
-        pathUSD.grantRole(_ISSUER_ROLE, admin);
+        // Setup MagnusUSD with issuer role (MagnusUSDAdmin is the MagnusUSD admin from BaseTest)
+        vm.startPrank(MagnusUSDAdmin);
+        MagnusUSD.grantRole(_ISSUER_ROLE, MagnusUSDAdmin);
+        MagnusUSD.grantRole(_ISSUER_ROLE, admin);
         vm.stopPrank();
 
         // Setup all tokens with issuer role
@@ -68,10 +68,10 @@ abstract contract InvariantBaseTest is BaseTest {
         }
         vm.stopPrank();
 
-        // Create blacklist policy for pathUSD
-        vm.startPrank(pathUSDAdmin);
-        _pathUsdPolicyId = registry.createPolicy(pathUSDAdmin, IMIP403Registry.PolicyType.BLACKLIST);
-        pathUSD.changeTransferPolicyId(_pathUsdPolicyId);
+        // Create blacklist policy for MagnusUSD
+        vm.startPrank(MagnusUSDAdmin);
+        _pathUsdPolicyId = registry.createPolicy(MagnusUSDAdmin, IMIP403Registry.PolicyType.BLACKLIST);
+        MagnusUSD.changeTransferPolicyId(_pathUsdPolicyId);
         vm.stopPrank();
 
         // Register known balance holders for invariant checks
@@ -81,7 +81,7 @@ abstract contract InvariantBaseTest is BaseTest {
         _registerBalanceHolder(alice);
         _registerBalanceHolder(bob);
         _registerBalanceHolder(charlie);
-        _registerBalanceHolder(pathUSDAdmin);
+        _registerBalanceHolder(MagnusUSDAdmin);
     }
 
     /// @dev Registers an address as a potential balance holder
@@ -166,7 +166,7 @@ abstract contract InvariantBaseTest is BaseTest {
             for (uint256 j = 0; j < _tokens.length; j++) {
                 _tokens[j].approve(spender, type(uint256).max);
             }
-            pathUSD.approve(spender, type(uint256).max);
+            MagnusUSD.approve(spender, type(uint256).max);
             vm.stopPrank();
         }
 
@@ -177,14 +177,14 @@ abstract contract InvariantBaseTest is BaseTest {
                           TOKEN SELECTION
     //////////////////////////////////////////////////////////////*/
 
-    /// @dev Selects a token from all available tokens (base tokens + pathUSD)
+    /// @dev Selects a token from all available tokens (base tokens + MagnusUSD)
     /// @param rnd Random seed for selection
     /// @return The selected token address
     function _selectToken(uint256 rnd) internal view returns (address) {
         uint256 totalTokens = _tokens.length + 1;
         uint256 index = rnd % totalTokens;
         if (index == 0) {
-            return address(pathUSD);
+            return address(MagnusUSD);
         }
         return address(_tokens[index - 1]);
     }
@@ -205,11 +205,11 @@ abstract contract InvariantBaseTest is BaseTest {
         uint256 idx2 = bound(pairSeed >> 128, 0, totalTokens - 2);
         if (idx2 >= idx1) idx2++;
 
-        userToken = idx1 == 0 ? address(pathUSD) : address(_tokens[idx1 - 1]);
-        validatorToken = idx2 == 0 ? address(pathUSD) : address(_tokens[idx2 - 1]);
+        userToken = idx1 == 0 ? address(MagnusUSD) : address(_tokens[idx1 - 1]);
+        validatorToken = idx2 == 0 ? address(MagnusUSD) : address(_tokens[idx2 - 1]);
     }
 
-    /// @dev Selects a base token only (excludes pathUSD)
+    /// @dev Selects a base token only (excludes MagnusUSD)
     /// @param rnd Random seed for selection
     /// @return The selected token
     function _selectBaseToken(uint256 rnd) internal view returns (MIP20) {
@@ -221,7 +221,7 @@ abstract contract InvariantBaseTest is BaseTest {
     /// @param token Token to check authorization for
     /// @return The selected authorized actor
     function _selectAuthorizedActor(uint256 seed, address token) internal view returns (address) {
-        uint64 policyId = token == address(pathUSD) ? _pathUsdPolicyId : _tokenPolicyIds[token];
+        uint64 policyId = token == address(MagnusUSD) ? _pathUsdPolicyId : _tokenPolicyIds[token];
 
         address[] memory authorized = new address[](_actors.length);
         uint256 count = 0;
@@ -256,8 +256,8 @@ abstract contract InvariantBaseTest is BaseTest {
     /// @param amount The minimum balance required
     function _ensureFundsAll(address actor, uint256 amount) internal {
         vm.startPrank(admin);
-        if (pathUSD.balanceOf(actor) < amount) {
-            pathUSD.mint(actor, amount + 100_000_000);
+        if (MagnusUSD.balanceOf(actor) < amount) {
+            MagnusUSD.mint(actor, amount + 100_000_000);
         }
         for (uint256 i = 0; i < _tokens.length; i++) {
             if (_tokens[i].balanceOf(actor) < amount) {

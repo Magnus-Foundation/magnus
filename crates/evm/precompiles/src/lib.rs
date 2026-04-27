@@ -16,6 +16,7 @@ pub mod signature_verifier;
 pub mod stablecoin_dex;
 pub mod mip20;
 pub mod mip20_factory;
+pub mod mip20_issuer_registry;
 pub mod mip403_registry;
 pub mod mip_fee_manager;
 pub mod validator_config;
@@ -28,8 +29,8 @@ use crate::{
     account_keychain::AccountKeychain, address_registry::AddressRegistry, nonce::NonceManager,
     signature_verifier::SignatureVerifier, stablecoin_dex::StablecoinDEX, storage::StorageCtx,
     mip_fee_manager::MipFeeManager, mip20::MIP20Token, mip20_factory::MIP20Factory,
-    mip403_registry::MIP403Registry, validator_config::ValidatorConfig,
-    validator_config_v2::ValidatorConfigV2,
+    mip20_issuer_registry::MIP20IssuerRegistry, mip403_registry::MIP403Registry,
+    validator_config::ValidatorConfig, validator_config_v2::ValidatorConfigV2,
 };
 use magnus_chainspec::hardfork::MagnusHardfork;
 use magnus_primitives::MagnusAddressExt;
@@ -50,10 +51,10 @@ use revm::{
 };
 
 pub use magnus_contracts::precompiles::{
-    ACCOUNT_KEYCHAIN_ADDRESS, ADDRESS_REGISTRY_ADDRESS, DEFAULT_FEE_TOKEN,
-    NONCE_PRECOMPILE_ADDRESS, PATH_USD_ADDRESS, SIGNATURE_VERIFIER_ADDRESS, STABLECOIN_DEX_ADDRESS,
-    TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS, MIP403_REGISTRY_ADDRESS,
-    VALIDATOR_CONFIG_ADDRESS, VALIDATOR_CONFIG_V2_ADDRESS,
+    ACCOUNT_KEYCHAIN_ADDRESS, ADDRESS_REGISTRY_ADDRESS, MAGNUS_USD_ADDRESS,
+    NONCE_PRECOMPILE_ADDRESS, SIGNATURE_VERIFIER_ADDRESS, STABLECOIN_DEX_ADDRESS,
+    MIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS, MIP20_ISSUER_REGISTRY_ADDRESS,
+    MIP403_REGISTRY_ADDRESS, VALIDATOR_CONFIG_ADDRESS, VALIDATOR_CONFIG_V2_ADDRESS,
 };
 
 // Re-export storage layout helpers for read-only contexts (e.g., pool validation)
@@ -123,7 +124,7 @@ pub fn extend_magnus_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<
             Some(AddressRegistry::create_precompile(&cfg))
         } else if *address == MIP403_REGISTRY_ADDRESS {
             Some(MIP403Registry::create_precompile(&cfg))
-        } else if *address == TIP_FEE_MANAGER_ADDRESS {
+        } else if *address == MIP_FEE_MANAGER_ADDRESS {
             Some(MipFeeManager::create_precompile(&cfg))
         } else if *address == STABLECOIN_DEX_ADDRESS {
             Some(StablecoinDEX::create_precompile(&cfg))
@@ -137,6 +138,9 @@ pub fn extend_magnus_precompiles(precompiles: &mut PrecompilesMap, cfg: &CfgEnv<
             Some(ValidatorConfigV2::create_precompile(&cfg))
         } else if *address == SIGNATURE_VERIFIER_ADDRESS && cfg.spec.is_t3() {
             Some(SignatureVerifier::create_precompile(&cfg))
+        } else if *address == MIP20_ISSUER_REGISTRY_ADDRESS && cfg.spec.is_t4() {
+            // T4: multi-currency fees + issuer-allowlist gate. Stub for now.
+            Some(MIP20IssuerRegistry::create_precompile(&cfg))
         } else {
             None
         }
@@ -200,6 +204,13 @@ impl MIP20Factory {
     /// Creates the EVM precompile for this type.
     pub fn create_precompile(cfg: &CfgEnv<MagnusHardfork>) -> DynPrecompile {
         magnus_precompile!("MIP20Factory", cfg, |input| { Self::new() })
+    }
+}
+
+impl MIP20IssuerRegistry {
+    /// Creates the EVM precompile for this type.
+    pub fn create_precompile(cfg: &CfgEnv<MagnusHardfork>) -> DynPrecompile {
+        magnus_precompile!("MIP20IssuerRegistry", cfg, |input| { Self::new() })
     }
 }
 
@@ -456,7 +467,7 @@ mod tests {
     fn test_precompile_delegatecall() {
         let cfg = CfgEnv::<MagnusHardfork>::default();
         let precompile = magnus_precompile!("MIP20Token", &cfg, |input| {
-            MIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
+            MIP20Token::from_address(MAGNUS_USD_ADDRESS).expect("MAGNUS_USD_ADDRESS is valid")
         });
 
         let db = CacheDB::new(EmptyDB::new());
@@ -496,10 +507,10 @@ mod tests {
         let cfg = CfgEnv::<MagnusHardfork>::default();
         let tx = TxEnv::default();
         let precompile = magnus_precompile!("MIP20Token", &cfg, |input| {
-            MIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
+            MIP20Token::from_address(MAGNUS_USD_ADDRESS).expect("MAGNUS_USD_ADDRESS is valid")
         });
 
-        let token_address = PATH_USD_ADDRESS;
+        let token_address = MAGNUS_USD_ADDRESS;
 
         let call_static = |calldata: Bytes| {
             let mut db = CacheDB::new(EmptyDB::new());
@@ -574,12 +585,12 @@ mod tests {
             cfg.set_spec_and_mainnet_gas_params(spec);
             let tx = TxEnv::default();
             let precompile = magnus_precompile!("MIP20Token", &cfg, |input| {
-                MIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
+                MIP20Token::from_address(MAGNUS_USD_ADDRESS).expect("MAGNUS_USD_ADDRESS is valid")
             });
 
             let mut db = CacheDB::new(EmptyDB::new());
             db.insert_account_info(
-                PATH_USD_ADDRESS,
+                MAGNUS_USD_ADDRESS,
                 AccountInfo {
                     code: Some(Bytecode::new_raw(bytes!("0xEF"))),
                     ..Default::default()
@@ -596,8 +607,8 @@ mod tests {
                 gas: 1_000_000,
                 is_static: false,
                 value: U256::ZERO,
-                target_address: PATH_USD_ADDRESS,
-                bytecode_address: PATH_USD_ADDRESS,
+                target_address: MAGNUS_USD_ADDRESS,
+                bytecode_address: MAGNUS_USD_ADDRESS,
                 reservoir: 0,
             };
 
@@ -755,7 +766,7 @@ mod tests {
         );
 
         // MipFeeManager should be registered
-        let fee_manager_precompile = precompiles.get(&TIP_FEE_MANAGER_ADDRESS);
+        let fee_manager_precompile = precompiles.get(&MIP_FEE_MANAGER_ADDRESS);
         assert!(
             fee_manager_precompile.is_some(),
             "MipFeeManager should be registered"
@@ -804,7 +815,7 @@ mod tests {
         );
 
         // MIP20 tokens with prefix should be registered
-        let mip20_precompile = precompiles.get(&PATH_USD_ADDRESS);
+        let mip20_precompile = precompiles.get(&MAGNUS_USD_ADDRESS);
         assert!(
             mip20_precompile.is_some(),
             "MIP20 tokens should be registered"
@@ -828,6 +839,66 @@ mod tests {
             precompiles.get(&SIGNATURE_VERIFIER_ADDRESS).is_none(),
             "SignatureVerifier should NOT be registered before T3"
         );
+    }
+
+    #[test]
+    fn test_issuer_registry_not_registered_pre_t4() {
+        for spec in [
+            MagnusHardfork::Genesis,
+            MagnusHardfork::T0,
+            MagnusHardfork::T1,
+            MagnusHardfork::T1A,
+            MagnusHardfork::T1B,
+            MagnusHardfork::T1C,
+            MagnusHardfork::T2,
+            MagnusHardfork::T3,
+        ] {
+            let mut cfg = CfgEnv::<MagnusHardfork>::default();
+            cfg.set_spec_and_mainnet_gas_params(spec);
+            let precompiles = magnus_precompiles(&cfg);
+
+            assert!(
+                precompiles.get(&MIP20_ISSUER_REGISTRY_ADDRESS).is_none(),
+                "MIP20IssuerRegistry must NOT be registered at {spec:?} (pre-T4)"
+            );
+        }
+    }
+
+    #[test]
+    fn test_issuer_registry_registered_at_t4() {
+        let mut cfg = CfgEnv::<MagnusHardfork>::default();
+        cfg.set_spec_and_mainnet_gas_params(MagnusHardfork::T4);
+        let precompiles = magnus_precompiles(&cfg);
+
+        let registry_precompile = precompiles.get(&MIP20_ISSUER_REGISTRY_ADDRESS);
+        assert!(
+            registry_precompile.is_some(),
+            "MIP20IssuerRegistry MUST be registered at T4"
+        );
+    }
+
+    #[test]
+    fn test_issuer_registry_address_does_not_collide() {
+        let other_addresses = [
+            MIP_FEE_MANAGER_ADDRESS,
+            MAGNUS_USD_ADDRESS,
+            MIP403_REGISTRY_ADDRESS,
+            MIP20_FACTORY_ADDRESS,
+            STABLECOIN_DEX_ADDRESS,
+            NONCE_PRECOMPILE_ADDRESS,
+            VALIDATOR_CONFIG_ADDRESS,
+            ACCOUNT_KEYCHAIN_ADDRESS,
+            VALIDATOR_CONFIG_V2_ADDRESS,
+            ADDRESS_REGISTRY_ADDRESS,
+            SIGNATURE_VERIFIER_ADDRESS,
+        ];
+
+        for addr in other_addresses {
+            assert_ne!(
+                addr, MIP20_ISSUER_REGISTRY_ADDRESS,
+                "MIP20_ISSUER_REGISTRY_ADDRESS must not collide with {addr}"
+            );
+        }
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use super::*;
 use alloy::providers::DynProvider;
 use indicatif::ProgressIterator;
-use magnus_contracts::precompiles::{IStablecoinDEX, PATH_USD_ADDRESS};
+use magnus_contracts::precompiles::{IStablecoinDEX, MAGNUS_USD_ADDRESS};
 use magnus_precompiles::mip20::U128_MAX;
 
 /// This method performs a one-time setup for sending a lot of transactions:
@@ -24,7 +24,7 @@ pub(super) async fn setup(
     info!(user_tokens, "Creating MIP-20 tokens");
     let progress = ProgressBar::new(user_tokens as u64 + 1);
     // Create quote token
-    let quote_token = setup_test_token(provider.clone(), caller, PATH_USD_ADDRESS).await?;
+    let quote_token = setup_test_token(provider.clone(), caller, MAGNUS_USD_ADDRESS).await?;
     progress.inc(1);
     // Create `user_tokens` tokens
     let user_tokens = stream::iter((0..user_tokens).progress_with(progress))

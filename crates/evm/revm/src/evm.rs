@@ -231,7 +231,7 @@ mod tests {
     use sha2::{Digest, Sha256};
     use magnus_chainspec::hardfork::MagnusHardfork;
     use magnus_precompiles::{
-        AuthorizedKey, NONCE_PRECOMPILE_ADDRESS, PATH_USD_ADDRESS,
+        AuthorizedKey, NONCE_PRECOMPILE_ADDRESS, MAGNUS_USD_ADDRESS,
         nonce::NonceManager,
         storage::{Handler, StorageCtx, evm::EvmPrecompileStorageProvider},
         test_util::MIP20Setup,
@@ -632,7 +632,10 @@ mod tests {
         fn build(self) -> MagnusTransaction {
             MagnusTransaction {
                 chain_id: 1,
-                fee_token: None,
+                // Tests deploy MagnusUSD via MIP20Setup::magnus_usd; default the
+                // builder's fee_token to that so post-G3b tests don't need to
+                // set it explicitly.
+                fee_token: Some(magnus_contracts::precompiles::MAGNUS_USD_ADDRESS),
                 max_priority_fee_per_gas: self.max_priority_fee_per_gas,
                 max_fee_per_gas: self.max_fee_per_gas,
                 gas_limit: self.gas_limit,
@@ -672,7 +675,7 @@ mod tests {
         let internals = EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
         let mut storage = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
 
-        _ = StorageCtx::enter(&mut storage, || MIP20Setup::path_usd(Address::ZERO).apply())?;
+        _ = StorageCtx::enter(&mut storage, || MIP20Setup::magnus_usd(Address::ZERO).apply())?;
         drop(storage);
 
         let contract = Address::random();
@@ -723,7 +726,7 @@ mod tests {
         }
         .abi_encode();
 
-        // Create bytecode that calls setSupplyCap(uint256 newSupplyCap) on PATH_USD
+        // Create bytecode that calls setSupplyCap(uint256 newSupplyCap) on MAGNUS_USD
         // it is 36 bytes long
         let mut bytecode_bytes = vec![];
 
@@ -737,7 +740,7 @@ mod tests {
             ]);
         }
 
-        // CALL to PATH_USD precompile
+        // CALL to MAGNUS_USD precompile
         // CALL(gas, addr, value, argsOffset, argsSize, retOffset, retSize)
         bytecode_bytes.extend_from_slice(&[
             opcode::PUSH1,
@@ -752,9 +755,9 @@ mod tests {
             0x00, // value = 0
         ]);
 
-        // PUSH20 PATH_USD_ADDRESS
+        // PUSH20 MAGNUS_USD_ADDRESS
         bytecode_bytes.push(opcode::PUSH20);
-        bytecode_bytes.extend_from_slice(PATH_USD_ADDRESS.as_slice());
+        bytecode_bytes.extend_from_slice(MAGNUS_USD_ADDRESS.as_slice());
 
         bytecode_bytes.extend_from_slice(&[
             opcode::PUSH2,
@@ -777,7 +780,7 @@ mod tests {
 
             let mut storage = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
             StorageCtx::enter(&mut storage, || {
-                MIP20Setup::path_usd(caller)
+                MIP20Setup::magnus_usd(caller)
                     .with_issuer(caller)
                     .with_admin(contract) // Grant admin role to contract so it can call setSupplyCap
                     .apply()
@@ -809,12 +812,12 @@ mod tests {
         // Verify that a SupplyCapUpdate log was emitted by the MIP20 precompile
         assert_eq!(result.result.logs().len(), 3);
         // Log should be from MIP20_FACTORY
-        assert_eq!(result.result.logs()[0].address, PATH_USD_ADDRESS);
+        assert_eq!(result.result.logs()[0].address, MAGNUS_USD_ADDRESS);
 
         // Get the inspector and verify counts
         let inspector = &evm.inspector;
 
-        // Verify CALL opcode was executed (the call to PATH_USD)
+        // Verify CALL opcode was executed (the call to MAGNUS_USD)
         assert_eq!(inspector.get_count(opcode::CALL), 1);
 
         assert_eq!(inspector.get_count(opcode::STOP), 1);
@@ -822,7 +825,7 @@ mod tests {
         // Verify log count
         assert_eq!(inspector.log_count(), 1);
 
-        // Verify call count (initial tx + CALL to PATH_USD)
+        // Verify call count (initial tx + CALL to MAGNUS_USD)
         assert_eq!(inspector.call_count(), 2);
 
         // Should have 2 call ends
@@ -890,10 +893,21 @@ mod tests {
             EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
 
         StorageCtx::enter(&mut provider, || {
-            MIP20Setup::path_usd(caller)
+            MIP20Setup::magnus_usd(caller)
                 .with_issuer(caller)
                 .with_mint(caller, U256::from(100_000))
-                .apply()
+                .apply()?;
+            // Bootstrap the FeeManager's currency registry + the block
+            // beneficiary's accept-set so post-G3b settle_fee finds MagnusUSD
+            // acceptable.
+            let admin = Address::random();
+            let mut fm = magnus_precompiles::mip_fee_manager::MipFeeManager::new();
+            fm.initialize()?;
+            fm.set_governance_admin(Address::ZERO, admin)?;
+            fm.add_currency(admin, "USD", 0)?;
+            fm.enable_currency(admin, "USD", 0)?;
+            fm.add_accepted_token(Address::ZERO, MAGNUS_USD_ADDRESS, Address::random())?;
+            Ok::<_, magnus_precompiles::error::MagnusPrecompileError>(())
         })?;
 
         drop(provider);
@@ -915,7 +929,7 @@ mod tests {
             EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
 
         let slot = StorageCtx::enter(&mut provider, || {
-            MIP20Token::from_address(PATH_USD_ADDRESS)?.balances[caller].read()
+            MIP20Token::from_address(MAGNUS_USD_ADDRESS)?.balances[caller].read()
         })?;
         drop(provider);
 
@@ -931,7 +945,7 @@ mod tests {
             EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
 
         let slot = StorageCtx::enter(&mut provider, || {
-            MIP20Token::from_address(PATH_USD_ADDRESS)?.balances[caller].read()
+            MIP20Token::from_address(MAGNUS_USD_ADDRESS)?.balances[caller].read()
         })?;
         drop(provider);
 
@@ -960,7 +974,7 @@ mod tests {
             EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
 
         let slot = StorageCtx::enter(&mut provider, || {
-            MIP20Token::from_address(PATH_USD_ADDRESS)?.balances[caller].read()
+            MIP20Token::from_address(MAGNUS_USD_ADDRESS)?.balances[caller].read()
         })?;
         drop(provider);
 
@@ -1055,7 +1069,7 @@ mod tests {
 
         // Test a transaction with a failing call to MIP20 contract with wrong input
         let tx_fail = TxBuilder::new()
-            .call(PATH_USD_ADDRESS, &[0x01, 0x02]) // Too short for MIP20
+            .call(MAGNUS_USD_ADDRESS, &[0x01, 0x02]) // Too short for MIP20
             .nonce(2)
             .build();
 
@@ -1133,7 +1147,7 @@ mod tests {
             let mut provider = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
 
             StorageCtx::enter(&mut provider, || {
-                MIP20Setup::path_usd(caller)
+                MIP20Setup::magnus_usd(caller)
                     .with_issuer(caller)
                     .with_mint(caller, U256::from(10_000_000))
                     .apply()
@@ -1184,7 +1198,7 @@ mod tests {
             let mut provider = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
 
             StorageCtx::enter(&mut provider, || {
-                MIP20Setup::path_usd(caller)
+                MIP20Setup::magnus_usd(caller)
                     .with_issuer(caller)
                     .with_mint(caller, U256::from(10_000_000))
                     .apply()
@@ -1200,7 +1214,7 @@ mod tests {
 
         let key_auth = KeyAuthorization::unrestricted(1, SignatureType::WebAuthn, caller)
             .with_allowed_calls(vec![magnus_primitives::transaction::CallScope {
-                target: PATH_USD_ADDRESS,
+                target: MAGNUS_USD_ADDRESS,
                 selector_rules: vec![magnus_primitives::transaction::SelectorRule {
                     selector: IMIP20::transferCall::SELECTOR,
                     recipients: Vec::new(),
@@ -1210,7 +1224,7 @@ mod tests {
         let signed_key_auth = key_auth.into_signed(PrimitiveSignature::WebAuthn(key_auth_sig));
 
         let tx = TxBuilder::new()
-            .call(PATH_USD_ADDRESS, &transfer_input)
+            .call(MAGNUS_USD_ADDRESS, &transfer_input)
             .key_authorization(signed_key_auth)
             .gas_limit(5_000_000)
             .build();
@@ -2230,7 +2244,7 @@ mod tests {
             let mut provider = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
 
             StorageCtx::enter(&mut provider, || {
-                MIP20Setup::path_usd(caller)
+                MIP20Setup::magnus_usd(caller)
                     .with_issuer(caller)
                     .with_mint(caller, U256::from(10_000_000))
                     .apply()
@@ -2429,7 +2443,7 @@ mod tests {
                 let mut provider =
                     EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
                 StorageCtx::enter(&mut provider, || {
-                    MIP20Setup::path_usd(caller)
+                    MIP20Setup::magnus_usd(caller)
                         .with_issuer(caller)
                         .with_mint(caller, U256::from(100_000_000))
                         .apply()
@@ -2544,7 +2558,7 @@ mod tests {
                 let mut provider =
                     EvmPrecompileStorageProvider::new_max_gas(internals, &Default::default());
                 StorageCtx::enter(&mut provider, || {
-                    MIP20Setup::path_usd(caller)
+                    MIP20Setup::magnus_usd(caller)
                         .with_issuer(caller)
                         .with_mint(caller, U256::from(100_000_000))
                         .apply()

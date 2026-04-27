@@ -118,7 +118,7 @@ mod tests {
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
     use reth_chainspec::EthChainSpec;
     use reth_evm::{ConfigureEngineEvm, ConvertTx, ExecutableTxTuple};
-    use magnus_chainspec::{MagnusChainSpec, spec::MODERATO};
+    use magnus_chainspec::{MagnusChainSpec, spec::ALLEGRO};
     use magnus_primitives::{
         BlockBody, SubBlockMetadata, MagnusHeader, transaction::envelope::MAGNUS_SYSTEM_TX_SIGNATURE,
     };
@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_tx_iterator_for_payload() {
-        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(ALLEGRO.genesis().clone()));
         let evm_config = MagnusEvmConfig::new(chainspec.clone());
 
         let tx1 = create_legacy_tx();
@@ -216,7 +216,7 @@ mod tests {
 
     #[test]
     fn test_context_for_payload() {
-        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(ALLEGRO.genesis().clone()));
         let evm_config = MagnusEvmConfig::new(chainspec.clone());
 
         let system_tx = create_subblock_metadata_tx(chainspec.chain().id(), 1);
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_evm_env_for_payload() {
-        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(ALLEGRO.genesis().clone()));
         let evm_config = MagnusEvmConfig::new(chainspec.clone());
 
         let system_tx = create_subblock_metadata_tx(chainspec.chain().id(), 1);

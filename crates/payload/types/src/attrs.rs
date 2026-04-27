@@ -459,7 +459,7 @@ mod tests {
 
         let attrs = MagnusPayloadAttributes {
             inner: EthPayloadAttributes {
-                timestamp: 9999,
+                timestamp: 83866,
                 prev_randao: B256::ZERO,
                 suggested_fee_recipient: Address::random(),
                 withdrawals: Some(vec![Withdrawal {
@@ -476,7 +476,7 @@ mod tests {
         };
 
         // PayloadAttributes trait methods
-        assert_eq!(PayloadAttributes::timestamp(&attrs), 9999);
+        assert_eq!(PayloadAttributes::timestamp(&attrs), 83866);
         assert_eq!(attrs.withdrawals().unwrap().len(), 1);
         assert_eq!(attrs.withdrawals().unwrap()[0].address, withdrawal_addr);
         assert_eq!(attrs.parent_beacon_block_root(), Some(beacon_root));

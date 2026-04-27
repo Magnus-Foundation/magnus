@@ -1179,10 +1179,10 @@ contract ValidatorConfigV2Test is BaseTest {
 
         // Should allow changing port on same validator's IP
         // setupVal1 is at index 1 after reverse migration
-        validatorConfigV2.setIpAddresses(1, "10.0.0.100:9999", "10.0.0.100");
+        validatorConfigV2.setIpAddresses(1, "10.0.0.100:83866", "10.0.0.100");
 
         IValidatorConfigV2.Validator memory v = validatorConfigV2.validatorByAddress(setupVal1);
-        assertEq(v.ingress, "10.0.0.100:9999", "Should allow port change on same IP");
+        assertEq(v.ingress, "10.0.0.100:83866", "Should allow port change on same IP");
     }
 
     // =========================================================================

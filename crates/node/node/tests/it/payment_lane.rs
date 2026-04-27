@@ -8,7 +8,7 @@ use alloy::{
 use alloy_rpc_types_eth::TransactionRequest;
 use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 use magnus_contracts::precompiles::{IFeeManager, IMIP20};
-use magnus_precompiles::TIP_FEE_MANAGER_ADDRESS;
+use magnus_precompiles::MIP_FEE_MANAGER_ADDRESS;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_payment_lane_with_mixed_load() -> eyre::Result<()> {
@@ -39,11 +39,11 @@ async fn test_payment_lane_with_mixed_load() -> eyre::Result<()> {
     assert_eq!(balance2, U256::ZERO);
 
     // Get fee tokens for both accounts
-    let fee_manager = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, provider.clone());
+    let fee_manager = IFeeManager::new(MIP_FEE_MANAGER_ADDRESS, provider.clone());
     let fee_token_address1 = fee_manager.userTokens(caller).call().await?;
     let fee_token1 = IMIP20::new(fee_token_address1, provider.clone());
 
-    let fee_manager2 = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, provider2.clone());
+    let fee_manager2 = IFeeManager::new(MIP_FEE_MANAGER_ADDRESS, provider2.clone());
     let fee_token_address2 = fee_manager2.userTokens(caller2).call().await?;
     let fee_token2 = IMIP20::new(fee_token_address2, provider2.clone());
 

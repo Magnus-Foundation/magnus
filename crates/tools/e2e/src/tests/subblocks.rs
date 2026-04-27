@@ -26,7 +26,7 @@ use magnus_node::primitives::{
     transaction::{Call, calc_gas_balance_spending},
 };
 use magnus_precompiles::{
-    DEFAULT_FEE_TOKEN, NONCE_PRECOMPILE_ADDRESS, nonce::NonceManager, mip20::MIP20Token,
+    MAGNUS_USD_ADDRESS, NONCE_PRECOMPILE_ADDRESS, nonce::NonceManager, mip20::MIP20Token,
 };
 
 use magnus_node::consensus::MAGNUS_SHARED_GAS_DIVISOR;
@@ -109,13 +109,13 @@ fn subblocks_are_included() {
                     .execution_outcome()
                     .state
                     .state
-                    .get(&DEFAULT_FEE_TOKEN)
+                    .get(&MAGNUS_USD_ADDRESS)
                     .unwrap()
                     .storage;
 
                 // Assert that all validators were paid for their subblock transactions
                 for fee_recipient in &fee_recipients {
-                    let balance_slot = MIP20Token::from_address(DEFAULT_FEE_TOKEN)
+                    let balance_slot = MIP20Token::from_address(MAGNUS_USD_ADDRESS)
                         .unwrap()
                         .balances[*fee_recipient]
                         .slot();
@@ -279,12 +279,12 @@ fn subblocks_are_included_with_failing_txs() {
                     .execution_outcome()
                     .state
                     .state
-                    .get(&DEFAULT_FEE_TOKEN)
+                    .get(&MAGNUS_USD_ADDRESS)
                     .unwrap()
                     .storage;
 
                 // Assert that all validators were paid for their subblock transactions
-                let balance_slot = MIP20Token::from_address(DEFAULT_FEE_TOKEN)
+                let balance_slot = MIP20Token::from_address(MAGNUS_USD_ADDRESS)
                     .unwrap()
                     .balances[*fee_recipient]
                     .slot();

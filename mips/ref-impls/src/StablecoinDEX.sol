@@ -1372,16 +1372,16 @@ contract StablecoinDEX is IStablecoinDEX {
         return (bookKeys, baseForQuote);
     }
 
-    /// @notice Find the path from a token to the root (pathUSD)
+    /// @notice Find the path from a token to the root (MagnusUSD)
     /// @param token Starting token address
-    /// @return path Array of addresses starting with the token and ending with pathUSD
+    /// @return path Array of addresses starting with the token and ending with MagnusUSD
     function findPathToRoot(address token) internal view returns (address[] memory path) {
         // First, count the path length
         uint256 length = 1;
         address current = token;
-        address pathUSD = 0x20C0000000000000000000000000000000000000;
+        address MagnusUSD = 0x20C0000000000000000000000000000000000000;
 
-        while (current != pathUSD) {
+        while (current != MagnusUSD) {
             current = address(IMIP20(current).quoteToken());
             length++;
         }
@@ -1391,7 +1391,7 @@ contract StablecoinDEX is IStablecoinDEX {
         current = token;
         for (uint256 i = 0; i < length; i++) {
             path[i] = current;
-            if (current == pathUSD) break;
+            if (current == MagnusUSD) break;
             current = address(IMIP20(current).quoteToken());
         }
 

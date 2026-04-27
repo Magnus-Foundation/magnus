@@ -48,14 +48,14 @@ use magnus_contracts::{
 use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
 use magnus_evm::evm::{MagnusEvm, MagnusEvmFactory};
 use magnus_precompiles::{
-    PATH_USD_ADDRESS,
+    MAGNUS_USD_ADDRESS,
     account_keychain::AccountKeychain,
     address_registry::AddressRegistry,
     nonce::NonceManager,
     signature_verifier::SignatureVerifier,
     stablecoin_dex::StablecoinDEX,
     storage::{ContractStorage, StorageCtx},
-    mip_fee_manager::{IFeeManager, MipFeeManager},
+    mip_fee_manager::MipFeeManager,
     mip20::{ISSUER_ROLE, IMIP20, MIP20Token},
     mip20_factory::MIP20Factory,
     mip403_registry::MIP403Registry,
@@ -112,7 +112,7 @@ pub(crate) struct GenesisArgs {
     #[arg(long)]
     pub(crate) seed: Option<u64>,
 
-    /// Custom admin address for pathUSD token.
+    /// Custom admin address for MagnusUSD token.
     /// If not set, uses the first generated account.
     #[arg(long)]
     pathusd_admin: Option<Address>,
@@ -256,8 +256,8 @@ impl GenesisArgs {
         println!("Initializing MIP20Factory");
         initialize_tip20_factory(&mut evm)?;
 
-        println!("Creating pathUSD through factory");
-        create_path_usd_token(pathusd_admin, &addresses, self.pathusd_amount, &mut evm)?;
+        println!("Creating MagnusUSD through factory");
+        create_magnus_usd_token(pathusd_admin, &addresses, self.pathusd_amount, &mut evm)?;
 
         let (alpha_token_address, beta_token_address, theta_token_address) =
             if !self.no_extra_tokens {
@@ -266,7 +266,7 @@ impl GenesisArgs {
                     "AlphaUSD",
                     "AlphaUSD",
                     "USD",
-                    PATH_USD_ADDRESS,
+                    MAGNUS_USD_ADDRESS,
                     pathusd_admin,
                     &addresses,
                     U256::from(u64::MAX),
@@ -278,7 +278,7 @@ impl GenesisArgs {
                     "BetaUSD",
                     "BetaUSD",
                     "USD",
-                    PATH_USD_ADDRESS,
+                    MAGNUS_USD_ADDRESS,
                     pathusd_admin,
                     &addresses,
                     U256::from(u64::MAX),
@@ -290,7 +290,7 @@ impl GenesisArgs {
                     "ThetaUSD",
                     "ThetaUSD",
                     "USD",
-                    PATH_USD_ADDRESS,
+                    MAGNUS_USD_ADDRESS,
                     pathusd_admin,
                     &addresses,
                     U256::from(u64::MAX),
@@ -323,7 +323,7 @@ impl GenesisArgs {
                     "DONOTUSE",
                     "DONOTUSE",
                     "USD",
-                    PATH_USD_ADDRESS,
+                    MAGNUS_USD_ADDRESS,
                     self.deployment_gas_token_admin.expect(
                         "Deployment gas token admin is required if you want to deploy the token",
                     ),
@@ -375,14 +375,22 @@ impl GenesisArgs {
         let default_user_fee_token = if let Some(address) = deployment_gas_token {
             address
         } else {
-            alpha_token_address.unwrap_or(PATH_USD_ADDRESS)
+            alpha_token_address.unwrap_or(MAGNUS_USD_ADDRESS)
         };
 
         let default_validator_fee_token = if let Some(address) = deployment_gas_token {
             address
         } else {
-            PATH_USD_ADDRESS
+            MAGNUS_USD_ADDRESS
         };
+
+        // Initial currency registry per chain.
+        let initial_currencies: &[&str] = match self.chain_id {
+            83866 => &["USD", "VND"],
+            79941 => &["USD"],
+            _ => &[],
+        };
+        let governance_admin = self.coinbase;
 
         initialize_fee_manager(
             default_validator_fee_token,
@@ -390,6 +398,8 @@ impl GenesisArgs {
             addresses.clone(),
             // TODO: also populate validators here, once the logic is back.
             vec![self.coinbase],
+            governance_admin,
+            initial_currencies,
             &mut evm,
         );
 
@@ -410,24 +420,13 @@ impl GenesisArgs {
             initialize_signature_verifier(&mut evm)?;
         }
 
-        if !self.no_pairwise_liquidity {
-            if let (Some(alpha), Some(beta), Some(theta)) =
-                (alpha_token_address, beta_token_address, theta_token_address)
-            {
-                println!("Minting pairwise FeeAMM liquidity");
-                mint_pairwise_liquidity(
-                    alpha,
-                    vec![PATH_USD_ADDRESS, beta, theta],
-                    U256::from(10u64.pow(10)),
-                    pathusd_admin,
-                    &mut evm,
-                );
-            } else {
-                println!("Skipping pairwise liquidity (extra tokens not created)");
-            }
-        } else {
-            println!("Skipping pairwise liquidity (--no-pairwise-liquidity)");
-        }
+        // FeeAMM pairwise-liquidity bootstrap is gone with G3b: no AMM, no pools.
+        let _ = (
+            alpha_token_address,
+            beta_token_address,
+            theta_token_address,
+            self.no_pairwise_liquidity,
+        );
 
         evm.ctx_mut()
             .journaled_state
@@ -639,9 +638,8 @@ fn initialize_tip20_factory(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Resu
     Ok(())
 }
 
-/// Creates pathUSD as the first MIP20 token at a reserved address.
-/// pathUSD is not created via factory since it's at a reserved address.
-fn create_path_usd_token(
+/// Creates MagnusUSD as the first USD MIP-20 token at a reserved address.
+fn create_magnus_usd_token(
     admin: Address,
     recipients: &[Address],
     amount_per_recipient: u64,
@@ -655,20 +653,18 @@ fn create_path_usd_token(
         &ctx.tx,
         || {
             MIP20Factory::new().create_token_reserved_address(
-                PATH_USD_ADDRESS,
-                "pathUSD",
-                "pathUSD",
+                MAGNUS_USD_ADDRESS,
+                "MagnusUSD",
+                "mUSD",
                 "USD",
                 Address::ZERO,
                 admin,
             )?;
 
-            // Initialize pathUSD directly (not via factory) since it's at a reserved address.
-            let mut token = MIP20Token::from_address(PATH_USD_ADDRESS)
-                .expect("Could not create pathUSD token instance");
+            let mut token = MIP20Token::from_address(MAGNUS_USD_ADDRESS)
+                .expect("Could not create MagnusUSD token instance");
             token.grant_role_internal(admin, *ISSUER_ROLE)?;
 
-            // Mint to all recipients
             for recipient in recipients.iter().progress() {
                 token
                     .mint(
@@ -678,7 +674,7 @@ fn create_path_usd_token(
                             amount: U256::from(amount_per_recipient),
                         },
                     )
-                    .expect("Could not mint pathUSD");
+                    .expect("Could not mint MagnusUSD");
             }
 
             Ok(())
@@ -789,6 +785,8 @@ fn initialize_fee_manager(
     user_fee_token_address: Address,
     initial_accounts: Vec<Address>,
     validators: Vec<Address>,
+    governance_admin: Address,
+    initial_currencies: &[&str],
     evm: &mut MagnusEvm<CacheDB<EmptyDB>>,
 ) {
     // Update the beneficiary since the validator can't set the validator fee token for themselves
@@ -803,34 +801,63 @@ fn initialize_fee_manager(
             fee_manager
                 .initialize()
                 .expect("Could not init fee manager");
-            println!(
-                "Setting user fee token {user_fee_token_address} for {} accounts",
-                initial_accounts.len()
-            );
-            for address in initial_accounts.iter().progress() {
-                fee_manager
-                    .set_user_token(
-                        *address,
-                        IFeeManager::setUserTokenCall {
-                            token: user_fee_token_address,
-                        },
-                    )
-                    .expect("Could not set fee token");
-            }
 
-            // Set validator fee tokens to pathUSD
-            for validator in validators {
-                println!("Setting user token for {validator} {validator_fee_token_address}");
+            // Per-user/per-validator single-token preferences were removed at T4.
+            // Validator accept-sets are bootstrapped post-launch via governance.
+            let _ = (
+                user_fee_token_address,
+                validator_fee_token_address,
+                &initial_accounts,
+                &validators,
+            );
+
+            // Currency registry bootstrap: set admin and pre-register launch currencies.
+            // governance_admin == zero means "leave unset; multisig bootstraps post-launch".
+            if !governance_admin.is_zero() {
+                println!("Setting governance admin to {governance_admin}");
                 fee_manager
-                    .set_validator_token(
-                        validator,
-                        IFeeManager::setValidatorTokenCall {
-                            token: validator_fee_token_address,
-                        },
-                        // use random address to avoid `CannotChangeWithinBlock` error
-                        Address::random(),
-                    )
-                    .expect("Could not set validator fee token");
+                    .set_governance_admin(Address::ZERO, governance_admin)
+                    .expect("Could not set governance admin");
+
+                // add+enable at block 0 so the currency is gas-eligible from block 1.
+                for code in initial_currencies {
+                    println!("Registering and enabling currency {code}");
+                    fee_manager
+                        .add_currency(governance_admin, code, 0)
+                        .unwrap_or_else(|e| panic!("could not add currency {code}: {e:?}"));
+                    fee_manager
+                        .enable_currency(governance_admin, code, 0)
+                        .unwrap_or_else(|e| panic!("could not enable currency {code}: {e:?}"));
+                }
+
+                // Pre-register Stablecoin DEX swap selectors so fee inference
+                // works on T4-from-genesis chains.
+                use alloy::primitives::FixedBytes;
+                use alloy::sol_types::SolCall;
+                use magnus_contracts::precompiles::{
+                    IStablecoinDEX, STABLECOIN_DEX_ADDRESS,
+                };
+                let dex_selectors: [FixedBytes<4>; 2] = [
+                    IStablecoinDEX::swapExactAmountInCall::SELECTOR.into(),
+                    IStablecoinDEX::swapExactAmountOutCall::SELECTOR.into(),
+                ];
+                for selector in dex_selectors {
+                    fee_manager
+                        .register_router_selector(
+                            governance_admin,
+                            STABLECOIN_DEX_ADDRESS,
+                            selector,
+                            0,
+                        )
+                        .unwrap_or_else(|e| {
+                            panic!("could not register DEX router selector: {e:?}")
+                        });
+                }
+            } else if !initial_currencies.is_empty() {
+                println!(
+                    "WARN: governance_admin is zero; skipping {} currency registrations",
+                    initial_currencies.len()
+                );
             }
         },
     );
@@ -1058,27 +1085,3 @@ fn generate_consensus_config(
     Some(ConsensusConfig { output, validators })
 }
 
-fn mint_pairwise_liquidity(
-    a_token: Address,
-    b_tokens: Vec<Address>,
-    amount: U256,
-    admin: Address,
-    evm: &mut MagnusEvm<CacheDB<EmptyDB>>,
-) {
-    let ctx = evm.ctx_mut();
-    StorageCtx::enter_evm(
-        &mut ctx.journaled_state,
-        &ctx.block,
-        &ctx.cfg,
-        &ctx.tx,
-        || {
-            let mut fee_manager = MipFeeManager::new();
-
-            for b_token_address in b_tokens {
-                fee_manager
-                    .mint(admin, a_token, b_token_address, amount, admin)
-                    .expect("Could not mint A -> B Liquidity pool");
-            }
-        },
-    );
-}

@@ -13,7 +13,7 @@ use alloy::{
 use alloy_eips::{Decodable2718, Encodable2718};
 use alloy_primitives::TxKind;
 use reth_primitives_traits::transaction::TxHashRef;
-use magnus_contracts::precompiles::DEFAULT_FEE_TOKEN;
+use magnus_contracts::precompiles::MAGNUS_USD_ADDRESS;
 use magnus_node::rpc::MagnusTransactionRequest;
 use magnus_primitives::{
     SignatureType, MagnusTransaction, MagnusTxEnvelope,
@@ -503,7 +503,7 @@ pub(super) async fn run_estimate_gas_matrix<E: TestEnv>(
         let calls = match &test_case.payload {
             GasPayload::NoOp => vec![noop_call()],
             GasPayload::Transfer => vec![create_transfer_call(
-                DEFAULT_FEE_TOKEN,
+                MAGNUS_USD_ADDRESS,
                 recipient,
                 U256::from(10e6), // 10 tokens (6 decimals)
             )],
@@ -516,7 +516,7 @@ pub(super) async fn run_estimate_gas_matrix<E: TestEnv>(
                 ]),
             }],
             GasPayload::Batch(n) => (0..*n)
-                .map(|_| create_transfer_call(DEFAULT_FEE_TOKEN, recipient, U256::from(10e6)))
+                .map(|_| create_transfer_call(MAGNUS_USD_ADDRESS, recipient, U256::from(10e6)))
                 .collect(),
         };
 
@@ -678,10 +678,10 @@ pub(super) async fn run_fill_transaction_matrix<E: TestEnv>(env: &mut E) -> eyre
         FillTestCase::new(NonceMode::Expiring, KeyType::Secp256k1)
             .valid_before_offset(20)
             .explicit_nonce(12),
-        FillTestCase::new(NonceMode::Protocol, KeyType::Secp256k1).fee_token(DEFAULT_FEE_TOKEN),
+        FillTestCase::new(NonceMode::Protocol, KeyType::Secp256k1).fee_token(MAGNUS_USD_ADDRESS),
         FillTestCase::new(NonceMode::Protocol, KeyType::Secp256k1)
             .fee_payer()
-            .fee_token(DEFAULT_FEE_TOKEN),
+            .fee_token(MAGNUS_USD_ADDRESS),
     ];
     if supports_scoped_key_auth_rpc {
         matrix.extend([
@@ -879,14 +879,14 @@ pub(crate) async fn run_raw_case<E: TestEnv>(
         }],
         TestAction::Transfer(amount) => {
             vec![create_transfer_call(
-                DEFAULT_FEE_TOKEN,
+                MAGNUS_USD_ADDRESS,
                 Address::random(),
                 *amount,
             )]
         }
         TestAction::AdminCall => vec![magnus_alloy::provider::keychain::update_spending_limit(
             Address::random(),
-            DEFAULT_FEE_TOKEN,
+            MAGNUS_USD_ADDRESS,
             U256::from(20u64) * U256::from(10).pow(U256::from(18)),
         )],
     };
@@ -936,7 +936,7 @@ pub(crate) async fn run_raw_case<E: TestEnv>(
                 SpendingLimits::Unlimited => None,
                 SpendingLimits::Empty => Some(vec![]),
                 SpendingLimits::Custom(amount) => Some(vec![TokenLimit {
-                    token: DEFAULT_FEE_TOKEN,
+                    token: MAGNUS_USD_ADDRESS,
                     limit: *amount,
                     period: 0,
                 }]),
@@ -1486,7 +1486,7 @@ pub(super) async fn run_send_case<E: TestEnv>(
             create_send_calls(
                 recipient_1,
                 recipient_2,
-                DEFAULT_FEE_TOKEN,
+                MAGNUS_USD_ADDRESS,
                 test_case.batch_calls,
                 transfer_amount,
             ),
@@ -1536,7 +1536,7 @@ pub(super) async fn run_send_case<E: TestEnv>(
         if test_case.batch_calls {
             assert_batch_recipient_balances(
                 env.provider(),
-                DEFAULT_FEE_TOKEN,
+                MAGNUS_USD_ADDRESS,
                 recipient_1,
                 recipient_2.expect("batch_calls requires recipient_2"),
                 transfer_amount,
@@ -1558,7 +1558,7 @@ pub(super) async fn run_send_case<E: TestEnv>(
             let mut tx = create_basic_aa_tx(
                 chain_id,
                 env.provider().get_transaction_count(signer_addr).await?,
-                create_send_calls(recipient, None, DEFAULT_FEE_TOKEN, false, transfer_amount),
+                create_send_calls(recipient, None, MAGNUS_USD_ADDRESS, false, transfer_amount),
                 2_000_000,
             );
 
@@ -1584,7 +1584,7 @@ pub(super) async fn run_send_case<E: TestEnv>(
             }
             assert_token_balance(
                 env.provider(),
-                DEFAULT_FEE_TOKEN,
+                MAGNUS_USD_ADDRESS,
                 recipient,
                 transfer_amount,
                 "Recipient should receive transfer",
@@ -1616,7 +1616,7 @@ pub(super) async fn run_send_case<E: TestEnv>(
                 create_send_calls(
                     recipient_1,
                     recipient_2,
-                    DEFAULT_FEE_TOKEN,
+                    MAGNUS_USD_ADDRESS,
                     test_case.batch_calls,
                     batch_transfer,
                 ),
@@ -1658,7 +1658,7 @@ pub(super) async fn run_send_case<E: TestEnv>(
             if test_case.batch_calls {
                 assert_batch_recipient_balances(
                     env.provider(),
-                    DEFAULT_FEE_TOKEN,
+                    MAGNUS_USD_ADDRESS,
                     recipient_1,
                     recipient_2.expect("batch_calls requires recipient_2"),
                     batch_transfer,
@@ -1667,7 +1667,7 @@ pub(super) async fn run_send_case<E: TestEnv>(
             } else {
                 assert_token_balance(
                     env.provider(),
-                    DEFAULT_FEE_TOKEN,
+                    MAGNUS_USD_ADDRESS,
                     recipient_1,
                     transfer_amount,
                     "Recipient should receive transfer",
@@ -1732,7 +1732,7 @@ pub(super) async fn run_fill_sign_send<E: TestEnv>(
             tx.fee_token.is_none(),
             "eth_fillTransaction should not set fee_token (client must set it)"
         );
-        tx.fee_token = Some(DEFAULT_FEE_TOKEN);
+        tx.fee_token = Some(MAGNUS_USD_ADDRESS);
         sign_fee_payer(&mut tx, signer_addr, &fee_payer_signer)?;
 
         let signature = match test_case.key_type {
@@ -1783,7 +1783,7 @@ pub(super) async fn run_fill_sign_send<E: TestEnv>(
             tx.fee_token.is_none(),
             "eth_fillTransaction should not set fee_token (client must set it)"
         );
-        tx.fee_token = Some(DEFAULT_FEE_TOKEN);
+        tx.fee_token = Some(MAGNUS_USD_ADDRESS);
         if request_context.expected_valid_before.is_none() {
             assert!(
                 tx.valid_before.is_none(),
@@ -1867,7 +1867,7 @@ pub(super) async fn run_fee_payer_cosign_scenario<E: TestEnv>(env: &mut E) -> ey
     let user_addr = user_signer.address();
 
     let fee_payer_balance_before =
-        magnus_precompiles::mip20::IMIP20::new(DEFAULT_FEE_TOKEN, env.provider())
+        magnus_precompiles::mip20::IMIP20::new(MAGNUS_USD_ADDRESS, env.provider())
             .balanceOf(fee_payer_addr)
             .call()
             .await?;
@@ -1916,7 +1916,7 @@ pub(super) async fn run_fee_payer_cosign_scenario<E: TestEnv>(env: &mut E) -> ey
 
     let fee_payer_ctx = FeePayerContext {
         addr: fee_payer_addr,
-        token: DEFAULT_FEE_TOKEN,
+        token: MAGNUS_USD_ADDRESS,
         balance_before: fee_payer_balance_before,
     };
     assert_fee_payer_spent(env.provider(), fee_payer_ctx, &receipt).await?;
@@ -1985,7 +1985,7 @@ pub(super) async fn run_authorization_list_scenario<E: TestEnv>(env: &mut E) -> 
             value: U256::ZERO,
             input: Bytes::new(),
         }],
-        fee_token: Some(DEFAULT_FEE_TOKEN),
+        fee_token: Some(MAGNUS_USD_ADDRESS),
         magnus_authorization_list: vec![auth1_signed, auth2_signed, auth3_signed],
         ..Default::default()
     };
@@ -2080,7 +2080,7 @@ pub(super) async fn run_keychain_auth_list_skipped_scenario<E: TestEnv>(
             value: U256::ZERO,
             input: Bytes::new(),
         }],
-        fee_token: Some(DEFAULT_FEE_TOKEN),
+        fee_token: Some(MAGNUS_USD_ADDRESS),
         magnus_authorization_list: vec![spoofed_auth],
         ..Default::default()
     };
@@ -2164,7 +2164,7 @@ pub(super) async fn run_keychain_expiry_scenario<E: TestEnv>(env: &mut E) -> eyr
         chain_id,
         nonce,
         vec![create_transfer_call(
-            DEFAULT_FEE_TOKEN,
+            MAGNUS_USD_ADDRESS,
             recipient1,
             transfer_amount,
         )],
@@ -2184,7 +2184,7 @@ pub(super) async fn run_keychain_expiry_scenario<E: TestEnv>(env: &mut E) -> eyr
 
     assert_token_balance(
         env.provider(),
-        DEFAULT_FEE_TOKEN,
+        MAGNUS_USD_ADDRESS,
         recipient1,
         transfer_amount,
         "Never-expires transfer",
@@ -2223,7 +2223,7 @@ pub(super) async fn run_keychain_expiry_scenario<E: TestEnv>(env: &mut E) -> eyr
         chain_id,
         nonce,
         vec![create_transfer_call(
-            DEFAULT_FEE_TOKEN,
+            MAGNUS_USD_ADDRESS,
             recipient2,
             transfer_amount,
         )],
@@ -2243,7 +2243,7 @@ pub(super) async fn run_keychain_expiry_scenario<E: TestEnv>(env: &mut E) -> eyr
 
     assert_token_balance(
         env.provider(),
-        DEFAULT_FEE_TOKEN,
+        MAGNUS_USD_ADDRESS,
         recipient2,
         transfer_amount,
         "Before-expiry transfer",
@@ -2267,7 +2267,7 @@ pub(super) async fn run_keychain_expiry_scenario<E: TestEnv>(env: &mut E) -> eyr
         chain_id,
         nonce,
         vec![create_transfer_call(
-            DEFAULT_FEE_TOKEN,
+            MAGNUS_USD_ADDRESS,
             Address::random(),
             transfer_amount,
         )],
@@ -2680,7 +2680,7 @@ pub(super) async fn run_create_contract_address_scenario<E: TestEnv>(
         }],
         nonce_key: U256::ZERO,
         nonce,
-        fee_token: Some(DEFAULT_FEE_TOKEN),
+        fee_token: Some(MAGNUS_USD_ADDRESS),
         valid_before: None,
         ..Default::default()
     };
@@ -2735,7 +2735,7 @@ pub(super) async fn run_fill_transaction_error_decoding_scenario<E: TestEnv>(
             ..Default::default()
         },
         calls: vec![create_transfer_call(
-            DEFAULT_FEE_TOKEN,
+            MAGNUS_USD_ADDRESS,
             recipient,
             U256::from(1_000_000u64),
         )],

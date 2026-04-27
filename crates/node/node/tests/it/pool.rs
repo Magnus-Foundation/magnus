@@ -27,7 +27,7 @@ use reth_transaction_pool::{
 use std::{num::NonZeroU64, sync::Arc};
 use magnus_chainspec::spec::{MAGNUS_T1_BASE_FEE, MagnusChainSpec};
 use magnus_node::node::MagnusNode;
-use magnus_precompiles::{DEFAULT_FEE_TOKEN, mip_fee_manager::MipFeeManager};
+use magnus_precompiles::{MAGNUS_USD_ADDRESS, mip_fee_manager::MipFeeManager};
 use magnus_primitives::{
     MagnusTransaction, MagnusTxEnvelope,
     transaction::{calc_gas_balance_spending, magnus_transaction::Call},
@@ -105,7 +105,7 @@ async fn test_insufficient_funds() -> eyre::Result<()> {
     let tx = MagnusTransaction {
         chain_id: chain_spec.chain_id(),
         nonce: U64::random().to(),
-        fee_token: Some(DEFAULT_FEE_TOKEN),
+        fee_token: Some(MAGNUS_USD_ADDRESS),
         max_priority_fee_per_gas: 74982851675,
         max_fee_per_gas: 74982851675,
         gas_limit: 1015288,
@@ -171,7 +171,7 @@ async fn test_evict_expired_aa_tx() -> eyre::Result<()> {
             value: U256::ZERO,
             input: alloy_primitives::Bytes::new(),
         }],
-        fee_token: Some(DEFAULT_FEE_TOKEN),
+        fee_token: Some(MAGNUS_USD_ADDRESS),
         valid_before: Some(
             NonZeroU64::new(tip_timestamp + 5).expect("tip timestamp + 5 must be non-zero"),
         ),
@@ -267,7 +267,7 @@ async fn test_2d_nonce_tx_reinjected_after_reorg() -> eyre::Result<()> {
             value: U256::ZERO,
             input: alloy_primitives::Bytes::new(),
         }],
-        fee_token: Some(magnus_precompiles::DEFAULT_FEE_TOKEN),
+        fee_token: Some(magnus_precompiles::MAGNUS_USD_ADDRESS),
         ..Default::default()
     };
 
@@ -346,7 +346,7 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
 
     let pool = &setup.node.inner.pool;
 
-    // Submit a transaction that uses DEFAULT_FEE_TOKEN (PATH_USD)
+    // Submit a transaction that uses MAGNUS_USD_ADDRESS (MAGNUS_USD)
     let tx_default = MagnusTransaction {
         chain_id: 1337,
         max_priority_fee_per_gas: MAGNUS_T1_BASE_FEE as u128,
@@ -357,7 +357,7 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
             value: U256::ZERO,
             input: alloy_primitives::Bytes::new(),
         }],
-        fee_token: Some(DEFAULT_FEE_TOKEN),
+        fee_token: Some(MAGNUS_USD_ADDRESS),
         ..Default::default()
     };
 
@@ -378,7 +378,7 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
     assert_eq!(*pooled_txs[0].hash(), tx_hash);
 
     // Simulate an attacker calling setValidatorToken with a token that:
-    // 1. Has no AMM pool with PATH_USD
+    // 1. Has no AMM pool with MAGNUS_USD
     // 2. Is NOT in the active validator set (never produced blocks)
     //
     // This should NOT evict the transaction because the attacker's token is not
@@ -412,16 +412,16 @@ async fn test_evict_tx_on_validator_token_change() -> eyre::Result<()> {
 /// 1. Two disconnected nodes start at genesis
 /// 2. Node2 mines a single block containing a MagnusTransaction that creates a whitelist
 ///    policy, whitelists one sender + the fee manager, and applies the policy to
-///    DEFAULT_FEE_TOKEN
+///    MAGNUS_USD_ADDRESS
 /// 3. Node1 accumulates 10 AA transactions (indices 1–9 non-whitelisted, index 10
-///    whitelisted) using DEFAULT_FEE_TOKEN
+///    whitelisted) using MAGNUS_USD_ADDRESS
 /// 4. Node1 imports node2's block (with the policy change)
 /// 5. The 9 non-whitelisted transactions are evicted; the whitelisted one survives
 #[tokio::test(flavor = "multi_thread")]
 async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
     use alloy::sol_types::SolCall;
     use magnus_contracts::precompiles::{IMIP20, IMIP403Registry};
-    use magnus_precompiles::{TIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS};
+    use magnus_precompiles::{MIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS};
 
     reth_tracing::init_test_tracing();
 
@@ -483,15 +483,15 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
                 value: U256::ZERO,
                 input: IMIP403Registry::modifyPolicyWhitelistCall {
                     policyId: new_policy_id,
-                    account: TIP_FEE_MANAGER_ADDRESS,
+                    account: MIP_FEE_MANAGER_ADDRESS,
                     allowed: true,
                 }
                 .abi_encode()
                 .into(),
             },
-            // Call 4: change DEFAULT_FEE_TOKEN's transfer policy to the new whitelist
+            // Call 4: change MAGNUS_USD_ADDRESS's transfer policy to the new whitelist
             Call {
-                to: TxKind::Call(DEFAULT_FEE_TOKEN),
+                to: TxKind::Call(MAGNUS_USD_ADDRESS),
                 value: U256::ZERO,
                 input: IMIP20::changeTransferPolicyIdCall {
                     newPolicyId: new_policy_id,
@@ -500,7 +500,7 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
                 .into(),
             },
         ],
-        fee_token: Some(DEFAULT_FEE_TOKEN),
+        fee_token: Some(MAGNUS_USD_ADDRESS),
         ..Default::default()
     };
 
@@ -513,7 +513,7 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
     let policy_payload = node2.build_and_submit_payload().await?;
     let policy_block_hash = policy_payload.block().hash();
 
-    // === Step 2: On node1, add 10 AA transactions using DEFAULT_FEE_TOKEN ===
+    // === Step 2: On node1, add 10 AA transactions using MAGNUS_USD_ADDRESS ===
     // Indices 1–9: non-whitelisted senders (should be evicted)
     // Index 10: whitelisted sender (should survive)
 
@@ -534,7 +534,7 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
                 value: U256::ZERO,
                 input: alloy_primitives::Bytes::new(),
             }],
-            fee_token: Some(DEFAULT_FEE_TOKEN),
+            fee_token: Some(MAGNUS_USD_ADDRESS),
             ..Default::default()
         };
 
@@ -563,7 +563,7 @@ async fn test_evict_txs_on_transfer_policy_change() -> eyre::Result<()> {
             value: U256::ZERO,
             input: alloy_primitives::Bytes::new(),
         }],
-        fee_token: Some(DEFAULT_FEE_TOKEN),
+        fee_token: Some(MAGNUS_USD_ADDRESS),
         ..Default::default()
     };
 

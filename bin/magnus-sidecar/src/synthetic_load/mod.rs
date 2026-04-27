@@ -10,10 +10,9 @@ use alloy::{
     providers::ProviderBuilder,
     signers::local::MnemonicBuilder,
 };
-use eyre::Context;
 use rand_distr::{Distribution, Exp, Zipf};
 use reqwest::Url;
-use magnus_precompiles::{TIP_FEE_MANAGER_ADDRESS, mip_fee_manager::IFeeManager, mip20::IMIP20};
+use magnus_precompiles::mip20::IMIP20;
 use magnus_telemetry_util::error_field;
 use tracing::{debug, info, warn};
 
@@ -67,21 +66,9 @@ impl SyntheticLoadGenerator {
 
         let fee_token_zipf = Zipf::new(self.fee_token_addresses.len() as f64, 1.4)?;
 
-        info!("setting fee tokens for load generating wallets");
-
-        for address in &addresses {
-            let fee_token_address =
-                zipf_vec_sample(&mut rng, fee_token_zipf, &self.fee_token_addresses)?;
-            let fee_manager = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, provider.clone());
-            _ = fee_manager
-                .setUserToken(*fee_token_address)
-                .from(*address)
-                .send()
-                .await
-                .wrap_err_with(|| {
-                    format!("failed to set fee token {address} for address {fee_token_address}",)
-                })?;
-        }
+        // setUserToken was removed at T4. Wallets pick fee tokens via
+        // tx.feeToken or rely on protocol-side inference.
+        let _ = (&fee_token_zipf, &self.fee_token_addresses);
 
         let exp = Exp::new(self.average_tps as f64)?;
         let zipf = Zipf::new(self.wallet_count as f64, 1.4)?;

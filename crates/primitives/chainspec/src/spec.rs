@@ -1,7 +1,7 @@
 pub use crate::constants::gas::*;
 
 use crate::{
-    bootnodes::{moderato_nodes, presto_nodes},
+    bootnodes::{allegro_nodes, maestoso_nodes},
     hardfork::{MagnusHardfork, MagnusHardforks},
 };
 use alloc::{boxed::Box, sync::Arc, vec::Vec};
@@ -94,7 +94,7 @@ impl MagnusGenesisInfo {
 pub struct MagnusChainSpecParser;
 
 /// Chains supported by Magnus. First value should be used as the default.
-pub const SUPPORTED_CHAINS: &[&str] = &["mainnet", "moderato", "testnet"];
+pub const SUPPORTED_CHAINS: &[&str] = &["mainnet", "testnet"];
 
 /// Clap value parser for [`ChainSpec`]s.
 ///
@@ -103,8 +103,8 @@ pub const SUPPORTED_CHAINS: &[&str] = &["mainnet", "moderato", "testnet"];
 #[cfg(feature = "cli")]
 pub fn chain_value_parser(s: &str) -> eyre::Result<Arc<MagnusChainSpec>> {
     Ok(match s {
-        "mainnet" => PRESTO.clone(),
-        "testnet" | "moderato" => MODERATO.clone(),
+        "mainnet" => MAESTOSO.clone(),
+        "testnet" => ALLEGRO.clone(),
         "dev" => DEV.clone(),
         _ => MagnusChainSpec::from_genesis(reth_cli::chainspec::parse_genesis(s)?).into(),
     })
@@ -124,27 +124,41 @@ impl reth_cli::chainspec::ChainSpecParser for MagnusChainSpecParser {
 /// Resolve a [`MagnusChainSpec`] from a chain id.
 ///
 /// Returns `None` for unknown chain ids.
+///
+/// Magnus is a fresh L1, not a Tempo continuation. The chain IDs
+/// returned here (83866 / 79941) are inherited from the Tempo
+/// genesis files this crate ships with as placeholders; the Magnus
+/// network operator must pick its own chain IDs and replace those
+/// genesis files before launch.
 pub fn chainspec_from_chain_id(chain_id: u64) -> Option<Arc<MagnusChainSpec>> {
     match chain_id {
-        4217 => Some(PRESTO.clone()),
-        42431 => Some(MODERATO.clone()),
+        83866 => Some(MAESTOSO.clone()),
+        79941 => Some(ALLEGRO.clone()),
         _ => None,
     }
 }
 
-pub static MODERATO: LazyLock<Arc<MagnusChainSpec>> = LazyLock::new(|| {
-    let genesis: Genesis = serde_json::from_str(include_str!("./genesis/moderato.json"))
-        .expect("`./genesis/moderato.json` must be present and deserializable");
+/// Magnus testnet (Allegro) — placeholder.
+///
+/// The genesis JSON shipped here is the inherited Tempo testnet
+/// (Moderato) state and is **not** a valid Magnus genesis. The
+/// network operator must regenerate this file with Magnus-specific
+/// validator addresses, hardfork timestamps, and accept-set
+/// bootstrap before any real testnet launch.
+pub static ALLEGRO: LazyLock<Arc<MagnusChainSpec>> = LazyLock::new(|| {
+    let genesis: Genesis = serde_json::from_str(include_str!("./genesis/allegro.json"))
+        .expect("`./genesis/allegro.json` must be present and deserializable");
     MagnusChainSpec::from_genesis(genesis)
-        .with_default_follow_url("wss://rpc.moderato.magnus.xyz")
+        .with_default_follow_url("wss://rpc.allegro.magnus.xyz")
         .into()
 });
 
-pub static PRESTO: LazyLock<Arc<MagnusChainSpec>> = LazyLock::new(|| {
-    let genesis: Genesis = serde_json::from_str(include_str!("./genesis/presto.json"))
-        .expect("`./genesis/presto.json` must be present and deserializable");
+/// Magnus mainnet (Maestoso) — placeholder. Same caveat as [`ALLEGRO`].
+pub static MAESTOSO: LazyLock<Arc<MagnusChainSpec>> = LazyLock::new(|| {
+    let genesis: Genesis = serde_json::from_str(include_str!("./genesis/maestoso.json"))
+        .expect("`./genesis/maestoso.json` must be present and deserializable");
     MagnusChainSpec::from_genesis(genesis)
-        .with_default_follow_url("wss://rpc.presto.magnus.xyz")
+        .with_default_follow_url("wss://rpc.maestoso.magnus.xyz")
         .into()
 });
 
@@ -206,14 +220,14 @@ impl MagnusChainSpec {
         self
     }
 
-    /// Returns the moderato chainspec.
-    pub fn moderato() -> Self {
-        MODERATO.as_ref().clone()
+    /// Returns the Magnus testnet chainspec (placeholder; see [`ALLEGRO`]).
+    pub fn testnet() -> Self {
+        ALLEGRO.as_ref().clone()
     }
 
-    /// Returns the mainnet chainspec.
+    /// Returns the Magnus mainnet chainspec (placeholder; see [`MAESTOSO`]).
     pub fn mainnet() -> Self {
-        PRESTO.as_ref().clone()
+        MAESTOSO.as_ref().clone()
     }
 }
 
@@ -305,8 +319,8 @@ impl EthChainSpec for MagnusChainSpec {
 
     fn bootnodes(&self) -> Option<Vec<NodeRecord>> {
         match self.inner.chain_id() {
-            4217 => Some(presto_nodes()),
-            42431 => Some(moderato_nodes()),
+            83866 => Some(maestoso_nodes()),
+            79941 => Some(allegro_nodes()),
             _ => self.inner.bootnodes(),
         }
     }
@@ -488,9 +502,9 @@ mod tests {
         }
 
         #[test]
-        fn moderato() {
-            let cs = super::super::MagnusChainSpecParser::parse("moderato")
-                .expect("the moderato chainspec must always be well formed");
+        fn testnet() {
+            let cs = super::super::MagnusChainSpecParser::parse("testnet")
+                .expect("the testnet chainspec must always be well formed");
 
             // Before T0/T1 activation (1770303600 = Feb 5th 2026 16:00 CET)
             assert_eq!(cs.magnus_hardfork_at(0), MagnusHardfork::Genesis);
@@ -534,16 +548,6 @@ mod tests {
             assert_eq!(cs.magnus_hardfork_at(u64::MAX), MagnusHardfork::T3);
         }
 
-        #[test]
-        fn testnet() {
-            let cs = super::super::MagnusChainSpecParser::parse("testnet")
-                .expect("the testnet chainspec must always be well formed");
-
-            // "testnet" is an alias for moderato
-            let moderato = super::super::MagnusChainSpecParser::parse("moderato")
-                .expect("the moderato chainspec must always be well formed");
-            assert_eq!(cs.inner.chain(), moderato.inner.chain());
-        }
     }
 
     #[test]

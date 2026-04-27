@@ -96,7 +96,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
                 "CMPTKN",
                 "CT",
                 "USD",
-                pathUSD,
+                MagnusUSD,
                 admin,
                 keccak256(abi.encode(compoundPid, uint256(0)))
             )
@@ -123,14 +123,14 @@ contract MIP1015InvariantTest is InvariantBaseTest {
 
         vm.stopPrank();
 
-        // Pre-approve actors for DEX on initial token and pathUSD
+        // Pre-approve actors for DEX on initial token and MagnusUSD
         for (uint256 i = 0; i < _actors.length; i++) {
             vm.startPrank(_actors[i]);
             initialToken.approve(address(exchange), type(uint256).max);
-            pathUSD.approve(address(exchange), type(uint256).max);
+            MagnusUSD.approve(address(exchange), type(uint256).max);
             vm.stopPrank();
             _dexApproved[_actors[i]][address(initialToken)] = true;
-            _dexApproved[_actors[i]][address(pathUSD)] = true;
+            _dexApproved[_actors[i]][address(MagnusUSD)] = true;
         }
     }
 
@@ -435,7 +435,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
                 "CMPTKN",
                 "CT",
                 "USD",
-                pathUSD,
+                MagnusUSD,
                 admin,
                 keccak256(abi.encode(pid, _compoundTokens.length))
             )
@@ -772,7 +772,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
     }
 
     /// @notice DEX cancelStaleOrder uses senderPolicyId to check if maker is blocked
-    /// @dev Only tests ask orders - for bids, DEX checks quote token (pathUSD) policy
+    /// @dev Only tests ask orders - for bids, DEX checks quote token (MagnusUSD) policy
     function cancelStaleOrderWithCompoundPolicy(
         uint256 tokenSeed,
         uint256 makerSeed,
@@ -819,7 +819,7 @@ contract MIP1015InvariantTest is InvariantBaseTest {
 
         // Mint tokens to maker
         token.mint(maker, amount);
-        pathUSD.mint(maker, amount);
+        MagnusUSD.mint(maker, amount);
         vm.stopPrank();
 
         // Place ask order (isBid=false) - DEX checks base token's senderPolicy for asks
@@ -828,9 +828,9 @@ contract MIP1015InvariantTest is InvariantBaseTest {
             token.approve(address(exchange), type(uint256).max);
             _dexApproved[maker][address(token)] = true;
         }
-        if (!_dexApproved[maker][address(pathUSD)]) {
-            pathUSD.approve(address(exchange), type(uint256).max);
-            _dexApproved[maker][address(pathUSD)] = true;
+        if (!_dexApproved[maker][address(MagnusUSD)]) {
+            MagnusUSD.approve(address(exchange), type(uint256).max);
+            _dexApproved[maker][address(MagnusUSD)] = true;
         }
         uint128 orderId = exchange.place(address(token), amount, false, int16(20));
         vm.stopPrank();

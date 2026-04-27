@@ -76,11 +76,11 @@ contract MIP20InvariantTest is InvariantBaseTest {
             _registerHolder(tokenAddr, tokenAddr); // token contract itself
             _registerHolder(tokenAddr, address(amm));
             _registerHolder(tokenAddr, address(exchange));
-            _registerHolder(tokenAddr, address(pathUSD));
+            _registerHolder(tokenAddr, address(MagnusUSD));
             _registerHolder(tokenAddr, alice);
             _registerHolder(tokenAddr, bob);
             _registerHolder(tokenAddr, charlie);
-            _registerHolder(tokenAddr, pathUSDAdmin);
+            _registerHolder(tokenAddr, MagnusUSDAdmin);
         }
 
         // One-time constant checks (immutable after deployment)
@@ -1061,8 +1061,8 @@ contract MIP20InvariantTest is InvariantBaseTest {
     function updateQuoteToken(uint256 tokenSeed, uint256 quoteTokenSeed) external {
         MIP20 token = _selectBaseToken(tokenSeed);
 
-        // Skip pathUSD - it cannot change quote token
-        vm.assume(address(token) != address(pathUSD));
+        // Skip MagnusUSD - it cannot change quote token
+        vm.assume(address(token) != address(MagnusUSD));
 
         // Select a different token as potential new quote
         MIP20 newQuoteToken = _selectBaseToken(quoteTokenSeed);
@@ -1111,11 +1111,11 @@ contract MIP20InvariantTest is InvariantBaseTest {
         address attacker = _selectActor(actorSeed);
         MIP20 token = _selectBaseToken(tokenSeed);
 
-        vm.assume(address(token) != address(pathUSD));
+        vm.assume(address(token) != address(MagnusUSD));
         vm.assume(!token.hasRole(attacker, bytes32(0))); // DEFAULT_ADMIN_ROLE
 
         vm.startPrank(attacker);
-        try token.setNextQuoteToken(IMIP20(address(pathUSD))) {
+        try token.setNextQuoteToken(IMIP20(address(MagnusUSD))) {
             vm.stopPrank();
             revert("Non-admin should not set quote token");
         } catch {
@@ -1214,7 +1214,7 @@ contract MIP20InvariantTest is InvariantBaseTest {
 
         // Ensure we are the policy admin (policy may have changed via changeTransferPolicyId)
         address policyAdmin = _getPolicyAdmin(address(token));
-        vm.assume(policyAdmin == admin || policyAdmin == pathUSDAdmin);
+        vm.assume(policyAdmin == admin || policyAdmin == MagnusUSDAdmin);
 
         bool currentlyAuthorized = _isAuthorized(address(token), actor);
 

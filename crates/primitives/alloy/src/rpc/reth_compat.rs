@@ -448,7 +448,7 @@ mod tests {
 
         // Build a MagnusTransaction so we can compute fee_payer_signature_hash
         let tx = MagnusTransaction {
-            chain_id: 4217,
+            chain_id: 83866,
             nonce: 0,
             fee_payer_signature: None,
             valid_before: None,
@@ -479,7 +479,7 @@ mod tests {
                 gas: Some(100_000),
                 max_fee_per_gas: Some(1_000_000_000),
                 max_priority_fee_per_gas: Some(1_000_000),
-                chain_id: Some(4217),
+                chain_id: Some(83866),
                 ..Default::default()
             },
             fee_payer_signature: Some(fee_payer_sig),
@@ -518,7 +518,7 @@ mod tests {
         ];
 
         let tx = MagnusTransaction {
-            chain_id: 4217,
+            chain_id: 83866,
             nonce: 1,
             gas_limit: 100_000,
             max_fee_per_gas: 1_000_000_000,
@@ -552,7 +552,7 @@ mod tests {
                 gas: Some(100_000),
                 max_fee_per_gas: Some(1_000_000_000),
                 max_priority_fee_per_gas: Some(1_000_000),
-                chain_id: Some(4217),
+                chain_id: Some(83866),
                 ..Default::default()
             },
             fee_payer_signature: Some(Signature::new(U256::ZERO, U256::ZERO, false)),
@@ -594,7 +594,7 @@ mod tests {
                 gas: Some(100_000),
                 max_fee_per_gas: Some(1_000_000_000),
                 max_priority_fee_per_gas: Some(1_000_000),
-                chain_id: Some(4217),
+                chain_id: Some(83866),
                 ..Default::default()
             },
             calls: vec![call.clone()],

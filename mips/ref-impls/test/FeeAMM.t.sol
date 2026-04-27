@@ -20,9 +20,9 @@ contract FeeAMMTest is BaseTest {
 
         // Create tokens using MIP20Factory
         userToken =
-            MIP20(factory.createToken("User", "USR", "USD", pathUSD, admin, bytes32("user")));
+            MIP20(factory.createToken("User", "USR", "USD", MagnusUSD, admin, bytes32("user")));
         validatorToken = MIP20(
-            factory.createToken("Validator", "VAL", "USD", pathUSD, admin, bytes32("validator"))
+            factory.createToken("Validator", "VAL", "USD", MagnusUSD, admin, bytes32("validator"))
         );
 
         // Grant ISSUER_ROLE to admin so we can mint tokens
@@ -115,7 +115,7 @@ contract FeeAMMTest is BaseTest {
 
         // ONLY_USD_TOKENS (valid MIP20 but non-USD currency)
         MIP20 eurToken =
-            MIP20(factory.createToken("Euro", "EUR", "EUR", pathUSD, admin, bytes32("eur")));
+            MIP20(factory.createToken("Euro", "EUR", "EUR", MagnusUSD, admin, bytes32("eur")));
 
         try amm.mint(address(eurToken), address(validatorToken), 1e18, alice) {
             revert CallShouldHaveReverted();

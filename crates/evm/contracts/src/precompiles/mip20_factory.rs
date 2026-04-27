@@ -12,6 +12,10 @@ crate::sol! {
         error InvalidQuoteToken();
         error TokenAlreadyExists(address token);
 
+        // For unapproved-issuer rejection, the factory bubbles up
+        // `MIP20IssuerRegistryError::IssuerNotApproved` directly (avoids selector collision
+        // with a duplicate error definition).
+
         event TokenCreated(address indexed token, string name, string symbol, string currency, address quoteToken, address admin, bytes32 salt);
 
         function createToken(

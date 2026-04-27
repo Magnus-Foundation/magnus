@@ -471,8 +471,8 @@ fn mip20_factory_mutate(c: &mut Criterion) {
         let sender = Address::from([1u8; 20]);
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
-            // Setup pathUSD first
-            MIP20Setup::path_usd(sender).apply().unwrap();
+            // Setup MagnusUSD first
+            MIP20Setup::magnus_usd(sender).apply().unwrap();
             let mut counter = 0u64;
 
             b.iter(|| {

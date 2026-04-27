@@ -9,7 +9,7 @@ import { IMIP20 } from "./interfaces/IMIP20.sol";
 
 contract FeeManager is IFeeManager, FeeAMM {
 
-    address internal constant PATH_USD = 0x20C0000000000000000000000000000000000000;
+    address internal constant MAGNUS_USD = 0x20C0000000000000000000000000000000000000;
     MIP403Registry internal constant MIP403_REGISTRY =
         MIP403Registry(0x403c000000000000000000000000000000000000);
 
@@ -40,7 +40,7 @@ contract FeeManager is IFeeManager, FeeAMM {
 
         address validatorToken = validatorTokens[block.coinbase];
         if (validatorToken == address(0)) {
-            validatorToken = PATH_USD;
+            validatorToken = MAGNUS_USD;
         }
 
         // Ensure fee payer can send the fee token and FeeManager can receive it.
@@ -72,7 +72,7 @@ contract FeeManager is IFeeManager, FeeAMM {
         address feeRecipient = block.coinbase;
         address validatorToken = validatorTokens[feeRecipient];
         if (validatorToken == address(0)) {
-            validatorToken = PATH_USD;
+            validatorToken = MAGNUS_USD;
         }
 
         uint256 refundAmount = maxAmount - actualUsed;

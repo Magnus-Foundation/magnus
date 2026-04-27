@@ -15,7 +15,7 @@ use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 use magnus_contracts::precompiles::{IFeeManager, IRolesAuth, IMIP20, IMIP20Factory, ITIPFeeAMM};
 use magnus_node::node::MagnusNode;
 use magnus_precompiles::{
-    PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS,
+    MAGNUS_USD_ADDRESS, MIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS,
     mip_fee_manager::amm::compute_amount_out, mip20::ISSUER_ROLE,
 };
 use magnus_primitives::{MagnusTxEnvelope, transaction::calc_gas_balance_spending};
@@ -61,7 +61,7 @@ where
         "Test".to_string(),
         "TEST".to_string(),
         "USD".to_string(),
-        PATH_USD_ADDRESS,
+        MAGNUS_USD_ADDRESS,
         sender_address,
         salt,
     );
@@ -601,10 +601,10 @@ async fn test_payload_fees_account_for_amm_haircut() -> eyre::Result<()> {
     let user_fee_token =
         setup_token_manual(&mut setup.node, &user_provider, &user_signer, chain_id).await?;
 
-    let fee_amm = ITIPFeeAMM::new(TIP_FEE_MANAGER_ADDRESS, user_provider.clone());
-    let fee_manager = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, user_provider.clone());
+    let fee_amm = ITIPFeeAMM::new(MIP_FEE_MANAGER_ADDRESS, user_provider.clone());
+    let fee_manager = IFeeManager::new(MIP_FEE_MANAGER_ADDRESS, user_provider.clone());
 
-    // Seed AMM liquidity for user_token <-> PATH_USD
+    // Seed AMM liquidity for user_token <-> MAGNUS_USD
     let liquidity = U256::from(500_000u64);
     sign_and_inject(
         &mut setup.node,
@@ -613,7 +613,7 @@ async fn test_payload_fees_account_for_amm_haircut() -> eyre::Result<()> {
         fee_amm
             .mint(
                 *user_fee_token.address(),
-                PATH_USD_ADDRESS,
+                MAGNUS_USD_ADDRESS,
                 liquidity,
                 user_address,
             )
@@ -638,16 +638,16 @@ async fn test_payload_fees_account_for_amm_haircut() -> eyre::Result<()> {
 
     // Record collected fees before the attack block
     let collected_before = fee_manager
-        .collectedFees(fee_beneficiary, PATH_USD_ADDRESS)
+        .collectedFees(fee_beneficiary, MAGNUS_USD_ADDRESS)
         .call()
         .await?;
 
-    // Submit a transaction that pays fees in user_fee_token (not validator's PATH_USD)
+    // Submit a transaction that pays fees in user_fee_token (not validator's MAGNUS_USD)
     let attack_tx_hash = sign_and_inject(
         &mut setup.node,
         &user_signer,
         chain_id,
-        IMIP20::new(PATH_USD_ADDRESS, user_provider.clone())
+        IMIP20::new(MAGNUS_USD_ADDRESS, user_provider.clone())
             .transfer(Address::random(), U256::from(1))
             .into_transaction_request(),
         5,
@@ -670,7 +670,7 @@ async fn test_payload_fees_account_for_amm_haircut() -> eyre::Result<()> {
 
     // Verify collected fees reflect the haircut
     let collected_after = fee_manager
-        .collectedFees(fee_beneficiary, PATH_USD_ADDRESS)
+        .collectedFees(fee_beneficiary, MAGNUS_USD_ADDRESS)
         .call()
         .await?;
     let collected_delta = collected_after - collected_before;

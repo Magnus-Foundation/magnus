@@ -5,12 +5,12 @@ mod virtual_address;
 
 use alloy_consensus::Transaction;
 use itertools::Itertools;
+use magnus_alloy::{
+    MagnusNetwork, fillers::ExpiringNonceFiller, provider::ext::MagnusProviderBuilderExt,
+};
 use reth_tracing::{
     RethTracer, Tracer,
     tracing::{debug, error, info},
-};
-use magnus_alloy::{
-    MagnusNetwork, fillers::ExpiringNonceFiller, provider::ext::MagnusProviderBuilderExt,
 };
 
 use alloy::{
@@ -42,6 +42,20 @@ use futures::{
 };
 use governor::{Quota, RateLimiter, state::StreamRateLimitExt};
 use indicatif::{ProgressBar, ProgressIterator};
+use magnus_contracts::precompiles::{
+    ADDRESS_REGISTRY_ADDRESS,
+    IAddressRegistry::{self, IAddressRegistryInstance},
+    IMIP20::{self, IMIP20Instance},
+    IMIP20Factory, IRolesAuth,
+    IStablecoinDEX::IStablecoinDEXInstance,
+    MIP20_FACTORY_ADDRESS, STABLECOIN_DEX_ADDRESS,
+};
+use magnus_precompiles::{
+    MAGNUS_USD_ADDRESS,
+    address_registry::MasterId,
+    mip20::ISSUER_ROLE,
+    stablecoin_dex::{MAX_TICK, MIN_ORDER_AMOUNT, MIN_TICK, TICK_SPACING},
+};
 use rand::{random_range, seq::IndexedRandom};
 use rlimit::Resource;
 use serde::Serialize;
@@ -56,22 +70,6 @@ use std::{
         atomic::{AtomicUsize, Ordering},
     },
     time::Duration,
-};
-use magnus_contracts::precompiles::{
-    ADDRESS_REGISTRY_ADDRESS,
-    IAddressRegistry::{self, IAddressRegistryInstance},
-    IFeeManager::IFeeManagerInstance,
-    IRolesAuth,
-    IStablecoinDEX::IStablecoinDEXInstance,
-    IMIP20::{self, IMIP20Instance},
-    IMIP20Factory, STABLECOIN_DEX_ADDRESS, MIP20_FACTORY_ADDRESS,
-};
-use magnus_precompiles::{
-    TIP_FEE_MANAGER_ADDRESS,
-    address_registry::MasterId,
-    stablecoin_dex::{MAX_TICK, MIN_ORDER_AMOUNT, MIN_TICK, TICK_SPACING},
-    mip_fee_manager::DEFAULT_FEE_TOKEN,
-    mip20::ISSUER_ROLE,
 };
 use tokio::{
     select,
@@ -105,7 +103,7 @@ pub struct MaxTpsArgs {
     #[arg(short, long, default_value_t = 0)]
     from_mnemonic_index: u32,
 
-    #[arg(long, default_value_t = DEFAULT_FEE_TOKEN)]
+    #[arg(long, default_value_t = MAGNUS_USD_ADDRESS)]
     fee_token: Address,
 
     /// Target URLs for network connections (comma-separated or multiple --target-urls)
@@ -360,22 +358,9 @@ impl MaxTpsArgs {
             .context("Failed to fund accounts from faucet")?;
         }
 
-        info!(fee_token = %self.fee_token, "Setting default fee token");
-        join_all(
-            signer_providers
-                .iter()
-                .map(async |(_, provider)| {
-                    IFeeManagerInstance::new(TIP_FEE_MANAGER_ADDRESS, provider.clone())
-                        .setUserToken(self.fee_token)
-                        .send()
-                        .await
-                })
-                .progress(),
-            self.max_concurrent_requests,
-            self.max_concurrent_transactions,
-        )
-        .await
-        .context("Failed to set default fee token")?;
+        // setUserToken was removed at T4. Each tx carries fee_token via the
+        // envelope; the default-token-per-account flow is no longer used.
+        info!(fee_token = %self.fee_token, "Default fee token (per-tx, not stored)");
 
         // Register virtual-address masters using pre-mined anvil salts.
         // Only signers with a known salt are registered; each master supports

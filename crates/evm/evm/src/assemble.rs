@@ -90,7 +90,7 @@ mod tests {
     use reth_storage_api::noop::NoopProvider;
     use revm::{context::BlockEnv, database::BundleState};
     use std::collections::HashMap;
-    use magnus_chainspec::spec::MODERATO;
+    use magnus_chainspec::spec::ALLEGRO;
     use magnus_primitives::{
         MagnusHeader, MagnusPrimitives, MagnusReceipt, MagnusTxEnvelope, MagnusTxType,
     };
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_assemble_block() {
-        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(ALLEGRO.genesis().clone()));
         let assembler = MagnusBlockAssembler::new(chainspec.clone());
 
         let block_number = 1u64;
@@ -228,7 +228,7 @@ mod tests {
 
     #[test]
     fn test_assemble_block_with_consensus_context() {
-        let chainspec = Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()));
+        let chainspec = Arc::new(MagnusChainSpec::from_genesis(ALLEGRO.genesis().clone()));
         let assembler = MagnusBlockAssembler::new(chainspec.clone());
 
         let gas_limit = 30_000_000u64;

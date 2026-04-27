@@ -10,7 +10,7 @@ use std::{borrow::Cow, str::FromStr, time::Duration};
 use magnus_chainspec::hardfork::MagnusHardfork;
 use url::Url;
 
-pub(crate) const DEFAULT_DOWNLOAD_URL: &str = "https://snapshots.Magnus-Foundation.dev/4217";
+pub(crate) const DEFAULT_DOWNLOAD_URL: &str = "https://snapshots.Magnus-Foundation.dev/83866";
 const SNAPSHOT_API_URL: &str = "https://snapshots.Magnus-Foundation.dev/api/snapshots";
 
 /// Default OTLP logs filter level for telemetry.
@@ -152,7 +152,7 @@ fn init_download_urls() {
     let download_defaults = DownloadDefaults {
         available_snapshots: vec![
             Cow::Owned(format!("{DEFAULT_DOWNLOAD_URL} (mainnet)")),
-            Cow::Borrowed("https://snapshots.Magnus-Foundation.dev/42431 (moderato)"),
+            Cow::Borrowed("https://snapshots.Magnus-Foundation.dev/79941 (moderato)"),
             Cow::Borrowed("https://snapshots.Magnus-Foundation.dev/42429 (andantino)"),
         ],
         default_base_url: Cow::Borrowed(DEFAULT_DOWNLOAD_URL),

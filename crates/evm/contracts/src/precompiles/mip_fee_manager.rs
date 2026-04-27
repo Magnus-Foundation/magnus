@@ -1,19 +1,12 @@
 pub use IFeeManager::{IFeeManagerErrors as FeeManagerError, IFeeManagerEvents as FeeManagerEvent};
-pub use ITIPFeeAMM::{ITIPFeeAMMErrors as TIPFeeAMMError, ITIPFeeAMMEvents as TIPFeeAMMEvent};
 
 crate::sol! {
     /// FeeManager interface for managing gas fee collection and distribution.
     ///
-    /// IMPORTANT: FeeManager inherits from TIPFeeAMM and shares the same storage layout.
-    /// This means:
-    /// - FeeManager has all the functionality of TIPFeeAMM (pool management, swaps, liquidity operations)
-    /// - Both contracts use the same storage slots for AMM data (pools, reserves, liquidity balances)
-    /// - FeeManager extends TIPFeeAMM with additional storage slots (4-15) for fee-specific data
-    /// - When deployed, FeeManager IS a TIPFeeAMM with additional fee management capabilities
-    ///
-    /// Storage layout:
-    /// - Slots 0-3: TIPFeeAMM storage (pools, pool exists, liquidity data)
-    /// - Slots 4+: FeeManager-specific storage (validator tokens, user tokens, collected fees, etc.)
+    /// At T4 the legacy AMM (`TIPFeeAMM`), the per-user/per-validator single-token
+    /// preferences, and the slots reserved for AMM pool state were removed. Fees
+    /// are settled via the multi-token validator accept-set; conversion happens
+    /// off-protocol via the Stablecoin DEX (registered in the router registry).
     #[derive(Debug, PartialEq, Eq)]
     #[sol(abi)]
     interface IFeeManager {
@@ -23,22 +16,86 @@ crate::sol! {
             bool hasBeenSet;
         }
 
-        // User preferences
-        function userTokens(address user) external view returns (address);
-        function validatorTokens(address validator) external view returns (address);
-        function setUserToken(address token) external;
-        function setValidatorToken(address token) external;
+        /// `registered` is the existence flag — `false` for any never-added code
+        /// (default-zero slot is indistinguishable from "added at block 0"). Off-chain
+        /// readers MUST check `registered` before interpreting other fields.
+        struct CurrencyConfig {
+            bool   registered;
+            bool   enabled;
+            bool   deprecating;
+            uint64 addedAtBlock;
+            uint64 enabledAtBlock;
+            uint64 deprecationActivatesAt;
+            uint64 lastPrunedAtBlock;
+        }
 
-        // Fee functions
+        // Fee functions. `collectFeePreTx`/`collectFeePostTx` are protocol-internal
+        // calls invoked by the execution handler and intentionally absent here.
         function distributeFees(address validator, address token) external;
         function collectedFees(address validator, address token) external view returns (uint256);
-        // NOTE: collectFeePreTx is a protocol-internal function called directly by the
-        // execution handler, not exposed via the dispatch interface.
+
+        // Currency registry (governance-gated by `governanceAdmin`).
+        function addCurrency(string calldata code) external;
+        function enableCurrency(string calldata code) external;
+        function disableCurrency(string calldata code) external;
+        function emergencyDisableCurrency(string calldata code) external;
+        function pruneCurrency(string calldata code, uint256 maxIterations) external;
+        function pruneToken(address token, uint256 maxIterations) external returns (uint256);
+
+        // Validator off-boarding + escrow.
+        function offboardValidator(address validator) external;
+        function claimEscrowedFees(address validator, address token, address recipient) external returns (uint256);
+        function sweepExpiredEscrow(address validator, address token) external returns (uint256);
+        function setEscrowClaimWindow(uint64 newWindow) external;
+        function setFoundationEscrowAddress(address newAddress) external;
+        function escrowedFees(address validator, address token) external view returns (uint256);
+        function escrowClaim(address validator) external view returns (uint64 offboardedAt, uint64 claimDeadline, bool offboarded);
+        function escrowClaimWindow() external view returns (uint64);
+        function foundationEscrowAddress() external view returns (address);
+
+        // Router selector registry (governance-gated).
+        function registerRouterSelector(address router, bytes4 selector, uint8 tokenInputArgIndex) external;
+        function unregisterRouterSelector(address router, bytes4 selector) external;
+        function lookupRouterSelector(address router, bytes4 selector) external view returns (bool registered, uint8 tokenInputArgIndex);
+        function setDeprecationGracePeriod(uint64 newGracePeriod) external;
+        function setEmergencyDisableThreshold(uint8 newThreshold) external;
+        function setGovernanceAdmin(address newAdmin) external;
+        function getCurrencyConfig(string calldata code) external view returns (CurrencyConfig memory);
+        function isCurrencyEnabled(string calldata code) external view returns (bool);
+        function deprecationGracePeriod() external view returns (uint64);
+        function emergencyDisableThreshold() external view returns (uint8);
+        function governanceAdmin() external view returns (address);
+
+        // Validator multi-token accept-set.
+        function addAcceptedToken(address token) external;
+        function removeAcceptedToken(address token) external;
+        function acceptsToken(address validator, address token) external view returns (bool);
+        function getAcceptedTokens(address validator) external view returns (address[] memory);
+        function isAcceptedByAnyValidator(address token) external view returns (bool);
 
         // Events
-        event UserTokenSet(address indexed user, address indexed token);
-        event ValidatorTokenSet(address indexed validator, address indexed token);
         event FeesDistributed(address indexed validator, address indexed token, uint256 amount);
+        event CurrencyAdded(string code, uint64 atBlock);
+        event CurrencyEnabled(string code, uint64 atBlock);
+        event CurrencyDisabling(string code, uint64 graceEndsAt, address by);
+        event CurrencyDisabledEmergency(string code, address by);
+        event CurrencyPruned(string code, uint256 tokensRemoved, uint64 atBlock);
+        event DeprecationGracePeriodChanged(uint64 oldGracePeriod, uint64 newGracePeriod);
+        event EmergencyDisableThresholdChanged(uint8 oldThreshold, uint8 newThreshold);
+
+        event ValidatorOffboarded(address indexed validator, uint64 claimDeadline);
+        event FeesOffboardDelivered(address indexed validator, address indexed token, uint256 amount);
+        event FeesOffboardEscrowed(address indexed validator, address indexed token, uint256 amount);
+        event EscrowedFeesClaimed(address indexed validator, address indexed token, address indexed recipient, uint256 amount);
+        event EscrowSwept(address indexed validator, address indexed token, address indexed foundation, uint256 amount);
+        event EscrowClaimWindowChanged(uint64 oldWindow, uint64 newWindow);
+        event FoundationEscrowAddressChanged(address oldAddress, address newAddress);
+
+        event RouterSelectorRegistered(address indexed router, bytes4 indexed selector, uint8 tokenInputArgIndex);
+        event RouterSelectorUnregistered(address indexed router, bytes4 indexed selector);
+        event GovernanceAdminChanged(address indexed oldAdmin, address indexed newAdmin);
+        event AcceptedTokenAdded(address indexed validator, address indexed token);
+        event AcceptedTokenRemoved(address indexed validator, address indexed token);
 
         // Errors
         error OnlyValidator();
@@ -50,66 +107,40 @@ crate::sol! {
         error CannotChangeWithinBlock();
         error CannotChangeWithPendingFees();
         error TokenPolicyForbids();
-    }
-}
 
-sol! {
-    /// TIPFeeAMM interface defining the base AMM functionality for stablecoin pools.
-    /// This interface provides core liquidity pool management and swap operations.
-    ///
-    /// NOTE: The FeeManager contract inherits from TIPFeeAMM and shares the same storage layout.
-    /// When FeeManager is deployed, it effectively "is" a TIPFeeAMM with additional fee management
-    /// capabilities layered on top. Both contracts operate on the same storage slots.
-    #[derive(Debug, PartialEq, Eq)]
-    #[allow(clippy::too_many_arguments)]
-    interface ITIPFeeAMM {
-        // Structs
-        struct Pool {
-            uint128 reserveUserToken;
-            uint128 reserveValidatorToken;
-        }
+        error CurrencyNotRegistered(string currency);
+        error CurrencyDisabled(string currency);
+        error FeeTokenNotAccepted(address validator, address token);
+        error FeeTokenNotInferable();
+        error ValidatorAcceptSetEmpty(address validator);
 
-        struct PoolKey {
-            address token0;
-            address token1;
-        }
+        error OnlyGovernanceAdmin(address caller);
+        error CurrencyAlreadyAdded(string currency);
+        error CurrencyAlreadyEnabled(string currency);
+        error InvalidCurrencyCode(string currency);
+        error ZeroAddressGovernanceAdmin();
 
+        error TokenAlreadyAccepted(address validator, address token);
+        error TokenNotInAcceptSet(address validator, address token);
+        error MaxAcceptSetReached(address validator);
 
-        // Constants
-        function M() external view returns (uint256);
-        function N() external view returns (uint256);
-        function SCALE() external view returns (uint256);
-        function MIN_LIQUIDITY() external view returns (uint256);
+        error CurrencyDeprecating(string currency, uint64 graceEndsAt);
+        error CurrencyAlreadyDeprecating(string currency);
+        error GracePeriodOutOfRange(uint64 grace);
+        error EmergencyThresholdOutOfRange(uint8 threshold);
+        error CurrencyNotDisabled(string currency);
 
-        // Pool Management
-        function getPoolId(address userToken, address validatorToken) external pure returns (bytes32);
-        function getPool(address userToken, address validatorToken) external view returns (Pool memory);
-        function pools(bytes32 poolId) external view returns (Pool memory);
+        error ValidatorNotOffboarded(address validator);
+        error ValidatorAlreadyOffboarded(address validator);
+        error ClaimWindowExpired(address validator);
+        error ClaimWindowActive(address validator);
+        error NoEscrowedFees(address validator, address token);
+        error EscrowClaimWindowOutOfRange(uint64 window);
+        error ZeroAddressFoundationEscrow();
 
-        // Liquidity Operations
-        function mint(address userToken, address validatorToken, uint256 amountValidatorToken, address to) external returns (uint256 liquidity);
-        function burn(address userToken, address validatorToken, uint256 liquidity, address to) external returns (uint256 amountUserToken, uint256 amountValidatorToken);
-
-        // Liquidity Balances
-        function totalSupply(bytes32 poolId) external view returns (uint256);
-        function liquidityBalances(bytes32 poolId, address user) external view returns (uint256);
-
-        // Swapping
-        function rebalanceSwap(address userToken, address validatorToken, uint256 amountOut, address to) external returns (uint256 amountIn);
-
-        // Events
-        event Mint(address sender, address indexed to, address indexed userToken, address indexed validatorToken, uint256 amountValidatorToken, uint256 liquidity);
-        event Burn(address indexed sender, address indexed userToken, address indexed validatorToken, uint256 amountUserToken, uint256 amountValidatorToken, uint256 liquidity, address to);
-        event RebalanceSwap(address indexed userToken, address indexed validatorToken, address indexed swapper, uint256 amountIn, uint256 amountOut);
-
-        // Errors
-        error IdenticalAddresses();
-        error InvalidToken();
-        error InsufficientLiquidity();
-        error InsufficientReserves();
-        error InvalidAmount();
-        error DivisionByZero();
-        error InvalidSwapCalculation();
+        error RouterSelectorNotFound(address router, bytes4 selector);
+        error RouterSelectorAlreadyRegistered(address router, bytes4 selector);
+        error CalldataDecodeFailed();
     }
 }
 
@@ -153,40 +184,258 @@ impl FeeManagerError {
     pub const fn token_policy_forbids() -> Self {
         Self::TokenPolicyForbids(IFeeManager::TokenPolicyForbids {})
     }
+
+    /// Creates an error for an unregistered currency.
+    pub fn currency_not_registered(currency: alloc::string::String) -> Self {
+        Self::CurrencyNotRegistered(IFeeManager::CurrencyNotRegistered { currency })
+    }
+
+    /// Creates an error for a disabled currency.
+    pub fn currency_disabled(currency: alloc::string::String) -> Self {
+        Self::CurrencyDisabled(IFeeManager::CurrencyDisabled { currency })
+    }
+
+    /// Creates an error when the validator's accept-set does not include `token`.
+    pub fn fee_token_not_accepted(validator: alloy_primitives::Address, token: alloy_primitives::Address) -> Self {
+        Self::FeeTokenNotAccepted(IFeeManager::FeeTokenNotAccepted { validator, token })
+    }
+
+    /// Creates an error when no fee token can be inferred from the tx calldata.
+    pub const fn fee_token_not_inferable() -> Self {
+        Self::FeeTokenNotInferable(IFeeManager::FeeTokenNotInferable {})
+    }
+
+    /// Creates an error when the producing validator has no tokens in its accept-set.
+    pub fn validator_accept_set_empty(validator: alloy_primitives::Address) -> Self {
+        Self::ValidatorAcceptSetEmpty(IFeeManager::ValidatorAcceptSetEmpty { validator })
+    }
+
+    pub fn only_governance_admin(caller: alloy_primitives::Address) -> Self {
+        Self::OnlyGovernanceAdmin(IFeeManager::OnlyGovernanceAdmin { caller })
+    }
+
+    pub fn currency_already_added(currency: alloc::string::String) -> Self {
+        Self::CurrencyAlreadyAdded(IFeeManager::CurrencyAlreadyAdded { currency })
+    }
+
+    pub fn currency_already_enabled(currency: alloc::string::String) -> Self {
+        Self::CurrencyAlreadyEnabled(IFeeManager::CurrencyAlreadyEnabled { currency })
+    }
+
+    pub fn invalid_currency_code(currency: alloc::string::String) -> Self {
+        Self::InvalidCurrencyCode(IFeeManager::InvalidCurrencyCode { currency })
+    }
+
+    pub const fn zero_address_governance_admin() -> Self {
+        Self::ZeroAddressGovernanceAdmin(IFeeManager::ZeroAddressGovernanceAdmin {})
+    }
+
+    pub const fn token_already_accepted(
+        validator: alloy_primitives::Address,
+        token: alloy_primitives::Address,
+    ) -> Self {
+        Self::TokenAlreadyAccepted(IFeeManager::TokenAlreadyAccepted { validator, token })
+    }
+
+    pub const fn token_not_in_accept_set(
+        validator: alloy_primitives::Address,
+        token: alloy_primitives::Address,
+    ) -> Self {
+        Self::TokenNotInAcceptSet(IFeeManager::TokenNotInAcceptSet { validator, token })
+    }
+
+    pub const fn max_accept_set_reached(validator: alloy_primitives::Address) -> Self {
+        Self::MaxAcceptSetReached(IFeeManager::MaxAcceptSetReached { validator })
+    }
+
+    pub fn currency_deprecating(currency: alloc::string::String, grace_ends_at: u64) -> Self {
+        Self::CurrencyDeprecating(IFeeManager::CurrencyDeprecating {
+            currency,
+            graceEndsAt: grace_ends_at,
+        })
+    }
+
+    pub fn currency_already_deprecating(currency: alloc::string::String) -> Self {
+        Self::CurrencyAlreadyDeprecating(IFeeManager::CurrencyAlreadyDeprecating { currency })
+    }
+
+    pub const fn grace_period_out_of_range(grace: u64) -> Self {
+        Self::GracePeriodOutOfRange(IFeeManager::GracePeriodOutOfRange { grace })
+    }
+
+    pub const fn emergency_threshold_out_of_range(threshold: u8) -> Self {
+        Self::EmergencyThresholdOutOfRange(IFeeManager::EmergencyThresholdOutOfRange { threshold })
+    }
+
+    pub fn currency_not_disabled(currency: alloc::string::String) -> Self {
+        Self::CurrencyNotDisabled(IFeeManager::CurrencyNotDisabled { currency })
+    }
+
+    pub const fn validator_not_offboarded(validator: alloy_primitives::Address) -> Self {
+        Self::ValidatorNotOffboarded(IFeeManager::ValidatorNotOffboarded { validator })
+    }
+
+    pub const fn validator_already_offboarded(validator: alloy_primitives::Address) -> Self {
+        Self::ValidatorAlreadyOffboarded(IFeeManager::ValidatorAlreadyOffboarded { validator })
+    }
+
+    pub const fn claim_window_expired(validator: alloy_primitives::Address) -> Self {
+        Self::ClaimWindowExpired(IFeeManager::ClaimWindowExpired { validator })
+    }
+
+    pub const fn claim_window_active(validator: alloy_primitives::Address) -> Self {
+        Self::ClaimWindowActive(IFeeManager::ClaimWindowActive { validator })
+    }
+
+    pub const fn no_escrowed_fees(
+        validator: alloy_primitives::Address,
+        token: alloy_primitives::Address,
+    ) -> Self {
+        Self::NoEscrowedFees(IFeeManager::NoEscrowedFees { validator, token })
+    }
+
+    pub const fn escrow_claim_window_out_of_range(window: u64) -> Self {
+        Self::EscrowClaimWindowOutOfRange(IFeeManager::EscrowClaimWindowOutOfRange { window })
+    }
+
+    pub const fn zero_address_foundation_escrow() -> Self {
+        Self::ZeroAddressFoundationEscrow(IFeeManager::ZeroAddressFoundationEscrow {})
+    }
+
+    pub const fn router_selector_not_found(
+        router: alloy_primitives::Address,
+        selector: alloy_primitives::FixedBytes<4>,
+    ) -> Self {
+        Self::RouterSelectorNotFound(IFeeManager::RouterSelectorNotFound { router, selector })
+    }
+
+    pub const fn router_selector_already_registered(
+        router: alloy_primitives::Address,
+        selector: alloy_primitives::FixedBytes<4>,
+    ) -> Self {
+        Self::RouterSelectorAlreadyRegistered(IFeeManager::RouterSelectorAlreadyRegistered {
+            router,
+            selector,
+        })
+    }
+
+    pub const fn calldata_decode_failed() -> Self {
+        Self::CalldataDecodeFailed(IFeeManager::CalldataDecodeFailed {})
+    }
 }
 
-impl TIPFeeAMMError {
-    /// Creates an error for identical token addresses.
-    pub const fn identical_addresses() -> Self {
-        Self::IdenticalAddresses(ITIPFeeAMM::IdenticalAddresses {})
+#[cfg(test)]
+mod fee_manager_error_tests {
+    use super::*;
+    use alloc::string::ToString;
+    use alloy_primitives::Address;
+    use alloy_sol_types::SolError;
+
+    #[test]
+    fn currency_not_registered_constructor_preserves_field() {
+        let err = FeeManagerError::currency_not_registered("XYZ".to_string());
+        match err {
+            FeeManagerError::CurrencyNotRegistered(inner) => {
+                assert_eq!(inner.currency, "XYZ");
+            }
+            _ => panic!("expected CurrencyNotRegistered variant"),
+        }
     }
 
-    /// Creates an error for invalid token.
-    pub const fn invalid_token() -> Self {
-        Self::InvalidToken(ITIPFeeAMM::InvalidToken {})
+    #[test]
+    fn currency_disabled_constructor_preserves_field() {
+        let err = FeeManagerError::currency_disabled("USD".to_string());
+        match err {
+            FeeManagerError::CurrencyDisabled(inner) => {
+                assert_eq!(inner.currency, "USD");
+            }
+            _ => panic!("expected CurrencyDisabled variant"),
+        }
     }
 
-    /// Creates an error for insufficient liquidity.
-    pub const fn insufficient_liquidity() -> Self {
-        Self::InsufficientLiquidity(ITIPFeeAMM::InsufficientLiquidity {})
+    #[test]
+    fn fee_token_not_accepted_constructor_preserves_fields() {
+        let validator = Address::repeat_byte(0xAB);
+        let token = Address::repeat_byte(0xCD);
+        let err = FeeManagerError::fee_token_not_accepted(validator, token);
+
+        match err {
+            FeeManagerError::FeeTokenNotAccepted(inner) => {
+                assert_eq!(inner.validator, validator);
+                assert_eq!(inner.token, token);
+            }
+            _ => panic!("expected FeeTokenNotAccepted variant"),
+        }
     }
 
-    /// Creates an error for insufficient reserves.
-    pub const fn insufficient_reserves() -> Self {
-        Self::InsufficientReserves(ITIPFeeAMM::InsufficientReserves {})
-    }
-    /// Creates an error for invalid amount.
-    pub const fn invalid_amount() -> Self {
-        Self::InvalidAmount(ITIPFeeAMM::InvalidAmount {})
+    #[test]
+    fn fee_token_not_inferable_is_unit_variant() {
+        let err = FeeManagerError::fee_token_not_inferable();
+        assert!(matches!(err, FeeManagerError::FeeTokenNotInferable(_)));
     }
 
-    /// Creates an error for invalid swap calculation.
-    pub const fn invalid_swap_calculation() -> Self {
-        Self::InvalidSwapCalculation(ITIPFeeAMM::InvalidSwapCalculation {})
+    #[test]
+    fn validator_accept_set_empty_constructor_preserves_field() {
+        let validator = Address::repeat_byte(0x42);
+        let err = FeeManagerError::validator_accept_set_empty(validator);
+        match err {
+            FeeManagerError::ValidatorAcceptSetEmpty(inner) => {
+                assert_eq!(inner.validator, validator);
+            }
+            _ => panic!("expected ValidatorAcceptSetEmpty variant"),
+        }
     }
 
-    /// Creates an error for division by zero.
-    pub const fn division_by_zero() -> Self {
-        Self::DivisionByZero(ITIPFeeAMM::DivisionByZero {})
+    #[test]
+    fn currency_error_selectors_are_distinct_from_each_other() {
+        let new_selectors = [
+            IFeeManager::CurrencyNotRegistered::SELECTOR,
+            IFeeManager::CurrencyDisabled::SELECTOR,
+            IFeeManager::FeeTokenNotAccepted::SELECTOR,
+            IFeeManager::FeeTokenNotInferable::SELECTOR,
+            IFeeManager::ValidatorAcceptSetEmpty::SELECTOR,
+        ];
+
+        for i in 0..new_selectors.len() {
+            for j in (i + 1)..new_selectors.len() {
+                assert_ne!(
+                    new_selectors[i], new_selectors[j],
+                    "currency error selectors {} and {} collide", i, j
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn currency_error_selectors_are_distinct_from_existing_errors() {
+        let new_selectors = [
+            IFeeManager::CurrencyNotRegistered::SELECTOR,
+            IFeeManager::CurrencyDisabled::SELECTOR,
+            IFeeManager::FeeTokenNotAccepted::SELECTOR,
+            IFeeManager::FeeTokenNotInferable::SELECTOR,
+            IFeeManager::ValidatorAcceptSetEmpty::SELECTOR,
+        ];
+        let existing_selectors = [
+            IFeeManager::OnlyValidator::SELECTOR,
+            IFeeManager::OnlySystemContract::SELECTOR,
+            IFeeManager::InvalidToken::SELECTOR,
+            IFeeManager::PoolDoesNotExist::SELECTOR,
+            IFeeManager::InsufficientFeeTokenBalance::SELECTOR,
+            IFeeManager::InternalError::SELECTOR,
+            IFeeManager::CannotChangeWithinBlock::SELECTOR,
+            IFeeManager::CannotChangeWithPendingFees::SELECTOR,
+            IFeeManager::TokenPolicyForbids::SELECTOR,
+        ];
+
+        for new in new_selectors {
+            for existing in existing_selectors {
+                assert_ne!(
+                    new, existing,
+                    "currency error selector {:?} collides with existing FeeManager error {:?}",
+                    new, existing
+                );
+            }
+        }
     }
 }
+

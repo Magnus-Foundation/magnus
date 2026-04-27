@@ -26,7 +26,7 @@ use reth_transaction_pool::TransactionPool;
 use magnus_alloy::MagnusNetwork;
 use magnus_chainspec::{hardfork::MagnusHardfork, spec::MAGNUS_T1_BASE_FEE};
 use magnus_contracts::precompiles::{
-    DEFAULT_FEE_TOKEN, account_keychain::IAccountKeychain::revokeKeyCall,
+    MAGNUS_USD_ADDRESS, account_keychain::IAccountKeychain::revokeKeyCall,
 };
 use magnus_precompiles::{
     ACCOUNT_KEYCHAIN_ADDRESS,
@@ -101,7 +101,7 @@ impl super::types::TestEnv for Localnet {
             self.funder_addr,
             addr,
             amount,
-            DEFAULT_FEE_TOKEN,
+            MAGNUS_USD_ADDRESS,
             self.chain_id,
         )
         .await?;
@@ -1391,7 +1391,7 @@ async fn test_aa_keychain_revocation_toctou_dos() -> eyre::Result<()> {
         vec![create_balance_of_call(root_addr)],
         2_000_000,
     );
-    auth_tx.fee_token = Some(DEFAULT_FEE_TOKEN);
+    auth_tx.fee_token = Some(MAGNUS_USD_ADDRESS);
     auth_tx.key_authorization = Some(key_auth);
 
     let root_sig = sign_aa_tx_secp256k1(&auth_tx, &root_signer)?;
@@ -1428,13 +1428,13 @@ async fn test_aa_keychain_revocation_toctou_dos() -> eyre::Result<()> {
         chain_id,
         nonce,
         vec![create_transfer_call(
-            DEFAULT_FEE_TOKEN,
+            MAGNUS_USD_ADDRESS,
             recipient,
             transfer_amount,
         )],
         2_000_000,
     );
-    delayed_tx.fee_token = Some(DEFAULT_FEE_TOKEN);
+    delayed_tx.fee_token = Some(MAGNUS_USD_ADDRESS);
     delayed_tx.valid_after = Some(nonzero_timestamp(valid_after_time));
 
     // Sign with the access key (wrapped in Keychain signature)
@@ -1487,7 +1487,7 @@ async fn test_aa_keychain_revocation_toctou_dos() -> eyre::Result<()> {
         }],
         2_000_000,
     );
-    revoke_tx.fee_token = Some(DEFAULT_FEE_TOKEN);
+    revoke_tx.fee_token = Some(MAGNUS_USD_ADDRESS);
     revoke_tx.nonce_key = U256::from(1); // Use a different nonce key so it's independent
 
     let revoke_sig = sign_aa_tx_secp256k1(&revoke_tx, &root_signer)?;
@@ -1528,7 +1528,7 @@ async fn test_aa_keychain_revocation_toctou_dos() -> eyre::Result<()> {
         .await?;
 
     // Check the transfer recipient balance to verify if the transaction actually executed
-    let recipient_balance = IMIP20::new(DEFAULT_FEE_TOKEN, &provider)
+    let recipient_balance = IMIP20::new(MAGNUS_USD_ADDRESS, &provider)
         .balanceOf(recipient)
         .call()
         .await?;
@@ -1680,7 +1680,7 @@ async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
         chain_id,
         None, // Never expires
         Some(vec![magnus_primitives::transaction::TokenLimit {
-            token: DEFAULT_FEE_TOKEN,
+            token: MAGNUS_USD_ADDRESS,
             limit: initial_spending_limit,
             period: 0,
         }]),
@@ -1692,7 +1692,7 @@ async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
         vec![create_balance_of_call(root_addr)],
         2_000_000,
     );
-    auth_tx.fee_token = Some(DEFAULT_FEE_TOKEN);
+    auth_tx.fee_token = Some(MAGNUS_USD_ADDRESS);
     auth_tx.key_authorization = Some(key_auth);
 
     let root_sig = sign_aa_tx_secp256k1(&auth_tx, &root_signer)?;
@@ -1729,13 +1729,13 @@ async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
         chain_id,
         nonce,
         vec![create_transfer_call(
-            DEFAULT_FEE_TOKEN,
+            MAGNUS_USD_ADDRESS,
             recipient,
             transfer_amount,
         )],
         2_000_000,
     );
-    delayed_tx.fee_token = Some(DEFAULT_FEE_TOKEN);
+    delayed_tx.fee_token = Some(MAGNUS_USD_ADDRESS);
     delayed_tx.valid_after = Some(nonzero_timestamp(valid_after_time));
 
     // Sign with the access key (wrapped in Keychain signature)
@@ -1772,7 +1772,7 @@ async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
 
     let update_limit_call = updateSpendingLimitCall {
         keyId: access_key_addr,
-        token: DEFAULT_FEE_TOKEN,
+        token: MAGNUS_USD_ADDRESS,
         newLimit: U256::ZERO, // Set to 0, making all pending transfers fail
     };
 
@@ -1787,7 +1787,7 @@ async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
         }],
         2_000_000,
     );
-    update_tx.fee_token = Some(DEFAULT_FEE_TOKEN);
+    update_tx.fee_token = Some(MAGNUS_USD_ADDRESS);
     update_tx.nonce_key = U256::from(1); // Use a different nonce key so it's independent
 
     let update_sig = sign_aa_tx_secp256k1(&update_tx, &root_signer)?;
@@ -1821,7 +1821,7 @@ async fn test_aa_keychain_spending_limit_toctou_dos() -> eyre::Result<()> {
         .await?;
 
     // Check the transfer recipient balance
-    let recipient_balance = IMIP20::new(DEFAULT_FEE_TOKEN, &provider)
+    let recipient_balance = IMIP20::new(MAGNUS_USD_ADDRESS, &provider)
         .balanceOf(recipient)
         .call()
         .await?;
@@ -1943,7 +1943,7 @@ async fn test_v2_keychain_blocks_cross_account_replay() -> eyre::Result<()> {
         alice_addr,
         bob_addr,
         U256::from(100e6),
-        DEFAULT_FEE_TOKEN,
+        MAGNUS_USD_ADDRESS,
         chain_id,
     )
     .await?;
@@ -2094,7 +2094,7 @@ async fn test_v1_keychain_cross_account_replay_pre_t1c() -> eyre::Result<()> {
         alice_addr,
         bob_addr,
         U256::from(100e6),
-        DEFAULT_FEE_TOKEN,
+        MAGNUS_USD_ADDRESS,
         chain_id,
     )
     .await?;
@@ -2207,7 +2207,7 @@ async fn test_aa_keychain_v2_signature() -> eyre::Result<()> {
         vec![create_balance_of_call(root_addr)],
         2_000_000,
     );
-    auth_tx.fee_token = Some(DEFAULT_FEE_TOKEN);
+    auth_tx.fee_token = Some(MAGNUS_USD_ADDRESS);
     auth_tx.key_authorization = Some(key_auth);
 
     let root_sig = sign_aa_tx_secp256k1(&auth_tx, &root_signer)?;
@@ -2221,13 +2221,13 @@ async fn test_aa_keychain_v2_signature() -> eyre::Result<()> {
         chain_id,
         nonce,
         vec![create_transfer_call(
-            DEFAULT_FEE_TOKEN,
+            MAGNUS_USD_ADDRESS,
             recipient,
             U256::from(1_000_000u64),
         )],
         2_000_000,
     );
-    transfer_tx.fee_token = Some(DEFAULT_FEE_TOKEN);
+    transfer_tx.fee_token = Some(MAGNUS_USD_ADDRESS);
 
     let v2_sig = sign_aa_tx_with_p256_access_key(
         &transfer_tx,
@@ -2257,7 +2257,7 @@ async fn test_aa_keychain_v2_signature() -> eyre::Result<()> {
         vec![create_balance_of_call(root_addr)],
         2_000_000,
     );
-    v1_tx.fee_token = Some(DEFAULT_FEE_TOKEN);
+    v1_tx.fee_token = Some(MAGNUS_USD_ADDRESS);
 
     let v1_sig =
         sign_aa_tx_with_p256_access_key_v1(&v1_tx, &access_key_signing, &pub_x, &pub_y, root_addr)?;

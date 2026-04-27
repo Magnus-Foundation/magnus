@@ -24,7 +24,7 @@ contract MagnusStreamChannelTest is BaseTest {
 
         channel = new MagnusStreamChannel();
         token = MIP20(
-            factory.createToken("Stream Token", "STR", "USD", pathUSD, admin, bytes32("stream"))
+            factory.createToken("Stream Token", "STR", "USD", MagnusUSD, admin, bytes32("stream"))
         );
 
         (payer, payerKey) = makeAddrAndKey("payer");
@@ -687,7 +687,7 @@ contract MagnusStreamChannelTest is BaseTest {
 
         MagnusStreamChannel channel2 = new MagnusStreamChannel();
         MIP20 token2 = MIP20(
-            factory.createToken("Stream Token 2", "ST2", "USD", pathUSD, admin, bytes32("stream2"))
+            factory.createToken("Stream Token 2", "ST2", "USD", MagnusUSD, admin, bytes32("stream2"))
         );
 
         vm.startPrank(admin);
@@ -715,7 +715,7 @@ contract MagnusStreamChannelTest is BaseTest {
 
         MagnusStreamChannel channel2 = new MagnusStreamChannel();
         MIP20 token2 = MIP20(
-            factory.createToken("Stream Token 3", "ST3", "USD", pathUSD, admin, bytes32("stream3"))
+            factory.createToken("Stream Token 3", "ST3", "USD", MagnusUSD, admin, bytes32("stream3"))
         );
 
         vm.startPrank(admin);

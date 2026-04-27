@@ -1,37 +1,12 @@
 //! ABI dispatch for the [`MipFeeManager`] precompile.
 
 use crate::{
-    Precompile, charge_input_cost, dispatch_call, metadata,
-    mip_fee_manager::{
-        ITIPFeeAMM, MipFeeManager,
-        amm::{M, MIN_LIQUIDITY, N, SCALE},
-    },
-    mutate, mutate_void,
-    storage::Handler,
-    view,
+    Precompile, charge_input_cost, dispatch_call, mip_fee_manager::MipFeeManager, mutate,
+    mutate_void, storage::Handler, view,
 };
 use alloy::{primitives::Address, sol_types::SolInterface};
-use magnus_contracts::precompiles::{IFeeManager::IFeeManagerCalls, ITIPFeeAMM::ITIPFeeAMMCalls};
+use magnus_contracts::precompiles::IFeeManager::IFeeManagerCalls;
 use revm::precompile::PrecompileResult;
-
-/// Unified calldata discriminant for both `IFeeManager` and `ITIPFeeAMM` selectors.
-enum TipFeeManagerCall {
-    FeeManager(IFeeManagerCalls),
-    Amm(ITIPFeeAMMCalls),
-}
-
-impl TipFeeManagerCall {
-    fn decode(calldata: &[u8]) -> Result<Self, alloy::sol_types::Error> {
-        // safe to expect as `dispatch_call` pre-validates calldata len
-        let selector: [u8; 4] = calldata[..4].try_into().expect("calldata len >= 4");
-
-        if IFeeManagerCalls::valid_selector(selector) {
-            IFeeManagerCalls::abi_decode(calldata).map(Self::FeeManager)
-        } else {
-            ITIPFeeAMMCalls::abi_decode(calldata).map(Self::Amm)
-        }
-    }
-}
 
 impl Precompile for MipFeeManager {
     fn call(&mut self, calldata: &[u8], msg_sender: Address) -> PrecompileResult {
@@ -42,93 +17,171 @@ impl Precompile for MipFeeManager {
         dispatch_call(
             calldata,
             &[],
-            TipFeeManagerCall::decode,
+            IFeeManagerCalls::abi_decode,
             |call| match call {
-                // IFeeManager view functions
-                TipFeeManagerCall::FeeManager(IFeeManagerCalls::userTokens(call)) => {
-                    view(call, |c| self.user_tokens(c))
-                }
-                TipFeeManagerCall::FeeManager(IFeeManagerCalls::validatorTokens(call)) => {
-                    view(call, |c| self.get_validator_token(c.validator))
-                }
-                TipFeeManagerCall::FeeManager(IFeeManagerCalls::collectedFees(call)) => {
+                // Fee distribution
+                IFeeManagerCalls::collectedFees(call) => {
                     view(call, |c| self.collected_fees[c.validator][c.token].read())
                 }
-
-                // IFeeManager mutate functions
-                TipFeeManagerCall::FeeManager(IFeeManagerCalls::setValidatorToken(call)) => {
-                    mutate_void(call, msg_sender, |s, c| {
-                        let beneficiary = self.storage.beneficiary();
-                        self.set_validator_token(s, c, beneficiary)
-                    })
-                }
-                TipFeeManagerCall::FeeManager(IFeeManagerCalls::setUserToken(call)) => {
-                    mutate_void(call, msg_sender, |s, c| self.set_user_token(s, c))
-                }
-                TipFeeManagerCall::FeeManager(IFeeManagerCalls::distributeFees(call)) => {
+                IFeeManagerCalls::distributeFees(call) => {
                     mutate_void(call, msg_sender, |_, c| {
                         self.distribute_fees(c.validator, c.token)
                     })
                 }
 
-                // ITIPFeeAMM metadata functions
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::M(_)) => {
-                    metadata::<ITIPFeeAMM::MCall>(|| Ok(M))
+                // Currency registry
+                IFeeManagerCalls::governanceAdmin(call) => {
+                    view(call, |_| self.governance_admin())
                 }
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::N(_)) => {
-                    metadata::<ITIPFeeAMM::NCall>(|| Ok(N))
+                IFeeManagerCalls::getCurrencyConfig(call) => view(call, |c| {
+                    let config = self.get_currency_config(&c.code)?;
+                    Ok(magnus_contracts::precompiles::IFeeManager::CurrencyConfig {
+                        registered: config.registered,
+                        enabled: config.enabled,
+                        deprecating: config.deprecating,
+                        addedAtBlock: config.added_at_block,
+                        enabledAtBlock: config.enabled_at_block,
+                        deprecationActivatesAt: config.deprecation_activates_at,
+                        lastPrunedAtBlock: config.last_pruned_at_block,
+                    })
+                }),
+                IFeeManagerCalls::isCurrencyEnabled(call) => {
+                    view(call, |c| self.is_currency_enabled(&c.code))
                 }
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::SCALE(_)) => {
-                    metadata::<ITIPFeeAMM::SCALECall>(|| Ok(SCALE))
+                IFeeManagerCalls::deprecationGracePeriod(call) => {
+                    view(call, |_| self.deprecation_grace_period())
                 }
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::MIN_LIQUIDITY(_)) => {
-                    metadata::<ITIPFeeAMM::MIN_LIQUIDITYCall>(|| Ok(MIN_LIQUIDITY))
+                IFeeManagerCalls::emergencyDisableThreshold(call) => {
+                    view(call, |_| self.emergency_disable_threshold())
+                }
+                IFeeManagerCalls::addCurrency(call) => mutate_void(call, msg_sender, |s, c| {
+                    let block = self.storage.block_number();
+                    self.add_currency(s, &c.code, block)
+                }),
+                IFeeManagerCalls::enableCurrency(call) => mutate_void(call, msg_sender, |s, c| {
+                    let block = self.storage.block_number();
+                    self.enable_currency(s, &c.code, block)
+                }),
+                IFeeManagerCalls::disableCurrency(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        let now_ts = self.storage.timestamp().saturating_to::<u64>();
+                        self.disable_currency(s, &c.code, now_ts)
+                    })
+                }
+                IFeeManagerCalls::emergencyDisableCurrency(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.emergency_disable_currency(s, &c.code)
+                    })
+                }
+                IFeeManagerCalls::pruneCurrency(call) => mutate_void(call, msg_sender, |_, c| {
+                    let block = self.storage.block_number();
+                    self.prune_currency(&c.code, c.maxIterations.saturating_to::<u64>(), block)
+                }),
+                IFeeManagerCalls::pruneToken(call) => mutate(call, msg_sender, |_, c| {
+                    let block = self.storage.block_number();
+                    let removed = self.prune_token(
+                        c.token,
+                        c.maxIterations.saturating_to::<u64>(),
+                        block,
+                    )?;
+                    Ok(alloy::primitives::U256::from(removed))
+                }),
+                IFeeManagerCalls::setDeprecationGracePeriod(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.set_deprecation_grace_period(s, c.newGracePeriod)
+                    })
+                }
+                IFeeManagerCalls::setEmergencyDisableThreshold(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.set_emergency_disable_threshold(s, c.newThreshold)
+                    })
+                }
+                IFeeManagerCalls::setGovernanceAdmin(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.set_governance_admin(s, c.newAdmin)
+                    })
                 }
 
-                // ITIPFeeAMM view functions
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::getPoolId(call)) => {
-                    view(call, |c| Ok(self.pool_id(c.userToken, c.validatorToken)))
+                // Validator accept-set
+                IFeeManagerCalls::addAcceptedToken(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        let beneficiary = self.storage.beneficiary();
+                        self.add_accepted_token(s, c.token, beneficiary)
+                    })
                 }
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::getPool(call)) => {
-                    view(call, |c| Ok(self.get_pool(c)?.into()))
+                IFeeManagerCalls::removeAcceptedToken(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        let beneficiary = self.storage.beneficiary();
+                        self.remove_accepted_token(s, c.token, beneficiary)
+                    })
                 }
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::pools(call)) => {
-                    view(call, |c| Ok(self.pools[c.poolId].read()?.into()))
+                IFeeManagerCalls::acceptsToken(call) => {
+                    view(call, |c| self.accepts_token(c.validator, c.token))
                 }
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::totalSupply(call)) => {
-                    view(call, |c| self.total_supply[c.poolId].read())
+                IFeeManagerCalls::getAcceptedTokens(call) => {
+                    view(call, |c| self.get_accepted_tokens(c.validator))
                 }
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::liquidityBalances(call)) => {
-                    view(call, |c| self.liquidity_balances[c.poolId][c.user].read())
+                IFeeManagerCalls::isAcceptedByAnyValidator(call) => {
+                    view(call, |c| self.is_accepted_by_any_validator(c.token))
                 }
 
-                // ITIPFeeAMM mutate functions
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::mint(call)) => {
-                    mutate(call, msg_sender, |s, c| {
-                        self.mint(
+                // Off-boarding + escrow
+                IFeeManagerCalls::offboardValidator(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.offboard_validator(s, c.validator)
+                    })
+                }
+                IFeeManagerCalls::claimEscrowedFees(call) => mutate(call, msg_sender, |s, c| {
+                    self.claim_escrowed_fees(s, c.validator, c.token, c.recipient)
+                }),
+                IFeeManagerCalls::sweepExpiredEscrow(call) => mutate(call, msg_sender, |s, c| {
+                    self.sweep_expired_escrow(s, c.validator, c.token)
+                }),
+                IFeeManagerCalls::setEscrowClaimWindow(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.set_escrow_claim_window(s, c.newWindow)
+                    })
+                }
+                IFeeManagerCalls::setFoundationEscrowAddress(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.set_foundation_escrow_address(s, c.newAddress)
+                    })
+                }
+                IFeeManagerCalls::escrowedFees(call) => {
+                    view(call, |c| self.escrowed_fees_amount(c.validator, c.token))
+                }
+                IFeeManagerCalls::escrowClaim(call) => view(call, |c| {
+                    let r = self.escrow_claim(c.validator)?;
+                    Ok((r.offboarded_at, r.claim_deadline, r.offboarded).into())
+                }),
+                IFeeManagerCalls::escrowClaimWindow(call) => {
+                    view(call, |_| self.escrow_claim_window())
+                }
+                IFeeManagerCalls::foundationEscrowAddress(call) => {
+                    view(call, |_| self.foundation_escrow_address())
+                }
+
+                // Router selector registry
+                IFeeManagerCalls::registerRouterSelector(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.register_router_selector(
                             s,
-                            c.userToken,
-                            c.validatorToken,
-                            c.amountValidatorToken,
-                            c.to,
+                            c.router,
+                            c.selector,
+                            c.tokenInputArgIndex,
                         )
                     })
                 }
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::burn(call)) => {
-                    mutate(call, msg_sender, |s, c| {
-                        let (amount_user_token, amount_validator_token) =
-                            self.burn(s, c.userToken, c.validatorToken, c.liquidity, c.to)?;
-                        Ok(ITIPFeeAMM::burnReturn {
-                            amountUserToken: amount_user_token,
-                            amountValidatorToken: amount_validator_token,
-                        })
+                IFeeManagerCalls::unregisterRouterSelector(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.unregister_router_selector(s, c.router, c.selector)
                     })
                 }
-                TipFeeManagerCall::Amm(ITIPFeeAMMCalls::rebalanceSwap(call)) => {
-                    mutate(call, msg_sender, |s, c| {
-                        self.rebalance_swap(s, c.userToken, c.validatorToken, c.amountOut, c.to)
-                    })
-                }
+                IFeeManagerCalls::lookupRouterSelector(call) => view(call, |c| {
+                    let (registered, arg_index) =
+                        self.lookup_router_selector(c.router, c.selector)?;
+                    Ok((registered, arg_index).into())
+                }),
             },
         )
     }
@@ -138,248 +191,10 @@ impl Precompile for MipFeeManager {
 mod tests {
     use super::*;
     use crate::{
-        Precompile, expect_precompile_revert,
-        mip_fee_manager::{
-            FeeManagerError,
-            amm::{M, MIN_LIQUIDITY, N, PoolKey, SCALE},
-        },
-        storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
-        test_util::{MIP20Setup, assert_full_coverage, check_selector_coverage},
+        storage::{StorageCtx, hashmap::HashMapStorageProvider},
+        test_util::{assert_full_coverage, check_selector_coverage},
     };
-    use alloy::{
-        primitives::{Address, B256, U256},
-        sol_types::{SolCall, SolValue},
-    };
-    use magnus_contracts::precompiles::{
-        IFeeManager, IFeeManager::IFeeManagerCalls, ITIPFeeAMM, ITIPFeeAMM::ITIPFeeAMMCalls,
-    };
-
-    #[test]
-    fn test_set_validator_token() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let admin = Address::random();
-        let validator = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let token = MIP20Setup::create("TestToken", "TST", admin).apply()?;
-            let mut fee_manager = MipFeeManager::new();
-
-            let calldata = IFeeManager::setValidatorTokenCall {
-                token: token.address(),
-            }
-            .abi_encode();
-            let result = fee_manager.call(&calldata, validator)?;
-            assert_eq!(result.gas_used, 0);
-
-            // Verify token was set
-            let calldata = IFeeManager::validatorTokensCall { validator }.abi_encode();
-            let result = fee_manager.call(&calldata, validator)?;
-            assert_eq!(result.gas_used, 0);
-            let returned_token = Address::abi_decode(&result.bytes)?;
-            assert_eq!(returned_token, token.address());
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_set_validator_token_zero_address() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let validator = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = MipFeeManager::new();
-
-            let calldata = IFeeManager::setValidatorTokenCall {
-                token: Address::ZERO,
-            }
-            .abi_encode();
-            let result = fee_manager.call(&calldata, validator);
-            expect_precompile_revert(&result, FeeManagerError::invalid_token());
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_set_user_token() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let admin = Address::random();
-        let user = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let token = MIP20Setup::create("TestToken", "TST", admin).apply()?;
-            let mut fee_manager = MipFeeManager::new();
-
-            let calldata = IFeeManager::setUserTokenCall {
-                token: token.address(),
-            }
-            .abi_encode();
-            let result = fee_manager.call(&calldata, user)?;
-            assert_eq!(result.gas_used, 0);
-
-            // Verify token was set
-            let calldata = IFeeManager::userTokensCall { user }.abi_encode();
-            let result = fee_manager.call(&calldata, user)?;
-            assert_eq!(result.gas_used, 0);
-            let returned_token = Address::abi_decode(&result.bytes)?;
-            assert_eq!(returned_token, token.address());
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_set_user_token_zero_address() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let user = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = MipFeeManager::new();
-
-            let calldata = IFeeManager::setUserTokenCall {
-                token: Address::ZERO,
-            }
-            .abi_encode();
-            let result = fee_manager.call(&calldata, user);
-            expect_precompile_revert(&result, FeeManagerError::invalid_token());
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_get_pool_id() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let token_a = Address::random();
-        let token_b = Address::random();
-        let sender = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = MipFeeManager::new();
-
-            let calldata = ITIPFeeAMM::getPoolIdCall {
-                userToken: token_a,
-                validatorToken: token_b,
-            }
-            .abi_encode();
-            let result = fee_manager.call(&calldata, sender)?;
-            assert_eq!(result.gas_used, 0);
-
-            let returned_id = B256::abi_decode(&result.bytes)?;
-            let expected_id = PoolKey::new(token_a, token_b).get_id();
-            assert_eq!(returned_id, expected_id);
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_tip_fee_amm_pool_operations() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let token_a = Address::random();
-        let token_b = Address::random();
-        let sender = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = MipFeeManager::new();
-
-            // Get pool using ITIPFeeAMM interface
-            let get_pool_call = ITIPFeeAMM::getPoolCall {
-                userToken: token_a,
-                validatorToken: token_b,
-            };
-            let calldata = get_pool_call.abi_encode();
-            let result = fee_manager.call(&calldata, sender)?;
-            assert_eq!(result.gas_used, 0);
-
-            // Decode and verify pool (should be empty initially)
-            let pool = ITIPFeeAMM::Pool::abi_decode(&result.bytes)?;
-            assert_eq!(pool.reserveUserToken, 0);
-            assert_eq!(pool.reserveValidatorToken, 0);
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_pool_id_calculation() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let token_a = Address::random();
-        let token_b = Address::random();
-        let sender = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = MipFeeManager::new();
-
-            // Get pool ID with tokens in order (a, b)
-            let calldata1 = ITIPFeeAMM::getPoolIdCall {
-                userToken: token_a,
-                validatorToken: token_b,
-            }
-            .abi_encode();
-            let result1 = fee_manager.call(&calldata1, sender)?;
-            let id1 = B256::abi_decode(&result1.bytes)?;
-
-            // Get pool ID with tokens reversed (b, a)
-            let calldata2 = ITIPFeeAMM::getPoolIdCall {
-                userToken: token_b,
-                validatorToken: token_a,
-            }
-            .abi_encode();
-            let result2 = fee_manager.call(&calldata2, sender)?;
-            let id2 = B256::abi_decode(&result2.bytes)?;
-
-            // Pool IDs should be different since tokens are ordered
-            assert_ne!(id1, id2);
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_fee_manager_invalid_token_error() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let user = Address::random();
-        let validator = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = MipFeeManager::new();
-
-            // Test setValidatorToken with zero address
-            let set_validator_call = IFeeManager::setValidatorTokenCall {
-                token: Address::ZERO,
-            };
-            let result = fee_manager.call(&set_validator_call.abi_encode(), validator);
-            expect_precompile_revert(&result, FeeManagerError::invalid_token());
-
-            // Test setUserToken with zero address
-            let set_user_call = IFeeManager::setUserTokenCall {
-                token: Address::ZERO,
-            };
-            let result = fee_manager.call(&set_user_call.abi_encode(), user);
-            expect_precompile_revert(&result, FeeManagerError::invalid_token());
-
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_amm_constants() -> eyre::Result<()> {
-        let mut storage = HashMapStorageProvider::new(1);
-        let sender = Address::random();
-        StorageCtx::enter(&mut storage, || {
-            let mut fee_manager = MipFeeManager::new();
-
-            let result =
-                fee_manager.call(&ITIPFeeAMM::MIN_LIQUIDITYCall {}.abi_encode(), sender)?;
-            assert!(!result.is_revert());
-            assert_eq!(U256::abi_decode(&result.bytes)?, MIN_LIQUIDITY);
-
-            let result = fee_manager.call(&ITIPFeeAMM::MCall {}.abi_encode(), sender)?;
-            assert_eq!(U256::abi_decode(&result.bytes)?, M);
-
-            let result = fee_manager.call(&ITIPFeeAMM::NCall {}.abi_encode(), sender)?;
-            assert_eq!(U256::abi_decode(&result.bytes)?, N);
-
-            let result = fee_manager.call(&ITIPFeeAMM::SCALECall {}.abi_encode(), sender)?;
-            assert_eq!(U256::abi_decode(&result.bytes)?, SCALE);
-
-            Ok(())
-        })
-    }
+    use magnus_contracts::precompiles::IFeeManager::IFeeManagerCalls;
 
     #[test]
     fn test_tip_fee_manager_selector_coverage() -> eyre::Result<()> {
@@ -387,21 +202,14 @@ mod tests {
         StorageCtx::enter(&mut storage, || {
             let mut fee_manager = MipFeeManager::new();
 
-            let fee_manager_unsupported = check_selector_coverage(
+            let unsupported = check_selector_coverage(
                 &mut fee_manager,
                 IFeeManagerCalls::SELECTORS,
                 "IFeeManager",
                 IFeeManagerCalls::name_by_selector,
             );
 
-            let amm_unsupported = check_selector_coverage(
-                &mut fee_manager,
-                ITIPFeeAMMCalls::SELECTORS,
-                "ITIPFeeAMM",
-                ITIPFeeAMMCalls::name_by_selector,
-            );
-
-            assert_full_coverage([fee_manager_unsupported, amm_unsupported]);
+            assert_full_coverage([unsupported]);
 
             Ok(())
         })

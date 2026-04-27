@@ -225,7 +225,7 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
     use magnus_chainspec::{
         hardfork::MagnusHardfork,
-        spec::{MODERATO, MagnusChainSpec},
+        spec::{ALLEGRO, MagnusChainSpec},
     };
 
     fn current_timestamp_millis() -> u64 {
@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_validate_header() {
-        let consensus = MagnusConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
         let header = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
             .timestamp_millis(current_timestamp_millis())
@@ -384,7 +384,7 @@ mod tests {
 
     #[test]
     fn test_validate_header_shared_gas_mismatch() {
-        let consensus = MagnusConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
         let header = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
             .timestamp_millis(current_timestamp_millis())
@@ -477,7 +477,7 @@ mod tests {
     fn create_t1_chainspec() -> Arc<MagnusChainSpec> {
         let genesis_json = r#"{
             "config": {
-                "chainId": 99999,
+                "chainId": 79941,
                 "homesteadBlock": 0,
                 "daoForkSupport": false,
                 "eip150Block": 0,
@@ -549,7 +549,7 @@ mod tests {
 
     #[test]
     fn test_validate_header_timestamp_milli_gte_1000() {
-        let consensus = MagnusConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
 
         let current_timestamp_millis = 1000000999;
 
@@ -591,7 +591,7 @@ mod tests {
     fn test_validate_header_against_parent() {
         use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 
-        let consensus = MagnusConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
         let parent_ts = current_timestamp_millis() - 1;
         let parent = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
@@ -620,7 +620,7 @@ mod tests {
     fn test_validate_header_against_parent_timestamp_not_increasing() {
         use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 
-        let consensus = MagnusConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
         let parent_ts = current_timestamp_millis();
         let parent = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
@@ -719,7 +719,7 @@ mod tests {
 
     #[test]
     fn test_validate_body_against_header() {
-        let consensus = MagnusConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
         let header = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
             .timestamp(current_timestamp_millis())
@@ -739,8 +739,8 @@ mod tests {
 
     #[test]
     fn test_validate_block_pre_execution() {
-        let consensus = MagnusConsensus::new(MODERATO.clone());
-        let chain_id = MODERATO.chain().id();
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
+        let chain_id = ALLEGRO.chain().id();
 
         let system_tx = create_system_tx(chain_id, SYSTEM_TX_ADDRESSES[0]);
         let user_tx = create_tx(chain_id);
@@ -757,8 +757,8 @@ mod tests {
 
     #[test]
     fn test_validate_block_pre_execution_invalid_system_tx() {
-        let consensus = MagnusConsensus::new(MODERATO.clone());
-        let chain_id = MODERATO.chain().id();
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
+        let chain_id = ALLEGRO.chain().id();
 
         let tx = TxLegacy {
             chain_id: Some(chain_id),
@@ -788,8 +788,8 @@ mod tests {
 
     #[test]
     fn test_validate_block_pre_execution_no_system_tx() {
-        let consensus = MagnusConsensus::new(MODERATO.clone());
-        let chain_id = MODERATO.chain().id();
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
+        let chain_id = ALLEGRO.chain().id();
 
         let user_tx = create_tx(chain_id);
 
@@ -811,14 +811,14 @@ mod tests {
 
     #[test]
     fn test_validate_body_against_header_bad_tx_root() {
-        let consensus = MagnusConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
         let header = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
             .timestamp(current_timestamp_millis())
             .build();
         let sealed = SealedHeader::seal_slow(header);
 
-        let chain_id = MODERATO.chain().id();
+        let chain_id = ALLEGRO.chain().id();
         let user_tx = create_tx(chain_id);
         let body = BlockBody {
             transactions: vec![user_tx],
@@ -835,8 +835,8 @@ mod tests {
 
     #[test]
     fn test_validate_block_post_execution_bad_receipts() {
-        let consensus = MagnusConsensus::new(MODERATO.clone());
-        let chain_id = MODERATO.chain().id();
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
+        let chain_id = ALLEGRO.chain().id();
 
         let system_tx = create_system_tx(chain_id, SYSTEM_TX_ADDRESSES[0]);
         let user_tx = create_tx(chain_id);
@@ -872,7 +872,7 @@ mod tests {
 
     #[test]
     fn test_validate_header_timestamp_exactly_at_boundary() {
-        let consensus = MagnusConsensus::new(MODERATO.clone());
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
         let boundary_timestamp = current_timestamp_millis() + ALLOWED_FUTURE_BLOCK_TIME_MILLIS;
         let header = TestHeaderBuilder::default()
             .gas_limit(30_000_000)
@@ -889,8 +889,8 @@ mod tests {
 
     #[test]
     fn test_validate_block_pre_execution_system_tx_out_of_order() {
-        let consensus = MagnusConsensus::new(MODERATO.clone());
-        let chain_id = MODERATO.chain().id();
+        let consensus = MagnusConsensus::new(ALLEGRO.clone());
+        let chain_id = ALLEGRO.chain().id();
 
         let wrong_addr = Address::repeat_byte(0xFF);
         let system_tx = create_system_tx(chain_id, wrong_addr);

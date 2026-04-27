@@ -25,7 +25,7 @@ const PRESETS = {
     "magnus-mix": [0.8, 0, 0.19, 0.01]
 }
 
-# MIP20 token IDs created by localnet genesis (pathUSD, AlphaUSD, BetaUSD, ThetaUSD)
+# MIP20 token IDs created by localnet genesis (MagnusUSD, AlphaUSD, BetaUSD, ThetaUSD)
 const MIP20_TOKEN_IDS = [0, 1, 2, 3]
 
 # ============================================================================

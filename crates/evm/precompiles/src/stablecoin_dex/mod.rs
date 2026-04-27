@@ -15,7 +15,7 @@ pub use orderbook::{
     MAX_TICK, MIN_TICK, Orderbook, PRICE_SCALE, RoundingDirection, TickLevel, base_to_quote,
     quote_to_base, tick_to_price, validate_tick_spacing,
 };
-use magnus_contracts::precompiles::PATH_USD_ADDRESS;
+use magnus_contracts::precompiles::MAGNUS_USD_ADDRESS;
 pub use magnus_contracts::precompiles::{IStablecoinDEX, StablecoinDEXError, StablecoinDEXEvents};
 
 use crate::{
@@ -166,7 +166,7 @@ impl StablecoinDEX {
         Ok(())
     }
 
-    /// Transfer tokens, accounting for pathUSD
+    /// Transfer tokens, accounting for MagnusUSD
     fn transfer(&mut self, token: Address, to: Address, amount: u128) -> Result<()> {
         MIP20Token::from_address(token)?.transfer(
             self.address,
@@ -178,7 +178,7 @@ impl StablecoinDEX {
         Ok(())
     }
 
-    /// Transfer tokens from user, accounting for pathUSD
+    /// Transfer tokens from user, accounting for MagnusUSD
     fn transfer_from(&mut self, token: Address, from: Address, amount: u128) -> Result<()> {
         MIP20Token::from_address(token)?.transfer_from(
             self.address,
@@ -1441,12 +1441,12 @@ impl StablecoinDEX {
         Ok(route)
     }
 
-    /// Find the path from a token to the root (pathUSD)
-    /// Returns a vector of addresses starting with the token and ending with pathUSD
+    /// Find the path from a token to the root (MagnusUSD)
+    /// Returns a vector of addresses starting with the token and ending with MagnusUSD
     fn find_path_to_root(&self, mut token: Address) -> Result<Vec<Address>> {
         let mut path = vec![token];
 
-        while token != PATH_USD_ADDRESS {
+        while token != MAGNUS_USD_ADDRESS {
             token = MIP20Token::from_address(token)?.quote_token()?;
             path.push(token);
         }
@@ -1568,14 +1568,14 @@ mod tests {
         exchange_address: Address,
         amount: u128,
     ) -> Result<(Address, Address)> {
-        // Configure pathUSD
-        let quote = MIP20Setup::path_usd(admin)
+        // Configure MagnusUSD
+        let quote = MIP20Setup::magnus_usd(admin)
             .with_issuer(admin)
             .with_mint(user, U256::from(amount))
             .with_approval(user, exchange_address, U256::from(amount))
             .apply()?;
 
-        // Configure base token (uses pathUSD as quote by default)
+        // Configure base token (uses MagnusUSD as quote by default)
         let base = MIP20Setup::create("BASE", "BASE", admin)
             .with_issuer(admin)
             .with_mint(user, U256::from(amount))
@@ -1704,7 +1704,7 @@ mod tests {
             let base_token = base.address();
             let quote_token = base.quote_token()?;
 
-            MIP20Setup::path_usd(admin)
+            MIP20Setup::magnus_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(max_escrow))
                 .with_mint(bob, U256::from(max_escrow))
@@ -1761,7 +1761,7 @@ mod tests {
             let base_token = base.address();
             let quote_token = base.quote_token()?;
 
-            MIP20Setup::path_usd(admin)
+            MIP20Setup::magnus_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(escrow_ceil))
                 .with_approval(alice, exchange.address, U256::MAX)
@@ -2631,7 +2631,7 @@ mod tests {
 
             let admin = Address::random();
 
-            // Setup: pathUSD <- USDC <- TokenA
+            // Setup: MagnusUSD <- USDC <- TokenA
             let usdc = MIP20Setup::create("USDC", "USDC", admin).apply()?;
             let token_a = MIP20Setup::create("TokenA", "TKA", admin)
                 .quote_token(usdc.address())
@@ -2640,11 +2640,11 @@ mod tests {
             // Find path from TokenA to root
             let path = exchange.find_path_to_root(token_a.address())?;
 
-            // Expected: [TokenA, USDC, pathUSD]
+            // Expected: [TokenA, USDC, MagnusUSD]
             assert_eq!(path.len(), 3);
             assert_eq!(path[0], token_a.address());
             assert_eq!(path[1], usdc.address());
-            assert_eq!(path[2], PATH_USD_ADDRESS);
+            assert_eq!(path[2], MAGNUS_USD_ADDRESS);
 
             Ok(())
         })
@@ -2686,19 +2686,19 @@ mod tests {
             let user = Address::random();
 
             let min_order_amount = MIN_ORDER_AMOUNT;
-            // Setup: pathUSD <- Token (direct pair)
-            let (token, path_usd) =
+            // Setup: MagnusUSD <- Token (direct pair)
+            let (token, magnus_usd) =
                 setup_test_tokens(admin, user, exchange.address, min_order_amount)?;
 
             // Create the pair first
             exchange.create_pair(token).expect("Failed to create pair");
 
-            // Trade token -> path_usd (direct pair)
+            // Trade token -> magnus_usd (direct pair)
             let route = exchange
-                .find_trade_path(token, path_usd)
+                .find_trade_path(token, magnus_usd)
                 .expect("Should find direct pair");
 
-            // Expected: 1 hop (token -> path_usd)
+            // Expected: 1 hop (token -> magnus_usd)
             assert_eq!(route.len(), 1, "Should have 1 hop for direct pair");
             verify_hop(route[0], token)?;
 
@@ -2717,21 +2717,21 @@ mod tests {
             let user = Address::random();
 
             let min_order_amount = MIN_ORDER_AMOUNT;
-            // Setup: pathUSD <- Token
-            let (token, path_usd) =
+            // Setup: MagnusUSD <- Token
+            let (token, magnus_usd) =
                 setup_test_tokens(admin, user, exchange.address, min_order_amount)?;
 
             // Create the pair first
             exchange.create_pair(token).expect("Failed to create pair");
 
-            // Trade path_usd -> token (reverse direction)
+            // Trade magnus_usd -> token (reverse direction)
             let route = exchange
-                .find_trade_path(path_usd, token)
+                .find_trade_path(magnus_usd, token)
                 .expect("Should find reverse pair");
 
-            // Expected: 1 hop (path_usd -> token)
+            // Expected: 1 hop (magnus_usd -> token)
             assert_eq!(route.len(), 1, "Should have 1 hop for reverse pair");
-            verify_hop(route[0], path_usd)?;
+            verify_hop(route[0], magnus_usd)?;
 
             Ok(())
         })
@@ -2746,9 +2746,9 @@ mod tests {
 
             let admin = Address::random();
 
-            // Setup: pathUSD <- USDC
-            //        pathUSD <- EURC
-            // (USDC and EURC are siblings, both have pathUSD as quote)
+            // Setup: MagnusUSD <- USDC
+            //        MagnusUSD <- EURC
+            // (USDC and EURC are siblings, both have MagnusUSD as quote)
             let usdc = MIP20Setup::create("USDC", "USDC", admin).apply()?;
             let eurc = MIP20Setup::create("EURC", "EURC", admin).apply()?;
 
@@ -2756,13 +2756,13 @@ mod tests {
             exchange.create_pair(usdc.address())?;
             exchange.create_pair(eurc.address())?;
 
-            // Trade USDC -> EURC should go through pathUSD
+            // Trade USDC -> EURC should go through MagnusUSD
             let route = exchange.find_trade_path(usdc.address(), eurc.address())?;
 
-            // Expected: 2 hops (USDC -> pathUSD, pathUSD -> EURC)
+            // Expected: 2 hops (USDC -> MagnusUSD, MagnusUSD -> EURC)
             assert_eq!(route.len(), 2, "Should have 2 hops for sibling tokens");
             verify_hop(route[0], usdc.address())?;
-            verify_hop(route[1], PATH_USD_ADDRESS)?;
+            verify_hop(route[1], MAGNUS_USD_ADDRESS)?;
 
             Ok(())
         })
@@ -2780,9 +2780,9 @@ mod tests {
             let min_order_amount = MIN_ORDER_AMOUNT;
             let min_order_amount_x10 = U256::from(MIN_ORDER_AMOUNT * 10);
 
-            // Setup: pathUSD <- USDC
-            //        pathUSD <- EURC
-            let _path_usd = MIP20Setup::path_usd(admin)
+            // Setup: MagnusUSD <- USDC
+            //        MagnusUSD <- EURC
+            let _magnus_usd = MIP20Setup::magnus_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, min_order_amount_x10)
                 .with_approval(alice, exchange.address, min_order_amount_x10)
@@ -2799,17 +2799,17 @@ mod tests {
                 .apply()?;
 
             // Place orders to provide liquidity at 1:1 rate (tick 0)
-            // For trade USDC -> pathUSD -> EURC:
-            // - First hop needs: bid on USDC (someone buying USDC with pathUSD)
-            // - Second hop needs: ask on EURC (someone selling EURC for pathUSD)
+            // For trade USDC -> MagnusUSD -> EURC:
+            // - First hop needs: bid on USDC (someone buying USDC with MagnusUSD)
+            // - Second hop needs: ask on EURC (someone selling EURC for MagnusUSD)
 
-            // USDC bid: buy USDC with pathUSD
+            // USDC bid: buy USDC with MagnusUSD
             exchange.place(alice, usdc.address(), min_order_amount * 5, true, 0)?;
 
-            // EURC ask: sell EURC for pathUSD
+            // EURC ask: sell EURC for MagnusUSD
             exchange.place(alice, eurc.address(), min_order_amount * 5, false, 0)?;
 
-            // Quote multi-hop: USDC -> pathUSD -> EURC
+            // Quote multi-hop: USDC -> MagnusUSD -> EURC
             let amount_in = min_order_amount;
             let amount_out =
                 exchange.quote_swap_exact_amount_in(usdc.address(), eurc.address(), amount_in)?;
@@ -2836,9 +2836,9 @@ mod tests {
             let min_order_amount = MIN_ORDER_AMOUNT;
             let min_order_amount_x10 = U256::from(MIN_ORDER_AMOUNT * 10);
 
-            // Setup: pathUSD <- USDC
-            //        pathUSD <- EURC
-            let _path_usd = MIP20Setup::path_usd(admin)
+            // Setup: MagnusUSD <- USDC
+            //        MagnusUSD <- EURC
+            let _magnus_usd = MIP20Setup::magnus_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, min_order_amount_x10)
                 .with_approval(alice, exchange.address, min_order_amount_x10)
@@ -2858,7 +2858,7 @@ mod tests {
             exchange.place(alice, usdc.address(), min_order_amount * 5, true, 0)?;
             exchange.place(alice, eurc.address(), min_order_amount * 5, false, 0)?;
 
-            // Quote multi-hop for exact output: USDC -> pathUSD -> EURC
+            // Quote multi-hop for exact output: USDC -> MagnusUSD -> EURC
             let amount_out = min_order_amount;
             let amount_in =
                 exchange.quote_swap_exact_amount_out(usdc.address(), eurc.address(), amount_out)?;
@@ -2888,8 +2888,8 @@ mod tests {
             let min_order_amount = MIN_ORDER_AMOUNT;
             let min_order_amount_x10 = U256::from(MIN_ORDER_AMOUNT * 10);
 
-            // Setup: pathUSD <- USDC <- EURC
-            let path_usd = MIP20Setup::path_usd(admin)
+            // Setup: MagnusUSD <- USDC <- EURC
+            let magnus_usd = MIP20Setup::magnus_usd(admin)
                 .with_issuer(admin)
                 // Setup alice as a liquidity provider
                 .with_mint(alice, min_order_amount_x10)
@@ -2921,7 +2921,7 @@ mod tests {
             let bob_usdc_before = usdc.balance_of(IMIP20::balanceOfCall { account: bob })?;
             let bob_eurc_before = eurc.balance_of(IMIP20::balanceOfCall { account: bob })?;
 
-            // Execute multi-hop swap: USDC -> pathUSD -> EURC
+            // Execute multi-hop swap: USDC -> MagnusUSD -> EURC
             let amount_in = min_order_amount;
             let amount_out = exchange.swap_exact_amount_in(
                 bob,
@@ -2947,19 +2947,19 @@ mod tests {
                 "Bob should have received amount_out EURC"
             );
 
-            // Verify bob has ZERO pathUSD (intermediate token should be transitory)
-            let bob_path_usd_wallet =
-                path_usd.balance_of(IMIP20::balanceOfCall { account: bob })?;
+            // Verify bob has ZERO MagnusUSD (intermediate token should be transitory)
+            let bob_magnus_usd_wallet =
+                magnus_usd.balance_of(IMIP20::balanceOfCall { account: bob })?;
             assert_eq!(
-                bob_path_usd_wallet,
+                bob_magnus_usd_wallet,
                 U256::ZERO,
-                "Bob should have ZERO pathUSD in wallet (transitory)"
+                "Bob should have ZERO MagnusUSD in wallet (transitory)"
             );
 
-            let bob_path_usd_exchange = exchange.balance_of(bob, path_usd.address())?;
+            let bob_magnus_usd_exchange = exchange.balance_of(bob, magnus_usd.address())?;
             assert_eq!(
-                bob_path_usd_exchange, 0,
-                "Bob should have ZERO pathUSD on exchange (transitory)"
+                bob_magnus_usd_exchange, 0,
+                "Bob should have ZERO MagnusUSD on exchange (transitory)"
             );
 
             Ok(())
@@ -2980,8 +2980,8 @@ mod tests {
             let min_order_amount = MIN_ORDER_AMOUNT;
             let min_order_amount_x10 = U256::from(MIN_ORDER_AMOUNT * 10);
 
-            // Setup: pathUSD <- USDC <- EURC
-            let path_usd = MIP20Setup::path_usd(admin)
+            // Setup: MagnusUSD <- USDC <- EURC
+            let magnus_usd = MIP20Setup::magnus_usd(admin)
                 .with_issuer(admin)
                 // Setup alice as a liquidity provider
                 .with_mint(alice, min_order_amount_x10)
@@ -3013,7 +3013,7 @@ mod tests {
             let bob_usdc_before = usdc.balance_of(IMIP20::balanceOfCall { account: bob })?;
             let bob_eurc_before = eurc.balance_of(IMIP20::balanceOfCall { account: bob })?;
 
-            // Execute multi-hop swap: USDC -> pathUSD -> EURC (exact output)
+            // Execute multi-hop swap: USDC -> MagnusUSD -> EURC (exact output)
             let amount_out = 90u128;
             let amount_in = exchange.swap_exact_amount_out(
                 bob,
@@ -3039,21 +3039,21 @@ mod tests {
                 "Bob should have received exact amount_out EURC"
             );
 
-            // Verify bob has ZERO pathUSD (intermediate token should be transitory)
-            let bob_path_usd_wallet =
-                path_usd.balance_of(IMIP20::balanceOfCall { account: bob })?;
+            // Verify bob has ZERO MagnusUSD (intermediate token should be transitory)
+            let bob_magnus_usd_wallet =
+                magnus_usd.balance_of(IMIP20::balanceOfCall { account: bob })?;
             assert_eq!(
-                bob_path_usd_wallet,
+                bob_magnus_usd_wallet,
                 U256::ZERO,
-                "Bob should have ZERO pathUSD in wallet (transitory)"
+                "Bob should have ZERO MagnusUSD in wallet (transitory)"
             );
 
-            let bob_path_usd_exchange = exchange
-                .balance_of(bob, path_usd.address())
-                .expect("Failed to get bob's pathUSD exchange balance");
+            let bob_magnus_usd_exchange = exchange
+                .balance_of(bob, magnus_usd.address())
+                .expect("Failed to get bob's MagnusUSD exchange balance");
             assert_eq!(
-                bob_path_usd_exchange, 0,
-                "Bob should have ZERO pathUSD on exchange (transitory)"
+                bob_magnus_usd_exchange, 0,
+                "Bob should have ZERO MagnusUSD on exchange (transitory)"
             );
 
             Ok(())
@@ -3090,7 +3090,7 @@ mod tests {
         let mut storage = HashMapStorageProvider::new(1);
         StorageCtx::enter(&mut storage, || {
             let admin = Address::random();
-            let _path_usd = MIP20Setup::path_usd(admin).apply()?;
+            let _magnus_usd = MIP20Setup::magnus_usd(admin).apply()?;
 
             let mut exchange = StablecoinDEX::new();
             exchange.initialize()?;
@@ -3768,7 +3768,7 @@ mod tests {
             let expected_escrow =
                 (min_order_amount * price as u128) / orderbook::PRICE_SCALE as u128;
 
-            MIP20Setup::path_usd(admin)
+            MIP20Setup::magnus_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(expected_escrow))
                 .with_approval(alice, exchange.address, U256::from(expected_escrow))
@@ -3821,7 +3821,7 @@ mod tests {
             let expected_escrow =
                 (min_order_amount * price as u128) / orderbook::PRICE_SCALE as u128;
 
-            MIP20Setup::path_usd(admin)
+            MIP20Setup::magnus_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(expected_escrow))
                 .with_approval(alice, exchange.address, U256::from(expected_escrow))
@@ -3889,7 +3889,7 @@ mod tests {
             let expected_escrow =
                 (min_order_amount * price as u128) / orderbook::PRICE_SCALE as u128;
 
-            MIP20Setup::path_usd(admin)
+            MIP20Setup::magnus_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(expected_escrow))
                 .with_approval(alice, exchange.address, U256::from(expected_escrow))
@@ -3948,8 +3948,8 @@ mod tests {
                 },
             )?;
 
-            // Setup quote token (pathUSD) with the blacklist policy
-            let mut quote = MIP20Setup::path_usd(admin).with_issuer(admin).apply()?;
+            // Setup quote token (MagnusUSD) with the blacklist policy
+            let mut quote = MIP20Setup::magnus_usd(admin).with_issuer(admin).apply()?;
 
             quote.change_transfer_policy_id(
                 admin,
@@ -4830,7 +4830,7 @@ mod tests {
             let base_token = base.address();
             let quote_token = base.quote_token()?;
 
-            MIP20Setup::path_usd(admin)
+            MIP20Setup::magnus_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(quote_amount * 4))
                 .with_mint(bob, U256::from(quote_amount * 4))
@@ -4943,7 +4943,7 @@ mod tests {
             let base_token = base.address();
             let quote_token = base.quote_token()?;
 
-            MIP20Setup::path_usd(admin)
+            MIP20Setup::magnus_usd(admin)
                 .with_issuer(admin)
                 .with_mint(alice, U256::from(quote_amount * 2))
                 .with_approval(alice, exchange.address, U256::MAX)
@@ -5166,8 +5166,8 @@ mod tests {
                 let amount = MIN_ORDER_AMOUNT * 10;
                 let amount_u256 = U256::from(amount);
 
-                // Setup: pathUSD <- USDC, pathUSD <- EURC
-                let path_usd = MIP20Setup::path_usd(admin)
+                // Setup: MagnusUSD <- USDC, MagnusUSD <- EURC
+                let magnus_usd = MIP20Setup::magnus_usd(admin)
                     .with_issuer(admin)
                     .with_mint(alice, amount_u256)
                     .with_approval(alice, exchange.address, amount_u256)
@@ -5191,12 +5191,12 @@ mod tests {
                 exchange.place(alice, usdc.address(), MIN_ORDER_AMOUNT * 5, true, 0)?;
                 exchange.place(alice, eurc.address(), MIN_ORDER_AMOUNT * 5, false, 0)?;
 
-                // Pause pathUSD (the intermediate token)
-                let mut path_usd_tip20 = MIP20Token::from_address(path_usd.address())?;
-                path_usd_tip20.grant_role_internal(admin, *PAUSE_ROLE)?;
-                path_usd_tip20.pause(admin, IMIP20::pauseCall {})?;
+                // Pause MagnusUSD (the intermediate token)
+                let mut magnus_usd_tip20 = MIP20Token::from_address(magnus_usd.address())?;
+                magnus_usd_tip20.grant_role_internal(admin, *PAUSE_ROLE)?;
+                magnus_usd_tip20.pause(admin, IMIP20::pauseCall {})?;
 
-                // Bob tries multi-hop swap: USDC -> pathUSD -> EURC
+                // Bob tries multi-hop swap: USDC -> MagnusUSD -> EURC
                 let res_in = exchange.swap_exact_amount_in(
                     bob,
                     usdc.address(),

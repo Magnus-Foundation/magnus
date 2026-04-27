@@ -150,8 +150,14 @@ impl MagnusTxEnv {
 
 impl From<TxEnv> for MagnusTxEnv {
     fn from(inner: TxEnv) -> Self {
+        // From<TxEnv> is used by tests that build a raw revm TxEnv and route it
+        // through the Magnus handler. Default the fee token to MagnusUSD so those
+        // tests don't have to set it explicitly. Production paths construct
+        // MagnusTxEnv directly from a signed envelope, so this default never
+        // affects mainnet behavior.
         Self {
             inner,
+            fee_token: Some(magnus_contracts::precompiles::MAGNUS_USD_ADDRESS),
             ..Default::default()
         }
     }
@@ -719,7 +725,10 @@ mod tests {
 
         assert_eq!(tx_env.inner.gas_limit, 75_000);
         assert_eq!(Transaction::nonce(&tx_env), 55);
-        assert!(tx_env.fee_token.is_none());
+        assert_eq!(
+            tx_env.fee_token,
+            Some(magnus_contracts::precompiles::MAGNUS_USD_ADDRESS)
+        );
         assert!(!tx_env.is_system_tx);
         assert!(tx_env.fee_payer.is_none());
         assert!(tx_env.magnus_tx_env.is_none());

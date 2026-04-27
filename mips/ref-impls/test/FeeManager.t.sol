@@ -21,14 +21,14 @@ contract FeeManagerTest is BaseTest {
         super.setUp();
 
         userToken =
-            MIP20(factory.createToken("UserToken", "USR", "USD", pathUSD, admin, bytes32("user")));
+            MIP20(factory.createToken("UserToken", "USR", "USD", MagnusUSD, admin, bytes32("user")));
         validatorToken = MIP20(
             factory.createToken(
-                "ValidatorToken", "VAL", "USD", pathUSD, admin, bytes32("validator")
+                "ValidatorToken", "VAL", "USD", MagnusUSD, admin, bytes32("validator")
             )
         );
         altToken =
-            MIP20(factory.createToken("AltToken", "ALT", "USD", pathUSD, admin, bytes32("alt")));
+            MIP20(factory.createToken("AltToken", "ALT", "USD", MagnusUSD, admin, bytes32("alt")));
 
         vm.startPrank(admin);
         userToken.grantRole(_ISSUER_ROLE, admin);
@@ -36,12 +36,12 @@ contract FeeManagerTest is BaseTest {
         altToken.grantRole(_ISSUER_ROLE, admin);
         vm.stopPrank();
 
-        vm.startPrank(pathUSDAdmin);
-        pathUSD.grantRole(_ISSUER_ROLE, pathUSDAdmin);
-        pathUSD.mint(user, 10_000e18);
-        pathUSD.mint(validator, 10_000e18);
-        pathUSD.mint(admin, 100_000e18);
-        pathUSD.approve(address(amm), type(uint256).max);
+        vm.startPrank(MagnusUSDAdmin);
+        MagnusUSD.grantRole(_ISSUER_ROLE, MagnusUSDAdmin);
+        MagnusUSD.mint(user, 10_000e18);
+        MagnusUSD.mint(validator, 10_000e18);
+        MagnusUSD.mint(admin, 100_000e18);
+        MagnusUSD.approve(address(amm), type(uint256).max);
         vm.stopPrank();
 
         vm.startPrank(admin);
@@ -55,8 +55,8 @@ contract FeeManagerTest is BaseTest {
         validatorToken.approve(address(amm), type(uint256).max);
 
         amm.mint(address(userToken), address(validatorToken), 20_000e18, admin);
-        amm.mint(address(userToken), address(pathUSD), 20_000e18, admin);
-        amm.mint(address(validatorToken), address(pathUSD), 20_000e18, admin);
+        amm.mint(address(userToken), address(MagnusUSD), 20_000e18, admin);
+        amm.mint(address(validatorToken), address(MagnusUSD), 20_000e18, admin);
         vm.stopPrank();
     }
 
@@ -110,7 +110,7 @@ contract FeeManagerTest is BaseTest {
         vm.coinbase(validator);
 
         MIP20 eurToken =
-            MIP20(factory.createToken("EuroToken", "EUR", "EUR", pathUSD, admin, bytes32("eur")));
+            MIP20(factory.createToken("EuroToken", "EUR", "EUR", MagnusUSD, admin, bytes32("eur")));
 
         if (!isMagnus) {
             vm.expectRevert("INVALID_TOKEN");
@@ -389,11 +389,11 @@ contract FeeManagerTest is BaseTest {
         vm.coinbase(validator);
 
         try amm.collectFeePreTx(user, address(userToken), maxAmount) {
-            uint256 validatorBalanceBefore = amm.collectedFees(validator, _PATH_USD);
+            uint256 validatorBalanceBefore = amm.collectedFees(validator, _MAGNUS_USD);
 
             amm.collectFeePostTx(user, maxAmount, actualUsed, address(userToken));
 
-            uint256 validatorBalanceAfter = amm.collectedFees(validator, _PATH_USD);
+            uint256 validatorBalanceAfter = amm.collectedFees(validator, _MAGNUS_USD);
             vm.stopPrank();
 
             assertGt(validatorBalanceAfter, validatorBalanceBefore);

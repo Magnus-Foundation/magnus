@@ -34,7 +34,7 @@ use magnus_chainspec::{
     hardfork::{MagnusHardfork, MagnusHardforks},
 };
 use magnus_precompiles::{
-    DEFAULT_FEE_TOKEN, TIP_FEE_MANAGER_ADDRESS,
+    MAGNUS_USD_ADDRESS, MIP_FEE_MANAGER_ADDRESS,
     account_keychain::AccountKeychain,
     error::Result as MagnusPrecompileResult,
     storage::Handler,
@@ -151,19 +151,19 @@ where
         // so eviction matches events emitted with sub-policy IDs.
         let mut policy_cache: AddressMap<Vec<u64>> = AddressMap::default();
 
-        // Pre-collect policy IDs where TIP_FEE_MANAGER_ADDRESS (the fee recipient) was
+        // Pre-collect policy IDs where MIP_FEE_MANAGER_ADDRESS (the fee recipient) was
         // blacklisted or un-whitelisted. This is constant across all txs so we compute
         // it once instead of re-scanning the updates list per transaction.
         let fee_manager_blacklisted: Vec<u64> = updates
             .blacklist_additions
             .iter()
-            .filter(|(_, account)| *account == TIP_FEE_MANAGER_ADDRESS)
+            .filter(|(_, account)| *account == MIP_FEE_MANAGER_ADDRESS)
             .map(|(policy_id, _)| *policy_id)
             .collect();
         let fee_manager_unwhitelisted: Vec<u64> = updates
             .whitelist_removals
             .iter()
-            .filter(|(_, account)| *account == TIP_FEE_MANAGER_ADDRESS)
+            .filter(|(_, account)| *account == MIP_FEE_MANAGER_ADDRESS)
             .map(|(policy_id, _)| *policy_id)
             .collect();
 
@@ -250,7 +250,7 @@ where
                     .transaction
                     .inner()
                     .fee_token()
-                    .unwrap_or(magnus_precompiles::DEFAULT_FEE_TOKEN);
+                    .unwrap_or(magnus_precompiles::MAGNUS_USD_ADDRESS);
                 let cost = tx.transaction.fee_token_cost();
 
                 match amm_cache.has_enough_liquidity(user_token, cost, provider) {
@@ -274,7 +274,7 @@ where
                     tx.transaction
                         .inner()
                         .fee_token()
-                        .unwrap_or(DEFAULT_FEE_TOKEN)
+                        .unwrap_or(MAGNUS_USD_ADDRESS)
                 });
                 let Ok(fee_payer) = tx.transaction.inner().fee_payer(tx.transaction.sender())
                 else {
@@ -340,7 +340,7 @@ where
 
                 // Check if the fee manager (recipient) was blacklisted on this token's
                 // recipient policy — the tx would fail at execution since the fee
-                // transfer to TIP_FEE_MANAGER_ADDRESS would be rejected.
+                // transfer to MIP_FEE_MANAGER_ADDRESS would be rejected.
                 let recipient_evicted = !sender_evicted
                     && !fee_manager_blacklisted.is_empty()
                     && get_recipient_policy_ids(provider, fee_token, spec)
@@ -1276,12 +1276,12 @@ mod tests {
     };
     use magnus_chainspec::{
         hardfork::MagnusHardfork,
-        spec::{MODERATO, MAGNUS_T1_TX_GAS_LIMIT_CAP},
+        spec::{ALLEGRO, MAGNUS_T1_TX_GAS_LIMIT_CAP},
     };
     use magnus_contracts::precompiles::IMIP403Registry;
     use magnus_evm::MagnusEvmConfig;
     use magnus_precompiles::{
-        PATH_USD_ADDRESS,
+        MAGNUS_USD_ADDRESS,
         account_keychain::{AccountKeychain, AuthorizedKey, SpendingLimitState},
         mip20::slots as mip20_slots,
         mip403_registry::{CompoundPolicyData, PolicyData, MIP403Registry},
@@ -1314,7 +1314,7 @@ mod tests {
         setup_spec: MagnusHardfork,
     ) -> Box<dyn reth_storage_api::StateProvider> {
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         // Write AuthorizedKey with enforce_limits=true
@@ -1371,7 +1371,7 @@ mod tests {
         let sender = Address::random();
 
         let envelope = crate::test_utils::TxBuilder::aa(sender)
-            .fee_token(PATH_USD_ADDRESS)
+            .fee_token(MAGNUS_USD_ADDRESS)
             .build()
             .inner()
             .clone()
@@ -1391,7 +1391,7 @@ mod tests {
         ));
 
         let provider = MockEthProvider::<MagnusPrimitives>::new()
-            .with_chain_spec(std::sync::Arc::unwrap_or_clone(MODERATO.clone()));
+            .with_chain_spec(std::sync::Arc::unwrap_or_clone(ALLEGRO.clone()));
         provider.add_account(sender, ExtendedAccount::new(pooled.nonce(), *pooled.cost()));
         provider.add_block(
             B256::random(),
@@ -1408,7 +1408,7 @@ mod tests {
         );
 
         let initial_balance = pooled.fee_token_cost() + U256::from(1_u64);
-        set_fee_token_balance(&provider, PATH_USD_ADDRESS, fee_payer, initial_balance);
+        set_fee_token_balance(&provider, MAGNUS_USD_ADDRESS, fee_payer, initial_balance);
 
         let inner =
             EthTransactionValidatorBuilder::new(provider.clone(), MagnusEvmConfig::mainnet())
@@ -1432,7 +1432,7 @@ mod tests {
         );
         let pool = MagnusTransactionPool::new(protocol_pool, AA2dPool::new(Default::default()));
 
-        pooled.set_resolved_fee_token(PATH_USD_ADDRESS);
+        pooled.set_resolved_fee_token(MAGNUS_USD_ADDRESS);
         let validated = TransactionValidationOutcome::Valid {
             balance: *pooled.cost(),
             state_nonce: pooled.nonce(),
@@ -1449,7 +1449,7 @@ mod tests {
 
         set_fee_token_balance(
             &provider,
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             fee_payer,
             pooled.fee_token_cost() - U256::from(1_u64),
         );
@@ -1457,7 +1457,7 @@ mod tests {
         let mut updates = crate::maintain::MagnusPoolUpdates::new();
         updates
             .fee_balance_changes
-            .entry(PATH_USD_ADDRESS)
+            .entry(MAGNUS_USD_ADDRESS)
             .or_default()
             .insert(fee_payer);
 
@@ -1477,7 +1477,7 @@ mod tests {
         let recipient_sub_policy: u64 = 4;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         // Set up MIP20 token with transfer_policy_id = compound_policy_id
@@ -1538,7 +1538,7 @@ mod tests {
         let recipient_sub_policy: u64 = 4;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1596,7 +1596,7 @@ mod tests {
         let mint_recipient_sub: u64 = 6;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1650,7 +1650,7 @@ mod tests {
         let recipient_sub: u64 = 4;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1707,7 +1707,7 @@ mod tests {
         let simple_policy_id: u64 = 7;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1806,7 +1806,7 @@ mod tests {
 
         // Provider with AuthorizedKey (enforce_limits=true) but no spending limit slot
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
         provider
             .setup_storage(MagnusHardfork::default(), || {
@@ -1841,7 +1841,7 @@ mod tests {
 
         // Provider with AuthorizedKey (enforce_limits=false)
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
         provider
             .setup_storage(MagnusHardfork::default(), || {

@@ -21,7 +21,7 @@ pub use magnus_contracts::precompiles::{
 pub use slots as mip20_slots;
 
 use crate::{
-    PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS,
+    MAGNUS_USD_ADDRESS, MIP_FEE_MANAGER_ADDRESS,
     account_keychain::AccountKeychain,
     address_registry::AddressRegistry,
     error::{Result, MagnusPrecompileError},
@@ -53,6 +53,29 @@ use magnus_contracts::precompiles::DECIMALS as MIP20_DECIMALS;
 pub fn validate_usd_currency(token: Address) -> Result<()> {
     if MIP20Token::from_address(token)?.currency()? != USD_CURRENCY {
         return Err(MIP20Error::invalid_currency().into());
+    }
+    Ok(())
+}
+
+/// Validates that `token`'s currency is registered AND enabled in the FeeManager's
+/// currency registry. Distinguishes `CurrencyNotRegistered` from `CurrencyDisabled`.
+///
+/// # Errors
+/// - `InvalidToken` — `token` does not have the MIP-20 prefix
+/// - `CurrencyNotRegistered` — currency has not been added
+/// - `CurrencyDisabled` — currency was added but is not enabled
+pub fn validate_supported_currency(token: Address) -> Result<()> {
+    use crate::mip_fee_manager::MipFeeManager;
+    use magnus_contracts::precompiles::FeeManagerError;
+
+    let currency = MIP20Token::from_address(token)?.currency()?;
+    let config = MipFeeManager::new().get_currency_config(&currency)?;
+
+    if !config.registered {
+        return Err(FeeManagerError::currency_not_registered(currency).into());
+    }
+    if !config.enabled {
+        return Err(FeeManagerError::currency_disabled(currency).into());
     }
     Ok(())
 }
@@ -308,7 +331,7 @@ impl MIP20Token {
     ///
     /// # Errors
     /// - `Unauthorized` — caller does not hold `DEFAULT_ADMIN_ROLE`
-    /// - `InvalidQuoteToken` — token is pathUSD, candidate is not a deployed MIP-20, or
+    /// - `InvalidQuoteToken` — token is MagnusUSD, candidate is not a deployed MIP-20, or
     ///   USD currency mismatch
     pub fn set_next_quote_token(
         &mut self,
@@ -317,7 +340,7 @@ impl MIP20Token {
     ) -> Result<()> {
         self.check_role(msg_sender, DEFAULT_ADMIN_ROLE)?;
 
-        if self.address == PATH_USD_ADDRESS {
+        if self.address == MAGNUS_USD_ADDRESS {
             return Err(MIP20Error::invalid_quote_token().into());
         }
 
@@ -360,9 +383,9 @@ impl MIP20Token {
         let next_quote_token = self.next_quote_token()?;
 
         // Check that this does not create a loop
-        // Loop through quote tokens until we reach the root (pathUSD)
+        // Loop through quote tokens until we reach the root (MagnusUSD)
         let mut current = next_quote_token;
-        while current != PATH_USD_ADDRESS {
+        while current != MAGNUS_USD_ADDRESS {
             if current == self.address {
                 return Err(MIP20Error::invalid_quote_token().into());
             }
@@ -514,7 +537,7 @@ impl MIP20Token {
         self.check_role(msg_sender, *BURN_BLOCKED_ROLE)?;
 
         // Prevent burning from `FeeManager` and `StablecoinDEX` to protect accounting invariants
-        if matches!(call.from, TIP_FEE_MANAGER_ADDRESS | STABLECOIN_DEX_ADDRESS) {
+        if matches!(call.from, MIP_FEE_MANAGER_ADDRESS | STABLECOIN_DEX_ADDRESS) {
             return Err(MIP20Error::protected_address().into());
         }
 
@@ -1057,11 +1080,11 @@ impl MIP20Token {
 
         self.set_balance(from, new_from_balance)?;
 
-        let to_balance = self.get_balance(TIP_FEE_MANAGER_ADDRESS)?;
+        let to_balance = self.get_balance(MIP_FEE_MANAGER_ADDRESS)?;
         let new_to_balance = to_balance
             .checked_add(amount)
             .ok_or(MIP20Error::supply_cap_exceeded())?;
-        self.set_balance(TIP_FEE_MANAGER_ADDRESS, new_to_balance)
+        self.set_balance(MIP_FEE_MANAGER_ADDRESS, new_to_balance)
     }
 
     /// Refunds unused fee tokens from the fee manager back to `to` and emits a transfer event for
@@ -1076,7 +1099,7 @@ impl MIP20Token {
     ) -> Result<()> {
         self.emit_event(MIP20Event::Transfer(IMIP20::Transfer {
             from: to,
-            to: TIP_FEE_MANAGER_ADDRESS,
+            to: MIP_FEE_MANAGER_ADDRESS,
             amount: actual_spending,
         }))?;
 
@@ -1104,7 +1127,7 @@ impl MIP20Token {
             )?;
         }
 
-        let from_balance = self.get_balance(TIP_FEE_MANAGER_ADDRESS)?;
+        let from_balance = self.get_balance(MIP_FEE_MANAGER_ADDRESS)?;
         let new_from_balance =
             from_balance
                 .checked_sub(refund)
@@ -1114,7 +1137,7 @@ impl MIP20Token {
                     self.address,
                 ))?;
 
-        self.set_balance(TIP_FEE_MANAGER_ADDRESS, new_from_balance)?;
+        self.set_balance(MIP_FEE_MANAGER_ADDRESS, new_from_balance)?;
 
         let to_balance = self.get_balance(to)?;
         let new_to_balance = to_balance
@@ -1275,7 +1298,7 @@ mod recipient_tests {
     fn test_validate() {
         assert!(Recipient::direct(Address::ZERO).validate().is_err());
         assert!(
-            Recipient::direct(crate::PATH_USD_ADDRESS)
+            Recipient::direct(crate::MAGNUS_USD_ADDRESS)
                 .validate()
                 .is_err()
         );
@@ -1321,7 +1344,7 @@ pub(crate) mod tests {
 
     use super::*;
     use crate::{
-        PATH_USD_ADDRESS,
+        MAGNUS_USD_ADDRESS,
         account_keychain::{
             AccountKeychain, KeyRestrictions, SignatureType, TokenLimit, authorizeKeyCall,
             getRemainingLimitCall,
@@ -1553,7 +1576,7 @@ pub(crate) mod tests {
             token.transfer_fee_pre_tx(user, fee_amount)?;
 
             assert_eq!(token.get_balance(user)?, fee_amount);
-            assert_eq!(token.get_balance(TIP_FEE_MANAGER_ADDRESS)?, fee_amount);
+            assert_eq!(token.get_balance(MIP_FEE_MANAGER_ADDRESS)?, fee_amount);
 
             Ok(())
         })
@@ -1621,21 +1644,21 @@ pub(crate) mod tests {
         StorageCtx::enter(&mut storage, || {
             let mut token = MIP20Setup::create("Test", "TST", admin)
                 .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, initial_fee)
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, initial_fee)
                 .apply()?;
 
             token.transfer_fee_post_tx(user, refund_amount, gas_used)?;
 
             assert_eq!(token.get_balance(user)?, refund_amount);
             assert_eq!(
-                token.get_balance(TIP_FEE_MANAGER_ADDRESS)?,
+                token.get_balance(MIP_FEE_MANAGER_ADDRESS)?,
                 initial_fee - refund_amount
             );
             assert_eq!(
                 token.emitted_events().last().unwrap(),
                 &MIP20Event::Transfer(IMIP20::Transfer {
                     from: user,
-                    to: TIP_FEE_MANAGER_ADDRESS,
+                    to: MIP_FEE_MANAGER_ADDRESS,
                     amount: gas_used
                 })
                 .into_log_data()
@@ -1658,7 +1681,7 @@ pub(crate) mod tests {
         StorageCtx::enter(&mut storage, || {
             let mut token = MIP20Setup::create("Test", "TST", admin)
                 .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, max_fee)
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, max_fee)
                 .apply()?;
 
             let token_address = token.address;
@@ -1732,7 +1755,7 @@ pub(crate) mod tests {
         StorageCtx::enter(&mut storage, || {
             let mut token = MIP20Setup::create("Test", "TST", admin)
                 .with_issuer(admin)
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, max_fee)
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, max_fee)
                 .apply()?;
 
             let token_address = token.address;
@@ -1846,8 +1869,8 @@ pub(crate) mod tests {
             let token = MIP20Setup::create("Test", "TST", admin).apply()?;
 
             // Verify both quoteToken and nextQuoteToken are set to the same value
-            assert_eq!(token.quote_token()?, PATH_USD_ADDRESS);
-            assert_eq!(token.next_quote_token()?, PATH_USD_ADDRESS);
+            assert_eq!(token.quote_token()?, MAGNUS_USD_ADDRESS);
+            assert_eq!(token.next_quote_token()?, MAGNUS_USD_ADDRESS);
 
             Ok(())
         })
@@ -1865,8 +1888,8 @@ pub(crate) mod tests {
             let new_quote_token = MIP20Setup::create("New Quote", "NQ", admin).apply()?;
             let new_quote_token_address = new_quote_token.address;
 
-            // Verify initial quote token is PATH_USD
-            assert_eq!(token.quote_token()?, PATH_USD_ADDRESS);
+            // Verify initial quote token is MAGNUS_USD
+            assert_eq!(token.quote_token()?, MAGNUS_USD_ADDRESS);
 
             // Set next quote token to the new token
             token.set_next_quote_token(
@@ -2130,12 +2153,12 @@ pub(crate) mod tests {
                 "from_address should use the provided address directly"
             );
 
-            // Test with reserved token (pathUSD)
-            let _path_usd = MIP20Setup::path_usd(admin).apply()?;
-            let via_from_address_reserved = MIP20Token::from_address(PATH_USD_ADDRESS)?.address;
+            // Test with reserved token (MagnusUSD)
+            let _magnus_usd = MIP20Setup::magnus_usd(admin).apply()?;
+            let via_from_address_reserved = MIP20Token::from_address(MAGNUS_USD_ADDRESS)?.address;
 
             assert_eq!(
-                via_from_address_reserved, PATH_USD_ADDRESS,
+                via_from_address_reserved, MAGNUS_USD_ADDRESS,
                 "from_address should work for reserved addresses too"
             );
 
@@ -2177,31 +2200,24 @@ pub(crate) mod tests {
         StorageCtx::enter(&mut storage, || {
             let usd_token1 = MIP20Setup::create("USD Token", "USDT", admin).apply()?;
 
-            // USD token with USD token as quote
-            let _usd_token2 = MIP20Setup::create("USD Token", "USDT", admin)
+            // USD token with USD token as quote.
+            let _usd_token2 = MIP20Setup::create("USD Token 2", "USD2", admin)
                 .quote_token(usd_token1.address)
                 .apply()?;
 
-            // Create non USD token
+            // Same-currency anchor + child for a non-USD currency.
             let currency_1: String = thread_rng()
                 .sample_iter(&Alphanumeric)
                 .take(31)
                 .map(char::from)
                 .collect();
 
-            let token_1 = MIP20Setup::create("USD Token", "USDT", admin)
-                .currency(currency_1)
+            let token_1 = MIP20Setup::create("Foreign 1", "F1", admin)
+                .currency(currency_1.clone())
                 .apply()?;
 
-            // Create a non USD token with non USD quote token
-            let currency_2: String = thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(31)
-                .map(char::from)
-                .collect();
-
-            let _token_2 = MIP20Setup::create("USD Token", "USDT", admin)
-                .currency(currency_2)
+            let _token_2 = MIP20Setup::create("Foreign 2", "F2", admin)
+                .currency(currency_1)
                 .quote_token(token_1.address)
                 .apply()?;
 
@@ -2215,7 +2231,7 @@ pub(crate) mod tests {
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            let _path_usd = MIP20Setup::path_usd(admin).apply()?;
+            let _magnus_usd = MIP20Setup::magnus_usd(admin).apply()?;
 
             let currency: String = thread_rng()
                 .sample_iter(&Alphanumeric)
@@ -2252,7 +2268,7 @@ pub(crate) mod tests {
         let sender = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            let _path_usd = MIP20Setup::path_usd(sender).apply()?;
+            let _magnus_usd = MIP20Setup::magnus_usd(sender).apply()?;
 
             let created_tip20 = MIP20Factory::new().create_token(
                 sender,
@@ -2260,14 +2276,14 @@ pub(crate) mod tests {
                     name: "Test Token".to_string(),
                     symbol: "TEST".to_string(),
                     currency: "USD".to_string(),
-                    quoteToken: crate::PATH_USD_ADDRESS,
+                    quoteToken: crate::MAGNUS_USD_ADDRESS,
                     admin: sender,
                     salt: B256::random(),
                 },
             )?;
             let non_tip20 = Address::random();
 
-            assert!(PATH_USD_ADDRESS.is_tip20());
+            assert!(MAGNUS_USD_ADDRESS.is_tip20());
             assert!(created_tip20.is_tip20());
             assert!(!non_tip20.is_tip20());
             Ok(())
@@ -2302,7 +2318,7 @@ pub(crate) mod tests {
                 // Grant BURN_BLOCKED_ROLE to burner
                 .with_role(burner, *BURN_BLOCKED_ROLE)
                 // Simulate collected fees
-                .with_mint(TIP_FEE_MANAGER_ADDRESS, amount)
+                .with_mint(MIP_FEE_MANAGER_ADDRESS, amount)
                 // Mint tokens to StablecoinDEX
                 .with_mint(STABLECOIN_DEX_ADDRESS, amount)
                 .apply()?;
@@ -2311,7 +2327,7 @@ pub(crate) mod tests {
             let result = token.burn_blocked(
                 burner,
                 IMIP20::burnBlockedCall {
-                    from: TIP_FEE_MANAGER_ADDRESS,
+                    from: MIP_FEE_MANAGER_ADDRESS,
                     amount: amount / U256::from(2),
                 },
             );
@@ -2323,7 +2339,7 @@ pub(crate) mod tests {
 
             // Verify FeeManager balance is unchanged
             let balance = token.balance_of(IMIP20::balanceOfCall {
-                account: TIP_FEE_MANAGER_ADDRESS,
+                account: MIP_FEE_MANAGER_ADDRESS,
             })?;
             assert_eq!(balance, amount);
 
@@ -2380,7 +2396,7 @@ pub(crate) mod tests {
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            let mut token = MIP20Setup::path_usd(admin).apply()?;
+            let mut token = MIP20Setup::magnus_usd(admin).apply()?;
 
             // Initialize the MIP403 registry
             let mut registry = MIP403Registry::new();
@@ -2447,7 +2463,7 @@ pub(crate) mod tests {
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            let mut token = MIP20Setup::path_usd(admin).apply()?;
+            let mut token = MIP20Setup::magnus_usd(admin).apply()?;
 
             // Initialize the MIP403 registry
             let mut registry = MIP403Registry::new();
@@ -2527,7 +2543,7 @@ pub(crate) mod tests {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
 
             StorageCtx::enter(&mut storage, || {
-                let token = MIP20Setup::path_usd(admin).apply()?;
+                let token = MIP20Setup::magnus_usd(admin).apply()?;
 
                 // Initialize MIP403 registry and create a whitelist policy
                 let mut registry = MIP403Registry::new();
@@ -2599,16 +2615,16 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_set_next_quote_token_rejects_path_usd() -> eyre::Result<()> {
+    fn test_set_next_quote_token_rejects_magnus_usd() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new(1);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            let mut path_usd = MIP20Setup::path_usd(admin).apply()?;
+            let mut magnus_usd = MIP20Setup::magnus_usd(admin).apply()?;
             let other_token = MIP20Setup::create("Test", "T", admin).apply()?;
 
-            // pathUSD cannot update its quote token
-            let result = path_usd.set_next_quote_token(
+            // MagnusUSD cannot update its quote token
+            let result = magnus_usd.set_next_quote_token(
                 admin,
                 IMIP20::setNextQuoteTokenCall {
                     newQuoteToken: other_token.address,
@@ -2626,21 +2642,21 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_non_path_usd_cycle_detection() -> eyre::Result<()> {
+    fn test_non_magnus_usd_cycle_detection() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new(1);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            MIP20Setup::path_usd(admin).apply()?;
+            MIP20Setup::magnus_usd(admin).apply()?;
 
             let mut token_b = MIP20Setup::create("TokenB", "TKNB", admin).apply()?;
             let token_a = MIP20Setup::create("TokenA", "TKNA", admin)
                 .quote_token(token_b.address)
                 .apply()?;
 
-            // Verify chain where token_a -> token_b -> PATH_USD
+            // Verify chain where token_a -> token_b -> MAGNUS_USD
             assert_eq!(token_a.quote_token()?, token_b.address);
-            assert_eq!(token_b.quote_token()?, PATH_USD_ADDRESS);
+            assert_eq!(token_b.quote_token()?, MAGNUS_USD_ADDRESS);
 
             // Try to create cycle where token_b -> token_a
             token_b.set_next_quote_token(
@@ -2662,7 +2678,7 @@ pub(crate) mod tests {
 
             // assert that quote tokens are unchanged
             assert_eq!(token_a.quote_token()?, token_b.address);
-            assert_eq!(token_b.quote_token()?, PATH_USD_ADDRESS);
+            assert_eq!(token_b.quote_token()?, MAGNUS_USD_ADDRESS);
 
             Ok(())
         })
@@ -3600,5 +3616,131 @@ pub(crate) mod tests {
             })?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod validate_supported_currency_tests {
+    use super::*;
+    use crate::{
+        mip_fee_manager::MipFeeManager,
+        storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
+        test_util::MIP20Setup,
+    };
+    use magnus_contracts::precompiles::FeeManagerError;
+
+    fn fee_manager_bootstrap(admin: Address) -> Result<MipFeeManager> {
+        let mut fm = MipFeeManager::new();
+        fm.initialize()?;
+        fm.set_governance_admin(Address::ZERO, admin)?;
+        Ok(fm)
+    }
+
+    #[test]
+    fn validate_succeeds_for_enabled_currency() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            // Bootstrap registry with USD enabled.
+            let mut fm = fee_manager_bootstrap(admin)?;
+            fm.add_currency(admin, "USD", 0)?;
+            fm.enable_currency(admin, "USD", 1)?;
+
+            // Deploy a USD MIP-20 token.
+            let token = MIP20Setup::create("Test USD", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+
+            // Validation passes.
+            validate_supported_currency(token.address())?;
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn validate_rejects_unregistered_currency() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            // Registry is empty (USD never added).
+            let _fm = fee_manager_bootstrap(admin)?;
+
+            // Deploy a USD-tagged token anyway.
+            let token = MIP20Setup::create("Random USD", "RUSD", admin)
+                .currency("USD")
+                .apply()?;
+
+            let err = validate_supported_currency(token.address()).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_not_registered(
+                    "USD".into()
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn validate_rejects_registered_but_disabled_currency() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            // Add USD but never enable. This is the staged-rollout state.
+            let mut fm = fee_manager_bootstrap(admin)?;
+            fm.add_currency(admin, "USD", 100)?;
+
+            let token = MIP20Setup::create("Pending USD", "PUSD", admin)
+                .currency("USD")
+                .apply()?;
+
+            let err = validate_supported_currency(token.address()).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_disabled(
+                    "USD".into()
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn validate_handles_multiple_currencies_independently() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            // USD enabled, VND added-but-disabled, EUR never added.
+            let mut fm = fee_manager_bootstrap(admin)?;
+            fm.add_currency(admin, "USD", 0)?;
+            fm.enable_currency(admin, "USD", 1)?;
+            fm.add_currency(admin, "VND", 2)?;
+
+            let usd_token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+            let vnd_token = MIP20Setup::create("vndBank", "VNDB", admin)
+                .currency("VND")
+                .apply()?;
+            let eur_token = MIP20Setup::create("eurBank", "EURB", admin)
+                .currency("EUR")
+                .apply()?;
+
+            validate_supported_currency(usd_token.address())?;
+
+            assert!(matches!(
+                validate_supported_currency(vnd_token.address()),
+                Err(MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::CurrencyDisabled(_)
+                ))
+            ));
+            assert!(matches!(
+                validate_supported_currency(eur_token.address()),
+                Err(MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::CurrencyNotRegistered(_)
+                ))
+            ));
+            Ok(())
+        })
     }
 }

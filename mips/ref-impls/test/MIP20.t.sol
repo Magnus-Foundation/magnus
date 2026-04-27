@@ -40,12 +40,12 @@ contract MIP20Test is BaseTest {
 
         linkedToken = MIP20(
             factory.createToken(
-                "Linked Token", "LINK", "USD", MIP20(_PATH_USD), admin, bytes32("linked")
+                "Linked Token", "LINK", "USD", MIP20(_MAGNUS_USD), admin, bytes32("linked")
             )
         );
         anotherToken = MIP20(
             factory.createToken(
-                "Another Token", "OTHER", "USD", MIP20(_PATH_USD), admin, bytes32("another")
+                "Another Token", "OTHER", "USD", MIP20(_MAGNUS_USD), admin, bytes32("another")
             )
         );
         token = MIP20(
@@ -749,13 +749,13 @@ contract MIP20Test is BaseTest {
     function testSetNextQuoteTokenUsdRequiresUsdQuote() public {
         MIP20 usdToken = MIP20(
             factory.createToken(
-                "USD Token", "USD", "USD", MIP20(_PATH_USD), admin, bytes32("usdtoken")
+                "USD Token", "USD", "USD", MIP20(_MAGNUS_USD), admin, bytes32("usdtoken")
             )
         );
 
         MIP20 nonUsdToken = MIP20(
             factory.createToken(
-                "Euro Token", "EUR", "EUR", MIP20(_PATH_USD), admin, bytes32("eurotok")
+                "Euro Token", "EUR", "EUR", MIP20(_MAGNUS_USD), admin, bytes32("eurotok")
             )
         );
 
@@ -1080,7 +1080,7 @@ contract MIP20Test is BaseTest {
     }
 
     function testCompleteQuoteTokenUpdateCannotCreateLongerLoop() public {
-        // Create a longer chain: pathUSD -> linkedToken -> token -> token2 -> token3
+        // Create a longer chain: MagnusUSD -> linkedToken -> token -> token2 -> token3
 
         MIP20 token3 =
             MIP20(factory.createToken("Token 3", "TK2", "USD", token, admin, bytes32("token3")));
@@ -2088,7 +2088,7 @@ contract MIP20Test is BaseTest {
         vm.startPrank(admin);
         token.grantRole(token.BURN_BLOCKED_ROLE(), admin);
 
-        // Test burning from TIP_FEE_MANAGER_ADDRESS
+        // Test burning from MIP_FEE_MANAGER_ADDRESS
         try token.burnBlocked(0xfeEC000000000000000000000000000000000000, 100e18) {
             revert CallShouldHaveReverted();
         } catch (bytes memory err) {
@@ -2304,7 +2304,7 @@ contract MIP20Test is BaseTest {
             registry.createCompoundPolicy(senderWhitelist, recipientWhitelist, mintWhitelist);
 
         MIP20 compoundToken = MIP20(
-            factory.createToken("COMPOUND", "CMP", "USD", pathUSD, admin, bytes32("compound"))
+            factory.createToken("COMPOUND", "CMP", "USD", MagnusUSD, admin, bytes32("compound"))
         );
         compoundToken.grantRole(_ISSUER_ROLE, admin);
         compoundToken.changeTransferPolicyId(compound);
@@ -2329,7 +2329,7 @@ contract MIP20Test is BaseTest {
             registry.createCompoundPolicy(senderWhitelist, recipientWhitelist, mintWhitelist);
 
         MIP20 compoundToken = MIP20(
-            factory.createToken("COMPOUND2", "CMP2", "USD", pathUSD, admin, bytes32("compound2"))
+            factory.createToken("COMPOUND2", "CMP2", "USD", MagnusUSD, admin, bytes32("compound2"))
         );
         compoundToken.grantRole(_ISSUER_ROLE, admin);
         compoundToken.changeTransferPolicyId(compound);
@@ -2357,7 +2357,7 @@ contract MIP20Test is BaseTest {
         uint64 compound = registry.createCompoundPolicy(senderWhitelist, recipientWhitelist, 1);
 
         MIP20 compoundToken = MIP20(
-            factory.createToken("COMPOUND3", "CMP3", "USD", pathUSD, admin, bytes32("compound3"))
+            factory.createToken("COMPOUND3", "CMP3", "USD", MagnusUSD, admin, bytes32("compound3"))
         );
         compoundToken.grantRole(_ISSUER_ROLE, admin);
         compoundToken.changeTransferPolicyId(1);
@@ -2382,7 +2382,7 @@ contract MIP20Test is BaseTest {
         uint64 compound = registry.createCompoundPolicy(senderWhitelist, 1, 1);
 
         MIP20 compoundToken = MIP20(
-            factory.createToken("COMPOUND4", "CMP4", "USD", pathUSD, admin, bytes32("compound4"))
+            factory.createToken("COMPOUND4", "CMP4", "USD", MagnusUSD, admin, bytes32("compound4"))
         );
         compoundToken.grantRole(_ISSUER_ROLE, admin);
         compoundToken.changeTransferPolicyId(1);
@@ -2410,7 +2410,7 @@ contract MIP20Test is BaseTest {
         uint64 compound = registry.createCompoundPolicy(1, recipientWhitelist, 1);
 
         MIP20 compoundToken = MIP20(
-            factory.createToken("COMPOUND5", "CMP5", "USD", pathUSD, admin, bytes32("compound5"))
+            factory.createToken("COMPOUND5", "CMP5", "USD", MagnusUSD, admin, bytes32("compound5"))
         );
         compoundToken.grantRole(_ISSUER_ROLE, admin);
         compoundToken.changeTransferPolicyId(1);
@@ -2438,7 +2438,7 @@ contract MIP20Test is BaseTest {
         uint64 asymmetricCompound = registry.createCompoundPolicy(senderBlacklist, 1, 1);
 
         MIP20 compoundToken =
-            MIP20(factory.createToken("ASYM", "ASY", "USD", pathUSD, admin, bytes32("asym")));
+            MIP20(factory.createToken("ASYM", "ASY", "USD", MagnusUSD, admin, bytes32("asym")));
         compoundToken.grantRole(_ISSUER_ROLE, admin);
         compoundToken.changeTransferPolicyId(1);
         compoundToken.mint(alice, 1000);
@@ -2471,7 +2471,7 @@ contract MIP20Test is BaseTest {
         uint64 asymmetricCompound = registry.createCompoundPolicy(senderBlacklist, 1, 1);
 
         MIP20 compoundToken =
-            MIP20(factory.createToken("BURN1", "BRN1", "USD", pathUSD, admin, bytes32("burn1")));
+            MIP20(factory.createToken("BURN1", "BRN1", "USD", MagnusUSD, admin, bytes32("burn1")));
         compoundToken.grantRole(_ISSUER_ROLE, admin);
         compoundToken.grantRole(_BURN_BLOCKED_ROLE, admin);
         compoundToken.changeTransferPolicyId(1);
@@ -2493,7 +2493,7 @@ contract MIP20Test is BaseTest {
         uint64 asymmetricCompound = registry.createCompoundPolicy(senderBlacklist, 1, 1);
 
         MIP20 compoundToken =
-            MIP20(factory.createToken("BURN2", "BRN2", "USD", pathUSD, admin, bytes32("burn2")));
+            MIP20(factory.createToken("BURN2", "BRN2", "USD", MagnusUSD, admin, bytes32("burn2")));
         compoundToken.grantRole(_ISSUER_ROLE, admin);
         compoundToken.grantRole(_BURN_BLOCKED_ROLE, admin);
         compoundToken.changeTransferPolicyId(1);
@@ -2521,7 +2521,7 @@ contract MIP20Test is BaseTest {
         uint64 recipientBlockedCompound = registry.createCompoundPolicy(1, recipientBlacklist, 1);
 
         MIP20 compoundToken =
-            MIP20(factory.createToken("BURN3", "BRN3", "USD", pathUSD, admin, bytes32("burn3")));
+            MIP20(factory.createToken("BURN3", "BRN3", "USD", MagnusUSD, admin, bytes32("burn3")));
         compoundToken.grantRole(_ISSUER_ROLE, admin);
         compoundToken.grantRole(_BURN_BLOCKED_ROLE, admin);
         compoundToken.changeTransferPolicyId(1);

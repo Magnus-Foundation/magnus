@@ -20,7 +20,7 @@ use std::{
     fmt::Debug,
     sync::{Arc, OnceLock},
 };
-use magnus_precompiles::{DEFAULT_FEE_TOKEN, nonce::NonceManager};
+use magnus_precompiles::{MAGNUS_USD_ADDRESS, nonce::NonceManager};
 use magnus_primitives::{MagnusTxEnvelope, transaction::calc_gas_balance_spending};
 use magnus_revm::{MagnusInvalidTransaction, MagnusTxEnv};
 use thiserror::Error;
@@ -150,7 +150,7 @@ impl MagnusPooledTransaction {
             .resolved_fee_token
             .get()
             .copied()
-            .unwrap_or_else(|| self.inner().fee_token().unwrap_or(DEFAULT_FEE_TOKEN));
+            .unwrap_or_else(|| self.inner().fee_token().unwrap_or(MAGNUS_USD_ADDRESS));
         Some(KeychainSubject {
             account: keychain_sig.user_address,
             key_id,
@@ -534,7 +534,7 @@ mod tests {
     use alloy_primitives::{Address, Signature, TxKind, address};
     use alloy_sol_types::SolCall;
     use magnus_contracts::precompiles::IMIP20;
-    use magnus_precompiles::{PATH_USD_ADDRESS, nonce::NonceManager};
+    use magnus_precompiles::{MAGNUS_USD_ADDRESS, nonce::NonceManager};
     use magnus_primitives::transaction::{
         MagnusTransaction,
         magnus_transaction::Call,
@@ -552,7 +552,7 @@ mod tests {
         .abi_encode();
 
         let tx = TxEip1559 {
-            to: TxKind::Call(PATH_USD_ADDRESS),
+            to: TxKind::Call(MAGNUS_USD_ADDRESS),
             gas_limit: 21000,
             input: Bytes::from(calldata),
             ..Default::default()
@@ -904,7 +904,7 @@ mod tests {
             .build();
 
         // Test various Transaction trait methods
-        assert_eq!(tx.chain_id(), Some(42431));
+        assert_eq!(tx.chain_id(), Some(79941));
         assert_eq!(tx.nonce(), 0);
         assert_eq!(tx.gas_limit(), 1_000_000);
         assert_eq!(tx.max_fee_per_gas(), 20_000_000_000);
