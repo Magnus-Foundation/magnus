@@ -173,7 +173,20 @@ G1 (currency registry — `validate_supported_currency` is called by `add_accept
 
 ---
 
-## G3 — Fee AMM removal (~4 eng-days)
+## G3 — Fee AMM removal (~4 eng-days, REVISED — must be hardfork-gated)
+
+**Important revision noted 2026-04-28 during scoping:** the original plan said "delete `amm.rs` entirely." That is unsafe in isolation — pre-T4 blocks committed to Moderato testnet (and any future devnet) execute the AMM swap path. A node binary without AMM code cannot replay those blocks, breaking sync from genesis.
+
+**Real G3 must be split:**
+
+1. **G3a — Add T4-gated direct-credit path.** Introduce `settle_fee` (direct-credit-or-revert per the spec) and a `cfg.spec.is_t4()` branch in `collect_fee_post_tx`. Pre-T4 keeps the AMM path. Post-T4 uses `settle_fee`. AMM code stays in tree.
+2. **G3b — Delete AMM code.** Only after T4 has fully cycled out of replay-from-genesis needs (typically requires a network re-genesis or a pruning checkpoint). For Moderato testnet this is operationally a re-genesis at T4. For mainnet it's the launch state.
+
+The original "delete amm.rs entirely" deliverable belongs in G3b, not G3a. G3a is the safe incremental step.
+
+**Same hardfork-gating concern applies to G2b** (legacy `user_tokens` / `validator_tokens` removal) — `revm/handler.rs` reads `user_tokens` to determine the user's fee token. Removing the storage breaks pre-T4 sync. G2b must add the new path under T4 gating; full removal waits for re-genesis.
+
+
 
 **Purpose:** delete the Fee AMM entirely. Replace `swap_fee` AMM-call path with direct-credit-or-revert.
 
@@ -682,6 +695,7 @@ When all checkboxes are green, engineering kicks off G0.
 
 ## Change log
 
+- **2026-04-28 (v1.4):** G3 revised — explicit G3a/G3b split required because of pre-T4 sync requirements. G2b similarly flagged as hardfork-gated work (cannot raw-delete `user_tokens` since `revm/handler.rs` reads it on the pre-T4 path).
 - **2026-04-28 (v1.3):** G2a landed (additive half of G2; per the v1 split-recommendation). `MipFeeManager` now has `validator_accepted_tokens: Mapping<Address, Mapping<Address, bool>>` + `validator_token_list: Mapping<Address, Vec<Address>>`. New API: `addAcceptedToken` / `removeAcceptedToken` / `acceptsToken` / `getAcceptedTokens` / `isAcceptedByAnyValidator`. `MAX_ACCEPT_SET_SIZE = 32` cap. Legacy `set_validator_token` / `get_validator_token` / `user_tokens` retained for backward compat — G2b removes them and rewires the fee path. `add_accepted_token` validates token is a registered+enabled MIP-20 (calls G1's `validate_supported_currency`) and respects the same-block-as-beneficiary protection. `is_accepted_by_any_validator` is a stub returning `false` until G2b/G4 add a reverse-index mapping. 13 new unit tests.
 - **2026-04-28 (v1.2):** G1 landed. `MipFeeManager` now has `governance_admin` + `supported_currencies` storage; `addCurrency`/`enableCurrency`/`setGovernanceAdmin` governance functions; `getCurrencyConfig`/`isCurrencyEnabled`/`governanceAdmin` views; `validate_supported_currency` helper in `mip20/mod.rs`. `CurrencyConfig` gained an explicit `registered` flag because `added_at_block == 0` is indistinguishable from default state. Genesis-init populates USD (testnet) or USD+VND (mainnet) per chain ID. 22 new unit tests. G-handoff checklist updated to mark G1 stubs as resolved.
 - **2026-04-28 (v1.1):** Added "G-handoff stub-removal checklist" section enumerating every G0 stub by file:line and the group whose PR removes it. Per-group exit criteria includes a `grep` check for residual G0-stub markers. Clarified that durable design-doc cross-references stay; only `**G0 stub:**` / `**G0 status:**` markers are removed.
