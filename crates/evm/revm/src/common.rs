@@ -449,7 +449,7 @@ mod tests {
         Context, MainContext, context::TxEnv, database::EmptyDB,
     };
     use magnus_precompiles::{
-        PATH_USD_ADDRESS,
+        MAGNUS_USD_ADDRESS,
         storage::{StorageCtx, evm::EvmPrecompileStorageProvider},
         test_util::MIP20Setup,
         mip20::{IRolesAuth::*, IMIP20::*, MIP20Token, slots as mip20_slots},
@@ -506,7 +506,7 @@ mod tests {
 
     #[test]
     fn test_read_token_balance_typed_storage() -> eyre::Result<()> {
-        let token_address = PATH_USD_ADDRESS;
+        let token_address = MAGNUS_USD_ADDRESS;
         let account = Address::random();
         let expected_balance = U256::from(1000u64);
 
@@ -541,7 +541,7 @@ mod tests {
 
     #[test]
     fn test_is_fee_token_paused() -> eyre::Result<()> {
-        let token_address = PATH_USD_ADDRESS;
+        let token_address = MAGNUS_USD_ADDRESS;
         let mut db = revm::database::CacheDB::new(EmptyDB::default());
 
         // Default (unpaused) returns false
@@ -556,7 +556,7 @@ mod tests {
 
     #[test]
     fn test_is_tip20_usd() -> eyre::Result<()> {
-        let fee_token = PATH_USD_ADDRESS;
+        let fee_token = MAGNUS_USD_ADDRESS;
 
         // Short string encoding: left-aligned data + length*2 in LSB
         let cases: &[(U256, bool, &str)] = &[
@@ -614,7 +614,7 @@ mod tests {
                 EvmInternals::new(&mut ctx.journaled_state, &ctx.block, &ctx.cfg, &ctx.tx);
             let mut provider = EvmPrecompileStorageProvider::new_max_gas(internals, &ctx.cfg);
             StorageCtx::enter(&mut provider, || -> eyre::Result<u64> {
-                MIP20Setup::path_usd(admin).apply()?;
+                MIP20Setup::magnus_usd(admin).apply()?;
                 let mut registry = MIP403Registry::new();
                 registry.initialize()?;
 
@@ -625,7 +625,7 @@ mod tests {
                         policyType: IMIP403Registry::PolicyType::WHITELIST,
                     },
                 )?;
-                MIP20Token::from_address(PATH_USD_ADDRESS)?.change_transfer_policy_id(
+                MIP20Token::from_address(MAGNUS_USD_ADDRESS)?.change_transfer_policy_id(
                     admin,
                     IMIP20::changeTransferPolicyIdCall {
                         newPolicyId: policy_id,
@@ -644,14 +644,14 @@ mod tests {
         };
 
         assert!(evm.ctx.journaled_state.can_fee_payer_transfer(
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             fee_payer,
             MagnusHardfork::T1B
         )?);
 
         // Post T1C fails if fee payer not authorized
         assert!(!evm.ctx.journaled_state.can_fee_payer_transfer(
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             fee_payer,
             MagnusHardfork::T1C
         )?);
@@ -675,13 +675,13 @@ mod tests {
         }
 
         assert!(evm.ctx.journaled_state.can_fee_payer_transfer(
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             fee_payer,
             MagnusHardfork::T1B
         )?);
 
         assert!(evm.ctx.journaled_state.can_fee_payer_transfer(
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             fee_payer,
             MagnusHardfork::T1C
         )?);

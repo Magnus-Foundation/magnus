@@ -7,7 +7,7 @@ use alloy_eips::BlockNumberOrTag;
 use futures::{StreamExt, future::join_all, stream};
 use std::env;
 use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
-use magnus_precompiles::{PATH_USD_ADDRESS, mip20::IMIP20};
+use magnus_precompiles::{MAGNUS_USD_ADDRESS, mip20::IMIP20};
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_base_fee() -> eyre::Result<()> {
@@ -35,7 +35,7 @@ async fn test_base_fee() -> eyre::Result<()> {
         .expect("Could not get basefee");
     assert_eq!(base_fee, MAGNUS_T1_BASE_FEE as u128 as u64);
 
-    let token = IMIP20::new(PATH_USD_ADDRESS, provider.clone());
+    let token = IMIP20::new(MAGNUS_USD_ADDRESS, provider.clone());
 
     // Gas limit is set to 200k in test-genesis.json, send 500 txs to exceed limit over multiple
     // blocks

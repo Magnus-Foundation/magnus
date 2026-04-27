@@ -22,7 +22,7 @@ use magnus_contracts::precompiles::{
     ITIPFeeAMM, IValidatorConfig, UnknownFunctionSelector,
 };
 use magnus_precompiles::{
-    PATH_USD_ADDRESS, MIP20_FACTORY_ADDRESS, error::MagnusPrecompileError, storage::ContractStorage,
+    MAGNUS_USD_ADDRESS, MIP20_FACTORY_ADDRESS, error::MagnusPrecompileError, storage::ContractStorage,
     mip20::MIP20Token, validator_config::ValidatorConfig,
 };
 use test_case::test_case;
@@ -346,7 +346,7 @@ async fn test_eth_estimate_gas_different_fee_tokens() -> eyre::Result<()> {
         IFeeManager::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
 
     // Supply liquidity to enable fee token swapping
-    let validator_token_address = PATH_USD_ADDRESS;
+    let validator_token_address = MAGNUS_USD_ADDRESS;
 
     let fee_amm = ITIPFeeAMM::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
 
@@ -365,7 +365,7 @@ async fn test_eth_estimate_gas_different_fee_tokens() -> eyre::Result<()> {
         .await?;
 
     // Set different fee tokens for user and validator
-    // Note that the validator defaults to the pathUSD
+    // Note that the validator defaults to the MagnusUSD
     fee_manager
         .setUserToken(*user_fee_token.address())
         .send()
@@ -461,7 +461,7 @@ async fn test_eth_estimate_gas_validator_fee_token_mismatch() -> eyre::Result<()
     fee_amm
         .mint(
             *user_fee_token.address(),
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             U256::from(u32::MAX),
             wallet_address,
         )
@@ -473,7 +473,7 @@ async fn test_eth_estimate_gas_validator_fee_token_mismatch() -> eyre::Result<()
     fee_amm
         .mint(
             *validator_custom_token.address(),
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             U256::from(u32::MAX),
             wallet_address,
         )
@@ -529,7 +529,7 @@ async fn test_eth_estimate_gas_validator_fee_token_mismatch() -> eyre::Result<()
 /// Regression test: on mainnet, `validatorTokens[address(0)]` was pre-seeded with a
 /// DONOTUSE token in genesis. The old code used `Address::ZERO` as beneficiary for RPC gas
 /// estimation, so `get_validator_token(Address::ZERO)` returned DONOTUSE instead of falling
-/// back to `DEFAULT_FEE_TOKEN` (PathUSD), causing gas estimation to fail.
+/// back to `MAGNUS_USD_ADDRESS` (PathUSD), causing gas estimation to fail.
 ///
 /// The fix uses `TIP_FEE_MANAGER_ADDRESS` as the sentinel beneficiary, which is guaranteed to
 /// have no validator token set (its mapping is always zero → falls back to PathUSD).
@@ -571,7 +571,7 @@ async fn test_eth_estimate_gas_preseeded_zero_address_validator_token() -> eyre:
         IFeeManager::new(magnus_precompiles::TIP_FEE_MANAGER_ADDRESS, provider.clone());
     let zero_addr_token = fee_manager.validatorTokens(Address::ZERO).call().await?;
     assert_ne!(
-        zero_addr_token, PATH_USD_ADDRESS,
+        zero_addr_token, MAGNUS_USD_ADDRESS,
         "validatorTokens[address(0)] should be the DONOTUSE token, not PathUSD"
     );
 
@@ -589,7 +589,7 @@ async fn test_eth_estimate_gas_preseeded_zero_address_validator_token() -> eyre:
     fee_amm
         .mint(
             *user_fee_token.address(),
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             U256::from(u32::MAX),
             wallet_address,
         )
@@ -717,14 +717,14 @@ async fn test_tip20_name_state_override_no_oom() -> eyre::Result<()> {
     let setup = TestNodeBuilder::new().build_http_only().await?;
     let provider = ProviderBuilder::new().connect_http(setup.http_url);
     let tx = TransactionRequest::default()
-        .to(PATH_USD_ADDRESS)
+        .to(MAGNUS_USD_ADDRESS)
         .input(TransactionInput::new(IMIP20::nameCall::SELECTOR.into()));
     let name_slot = B256::from(U256::from(2)); // slot 2 in MIP20Token layout
 
     // -- overflow: decoded len > u32::MAX → Panic(UnderOverflow) revert --
     // 0x0008000000000001 → LSB=1 (long string), decoded len = 0x0004000000000000
     let overrides = state_diff(
-        PATH_USD_ADDRESS,
+        MAGNUS_USD_ADDRESS,
         &[(name_slot, U256::from(0x0008000000000001u64))],
     );
     let err = provider
@@ -736,7 +736,7 @@ async fn test_tip20_name_state_override_no_oom() -> eyre::Result<()> {
 
     // -- OOG: decoded len < u32::MAX but huge → gas exhaustion on SLOAD loop --
     // length 1_000_000 encoded as long string: value = 1_000_000 * 2 + 1 = 2_000_001
-    let overrides = state_diff(PATH_USD_ADDRESS, &[(name_slot, U256::from(2_000_001u64))]);
+    let overrides = state_diff(MAGNUS_USD_ADDRESS, &[(name_slot, U256::from(2_000_001u64))]);
     let err = provider
         .call(tx)
         .overrides(overrides)

@@ -21,7 +21,7 @@ use reth_node_api::BuiltPayload;
 use reth_primitives_traits::transaction::TxHashRef;
 use reth_transaction_pool::TransactionPool;
 use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
-use magnus_contracts::precompiles::DEFAULT_FEE_TOKEN;
+use magnus_contracts::precompiles::MAGNUS_USD_ADDRESS;
 use magnus_node::rpc::MagnusTransactionRequest;
 use magnus_precompiles::mip20::IMIP20::{self, transferCall};
 use magnus_primitives::{
@@ -311,15 +311,15 @@ pub(crate) fn create_allowed_call_scopes(
     match mode {
         AllowedCallsMode::None => None,
         AllowedCallsMode::SelectorRecipient => Some(vec![CallScope {
-            target: DEFAULT_FEE_TOKEN,
+            target: MAGNUS_USD_ADDRESS,
             selector_rules: vec![rule(vec![allowed_recipient])],
         }]),
         AllowedCallsMode::SelectorAnyRecipient => Some(vec![CallScope {
-            target: DEFAULT_FEE_TOKEN,
+            target: MAGNUS_USD_ADDRESS,
             selector_rules: vec![rule(Vec::new())],
         }]),
         AllowedCallsMode::TargetAnySelector => Some(vec![CallScope {
-            target: DEFAULT_FEE_TOKEN,
+            target: MAGNUS_USD_ADDRESS,
             selector_rules: Vec::new(),
         }]),
     }
@@ -684,7 +684,7 @@ pub(super) fn create_balance_of_call(account: Address) -> Call {
     use alloy::sol_types::SolCall;
 
     Call {
-        to: DEFAULT_FEE_TOKEN.into(),
+        to: MAGNUS_USD_ADDRESS.into(),
         value: U256::ZERO,
         input: IMIP20::balanceOfCall { account }.abi_encode().into(),
     }
@@ -732,7 +732,7 @@ pub(crate) fn create_default_token_limit(
     use magnus_primitives::transaction::TokenLimit;
 
     vec![TokenLimit {
-        token: DEFAULT_FEE_TOKEN,
+        token: MAGNUS_USD_ADDRESS,
         limit: funded / U256::from(2),
         period: 0,
     }]
@@ -756,7 +756,7 @@ pub(crate) fn create_basic_aa_tx(
         nonce_key: U256::ZERO,
         nonce,
         // Use AlphaUSD to match fund_address_with
-        fee_token: Some(DEFAULT_FEE_TOKEN),
+        fee_token: Some(MAGNUS_USD_ADDRESS),
         fee_payer_signature: None,
         valid_before: None,
         valid_after: None,
@@ -881,7 +881,7 @@ pub(crate) async fn configure_fee_payer_context(
     }
 
     let fee_payer_addr = fee_payer_signer.address();
-    let token = tx.fee_token.unwrap_or(DEFAULT_FEE_TOKEN);
+    let token = tx.fee_token.unwrap_or(MAGNUS_USD_ADDRESS);
     let balance_before = IMIP20::new(token, provider)
         .balanceOf(fee_payer_addr)
         .call()
@@ -1332,7 +1332,7 @@ mod tests {
         let revert_data = MIP20Error::InsufficientBalance(IMIP20::InsufficientBalance {
             available: U256::ZERO,
             required: U256::from(1_000_000u64),
-            token: DEFAULT_FEE_TOKEN,
+            token: MAGNUS_USD_ADDRESS,
         })
         .abi_encode();
         assert_eq!(

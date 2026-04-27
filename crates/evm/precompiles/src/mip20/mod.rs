@@ -21,7 +21,7 @@ pub use magnus_contracts::precompiles::{
 pub use slots as mip20_slots;
 
 use crate::{
-    PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS,
+    MAGNUS_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS,
     account_keychain::AccountKeychain,
     address_registry::AddressRegistry,
     error::{Result, MagnusPrecompileError},
@@ -331,7 +331,7 @@ impl MIP20Token {
     ///
     /// # Errors
     /// - `Unauthorized` — caller does not hold `DEFAULT_ADMIN_ROLE`
-    /// - `InvalidQuoteToken` — token is pathUSD, candidate is not a deployed MIP-20, or
+    /// - `InvalidQuoteToken` — token is MagnusUSD, candidate is not a deployed MIP-20, or
     ///   USD currency mismatch
     pub fn set_next_quote_token(
         &mut self,
@@ -340,7 +340,7 @@ impl MIP20Token {
     ) -> Result<()> {
         self.check_role(msg_sender, DEFAULT_ADMIN_ROLE)?;
 
-        if self.address == PATH_USD_ADDRESS {
+        if self.address == MAGNUS_USD_ADDRESS {
             return Err(MIP20Error::invalid_quote_token().into());
         }
 
@@ -383,9 +383,9 @@ impl MIP20Token {
         let next_quote_token = self.next_quote_token()?;
 
         // Check that this does not create a loop
-        // Loop through quote tokens until we reach the root (pathUSD)
+        // Loop through quote tokens until we reach the root (MagnusUSD)
         let mut current = next_quote_token;
-        while current != PATH_USD_ADDRESS {
+        while current != MAGNUS_USD_ADDRESS {
             if current == self.address {
                 return Err(MIP20Error::invalid_quote_token().into());
             }
@@ -1298,7 +1298,7 @@ mod recipient_tests {
     fn test_validate() {
         assert!(Recipient::direct(Address::ZERO).validate().is_err());
         assert!(
-            Recipient::direct(crate::PATH_USD_ADDRESS)
+            Recipient::direct(crate::MAGNUS_USD_ADDRESS)
                 .validate()
                 .is_err()
         );
@@ -1344,7 +1344,7 @@ pub(crate) mod tests {
 
     use super::*;
     use crate::{
-        PATH_USD_ADDRESS,
+        MAGNUS_USD_ADDRESS,
         account_keychain::{
             AccountKeychain, KeyRestrictions, SignatureType, TokenLimit, authorizeKeyCall,
             getRemainingLimitCall,
@@ -1869,8 +1869,8 @@ pub(crate) mod tests {
             let token = MIP20Setup::create("Test", "TST", admin).apply()?;
 
             // Verify both quoteToken and nextQuoteToken are set to the same value
-            assert_eq!(token.quote_token()?, PATH_USD_ADDRESS);
-            assert_eq!(token.next_quote_token()?, PATH_USD_ADDRESS);
+            assert_eq!(token.quote_token()?, MAGNUS_USD_ADDRESS);
+            assert_eq!(token.next_quote_token()?, MAGNUS_USD_ADDRESS);
 
             Ok(())
         })
@@ -1888,8 +1888,8 @@ pub(crate) mod tests {
             let new_quote_token = MIP20Setup::create("New Quote", "NQ", admin).apply()?;
             let new_quote_token_address = new_quote_token.address;
 
-            // Verify initial quote token is PATH_USD
-            assert_eq!(token.quote_token()?, PATH_USD_ADDRESS);
+            // Verify initial quote token is MAGNUS_USD
+            assert_eq!(token.quote_token()?, MAGNUS_USD_ADDRESS);
 
             // Set next quote token to the new token
             token.set_next_quote_token(
@@ -2153,12 +2153,12 @@ pub(crate) mod tests {
                 "from_address should use the provided address directly"
             );
 
-            // Test with reserved token (pathUSD)
-            let _path_usd = MIP20Setup::path_usd(admin).apply()?;
-            let via_from_address_reserved = MIP20Token::from_address(PATH_USD_ADDRESS)?.address;
+            // Test with reserved token (MagnusUSD)
+            let _magnus_usd = MIP20Setup::magnus_usd(admin).apply()?;
+            let via_from_address_reserved = MIP20Token::from_address(MAGNUS_USD_ADDRESS)?.address;
 
             assert_eq!(
-                via_from_address_reserved, PATH_USD_ADDRESS,
+                via_from_address_reserved, MAGNUS_USD_ADDRESS,
                 "from_address should work for reserved addresses too"
             );
 
@@ -2231,7 +2231,7 @@ pub(crate) mod tests {
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            let _path_usd = MIP20Setup::path_usd(admin).apply()?;
+            let _magnus_usd = MIP20Setup::magnus_usd(admin).apply()?;
 
             let currency: String = thread_rng()
                 .sample_iter(&Alphanumeric)
@@ -2268,7 +2268,7 @@ pub(crate) mod tests {
         let sender = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            let _path_usd = MIP20Setup::path_usd(sender).apply()?;
+            let _magnus_usd = MIP20Setup::magnus_usd(sender).apply()?;
 
             let created_tip20 = MIP20Factory::new().create_token(
                 sender,
@@ -2276,14 +2276,14 @@ pub(crate) mod tests {
                     name: "Test Token".to_string(),
                     symbol: "TEST".to_string(),
                     currency: "USD".to_string(),
-                    quoteToken: crate::PATH_USD_ADDRESS,
+                    quoteToken: crate::MAGNUS_USD_ADDRESS,
                     admin: sender,
                     salt: B256::random(),
                 },
             )?;
             let non_tip20 = Address::random();
 
-            assert!(PATH_USD_ADDRESS.is_tip20());
+            assert!(MAGNUS_USD_ADDRESS.is_tip20());
             assert!(created_tip20.is_tip20());
             assert!(!non_tip20.is_tip20());
             Ok(())
@@ -2396,7 +2396,7 @@ pub(crate) mod tests {
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            let mut token = MIP20Setup::path_usd(admin).apply()?;
+            let mut token = MIP20Setup::magnus_usd(admin).apply()?;
 
             // Initialize the MIP403 registry
             let mut registry = MIP403Registry::new();
@@ -2463,7 +2463,7 @@ pub(crate) mod tests {
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            let mut token = MIP20Setup::path_usd(admin).apply()?;
+            let mut token = MIP20Setup::magnus_usd(admin).apply()?;
 
             // Initialize the MIP403 registry
             let mut registry = MIP403Registry::new();
@@ -2543,7 +2543,7 @@ pub(crate) mod tests {
             let mut storage = HashMapStorageProvider::new_with_spec(1, hardfork);
 
             StorageCtx::enter(&mut storage, || {
-                let token = MIP20Setup::path_usd(admin).apply()?;
+                let token = MIP20Setup::magnus_usd(admin).apply()?;
 
                 // Initialize MIP403 registry and create a whitelist policy
                 let mut registry = MIP403Registry::new();
@@ -2615,16 +2615,16 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_set_next_quote_token_rejects_path_usd() -> eyre::Result<()> {
+    fn test_set_next_quote_token_rejects_magnus_usd() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new(1);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            let mut path_usd = MIP20Setup::path_usd(admin).apply()?;
+            let mut magnus_usd = MIP20Setup::magnus_usd(admin).apply()?;
             let other_token = MIP20Setup::create("Test", "T", admin).apply()?;
 
-            // pathUSD cannot update its quote token
-            let result = path_usd.set_next_quote_token(
+            // MagnusUSD cannot update its quote token
+            let result = magnus_usd.set_next_quote_token(
                 admin,
                 IMIP20::setNextQuoteTokenCall {
                     newQuoteToken: other_token.address,
@@ -2642,21 +2642,21 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_non_path_usd_cycle_detection() -> eyre::Result<()> {
+    fn test_non_magnus_usd_cycle_detection() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new(1);
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            MIP20Setup::path_usd(admin).apply()?;
+            MIP20Setup::magnus_usd(admin).apply()?;
 
             let mut token_b = MIP20Setup::create("TokenB", "TKNB", admin).apply()?;
             let token_a = MIP20Setup::create("TokenA", "TKNA", admin)
                 .quote_token(token_b.address)
                 .apply()?;
 
-            // Verify chain where token_a -> token_b -> PATH_USD
+            // Verify chain where token_a -> token_b -> MAGNUS_USD
             assert_eq!(token_a.quote_token()?, token_b.address);
-            assert_eq!(token_b.quote_token()?, PATH_USD_ADDRESS);
+            assert_eq!(token_b.quote_token()?, MAGNUS_USD_ADDRESS);
 
             // Try to create cycle where token_b -> token_a
             token_b.set_next_quote_token(
@@ -2678,7 +2678,7 @@ pub(crate) mod tests {
 
             // assert that quote tokens are unchanged
             assert_eq!(token_a.quote_token()?, token_b.address);
-            assert_eq!(token_b.quote_token()?, PATH_USD_ADDRESS);
+            assert_eq!(token_b.quote_token()?, MAGNUS_USD_ADDRESS);
 
             Ok(())
         })

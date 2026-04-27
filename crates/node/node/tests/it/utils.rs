@@ -158,7 +158,7 @@ use magnus_contracts::precompiles::{
 };
 use magnus_node::node::MagnusNode;
 use magnus_payload_types::MagnusPayloadAttributes;
-use magnus_precompiles::{PATH_USD_ADDRESS, MIP20_FACTORY_ADDRESS, mip20::ISSUER_ROLE};
+use magnus_precompiles::{MAGNUS_USD_ADDRESS, MIP20_FACTORY_ADDRESS, mip20::ISSUER_ROLE};
 
 /// Creates a test MIP20 token with issuer role granted to the caller
 pub(crate) async fn setup_test_token<P>(
@@ -175,7 +175,7 @@ where
             "Test".to_string(),
             "TEST".to_string(),
             "USD".to_string(),
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             caller,
             salt,
         )

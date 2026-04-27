@@ -149,7 +149,7 @@ impl super::types::TestEnv for RpcEnv {
         }
 
         let balance = magnus_precompiles::mip20::IMIP20::new(
-            magnus_contracts::precompiles::DEFAULT_FEE_TOKEN,
+            magnus_contracts::precompiles::MAGNUS_USD_ADDRESS,
             &self.provider,
         )
         .balanceOf(addr)

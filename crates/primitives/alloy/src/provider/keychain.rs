@@ -164,13 +164,13 @@ impl From<KeyRestrictions> for AbiKeyRestrictions {
 /// use magnus_alloy::provider::keychain::CallScopeBuilder;
 ///
 /// // Allow transfer and approve to any recipient on a specific token
-/// let scope = CallScopeBuilder::new(PATH_USD)
+/// let scope = CallScopeBuilder::new(MAGNUS_USD)
 ///     .transfer(vec![])
 ///     .approve(vec![])
 ///     .build();
 ///
 /// // Allow transfer only to a specific recipient
-/// let scope = CallScopeBuilder::new(PATH_USD)
+/// let scope = CallScopeBuilder::new(MAGNUS_USD)
 ///     .transfer(vec![address!("0x1111111111111111111111111111111111111111")])
 ///     .build();
 ///

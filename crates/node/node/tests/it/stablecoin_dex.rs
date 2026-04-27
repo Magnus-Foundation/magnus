@@ -7,7 +7,7 @@ use magnus_contracts::precompiles::{
     IMIP20::{self, IMIP20Instance},
 };
 use magnus_precompiles::{
-    PATH_USD_ADDRESS, STABLECOIN_DEX_ADDRESS, stablecoin_dex::MIN_ORDER_AMOUNT,
+    MAGNUS_USD_ADDRESS, STABLECOIN_DEX_ADDRESS, stablecoin_dex::MIN_ORDER_AMOUNT,
 };
 
 use crate::utils::{TestNodeBuilder, await_receipts, setup_test_token};
@@ -27,7 +27,7 @@ async fn test_bids() -> eyre::Result<()> {
         .connect_http(http_url.clone());
 
     let base = setup_test_token(provider.clone(), caller).await?;
-    let quote = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    let quote = IMIP20Instance::new(MAGNUS_USD_ADDRESS, provider.clone());
 
     let account_data: Vec<_> = (1..=10)
         .map(|i| {
@@ -179,7 +179,7 @@ async fn test_asks() -> eyre::Result<()> {
         .connect_http(http_url.clone());
 
     let base = setup_test_token(provider.clone(), caller).await?;
-    let quote = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    let quote = IMIP20Instance::new(MAGNUS_USD_ADDRESS, provider.clone());
 
     let account_data: Vec<_> = (1..=3)
         .map(|i| {
@@ -340,7 +340,7 @@ async fn test_cancel_orders() -> eyre::Result<()> {
         .connect_http(http_url.clone());
 
     let base = setup_test_token(provider.clone(), caller).await?;
-    let quote = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    let quote = IMIP20Instance::new(MAGNUS_USD_ADDRESS, provider.clone());
 
     let account_data: Vec<_> = (1..=10)
         .map(|i| {
@@ -450,8 +450,8 @@ async fn test_multi_hop_swap() -> eyre::Result<()> {
         .wallet(wallet)
         .connect_http(http_url.clone());
 
-    // Setup tokens: pathUSD (token_id=0) <- USDC (token_id=2) and pathUSD <- EURC (token_id=3)
-    let linking_usd = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    // Setup tokens: MagnusUSD (token_id=0) <- USDC (token_id=2) and MagnusUSD <- EURC (token_id=3)
+    let linking_usd = IMIP20Instance::new(MAGNUS_USD_ADDRESS, provider.clone());
     let usdc = setup_test_token(provider.clone(), caller).await?; // This will be token_id=2
     let eurc = setup_test_token(provider.clone(), caller).await?; // This will be token_id=3
 
@@ -516,14 +516,14 @@ async fn test_multi_hop_swap() -> eyre::Result<()> {
     let alice_exchange = IStablecoinDEX::new(STABLECOIN_DEX_ADDRESS, alice_provider);
     let liquidity_amount = 5_000_000_000u128;
 
-    // For USDC -> pathUSD: need bid on USDC (buying USDC with pathUSD)
+    // For USDC -> MagnusUSD: need bid on USDC (buying USDC with MagnusUSD)
     let tx = alice_exchange
         .place(*usdc.address(), liquidity_amount, true, 0)
         .send()
         .await?;
     tx.get_receipt().await?;
 
-    // For pathUSD -> EURC: need ask on EURC (selling EURC for pathUSD)
+    // For MagnusUSD -> EURC: need ask on EURC (selling EURC for MagnusUSD)
     let tx = alice_exchange
         .place(*eurc.address(), liquidity_amount, false, 0)
         .send()
@@ -553,7 +553,7 @@ async fn test_multi_hop_swap() -> eyre::Result<()> {
         .call()
         .await?;
 
-    // Execute multi-hop swap: USDC -> pathUSD -> EURC
+    // Execute multi-hop swap: USDC -> MagnusUSD -> EURC
     let amount_in = 1_000_000_000u128;
     let amount_out = bob_exchange
         .quoteSwapExactAmountIn(*usdc.address(), *eurc.address(), amount_in)
@@ -592,22 +592,22 @@ async fn test_multi_hop_swap() -> eyre::Result<()> {
     // Verify Bob's linking USD balance has not changed
     assert_eq!(
         bob_linking_usd_wallet_before, bob_linking_usd_wallet_after,
-        "Bob's pathUSD wallet balance should not change (transitory)"
+        "Bob's MagnusUSD wallet balance should not change (transitory)"
     );
 
     assert_eq!(
         bob_linking_usd_wallet_before - bob_linking_usd_wallet_after,
         U256::ZERO,
-        "Bob should have ZERO pathUSD in wallet (transitory)"
+        "Bob should have ZERO MagnusUSD in wallet (transitory)"
     );
 
     assert_eq!(
         bob_linking_usd_exchange_before, bob_linking_usd_exchange_after,
-        "Bob's pathUSD exchange balance should not change (transitory)"
+        "Bob's MagnusUSD exchange balance should not change (transitory)"
     );
     assert_eq!(
         bob_linking_usd_exchange_after, 0,
-        "Bob should have ZERO pathUSD on exchange (transitory)"
+        "Bob should have ZERO MagnusUSD on exchange (transitory)"
     );
 
     Ok(())
@@ -628,7 +628,7 @@ async fn test_place_rejects_order_below_dust_limit() -> eyre::Result<()> {
         .connect_http(http_url.clone());
 
     let base = setup_test_token(provider.clone(), caller).await?;
-    let quote = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    let quote = IMIP20Instance::new(MAGNUS_USD_ADDRESS, provider.clone());
 
     // Pair is auto-created on first place() call
     let exchange = IStablecoinDEX::new(STABLECOIN_DEX_ADDRESS, provider.clone());
@@ -720,7 +720,7 @@ async fn test_place_flip_rejects_order_below_dust_limit() -> eyre::Result<()> {
         .connect_http(http_url.clone());
 
     let base = setup_test_token(provider.clone(), caller).await?;
-    let quote = IMIP20Instance::new(PATH_USD_ADDRESS, provider.clone());
+    let quote = IMIP20Instance::new(MAGNUS_USD_ADDRESS, provider.clone());
 
     // Pair is auto-created on first place() call
     let exchange = IStablecoinDEX::new(STABLECOIN_DEX_ADDRESS, provider.clone());

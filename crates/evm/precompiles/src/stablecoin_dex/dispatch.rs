@@ -128,8 +128,8 @@ mod tests {
         let user = Address::random();
         let amount = 200_000_000u128;
 
-        // Initialize quote token (pathUSD)
-        let quote = MIP20Setup::path_usd(admin)
+        // Initialize quote token (MagnusUSD)
+        let quote = MIP20Setup::magnus_usd(admin)
             .with_issuer(admin)
             .with_mint(user, U256::from(amount))
             .with_approval(user, exchange.address, U256::from(amount))

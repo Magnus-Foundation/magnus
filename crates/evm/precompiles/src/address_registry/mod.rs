@@ -256,7 +256,7 @@ mod tests {
     #[test]
     fn test_register_rejects_tip20_address_as_master() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T2);
-        let mip20_addr = crate::PATH_USD_ADDRESS;
+        let mip20_addr = crate::MAGNUS_USD_ADDRESS;
 
         StorageCtx::enter(&mut storage, || {
             let mut registry = AddressRegistry::new();
@@ -429,7 +429,7 @@ mod tests {
     fn test_is_valid_master_address() {
         assert!(!Address::ZERO.is_valid_master());
         assert!(!Address::new_virtual(MasterId::ZERO, UserTag::ZERO).is_valid_master());
-        assert!(!crate::PATH_USD_ADDRESS.is_valid_master());
+        assert!(!crate::MAGNUS_USD_ADDRESS.is_valid_master());
         assert!(Address::repeat_byte(0x42).is_valid_master());
     }
 }

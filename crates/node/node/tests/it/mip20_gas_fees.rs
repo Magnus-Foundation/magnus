@@ -11,7 +11,7 @@ use alloy_rpc_types_eth::TransactionRequest;
 use std::env;
 use magnus_alloy::rpc::MagnusTransactionReceipt;
 use magnus_contracts::precompiles::{IFeeManager, IMIP20};
-use magnus_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS};
+use magnus_precompiles::{MAGNUS_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS};
 use magnus_primitives::transaction::calc_gas_balance_spending;
 
 use crate::utils::TestNodeBuilder;
@@ -84,10 +84,10 @@ async fn test_default_fee_token() -> eyre::Result<()> {
     let new_wallet = PrivateKeySigner::random();
     let new_address = new_wallet.address();
 
-    // Transfer pathUSD to the new wallet
-    let path_usd = IMIP20::new(PATH_USD_ADDRESS, provider.clone());
+    // Transfer MagnusUSD to the new wallet
+    let magnus_usd = IMIP20::new(MAGNUS_USD_ADDRESS, provider.clone());
     let transfer_amount = U256::from(1_000_000u64);
-    path_usd
+    magnus_usd
         .transfer(new_address, transfer_amount)
         .send()
         .await?
@@ -109,7 +109,7 @@ async fn test_default_fee_token() -> eyre::Result<()> {
     assert_eq!(fee_token_address, Address::ZERO);
 
     // Get the balance of the fee token before the tx
-    let initial_balance = path_usd.balanceOf(new_address).call().await?;
+    let initial_balance = magnus_usd.balanceOf(new_address).call().await?;
 
     let tx = TransactionRequest::default().from(new_address).to(caller);
     let pending_tx = new_provider.send_transaction(tx).await?;
@@ -119,7 +119,7 @@ async fn test_default_fee_token() -> eyre::Result<()> {
         .await?;
 
     // Assert that the fee token balance has decreased by gas spent
-    let balance_after = path_usd.balanceOf(new_address).call().await?;
+    let balance_after = magnus_usd.balanceOf(new_address).call().await?;
     let cost = calc_gas_balance_spending(receipt.gas_used, receipt.effective_gas_price());
     assert_eq!(balance_after, initial_balance - U256::from(cost));
 
@@ -129,7 +129,7 @@ async fn test_default_fee_token() -> eyre::Result<()> {
     assert_eq!(transfer.from, new_address);
     assert_eq!(transfer.to, TIP_FEE_MANAGER_ADDRESS);
     assert_eq!(transfer.amount, U256::from(cost));
-    assert_eq!(receipt.fee_token, Some(PATH_USD_ADDRESS));
+    assert_eq!(receipt.fee_token, Some(MAGNUS_USD_ADDRESS));
 
     Ok(())
 }

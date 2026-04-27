@@ -18,7 +18,7 @@ use magnus_contracts::precompiles::{
     IFeeManager, IMIP20, IMIP403Registry,
     ITIPFeeAMM::{self},
 };
-use magnus_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS};
+use magnus_precompiles::{MAGNUS_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, MIP403_REGISTRY_ADDRESS};
 use magnus_primitives::{
     MagnusTransaction, MagnusTxEnvelope,
     transaction::{calc_gas_balance_spending, magnus_transaction::Call},
@@ -37,7 +37,7 @@ async fn test_set_user_token() -> eyre::Result<()> {
 
     // Create test tokens
     let user_token = setup_test_token(provider.clone(), user_address).await?;
-    let validator_token = IMIP20::new(PATH_USD_ADDRESS, &provider);
+    let validator_token = IMIP20::new(MAGNUS_USD_ADDRESS, &provider);
     let fee_manager = IFeeManager::new(TIP_FEE_MANAGER_ADDRESS, provider.clone());
 
     user_token
@@ -171,9 +171,9 @@ async fn test_set_user_token() -> eyre::Result<()> {
 
     assert!(validator_balance_after > validator_balance_before);
 
-    // Ensure that the user can set the fee token back to pathUSD
+    // Ensure that the user can set the fee token back to MagnusUSD
     let set_receipt = fee_manager
-        .setUserToken(PATH_USD_ADDRESS)
+        .setUserToken(MAGNUS_USD_ADDRESS)
         .send()
         .await?
         .get_receipt()
@@ -181,7 +181,7 @@ async fn test_set_user_token() -> eyre::Result<()> {
     assert!(set_receipt.status());
 
     let current_token = fee_manager.userTokens(user_address).call().await?;
-    assert_eq!(current_token, PATH_USD_ADDRESS);
+    assert_eq!(current_token, MAGNUS_USD_ADDRESS);
 
     Ok(())
 }
@@ -204,7 +204,7 @@ async fn test_set_validator_token() -> eyre::Result<()> {
         .validatorTokens(validator_address)
         .call()
         .await?;
-    assert_eq!(initial_token, PATH_USD_ADDRESS);
+    assert_eq!(initial_token, MAGNUS_USD_ADDRESS);
 
     let set_receipt = fee_manager
         .setValidatorToken(*validator_token.address())
@@ -291,7 +291,7 @@ async fn test_fee_token_tx() -> eyre::Result<()> {
         fee_amm
             .mint(
                 *user_token.address(),
-                PATH_USD_ADDRESS,
+                MAGNUS_USD_ADDRESS,
                 U256::from(1e18),
                 signers[1].address(),
             )
@@ -421,7 +421,7 @@ async fn test_fee_payer_transfer_whitelist_post_t1c() -> eyre::Result<()> {
         .wallet(admin.clone())
         .connect_http(setup.http_url.clone());
 
-    // Create a token where admin has DEFAULT_ADMIN_ROLE (unlike PATH_USD whose
+    // Create a token where admin has DEFAULT_ADMIN_ROLE (unlike MAGNUS_USD whose
     // genesis admin is the coinbase address, not the test mnemonic).
     let admin_token = setup_test_token(provider.clone(), admin_addr).await?;
     let token_addr = *admin_token.address();
@@ -440,12 +440,12 @@ async fn test_fee_payer_transfer_whitelist_post_t1c() -> eyre::Result<()> {
         .get_receipt()
         .await?;
 
-    // Provide AMM liquidity so admin_token can be swapped to PATH_USD for fee settlement
+    // Provide AMM liquidity so admin_token can be swapped to MAGNUS_USD for fee settlement
     let fee_amm = ITIPFeeAMM::new(TIP_FEE_MANAGER_ADDRESS, provider.clone());
     fee_amm
         .mint(
             token_addr,
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             U256::from(1e17 as u64),
             admin_addr,
         )

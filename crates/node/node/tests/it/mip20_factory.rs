@@ -6,7 +6,7 @@ use alloy::{
 };
 use magnus_chainspec::spec::MAGNUS_T1_BASE_FEE;
 use magnus_contracts::precompiles::{IMIP20, IMIP20Factory};
-use magnus_precompiles::{PATH_USD_ADDRESS, MIP20_FACTORY_ADDRESS};
+use magnus_precompiles::{MAGNUS_USD_ADDRESS, MIP20_FACTORY_ADDRESS};
 use magnus_primitives::MagnusAddressExt;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -35,7 +35,7 @@ async fn test_create_token() -> eyre::Result<()> {
             "Test".to_string(),
             "TEST".to_string(),
             "USD".to_string(),
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             caller,
             salt,
         )
@@ -102,9 +102,9 @@ async fn test_is_tip20_checks_code_deployment() -> eyre::Result<()> {
         "isTIP20 should return false for address with no deployed code"
     );
 
-    // Verify that a valid MIP20 (PATH_USD) returns true
-    let path_usd_is_tip20 = factory.isTIP20(PATH_USD_ADDRESS).call().await?;
-    assert!(path_usd_is_tip20, "PATH_USD should be a valid MIP20");
+    // Verify that a valid MIP20 (MAGNUS_USD) returns true
+    let magnus_usd_is_tip20 = factory.isTIP20(MAGNUS_USD_ADDRESS).call().await?;
+    assert!(magnus_usd_is_tip20, "MAGNUS_USD should be a valid MIP20");
 
     Ok(())
 }

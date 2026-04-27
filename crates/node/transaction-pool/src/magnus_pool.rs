@@ -34,7 +34,7 @@ use magnus_chainspec::{
     hardfork::{MagnusHardfork, MagnusHardforks},
 };
 use magnus_precompiles::{
-    DEFAULT_FEE_TOKEN, TIP_FEE_MANAGER_ADDRESS,
+    MAGNUS_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS,
     account_keychain::AccountKeychain,
     error::Result as MagnusPrecompileResult,
     storage::Handler,
@@ -250,7 +250,7 @@ where
                     .transaction
                     .inner()
                     .fee_token()
-                    .unwrap_or(magnus_precompiles::DEFAULT_FEE_TOKEN);
+                    .unwrap_or(magnus_precompiles::MAGNUS_USD_ADDRESS);
                 let cost = tx.transaction.fee_token_cost();
 
                 match amm_cache.has_enough_liquidity(user_token, cost, provider) {
@@ -274,7 +274,7 @@ where
                     tx.transaction
                         .inner()
                         .fee_token()
-                        .unwrap_or(DEFAULT_FEE_TOKEN)
+                        .unwrap_or(MAGNUS_USD_ADDRESS)
                 });
                 let Ok(fee_payer) = tx.transaction.inner().fee_payer(tx.transaction.sender())
                 else {
@@ -1281,7 +1281,7 @@ mod tests {
     use magnus_contracts::precompiles::IMIP403Registry;
     use magnus_evm::MagnusEvmConfig;
     use magnus_precompiles::{
-        PATH_USD_ADDRESS,
+        MAGNUS_USD_ADDRESS,
         account_keychain::{AccountKeychain, AuthorizedKey, SpendingLimitState},
         mip20::slots as mip20_slots,
         mip403_registry::{CompoundPolicyData, PolicyData, MIP403Registry},
@@ -1371,7 +1371,7 @@ mod tests {
         let sender = Address::random();
 
         let envelope = crate::test_utils::TxBuilder::aa(sender)
-            .fee_token(PATH_USD_ADDRESS)
+            .fee_token(MAGNUS_USD_ADDRESS)
             .build()
             .inner()
             .clone()
@@ -1408,7 +1408,7 @@ mod tests {
         );
 
         let initial_balance = pooled.fee_token_cost() + U256::from(1_u64);
-        set_fee_token_balance(&provider, PATH_USD_ADDRESS, fee_payer, initial_balance);
+        set_fee_token_balance(&provider, MAGNUS_USD_ADDRESS, fee_payer, initial_balance);
 
         let inner =
             EthTransactionValidatorBuilder::new(provider.clone(), MagnusEvmConfig::mainnet())
@@ -1432,7 +1432,7 @@ mod tests {
         );
         let pool = MagnusTransactionPool::new(protocol_pool, AA2dPool::new(Default::default()));
 
-        pooled.set_resolved_fee_token(PATH_USD_ADDRESS);
+        pooled.set_resolved_fee_token(MAGNUS_USD_ADDRESS);
         let validated = TransactionValidationOutcome::Valid {
             balance: *pooled.cost(),
             state_nonce: pooled.nonce(),
@@ -1449,7 +1449,7 @@ mod tests {
 
         set_fee_token_balance(
             &provider,
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             fee_payer,
             pooled.fee_token_cost() - U256::from(1_u64),
         );
@@ -1457,7 +1457,7 @@ mod tests {
         let mut updates = crate::maintain::MagnusPoolUpdates::new();
         updates
             .fee_balance_changes
-            .entry(PATH_USD_ADDRESS)
+            .entry(MAGNUS_USD_ADDRESS)
             .or_default()
             .insert(fee_payer);
 

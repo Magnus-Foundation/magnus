@@ -28,12 +28,8 @@ pub use validator_config::*;
 pub use validator_config_v2::*;
 
 pub const TIP_FEE_MANAGER_ADDRESS: Address = address!("0xfeec000000000000000000000000000000000000");
-pub const PATH_USD_ADDRESS: Address = address!("0x20C0000000000000000000000000000000000000");
 /// Magnus Foundation-issued USD anchor.
 pub const MAGNUS_USD_ADDRESS: Address = address!("0x20C0000000000000000000000000000000000010");
-/// Test/scaffolding fee-token alias. Production fee-token resolution at T4
-/// goes through tx.fee_token, MIP-20 inference, then the router registry.
-pub const DEFAULT_FEE_TOKEN: Address = MAGNUS_USD_ADDRESS;
 pub const MIP403_REGISTRY_ADDRESS: Address = address!("0x403C000000000000000000000000000000000000");
 pub const MIP20_FACTORY_ADDRESS: Address = address!("0x20FC000000000000000000000000000000000000");
 /// Per-currency issuer allowlist; introduced in T4.

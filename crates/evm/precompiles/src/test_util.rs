@@ -3,7 +3,7 @@
 #[cfg(any(test, feature = "test-utils"))]
 use crate::error::MagnusPrecompileError;
 use crate::{
-    PATH_USD_ADDRESS, Precompile, Result,
+    MAGNUS_USD_ADDRESS, Precompile, Result,
     address_registry::{AddressRegistry, IAddressRegistry},
     mip_fee_manager,
     storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
@@ -97,8 +97,8 @@ pub fn setup_storage() -> (HashMapStorageProvider, Address) {
 #[cfg(any(test, feature = "test-utils"))]
 enum Action {
     #[default]
-    /// Ensure pathUSD (token 0) is deployed and configure it.
-    PathUSD,
+    /// Ensure MagnusUSD (token 0) is deployed and configure it.
+    MagnusUSD,
 
     /// Create and configure a new token using the MIP20Factory.
     CreateToken {
@@ -112,14 +112,14 @@ enum Action {
 
 /// Helper for MIP20 token setup in tests.
 ///
-/// Supports creating new tokens, configuring pathUSD, or modifying existing tokens.
+/// Supports creating new tokens, configuring MagnusUSD, or modifying existing tokens.
 /// Uses a chainable API for role grants, minting, approvals, and rewards.
 ///
 /// # Examples
 ///
 /// ```ignore
-/// // Initialize and configure pathUSD
-/// MIP20Setup::path_usd(admin)
+/// // Initialize and configure MagnusUSD
+/// MIP20Setup::magnus_usd(admin)
 ///     .with_issuer(admin)
 ///     .apply()?;
 ///
@@ -150,18 +150,18 @@ pub struct MIP20Setup {
 
 #[cfg(any(test, feature = "test-utils"))]
 impl MIP20Setup {
-    /// Configure pathUSD (token 0).
-    pub fn path_usd(admin: Address) -> Self {
+    /// Configure MagnusUSD (token 0).
+    pub fn magnus_usd(admin: Address) -> Self {
         Self {
-            action: Action::PathUSD,
+            action: Action::MagnusUSD,
             admin: Some(admin),
             ..Default::default()
         }
     }
 
-    /// Create a new token via factory. Ensures that `pathUSD` and `MIP20Factory` are initialized.
+    /// Create a new token via factory. Ensures that `MagnusUSD` and `MIP20Factory` are initialized.
     ///
-    /// Defaults to `currency: "USD"`, `quote_token: pathUSD`
+    /// Defaults to `currency: "USD"`, `quote_token: MagnusUSD`
     pub fn create(name: &'static str, symbol: &'static str, admin: Address) -> Self {
         Self {
             action: Action::CreateToken {
@@ -202,7 +202,7 @@ impl MIP20Setup {
         self
     }
 
-    /// Set a custom quote token (default: pathUSD).
+    /// Set a custom quote token (default: MagnusUSD).
     pub fn quote_token(mut self, token: Address) -> Self {
         self.quote_token = Some(token);
         self
@@ -257,26 +257,26 @@ impl MIP20Setup {
         self
     }
 
-    /// Initialize pathUSD if needed and return it.
-    fn path_usd_inner(&self) -> Result<MIP20Token> {
-        if is_initialized(PATH_USD_ADDRESS)? {
-            return MIP20Token::from_address(PATH_USD_ADDRESS);
+    /// Initialize MagnusUSD if needed and return it.
+    fn magnus_usd_inner(&self) -> Result<MIP20Token> {
+        if is_initialized(MAGNUS_USD_ADDRESS)? {
+            return MIP20Token::from_address(MAGNUS_USD_ADDRESS);
         }
 
         let admin = self
             .admin
-            .expect("pathUSD is uninitialized and requires an admin");
+            .expect("MagnusUSD is uninitialized and requires an admin");
 
         Self::factory()?.create_token_reserved_address(
-            PATH_USD_ADDRESS,
-            "pathUSD",
-            "pathUSD",
+            MAGNUS_USD_ADDRESS,
+            "MagnusUSD",
+            "mUSD",
             "USD",
             Address::ZERO,
             admin,
         )?;
 
-        MIP20Token::from_address(PATH_USD_ADDRESS)
+        MIP20Token::from_address(MAGNUS_USD_ADDRESS)
     }
 
     /// Returns the [`MIP20Factory`], initializing it if not yet deployed.
@@ -327,20 +327,20 @@ impl MIP20Setup {
     /// Applies the configuration and returns the fully configured [`MIP20Token`].
     pub fn apply(self) -> Result<MIP20Token> {
         let mut token = match self.action.clone() {
-            Action::PathUSD => self.path_usd_inner()?,
+            Action::MagnusUSD => self.magnus_usd_inner()?,
             Action::CreateToken {
                 name,
                 symbol,
                 currency,
             } => {
                 let mut factory = Self::factory()?;
-                self.path_usd_inner()?;
+                self.magnus_usd_inner()?;
 
                 let admin = self.admin.expect("initializing a token requires an admin");
-                // Default quote: pathUSD for USD tokens, address(0) (first-of-currency) otherwise.
+                // Default quote: MagnusUSD for USD tokens, address(0) (first-of-currency) otherwise.
                 let quote = self.quote_token.unwrap_or_else(|| {
                     if currency == "USD" {
-                        PATH_USD_ADDRESS
+                        MAGNUS_USD_ADDRESS
                     } else {
                         Address::ZERO
                     }

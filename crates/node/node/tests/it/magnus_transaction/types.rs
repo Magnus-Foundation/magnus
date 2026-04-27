@@ -199,7 +199,7 @@ pub(crate) enum AuthChainId {
 /// Spending limits for an access key.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) enum SpendingLimits {
-    /// Default 100-token limit on DEFAULT_FEE_TOKEN.
+    /// Default 100-token limit on MAGNUS_USD_ADDRESS.
     #[default]
     Default,
     /// No limits at all (limits: None in KeyAuthorization).

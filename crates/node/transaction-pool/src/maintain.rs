@@ -1019,7 +1019,7 @@ mod tests {
 
         #[test]
         fn extracts_fee_balance_changes_from_tip20_transfer_logs() {
-            let fee_token = magnus_precompiles::PATH_USD_ADDRESS;
+            let fee_token = magnus_precompiles::MAGNUS_USD_ADDRESS;
             let from = Address::random();
             let to = Address::random();
             let amount = U256::from(42_u64);
@@ -1050,7 +1050,7 @@ mod tests {
         /// TransferPolicyUpdate events are parsed from MIP20 token logs.
         #[test]
         fn extracts_transfer_policy_updates() {
-            let fee_token = magnus_precompiles::PATH_USD_ADDRESS;
+            let fee_token = magnus_precompiles::MAGNUS_USD_ADDRESS;
             let updater = Address::random();
             let new_policy_id = 42u64;
             let log_data = IMIP20::TransferPolicyUpdate {
@@ -1080,7 +1080,7 @@ mod tests {
         /// Duplicate TransferPolicyUpdate events for the same token are deduplicated.
         #[test]
         fn transfer_policy_updates_deduplicates_by_token() {
-            let fee_token = magnus_precompiles::PATH_USD_ADDRESS;
+            let fee_token = magnus_precompiles::MAGNUS_USD_ADDRESS;
 
             let log_data_1 = IMIP20::TransferPolicyUpdate {
                 updater: Address::random(),

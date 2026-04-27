@@ -785,7 +785,7 @@ async fn test_tip20_rewards() -> eyre::Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_tip20_pause_blocks_fee_collection() -> eyre::Result<()> {
     use magnus_contracts::precompiles::{IFeeManager, IRolesAuth, ITIPFeeAMM};
-    use magnus_precompiles::{PATH_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, mip20::PAUSE_ROLE};
+    use magnus_precompiles::{MAGNUS_USD_ADDRESS, TIP_FEE_MANAGER_ADDRESS, mip20::PAUSE_ROLE};
 
     reth_tracing::init_test_tracing();
 
@@ -829,7 +829,7 @@ async fn test_tip20_pause_blocks_fee_collection() -> eyre::Result<()> {
     // Add liquidity to the AMM pool so the token can be used for fees
     let fee_amm = ITIPFeeAMM::new(TIP_FEE_MANAGER_ADDRESS, admin_provider.clone());
     fee_amm
-        .mint(*token.address(), PATH_USD_ADDRESS, U256::from(1e18), admin)
+        .mint(*token.address(), MAGNUS_USD_ADDRESS, U256::from(1e18), admin)
         .gas(gas)
         .gas_price(gas_price)
         .send()

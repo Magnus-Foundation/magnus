@@ -51,8 +51,8 @@ use revm::{
 };
 
 pub use magnus_contracts::precompiles::{
-    ACCOUNT_KEYCHAIN_ADDRESS, ADDRESS_REGISTRY_ADDRESS, DEFAULT_FEE_TOKEN, MAGNUS_USD_ADDRESS,
-    NONCE_PRECOMPILE_ADDRESS, PATH_USD_ADDRESS, SIGNATURE_VERIFIER_ADDRESS, STABLECOIN_DEX_ADDRESS,
+    ACCOUNT_KEYCHAIN_ADDRESS, ADDRESS_REGISTRY_ADDRESS, MAGNUS_USD_ADDRESS,
+    NONCE_PRECOMPILE_ADDRESS, SIGNATURE_VERIFIER_ADDRESS, STABLECOIN_DEX_ADDRESS,
     TIP_FEE_MANAGER_ADDRESS, MIP20_FACTORY_ADDRESS, MIP20_ISSUER_REGISTRY_ADDRESS,
     MIP403_REGISTRY_ADDRESS, VALIDATOR_CONFIG_ADDRESS, VALIDATOR_CONFIG_V2_ADDRESS,
 };
@@ -467,7 +467,7 @@ mod tests {
     fn test_precompile_delegatecall() {
         let cfg = CfgEnv::<MagnusHardfork>::default();
         let precompile = magnus_precompile!("MIP20Token", &cfg, |input| {
-            MIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
+            MIP20Token::from_address(MAGNUS_USD_ADDRESS).expect("MAGNUS_USD_ADDRESS is valid")
         });
 
         let db = CacheDB::new(EmptyDB::new());
@@ -507,10 +507,10 @@ mod tests {
         let cfg = CfgEnv::<MagnusHardfork>::default();
         let tx = TxEnv::default();
         let precompile = magnus_precompile!("MIP20Token", &cfg, |input| {
-            MIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
+            MIP20Token::from_address(MAGNUS_USD_ADDRESS).expect("MAGNUS_USD_ADDRESS is valid")
         });
 
-        let token_address = PATH_USD_ADDRESS;
+        let token_address = MAGNUS_USD_ADDRESS;
 
         let call_static = |calldata: Bytes| {
             let mut db = CacheDB::new(EmptyDB::new());
@@ -585,12 +585,12 @@ mod tests {
             cfg.set_spec_and_mainnet_gas_params(spec);
             let tx = TxEnv::default();
             let precompile = magnus_precompile!("MIP20Token", &cfg, |input| {
-                MIP20Token::from_address(PATH_USD_ADDRESS).expect("PATH_USD_ADDRESS is valid")
+                MIP20Token::from_address(MAGNUS_USD_ADDRESS).expect("MAGNUS_USD_ADDRESS is valid")
             });
 
             let mut db = CacheDB::new(EmptyDB::new());
             db.insert_account_info(
-                PATH_USD_ADDRESS,
+                MAGNUS_USD_ADDRESS,
                 AccountInfo {
                     code: Some(Bytecode::new_raw(bytes!("0xEF"))),
                     ..Default::default()
@@ -607,8 +607,8 @@ mod tests {
                 gas: 1_000_000,
                 is_static: false,
                 value: U256::ZERO,
-                target_address: PATH_USD_ADDRESS,
-                bytecode_address: PATH_USD_ADDRESS,
+                target_address: MAGNUS_USD_ADDRESS,
+                bytecode_address: MAGNUS_USD_ADDRESS,
                 reservoir: 0,
             };
 
@@ -815,7 +815,7 @@ mod tests {
         );
 
         // MIP20 tokens with prefix should be registered
-        let mip20_precompile = precompiles.get(&PATH_USD_ADDRESS);
+        let mip20_precompile = precompiles.get(&MAGNUS_USD_ADDRESS);
         assert!(
             mip20_precompile.is_some(),
             "MIP20 tokens should be registered"
@@ -881,7 +881,7 @@ mod tests {
     fn test_issuer_registry_address_does_not_collide() {
         let other_addresses = [
             TIP_FEE_MANAGER_ADDRESS,
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             MIP403_REGISTRY_ADDRESS,
             MIP20_FACTORY_ADDRESS,
             STABLECOIN_DEX_ADDRESS,

@@ -188,13 +188,13 @@ impl MIP20Factory {
     }
 
     /// Deploys a MIP-20 token at a reserved address (lower 8 bytes < `RESERVED_SIZE`). Used
-    /// during genesis or hardforks to bootstrap protocol tokens like pathUSD.
+    /// during genesis or hardforks to bootstrap protocol tokens like MagnusUSD.
     ///
     /// # Errors
     /// - `InvalidToken` — `address` does not have the MIP-20 prefix
     /// - `TokenAlreadyExists` — a MIP-20 is already deployed at `address`
     /// - `InvalidQuoteToken` — quote token is invalid, not deployed, or has incompatible
-    ///   currency; pathUSD must use `Address::ZERO` as quote token
+    ///   currency; MagnusUSD must use `Address::ZERO` as quote token
     /// - `AddressNotReserved` — the address is outside the reserved range
     pub fn create_token_reserved_address(
         &mut self,
@@ -262,7 +262,7 @@ impl MIP20Factory {
 mod tests {
     use super::*;
     use crate::{
-        PATH_USD_ADDRESS,
+        MAGNUS_USD_ADDRESS,
         error::MagnusPrecompileError,
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
         test_util::MIP20Setup,
@@ -297,13 +297,13 @@ mod tests {
         let sender = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            // Initialize pathUSD
-            let _path_usd = MIP20Setup::path_usd(sender).apply()?;
+            // Initialize MagnusUSD
+            let _magnus_usd = MIP20Setup::magnus_usd(sender).apply()?;
 
             let factory = MIP20Factory::new();
 
-            // PATH_USD should be valid (has code deployed)
-            assert!(factory.is_tip20(PATH_USD_ADDRESS)?);
+            // MAGNUS_USD should be valid (has code deployed)
+            assert!(factory.is_tip20(MAGNUS_USD_ADDRESS)?);
 
             // Address with MIP20 prefix but no code should be invalid
             let no_code_tip20 = address!("20C0000000000000000000000000000000000002");
@@ -381,7 +381,7 @@ mod tests {
         let sender = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut factory = MIP20Setup::factory()?;
-            let path_usd = MIP20Setup::path_usd(sender).apply()?;
+            let magnus_usd = MIP20Setup::magnus_usd(sender).apply()?;
             factory.clear_emitted_events();
 
             let salt1 = B256::random();
@@ -390,7 +390,7 @@ mod tests {
                 name: "Test Token 1".to_string(),
                 symbol: "TEST1".to_string(),
                 currency: "USD".to_string(),
-                quoteToken: path_usd.address(),
+                quoteToken: magnus_usd.address(),
                 admin: sender,
                 salt: salt1,
             };
@@ -398,7 +398,7 @@ mod tests {
                 name: "Test Token 2".to_string(),
                 symbol: "TEST2".to_string(),
                 currency: "USD".to_string(),
-                quoteToken: path_usd.address(),
+                quoteToken: magnus_usd.address(),
                 admin: sender,
                 salt: salt2,
             };
@@ -449,7 +449,7 @@ mod tests {
         let sender = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut factory = MIP20Setup::factory()?;
-            MIP20Setup::path_usd(sender).apply()?;
+            MIP20Setup::magnus_usd(sender).apply()?;
 
             let invalid_call = IMIP20Factory::createTokenCall {
                 name: "Test Token".to_string(),
@@ -475,7 +475,7 @@ mod tests {
         let sender = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut factory = MIP20Setup::factory()?;
-            let _path_usd = MIP20Setup::path_usd(sender).apply()?;
+            let _magnus_usd = MIP20Setup::magnus_usd(sender).apply()?;
             let eur_token = MIP20Setup::create("EUR Token", "EUR", sender)
                 .currency("EUR")
                 .apply()?;
@@ -504,7 +504,7 @@ mod tests {
         let sender = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut factory = MIP20Setup::factory()?;
-            MIP20Setup::path_usd(sender).apply()?;
+            MIP20Setup::magnus_usd(sender).apply()?;
 
             // Create an address with MIP20 prefix but no code
             let non_existent_tip20 =
@@ -533,14 +533,14 @@ mod tests {
         let sender = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut factory = MIP20Setup::factory()?;
-            MIP20Setup::path_usd(sender).apply()?;
+            MIP20Setup::magnus_usd(sender).apply()?;
 
             let salt = B256::random();
             let create_token_call = IMIP20Factory::createTokenCall {
                 name: "Test Token".to_string(),
                 symbol: "TEST".to_string(),
                 currency: "USD".to_string(),
-                quoteToken: PATH_USD_ADDRESS,
+                quoteToken: MAGNUS_USD_ADDRESS,
                 admin: sender,
                 salt,
             };
@@ -595,18 +595,18 @@ mod tests {
             factory.initialize()?;
 
             factory.create_token_reserved_address(
-                PATH_USD_ADDRESS,
-                "pathUSD",
-                "pathUSD",
+                MAGNUS_USD_ADDRESS,
+                "MagnusUSD",
+                "MagnusUSD",
                 "USD",
                 Address::ZERO,
                 admin,
             )?;
 
             let result = factory.create_token_reserved_address(
-                PATH_USD_ADDRESS,
-                "pathUSD",
-                "pathUSD",
+                MAGNUS_USD_ADDRESS,
+                "MagnusUSD",
+                "MagnusUSD",
                 "USD",
                 Address::ZERO,
                 admin,
@@ -615,7 +615,7 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 MagnusPrecompileError::MIP20Factory(MIP20FactoryError::token_already_exists(
-                    PATH_USD_ADDRESS
+                    MAGNUS_USD_ADDRESS
                 ))
             );
 
@@ -660,7 +660,7 @@ mod tests {
         let admin = Address::random();
 
         StorageCtx::enter(&mut storage, || {
-            let _path_usd = MIP20Setup::path_usd(admin).apply()?;
+            let _magnus_usd = MIP20Setup::magnus_usd(admin).apply()?;
             let mut factory = MIP20Factory::new();
 
             // 0x9999 = 39321 > 1024 (RESERVED_SIZE)
@@ -671,7 +671,7 @@ mod tests {
                 "Test",
                 "TST",
                 "USD",
-                PATH_USD_ADDRESS,
+                MAGNUS_USD_ADDRESS,
                 admin,
             );
 
@@ -693,11 +693,11 @@ mod tests {
             let mut factory = MIP20Factory::new();
             factory.initialize()?;
 
-            // Try to create PATH_USD with a non-deployed MIP20 as quote_token
+            // Try to create MAGNUS_USD with a non-deployed MIP20 as quote_token
             let result = factory.create_token_reserved_address(
-                PATH_USD_ADDRESS,
-                "pathUSD",
-                "pathUSD",
+                MAGNUS_USD_ADDRESS,
+                "MagnusUSD",
+                "MagnusUSD",
                 "USD",
                 address!("20C0000000000000000000000000000000000001"),
                 admin,
@@ -709,11 +709,11 @@ mod tests {
                 )))
             ));
 
-            // Only possible to deploy PATH_USD (the first token) without a quote token
+            // Only possible to deploy MAGNUS_USD (the first token) without a quote token
             factory.create_token_reserved_address(
-                PATH_USD_ADDRESS,
-                "pathUSD",
-                "pathUSD",
+                MAGNUS_USD_ADDRESS,
+                "MagnusUSD",
+                "MagnusUSD",
                 "USD",
                 Address::ZERO,
                 admin,
@@ -752,7 +752,7 @@ mod tests {
         let sender = Address::random();
         StorageCtx::enter(&mut storage, || {
             let mut factory = MIP20Setup::factory()?;
-            let usd = MIP20Setup::path_usd(sender).apply()?;
+            let usd = MIP20Setup::magnus_usd(sender).apply()?;
             // VND-currency token with USD quote should fail.
             let result = factory.create_token(
                 sender,
@@ -932,18 +932,18 @@ mod tests {
                 "Non-MIP20 address should return false"
             );
 
-            // PATH_USD before deployment should return false (no code)
+            // MAGNUS_USD before deployment should return false (no code)
             assert!(
-                !factory.is_tip20(PATH_USD_ADDRESS)?,
+                !factory.is_tip20(MAGNUS_USD_ADDRESS)?,
                 "Undeployed MIP20 should return false"
             );
 
-            // Deploy pathUSD
-            MIP20Setup::path_usd(admin).apply()?;
+            // Deploy MagnusUSD
+            MIP20Setup::magnus_usd(admin).apply()?;
 
-            // Now PATH_USD should return true
+            // Now MAGNUS_USD should return true
             assert!(
-                factory.is_tip20(PATH_USD_ADDRESS)?,
+                factory.is_tip20(MAGNUS_USD_ADDRESS)?,
                 "Deployed MIP20 should return true"
             );
 

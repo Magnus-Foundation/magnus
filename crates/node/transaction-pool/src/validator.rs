@@ -662,7 +662,7 @@ mod tests {
     use std::sync::Arc;
     use magnus_chainspec::spec::{MODERATO, MAGNUS_T0_BASE_FEE, MAGNUS_T1_TX_GAS_LIMIT_CAP};
     use magnus_precompiles::{
-        PATH_USD_ADDRESS,
+        MAGNUS_USD_ADDRESS,
         mip20::{MIP20Token, slots as mip20_slots},
     };
     use magnus_primitives::{
@@ -738,7 +738,7 @@ mod tests {
         };
         provider.add_block(B256::random(), block_with_gas);
 
-        // Setup PATH_USD as a valid fee token with USD currency and always-allow transfer policy
+        // Setup MAGNUS_USD as a valid fee token with USD currency and always-allow transfer policy
         // USD_CURRENCY_SLOT_VALUE: "USD" left-padded with length marker (3 bytes * 2 = 6)
         let usd_currency_value =
             uint!(0x5553440000000000000000000000000000000000000000000000000000000006_U256);
@@ -746,15 +746,15 @@ mod tests {
         // policy_id=1 left by 160 bits (20 * 8) to position it correctly
         let transfer_policy_id_packed =
             uint!(0x0000000000000000000000010000000000000000000000000000000000000000_U256);
-        // Compute the balance slot for the sender in the PATH_USD token
-        let balance_slot = MIP20Token::from_address(PATH_USD_ADDRESS)
-            .expect("PATH_USD_ADDRESS is a valid MIP20 token")
+        // Compute the balance slot for the sender in the MAGNUS_USD token
+        let balance_slot = MIP20Token::from_address(MAGNUS_USD_ADDRESS)
+            .expect("MAGNUS_USD_ADDRESS is a valid MIP20 token")
             .balances[transaction.sender()]
         .slot();
         // Give the sender enough balance to cover the transaction cost
         let fee_payer_balance = U256::from(1_000_000_000_000u64); // 1M USD in 6 decimals
         provider.add_account(
-            PATH_USD_ADDRESS,
+            MAGNUS_USD_ADDRESS,
             ExtendedAccount::new(0, U256::ZERO).extend_storage([
                 (mip20_slots::CURRENCY.into(), usd_currency_value),
                 (
@@ -817,7 +817,7 @@ mod tests {
         );
 
         let transaction = TxBuilder::aa(Address::random())
-            .fee_token(PATH_USD_ADDRESS)
+            .fee_token(MAGNUS_USD_ADDRESS)
             .authorization_list(vec![magnus_authorization])
             .build();
         let validator = setup_validator(&transaction, current_time);
@@ -914,7 +914,7 @@ mod tests {
             calls,
             nonce_key: U256::ZERO,
             nonce: 0,
-            fee_token: Some(PATH_USD_ADDRESS),
+            fee_token: Some(MAGNUS_USD_ADDRESS),
             fee_payer_signature: Some(Signature::new(U256::ZERO, U256::ZERO, false)),
             ..Default::default()
         };
@@ -965,7 +965,7 @@ mod tests {
             }],
             nonce_key: U256::ZERO,
             nonce: 0,
-            fee_token: Some(PATH_USD_ADDRESS),
+            fee_token: Some(MAGNUS_USD_ADDRESS),
             fee_payer_signature: Some(Signature::new(U256::ZERO, U256::ZERO, false)),
             ..Default::default()
         };
