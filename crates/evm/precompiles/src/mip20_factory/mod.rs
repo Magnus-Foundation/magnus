@@ -8,9 +8,9 @@ pub use magnus_contracts::precompiles::{IMIP20Factory, MIP20FactoryError, MIP20F
 use magnus_precompiles_macros::contract;
 
 use crate::{
-    PATH_USD_ADDRESS, MIP20_FACTORY_ADDRESS,
+    MIP20_FACTORY_ADDRESS,
     error::{Result, MagnusPrecompileError},
-    mip20::{MIP20Error, MIP20Token, USD_CURRENCY},
+    mip20::{MIP20Error, MIP20Token},
 };
 use alloy::{
     primitives::{Address, B256, keccak256},
@@ -131,16 +131,15 @@ impl MIP20Factory {
             ));
         }
 
-        // Ensure that the quote token is a valid MIP20 that is currently deployed.
-        if !self.is_tip20(call.quoteToken)? {
-            return Err(MIP20Error::invalid_quote_token().into());
-        }
-
-        // If token is USD, its quote token must also be USD
-        if call.currency == USD_CURRENCY
-            && MIP20Token::from_address(call.quoteToken)?.currency()? != USD_CURRENCY
-        {
-            return Err(MIP20Error::invalid_quote_token().into());
+        // quote_token may be zero (first-of-currency anchor) or a deployed MIP-20.
+        if !call.quoteToken.is_zero() {
+            if !self.is_tip20(call.quoteToken)? {
+                return Err(MIP20Error::invalid_quote_token().into());
+            }
+            // Currency must match the quote token's currency.
+            if MIP20Token::from_address(call.quoteToken)?.currency()? != call.currency {
+                return Err(MIP20Error::invalid_quote_token().into());
+            }
         }
 
         // Check if address is in reserved range
@@ -204,17 +203,13 @@ impl MIP20Factory {
             ));
         }
 
-        // quote_token must be address(0) or a valid MIP20
+        // quote_token may be zero (first-of-currency anchor) or a deployed MIP-20.
         if !quote_token.is_zero() {
-            // pathUSD must set address(0) as the quote token
-            // or the mip20 must be a valid deployed token
-            if address == PATH_USD_ADDRESS || !self.is_tip20(quote_token)? {
+            if !self.is_tip20(quote_token)? {
                 return Err(MIP20Error::invalid_quote_token().into());
             }
-            // If token is USD, its quote token must also be USD
-            if currency == USD_CURRENCY
-                && MIP20Token::from_address(quote_token)?.currency()? != USD_CURRENCY
-            {
+            // Currency must match the quote token's currency.
+            if MIP20Token::from_address(quote_token)?.currency()? != currency {
                 return Err(MIP20Error::invalid_quote_token().into());
             }
         }
@@ -715,7 +710,57 @@ mod tests {
     }
 
     #[test]
-    fn test_path_usd_requires_zero_quote_token() -> eyre::Result<()> {
+    fn test_create_token_accepts_zero_quote_first_of_currency() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let sender = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut factory = MIP20Setup::factory()?;
+            // No prior anchor for VND. Public create_token with quote=0 should succeed.
+            let result = factory.create_token(
+                sender,
+                IMIP20Factory::createTokenCall {
+                    name: "VietNam Dong".into(),
+                    symbol: "VND".into(),
+                    currency: "VND".into(),
+                    quoteToken: Address::ZERO,
+                    admin: sender,
+                    salt: B256::random(),
+                },
+            )?;
+            assert!(MIP20Token::from_address(result)?.is_initialized()?);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn test_create_token_rejects_currency_mismatch_with_quote() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let sender = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut factory = MIP20Setup::factory()?;
+            let usd = MIP20Setup::path_usd(sender).apply()?;
+            // VND-currency token with USD quote should fail.
+            let result = factory.create_token(
+                sender,
+                IMIP20Factory::createTokenCall {
+                    name: "VietNam Dong".into(),
+                    symbol: "VND".into(),
+                    currency: "VND".into(),
+                    quoteToken: usd.address(),
+                    admin: sender,
+                    salt: B256::random(),
+                },
+            );
+            assert_eq!(
+                result.unwrap_err(),
+                MagnusPrecompileError::MIP20(MIP20Error::invalid_quote_token())
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn test_reserved_address_accepts_zero_or_matching_currency_quote() -> eyre::Result<()> {
         let mut storage = HashMapStorageProvider::new(1);
         let admin = Address::random();
 
@@ -723,7 +768,8 @@ mod tests {
             let mut factory = MIP20Factory::new();
             factory.initialize()?;
 
-            let other_usd = factory.create_token_reserved_address(
+            // First-of-currency: zero quote is accepted.
+            let anchor = factory.create_token_reserved_address(
                 address!("20C0000000000000000000000000000000000001"),
                 "testUSD",
                 "testUSD",
@@ -731,32 +777,18 @@ mod tests {
                 Address::ZERO,
                 admin,
             )?;
+            assert!(MIP20Token::from_address(anchor)?.is_initialized()?);
 
-            let result = factory.create_token_reserved_address(
-                PATH_USD_ADDRESS,
-                "pathUSD",
-                "pathUSD",
+            // Subsequent same-currency deploy may quote against the anchor.
+            let second = factory.create_token_reserved_address(
+                address!("20C0000000000000000000000000000000000002"),
+                "anotherUSD",
+                "anotherUSD",
                 "USD",
-                other_usd,
-                admin,
-            );
-            assert!(matches!(
-                result,
-                Err(MagnusPrecompileError::MIP20(MIP20Error::InvalidQuoteToken(
-                    _
-                )))
-            ));
-
-            factory.create_token_reserved_address(
-                PATH_USD_ADDRESS,
-                "pathUSD",
-                "pathUSD",
-                "USD",
-                Address::ZERO,
+                anchor,
                 admin,
             )?;
-
-            assert!(MIP20Token::from_address(PATH_USD_ADDRESS)?.is_initialized()?);
+            assert!(MIP20Token::from_address(second)?.is_initialized()?);
 
             Ok(())
         })

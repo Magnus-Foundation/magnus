@@ -337,7 +337,14 @@ impl MIP20Setup {
                 self.path_usd_inner()?;
 
                 let admin = self.admin.expect("initializing a token requires an admin");
-                let quote = self.quote_token.unwrap_or(PATH_USD_ADDRESS);
+                // Default quote: pathUSD for USD tokens, address(0) (first-of-currency) otherwise.
+                let quote = self.quote_token.unwrap_or_else(|| {
+                    if currency == "USD" {
+                        PATH_USD_ADDRESS
+                    } else {
+                        Address::ZERO
+                    }
+                });
                 let salt = self.salt.unwrap_or_else(B256::random);
 
                 // Under T4 the factory gates on IssuerRegistry. Auto-bootstrap the registry

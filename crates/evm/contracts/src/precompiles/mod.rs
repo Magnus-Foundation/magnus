@@ -29,6 +29,8 @@ pub use validator_config_v2::*;
 
 pub const TIP_FEE_MANAGER_ADDRESS: Address = address!("0xfeec000000000000000000000000000000000000");
 pub const PATH_USD_ADDRESS: Address = address!("0x20C0000000000000000000000000000000000000");
+/// Magnus Foundation-issued USD anchor; replaces the inherited `pathUSD` slot at T4.
+pub const MAGNUS_USD_ADDRESS: Address = address!("0x20C0000000000000000000000000000000000010");
 pub const DEFAULT_FEE_TOKEN: Address = PATH_USD_ADDRESS;
 pub const MIP403_REGISTRY_ADDRESS: Address = address!("0x403C000000000000000000000000000000000000");
 pub const MIP20_FACTORY_ADDRESS: Address = address!("0x20FC000000000000000000000000000000000000");

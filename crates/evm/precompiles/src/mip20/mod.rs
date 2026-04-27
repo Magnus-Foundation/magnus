@@ -2200,31 +2200,24 @@ pub(crate) mod tests {
         StorageCtx::enter(&mut storage, || {
             let usd_token1 = MIP20Setup::create("USD Token", "USDT", admin).apply()?;
 
-            // USD token with USD token as quote
-            let _usd_token2 = MIP20Setup::create("USD Token", "USDT", admin)
+            // USD token with USD token as quote.
+            let _usd_token2 = MIP20Setup::create("USD Token 2", "USD2", admin)
                 .quote_token(usd_token1.address)
                 .apply()?;
 
-            // Create non USD token
+            // Same-currency anchor + child for a non-USD currency.
             let currency_1: String = thread_rng()
                 .sample_iter(&Alphanumeric)
                 .take(31)
                 .map(char::from)
                 .collect();
 
-            let token_1 = MIP20Setup::create("USD Token", "USDT", admin)
-                .currency(currency_1)
+            let token_1 = MIP20Setup::create("Foreign 1", "F1", admin)
+                .currency(currency_1.clone())
                 .apply()?;
 
-            // Create a non USD token with non USD quote token
-            let currency_2: String = thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(31)
-                .map(char::from)
-                .collect();
-
-            let _token_2 = MIP20Setup::create("USD Token", "USDT", admin)
-                .currency(currency_2)
+            let _token_2 = MIP20Setup::create("Foreign 2", "F2", admin)
+                .currency(currency_1)
                 .quote_token(token_1.address)
                 .apply()?;
 
