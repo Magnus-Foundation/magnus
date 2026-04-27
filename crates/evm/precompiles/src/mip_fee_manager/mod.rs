@@ -203,12 +203,13 @@ impl MipFeeManager {
 
     /// Finalizes fee collection after transaction execution.
     ///
-    /// Refunds unused `user_token` to `fee_payer` via [`MIP20Token`], executes the fee swap
-    /// through the AMM pool if tokens differ, and accumulates fees for the validator.
+    /// T4+: validator must have `fee_token` in its accept-set; direct-credit only,
+    /// no AMM swap. Pre-T4: legacy single-token preference + AMM swap fallback.
     ///
     /// # Errors
     /// - `InvalidToken` — `fee_token` does not have a valid MIP-20 prefix
-    /// - `InsufficientLiquidity` — AMM pool lacks liquidity for the fee swap
+    /// - `FeeTokenNotAccepted` (T4+) — validator's accept-set does not include `fee_token`
+    /// - `InsufficientLiquidity` (pre-T4) — AMM pool lacks liquidity for the fee swap
     /// - `UnderOverflow` — collected-fee accumulator overflows
     pub fn collect_fee_post_tx(
         &mut self,
@@ -218,15 +219,17 @@ impl MipFeeManager {
         fee_token: Address,
         beneficiary: Address,
     ) -> Result<()> {
-        // Refund unused tokens to user
         let mut mip20_token = MIP20Token::from_address(fee_token)?;
         mip20_token.transfer_fee_post_tx(fee_payer, refund_amount, actual_spending)?;
 
-        // Execute fee swap and track collected fees
+        if self.storage.spec().is_t4() {
+            return self.settle_fee_t4(beneficiary, fee_token, actual_spending);
+        }
+
+        // Legacy pre-T4 path: AMM swap when user/validator tokens differ.
         let validator_token = self.get_validator_token(beneficiary)?;
 
         if fee_token != validator_token && !actual_spending.is_zero() {
-            // Execute fee swap immediately and accumulate fees
             self.execute_fee_swap(fee_token, validator_token, actual_spending)?;
         }
 
@@ -237,7 +240,21 @@ impl MipFeeManager {
         };
 
         self.increment_collected_fees(beneficiary, validator_token, amount)?;
+        Ok(())
+    }
 
+    /// T4+ fee settlement: direct-credit if validator accepts `fee_token`, else revert.
+    /// No AMM swap, no currency conversion.
+    fn settle_fee_t4(
+        &mut self,
+        beneficiary: Address,
+        fee_token: Address,
+        actual_spending: U256,
+    ) -> Result<()> {
+        if !self.accepts_token(beneficiary, fee_token)? {
+            return Err(FeeManagerError::fee_token_not_accepted(beneficiary, fee_token).into());
+        }
+        self.increment_collected_fees(beneficiary, fee_token, actual_spending)?;
         Ok(())
     }
 
@@ -1177,6 +1194,7 @@ mod currency_registry_tests {
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
         test_util::MIP20Setup,
     };
+    use magnus_chainspec::hardfork::MagnusHardfork;
 
     fn fee_manager_with_admin(admin: Address) -> Result<MipFeeManager> {
         let mut fee_manager = MipFeeManager::new();
@@ -1766,6 +1784,69 @@ mod currency_registry_tests {
 
             assert_eq!(fm.get_accepted_tokens(v1)?.len(), 2);
             assert_eq!(fm.get_accepted_tokens(v2)?.len(), 1);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn t4_settle_fee_direct_credits_when_validator_accepts() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T4);
+        let admin = Address::random();
+        let validator = Address::random();
+        let fee_payer = Address::random();
+        let beneficiary_other = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+            fm.add_accepted_token(validator, token.address(), beneficiary_other)?;
+
+            // T4 path: validator accepts USDC -> direct credit.
+            fm.collect_fee_post_tx(
+                fee_payer,
+                U256::from(100u64),
+                U256::ZERO,
+                token.address(),
+                validator,
+            )?;
+            assert_eq!(
+                fm.collected_fees[validator][token.address()].read()?,
+                U256::from(100u64)
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn t4_settle_fee_reverts_when_validator_does_not_accept() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T4);
+        let admin = Address::random();
+        let validator = Address::random();
+        let fee_payer = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+            // Validator's accept-set is empty.
+
+            let err = fm
+                .collect_fee_post_tx(
+                    fee_payer,
+                    U256::from(100u64),
+                    U256::ZERO,
+                    token.address(),
+                    validator,
+                )
+                .unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::fee_token_not_accepted(
+                    validator,
+                    token.address()
+                ))
+            );
             Ok(())
         })
     }
