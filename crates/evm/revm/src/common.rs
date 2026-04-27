@@ -175,9 +175,27 @@ pub trait MagnusStateAccess<M = ()> {
             }
         }
 
-        // If calling swapExactAmountOut() or swapExactAmountIn() on the Stablecoin DEX,
-        // use the input token as the fee token (the token that will be pulled from the user).
-        // For AA transactions, this only applies if there's exactly one call.
+        // T4+: consult the router selector registry. Single-call (or AA single-
+        // call) txs targeting a registered router resolve their fee token via
+        // the descriptor's argument index. Any other path returns
+        // FeeTokenNotInferable — no DEFAULT_FEE_TOKEN fallback at T4.
+        if spec.is_t4() {
+            let mut calls = tx.calls();
+            if let Some((kind, input)) = calls.next()
+                && (!tx.is_aa() || calls.next().is_none())
+                && let Some(router) = kind.to().copied()
+                && let Some(selector) = input.first_chunk::<4>().copied()
+                && let Some(token) =
+                    self.lookup_router_fee_token(spec, router, selector, input)?
+            {
+                return Ok(token);
+            }
+            return Err(MagnusPrecompileError::FeeManagerError(
+                magnus_contracts::precompiles::FeeManagerError::fee_token_not_inferable(),
+            ));
+        }
+
+        // Pre-T4: legacy Stablecoin DEX special-case + DEFAULT_FEE_TOKEN fallback.
         let mut calls = tx.calls();
         if let Some((kind, input)) = calls.next()
             && kind.to() == Some(&STABLECOIN_DEX_ADDRESS)
@@ -194,8 +212,33 @@ pub trait MagnusStateAccess<M = ()> {
             }
         }
 
-        // If no fee token is found, default to the first deployed MIP20
         Ok(DEFAULT_FEE_TOKEN)
+    }
+
+    /// Looks up `(router, selector)` in the on-chain router registry and, if
+    /// registered, decodes the token argument from `calldata` at the descriptor's
+    /// arg index. Returns `Ok(None)` when the selector is not registered;
+    /// `Err(CalldataDecodeFailed)` when calldata is malformed.
+    fn lookup_router_fee_token(
+        &mut self,
+        spec: MagnusHardfork,
+        router: Address,
+        selector: [u8; 4],
+        calldata: &[u8],
+    ) -> MagnusResult<Option<Address>>
+    where
+        Self: Sized,
+    {
+        self.with_read_only_storage_ctx(spec, || {
+            let fee_manager = MipFeeManager::new();
+            let (registered, arg_index) = fee_manager
+                .lookup_router_selector(router, alloy_primitives::FixedBytes::from(selector))?;
+            if !registered {
+                return Ok(None);
+            }
+            let token = fee_manager.decode_router_token_arg(calldata, arg_index)?;
+            Ok(Some(token))
+        })
     }
 
     /// Checks if the given MIP20 token has USD currency.
@@ -533,7 +576,8 @@ mod tests {
 
     #[test]
     fn t4_get_fee_token_skips_set_user_token_calldata() -> eyre::Result<()> {
-        // Pre-T4: setUserToken-in-calldata wins. T4: ignored, falls through to default.
+        // Pre-T4: setUserToken-in-calldata wins. T4: ignored, no router match
+        // either, so the call surfaces FeeTokenNotInferable.
         let caller = Address::random();
         let proposed_token = Address::random();
 
@@ -552,9 +596,13 @@ mod tests {
         };
 
         let mut db = EmptyDB::default();
-        let result_token = db.get_fee_token(tx, caller, MagnusHardfork::T4)?;
-        assert_ne!(result_token, proposed_token);
-        assert_eq!(result_token, DEFAULT_FEE_TOKEN);
+        let err = db.get_fee_token(tx, caller, MagnusHardfork::T4).unwrap_err();
+        assert!(matches!(
+            err,
+            MagnusPrecompileError::FeeManagerError(
+                magnus_contracts::precompiles::FeeManagerError::FeeTokenNotInferable(_)
+            )
+        ));
         Ok(())
     }
 
@@ -569,10 +617,15 @@ mod tests {
         db.insert_account_storage(TIP_FEE_MANAGER_ADDRESS, user_slot, user_token.into_u256())
             .unwrap();
 
-        let result_token =
-            db.get_fee_token(MagnusTxEnv::default(), caller, MagnusHardfork::T4)?;
-        assert_ne!(result_token, user_token);
-        assert_eq!(result_token, DEFAULT_FEE_TOKEN);
+        let err = db
+            .get_fee_token(MagnusTxEnv::default(), caller, MagnusHardfork::T4)
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            MagnusPrecompileError::FeeManagerError(
+                magnus_contracts::precompiles::FeeManagerError::FeeTokenNotInferable(_)
+            )
+        ));
         Ok(())
     }
 

@@ -875,6 +875,30 @@ fn initialize_fee_manager(
                         .enable_currency(governance_admin, code, 0)
                         .unwrap_or_else(|e| panic!("could not enable currency {code}: {e:?}"));
                 }
+
+                // Pre-register Stablecoin DEX swap selectors so fee inference
+                // works on T4-from-genesis chains.
+                use alloy::primitives::FixedBytes;
+                use alloy::sol_types::SolCall;
+                use magnus_contracts::precompiles::{
+                    IStablecoinDEX, STABLECOIN_DEX_ADDRESS,
+                };
+                let dex_selectors: [FixedBytes<4>; 2] = [
+                    IStablecoinDEX::swapExactAmountInCall::SELECTOR.into(),
+                    IStablecoinDEX::swapExactAmountOutCall::SELECTOR.into(),
+                ];
+                for selector in dex_selectors {
+                    fee_manager
+                        .register_router_selector(
+                            governance_admin,
+                            STABLECOIN_DEX_ADDRESS,
+                            selector,
+                            0,
+                        )
+                        .unwrap_or_else(|e| {
+                            panic!("could not register DEX router selector: {e:?}")
+                        });
+                }
             } else if !initial_currencies.is_empty() {
                 println!(
                     "WARN: governance_admin is zero; skipping {} currency registrations",

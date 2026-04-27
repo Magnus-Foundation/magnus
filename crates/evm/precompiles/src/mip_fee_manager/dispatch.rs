@@ -141,6 +141,25 @@ impl Precompile for MipFeeManager {
                     IFeeManagerCalls::foundationEscrowAddress(call),
                 ) => view(call, |_| self.foundation_escrow_address()),
 
+                // Router selector registry.
+                TipFeeManagerCall::FeeManager(
+                    IFeeManagerCalls::registerRouterSelector(call),
+                ) => mutate_void(call, msg_sender, |s, c| {
+                    self.register_router_selector(s, c.router, c.selector, c.tokenInputArgIndex)
+                }),
+                TipFeeManagerCall::FeeManager(
+                    IFeeManagerCalls::unregisterRouterSelector(call),
+                ) => mutate_void(call, msg_sender, |s, c| {
+                    self.unregister_router_selector(s, c.router, c.selector)
+                }),
+                TipFeeManagerCall::FeeManager(
+                    IFeeManagerCalls::lookupRouterSelector(call),
+                ) => view(call, |c| {
+                    let (registered, arg_index) =
+                        self.lookup_router_selector(c.router, c.selector)?;
+                    Ok((registered, arg_index).into())
+                }),
+
                 TipFeeManagerCall::FeeManager(IFeeManagerCalls::addCurrency(call)) => {
                     mutate_void(call, msg_sender, |s, c| {
                         let block = self.storage.block_number();

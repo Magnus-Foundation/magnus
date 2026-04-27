@@ -66,6 +66,11 @@ crate::sol! {
         function escrowClaim(address validator) external view returns (uint64 offboardedAt, uint64 claimDeadline, bool offboarded);
         function escrowClaimWindow() external view returns (uint64);
         function foundationEscrowAddress() external view returns (address);
+
+        // Router selector registry (governance-gated).
+        function registerRouterSelector(address router, bytes4 selector, uint8 tokenInputArgIndex) external;
+        function unregisterRouterSelector(address router, bytes4 selector) external;
+        function lookupRouterSelector(address router, bytes4 selector) external view returns (bool registered, uint8 tokenInputArgIndex);
         function setDeprecationGracePeriod(uint64 newGracePeriod) external;
         function setEmergencyDisableThreshold(uint8 newThreshold) external;
         function setGovernanceAdmin(address newAdmin) external;
@@ -101,6 +106,9 @@ crate::sol! {
         event EscrowSwept(address indexed validator, address indexed token, address indexed foundation, uint256 amount);
         event EscrowClaimWindowChanged(uint64 oldWindow, uint64 newWindow);
         event FoundationEscrowAddressChanged(address oldAddress, address newAddress);
+
+        event RouterSelectorRegistered(address indexed router, bytes4 indexed selector, uint8 tokenInputArgIndex);
+        event RouterSelectorUnregistered(address indexed router, bytes4 indexed selector);
         event GovernanceAdminChanged(address indexed oldAdmin, address indexed newAdmin);
         event AcceptedTokenAdded(address indexed validator, address indexed token);
         event AcceptedTokenRemoved(address indexed validator, address indexed token);
@@ -147,6 +155,10 @@ crate::sol! {
         error NoEscrowedFees(address validator, address token);
         error EscrowClaimWindowOutOfRange(uint64 window);
         error ZeroAddressFoundationEscrow();
+
+        error RouterSelectorNotFound(address router, bytes4 selector);
+        error RouterSelectorAlreadyRegistered(address router, bytes4 selector);
+        error CalldataDecodeFailed();
     }
 }
 
@@ -370,6 +382,27 @@ impl FeeManagerError {
 
     pub const fn zero_address_foundation_escrow() -> Self {
         Self::ZeroAddressFoundationEscrow(IFeeManager::ZeroAddressFoundationEscrow {})
+    }
+
+    pub const fn router_selector_not_found(
+        router: alloy_primitives::Address,
+        selector: alloy_primitives::FixedBytes<4>,
+    ) -> Self {
+        Self::RouterSelectorNotFound(IFeeManager::RouterSelectorNotFound { router, selector })
+    }
+
+    pub const fn router_selector_already_registered(
+        router: alloy_primitives::Address,
+        selector: alloy_primitives::FixedBytes<4>,
+    ) -> Self {
+        Self::RouterSelectorAlreadyRegistered(IFeeManager::RouterSelectorAlreadyRegistered {
+            router,
+            selector,
+        })
+    }
+
+    pub const fn calldata_decode_failed() -> Self {
+        Self::CalldataDecodeFailed(IFeeManager::CalldataDecodeFailed {})
     }
 }
 

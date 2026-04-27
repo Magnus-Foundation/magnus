@@ -6,12 +6,14 @@ pub mod amm;
 pub mod currency_registry;
 pub mod dispatch;
 pub mod escrow;
+pub mod router_registry;
 
 use crate::{
     error::{MagnusPrecompileError, Result},
     mip_fee_manager::amm::{Pool, PoolKey, compute_amount_out},
     mip_fee_manager::currency_registry::{CurrencyConfig, currency_key, is_valid_currency_code},
     mip_fee_manager::escrow::ClaimRecord,
+    mip_fee_manager::router_registry::{RouterDescriptor, selector_key},
     mip20::{IMIP20, MIP20Token, validate_usd_currency},
     mip20_factory::MIP20Factory,
     storage::{Handler, Mapping},
@@ -66,6 +68,11 @@ pub struct MipFeeManager {
     /// Seconds the validator has to claim escrowed fees. Zero (default) means
     /// `DEFAULT_ESCROW_CLAIM_WINDOW_SECS`.
     escrow_claim_window: u64,
+
+    /// Router selector registry: (router → keccak-padded selector → descriptor).
+    /// Backs `infer_fee_token` so calldata to known routers can resolve to the
+    /// correct fee token via the registered argument index.
+    router_selectors: Mapping<Address, Mapping<B256, RouterDescriptor>>,
 
     /// Validator → token → accepted? Multi-token accept-set replacing the legacy
     /// single-token `validator_tokens` model. Map + list stay in sync.
@@ -1051,6 +1058,91 @@ impl MipFeeManager {
             amount,
         }))?;
         Ok(amount)
+    }
+
+    /// Registers a (router, selector) pair so the fee-token inference path knows
+    /// to extract the token argument at `arg_index`. Governance-gated.
+    pub fn register_router_selector(
+        &mut self,
+        sender: Address,
+        router: Address,
+        selector: alloy::primitives::FixedBytes<4>,
+        arg_index: u8,
+    ) -> Result<()> {
+        self.assert_governance(sender)?;
+        let key = selector_key(selector);
+        let existing = self.router_selectors[router][key].read()?;
+        if existing.registered {
+            return Err(
+                FeeManagerError::router_selector_already_registered(router, selector).into(),
+            );
+        }
+        self.router_selectors[router][key].write(RouterDescriptor {
+            registered: true,
+            token_input_arg_index: arg_index,
+        })?;
+        self.emit_event(FeeManagerEvent::RouterSelectorRegistered(
+            IFeeManager::RouterSelectorRegistered {
+                router,
+                selector,
+                tokenInputArgIndex: arg_index,
+            },
+        ))?;
+        Ok(())
+    }
+
+    /// Removes a previously-registered (router, selector) pair. Governance-gated.
+    pub fn unregister_router_selector(
+        &mut self,
+        sender: Address,
+        router: Address,
+        selector: alloy::primitives::FixedBytes<4>,
+    ) -> Result<()> {
+        self.assert_governance(sender)?;
+        let key = selector_key(selector);
+        let existing = self.router_selectors[router][key].read()?;
+        if !existing.registered {
+            return Err(FeeManagerError::router_selector_not_found(router, selector).into());
+        }
+        self.router_selectors[router][key].write(RouterDescriptor::default())?;
+        self.emit_event(FeeManagerEvent::RouterSelectorUnregistered(
+            IFeeManager::RouterSelectorUnregistered { router, selector },
+        ))?;
+        Ok(())
+    }
+
+    /// Returns `(registered, arg_index)` for a (router, selector) pair.
+    pub fn lookup_router_selector(
+        &self,
+        router: Address,
+        selector: alloy::primitives::FixedBytes<4>,
+    ) -> Result<(bool, u8)> {
+        let key = selector_key(selector);
+        let d = self.router_selectors[router][key].read()?;
+        Ok((d.registered, d.token_input_arg_index))
+    }
+
+    /// Decodes the address argument at `arg_index` from `calldata`. Calldata
+    /// must be selector(4) ++ tightly-packed 32-byte words. Returns an error
+    /// when the calldata is too short or the word is not a clean address.
+    pub fn decode_router_token_arg(
+        &self,
+        calldata: &[u8],
+        arg_index: u8,
+    ) -> Result<Address> {
+        let needed = 4usize
+            .checked_add(32usize.saturating_mul(arg_index as usize + 1))
+            .ok_or(FeeManagerError::calldata_decode_failed())?;
+        if calldata.len() < needed {
+            return Err(FeeManagerError::calldata_decode_failed().into());
+        }
+        let off = 4 + 32 * arg_index as usize;
+        let word = &calldata[off..off + 32];
+        // Address words must have zero high 12 bytes.
+        if word[..12].iter().any(|b| *b != 0) {
+            return Err(FeeManagerError::calldata_decode_failed().into());
+        }
+        Ok(Address::from_slice(&word[12..32]))
     }
 }
 
@@ -3105,6 +3197,162 @@ mod currency_registry_tests {
             let target = Address::random();
             fm.set_foundation_escrow_address(admin, target)?;
             assert_eq!(fm.foundation_escrow_address()?, target);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn register_router_selector_round_trip() -> eyre::Result<()> {
+        use alloy::primitives::FixedBytes;
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let router = Address::random();
+        let selector = FixedBytes::<4>::from([0x12, 0x34, 0x56, 0x78]);
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+            assert_eq!(fm.lookup_router_selector(router, selector)?, (false, 0));
+            fm.register_router_selector(admin, router, selector, 2)?;
+            assert_eq!(fm.lookup_router_selector(router, selector)?, (true, 2));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn register_router_selector_rejects_double_register() -> eyre::Result<()> {
+        use alloy::primitives::FixedBytes;
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let router = Address::random();
+        let selector = FixedBytes::<4>::from([0xaa, 0xbb, 0xcc, 0xdd]);
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+            fm.register_router_selector(admin, router, selector, 0)?;
+            assert_eq!(
+                fm.register_router_selector(admin, router, selector, 1)
+                    .unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::router_selector_already_registered(router, selector)
+                )
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn register_router_selector_requires_governance() -> eyre::Result<()> {
+        use alloy::primitives::FixedBytes;
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let intruder = Address::random();
+        let router = Address::random();
+        let selector = FixedBytes::<4>::from([0, 0, 0, 1]);
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+            assert_eq!(
+                fm.register_router_selector(intruder, router, selector, 0)
+                    .unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::only_governance_admin(
+                    intruder
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn unregister_router_selector_clears_descriptor() -> eyre::Result<()> {
+        use alloy::primitives::FixedBytes;
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let router = Address::random();
+        let selector = FixedBytes::<4>::from([1, 2, 3, 4]);
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+            fm.register_router_selector(admin, router, selector, 1)?;
+            fm.unregister_router_selector(admin, router, selector)?;
+            assert_eq!(fm.lookup_router_selector(router, selector)?, (false, 0));
+
+            // Re-registering after unregister succeeds.
+            fm.register_router_selector(admin, router, selector, 0)?;
+            assert_eq!(fm.lookup_router_selector(router, selector)?, (true, 0));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn unregister_router_selector_rejects_unknown() -> eyre::Result<()> {
+        use alloy::primitives::FixedBytes;
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let router = Address::random();
+        let selector = FixedBytes::<4>::from([9, 9, 9, 9]);
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+            assert_eq!(
+                fm.unregister_router_selector(admin, router, selector)
+                    .unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::router_selector_not_found(router, selector)
+                )
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn decode_router_token_arg_extracts_address_at_index() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let token = Address::repeat_byte(0xCD);
+        StorageCtx::enter(&mut storage, || {
+            let fm = fee_manager_with_admin(admin)?;
+            // selector(4) + word0(token padded) + word1(0)
+            let mut calldata = vec![0xde, 0xad, 0xbe, 0xef];
+            let mut word = [0u8; 32];
+            word[12..].copy_from_slice(token.as_slice());
+            calldata.extend_from_slice(&word);
+            calldata.extend_from_slice(&[0u8; 32]);
+
+            assert_eq!(fm.decode_router_token_arg(&calldata, 0)?, token);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn decode_router_token_arg_rejects_short_calldata() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let fm = fee_manager_with_admin(admin)?;
+            let calldata = [0xde, 0xad, 0xbe, 0xef]; // selector only, no args
+            assert_eq!(
+                fm.decode_router_token_arg(&calldata, 0).unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::calldata_decode_failed()
+                )
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn decode_router_token_arg_rejects_dirty_high_bytes() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let fm = fee_manager_with_admin(admin)?;
+            let mut calldata = vec![0xde, 0xad, 0xbe, 0xef];
+            // High 12 bytes non-zero — invalid address word.
+            let mut word = [0u8; 32];
+            word[0] = 0xFF;
+            word[12..].copy_from_slice(&[0u8; 20]);
+            calldata.extend_from_slice(&word);
+            assert_eq!(
+                fm.decode_router_token_arg(&calldata, 0).unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::calldata_decode_failed()
+                )
+            );
             Ok(())
         })
     }
