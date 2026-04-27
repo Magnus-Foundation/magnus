@@ -99,6 +99,48 @@ impl Precompile for MipFeeManager {
                     IFeeManagerCalls::emergencyDisableThreshold(call),
                 ) => view(call, |_| self.emergency_disable_threshold()),
 
+                // Off-boarding + escrow.
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::offboardValidator(call)) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.offboard_validator(s, c.validator)
+                    })
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::claimEscrowedFees(call)) => {
+                    mutate(call, msg_sender, |s, c| {
+                        self.claim_escrowed_fees(s, c.validator, c.token, c.recipient)
+                    })
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::sweepExpiredEscrow(call)) => {
+                    mutate(call, msg_sender, |s, c| {
+                        self.sweep_expired_escrow(s, c.validator, c.token)
+                    })
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::setEscrowClaimWindow(call)) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.set_escrow_claim_window(s, c.newWindow)
+                    })
+                }
+                TipFeeManagerCall::FeeManager(
+                    IFeeManagerCalls::setFoundationEscrowAddress(call),
+                ) => mutate_void(call, msg_sender, |s, c| {
+                    self.set_foundation_escrow_address(s, c.newAddress)
+                }),
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::escrowedFees(call)) => {
+                    view(call, |c| self.escrowed_fees_amount(c.validator, c.token))
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::escrowClaim(call)) => {
+                    view(call, |c| {
+                        let r = self.escrow_claim(c.validator)?;
+                        Ok((r.offboarded_at, r.claim_deadline, r.offboarded).into())
+                    })
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::escrowClaimWindow(call)) => {
+                    view(call, |_| self.escrow_claim_window())
+                }
+                TipFeeManagerCall::FeeManager(
+                    IFeeManagerCalls::foundationEscrowAddress(call),
+                ) => view(call, |_| self.foundation_escrow_address()),
+
                 TipFeeManagerCall::FeeManager(IFeeManagerCalls::addCurrency(call)) => {
                     mutate_void(call, msg_sender, |s, c| {
                         let block = self.storage.block_number();

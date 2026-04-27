@@ -55,6 +55,17 @@ crate::sol! {
         function emergencyDisableCurrency(string calldata code) external;
         function pruneCurrency(string calldata code, uint256 maxIterations) external;
         function pruneToken(address token, uint256 maxIterations) external returns (uint256);
+
+        // Validator off-boarding + escrow.
+        function offboardValidator(address validator) external;
+        function claimEscrowedFees(address validator, address token, address recipient) external returns (uint256);
+        function sweepExpiredEscrow(address validator, address token) external returns (uint256);
+        function setEscrowClaimWindow(uint64 newWindow) external;
+        function setFoundationEscrowAddress(address newAddress) external;
+        function escrowedFees(address validator, address token) external view returns (uint256);
+        function escrowClaim(address validator) external view returns (uint64 offboardedAt, uint64 claimDeadline, bool offboarded);
+        function escrowClaimWindow() external view returns (uint64);
+        function foundationEscrowAddress() external view returns (address);
         function setDeprecationGracePeriod(uint64 newGracePeriod) external;
         function setEmergencyDisableThreshold(uint8 newThreshold) external;
         function setGovernanceAdmin(address newAdmin) external;
@@ -82,6 +93,14 @@ crate::sol! {
         event CurrencyPruned(string code, uint256 tokensRemoved, uint64 atBlock);
         event DeprecationGracePeriodChanged(uint64 oldGracePeriod, uint64 newGracePeriod);
         event EmergencyDisableThresholdChanged(uint8 oldThreshold, uint8 newThreshold);
+
+        event ValidatorOffboarded(address indexed validator, uint64 claimDeadline);
+        event FeesOffboardDelivered(address indexed validator, address indexed token, uint256 amount);
+        event FeesOffboardEscrowed(address indexed validator, address indexed token, uint256 amount);
+        event EscrowedFeesClaimed(address indexed validator, address indexed token, address indexed recipient, uint256 amount);
+        event EscrowSwept(address indexed validator, address indexed token, address indexed foundation, uint256 amount);
+        event EscrowClaimWindowChanged(uint64 oldWindow, uint64 newWindow);
+        event FoundationEscrowAddressChanged(address oldAddress, address newAddress);
         event GovernanceAdminChanged(address indexed oldAdmin, address indexed newAdmin);
         event AcceptedTokenAdded(address indexed validator, address indexed token);
         event AcceptedTokenRemoved(address indexed validator, address indexed token);
@@ -120,6 +139,14 @@ crate::sol! {
         error GracePeriodOutOfRange(uint64 grace);
         error EmergencyThresholdOutOfRange(uint8 threshold);
         error CurrencyNotDisabled(string currency);
+
+        error ValidatorNotOffboarded(address validator);
+        error ValidatorAlreadyOffboarded(address validator);
+        error ClaimWindowExpired(address validator);
+        error ClaimWindowActive(address validator);
+        error NoEscrowedFees(address validator, address token);
+        error EscrowClaimWindowOutOfRange(uint64 window);
+        error ZeroAddressFoundationEscrow();
     }
 }
 
@@ -312,6 +339,37 @@ impl FeeManagerError {
 
     pub fn currency_not_disabled(currency: alloc::string::String) -> Self {
         Self::CurrencyNotDisabled(IFeeManager::CurrencyNotDisabled { currency })
+    }
+
+    pub const fn validator_not_offboarded(validator: alloy_primitives::Address) -> Self {
+        Self::ValidatorNotOffboarded(IFeeManager::ValidatorNotOffboarded { validator })
+    }
+
+    pub const fn validator_already_offboarded(validator: alloy_primitives::Address) -> Self {
+        Self::ValidatorAlreadyOffboarded(IFeeManager::ValidatorAlreadyOffboarded { validator })
+    }
+
+    pub const fn claim_window_expired(validator: alloy_primitives::Address) -> Self {
+        Self::ClaimWindowExpired(IFeeManager::ClaimWindowExpired { validator })
+    }
+
+    pub const fn claim_window_active(validator: alloy_primitives::Address) -> Self {
+        Self::ClaimWindowActive(IFeeManager::ClaimWindowActive { validator })
+    }
+
+    pub const fn no_escrowed_fees(
+        validator: alloy_primitives::Address,
+        token: alloy_primitives::Address,
+    ) -> Self {
+        Self::NoEscrowedFees(IFeeManager::NoEscrowedFees { validator, token })
+    }
+
+    pub const fn escrow_claim_window_out_of_range(window: u64) -> Self {
+        Self::EscrowClaimWindowOutOfRange(IFeeManager::EscrowClaimWindowOutOfRange { window })
+    }
+
+    pub const fn zero_address_foundation_escrow() -> Self {
+        Self::ZeroAddressFoundationEscrow(IFeeManager::ZeroAddressFoundationEscrow {})
     }
 }
 

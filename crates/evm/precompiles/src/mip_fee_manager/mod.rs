@@ -5,11 +5,13 @@
 pub mod amm;
 pub mod currency_registry;
 pub mod dispatch;
+pub mod escrow;
 
 use crate::{
     error::{MagnusPrecompileError, Result},
     mip_fee_manager::amm::{Pool, PoolKey, compute_amount_out},
     mip_fee_manager::currency_registry::{CurrencyConfig, currency_key, is_valid_currency_code},
+    mip_fee_manager::escrow::ClaimRecord,
     mip20::{IMIP20, MIP20Token, validate_usd_currency},
     mip20_factory::MIP20Factory,
     storage::{Handler, Mapping},
@@ -52,6 +54,18 @@ pub struct MipFeeManager {
     /// Reverse index for `prune_currency`: token → list of validators that have
     /// added it to their accept-set. Maintained by add/remove_accepted_token.
     token_validators: Mapping<Address, Vec<Address>>,
+
+    /// Off-boarding escrow recipient when direct fee transfer to a deactivated
+    /// validator fails. Zero = unconfigured (must be set by genesis or governance
+    /// before sweep).
+    foundation_escrow_address: Address,
+    /// Escrowed fees by (validator, token) when off-board direct delivery failed.
+    escrowed_fees: Mapping<Address, Mapping<Address, U256>>,
+    /// Per-validator off-board record (deadline tracking).
+    escrow_claims: Mapping<Address, ClaimRecord>,
+    /// Seconds the validator has to claim escrowed fees. Zero (default) means
+    /// `DEFAULT_ESCROW_CLAIM_WINDOW_SECS`.
+    escrow_claim_window: u64,
 
     /// Validator → token → accepted? Multi-token accept-set replacing the legacy
     /// single-token `validator_tokens` model. Map + list stay in sync.
@@ -797,6 +811,246 @@ impl MipFeeManager {
         config.last_pruned_at_block = current_block;
         self.supported_currencies[key].write(config)?;
         Ok(removed)
+    }
+
+    /// Genesis default escrow claim window: 365 days in seconds.
+    pub const DEFAULT_ESCROW_CLAIM_WINDOW_SECS: u64 = 365 * 24 * 60 * 60;
+    /// Sanity-bound minimum: 30 days.
+    pub const MIN_ESCROW_CLAIM_WINDOW_SECS: u64 = 30 * 24 * 60 * 60;
+    /// Sanity-bound maximum: 1825 days (~5 years).
+    pub const MAX_ESCROW_CLAIM_WINDOW_SECS: u64 = 1825 * 24 * 60 * 60;
+
+    pub fn escrow_claim_window(&self) -> Result<u64> {
+        let raw = self.escrow_claim_window.read()?;
+        Ok(if raw == 0 {
+            Self::DEFAULT_ESCROW_CLAIM_WINDOW_SECS
+        } else {
+            raw
+        })
+    }
+
+    pub fn foundation_escrow_address(&self) -> Result<Address> {
+        self.foundation_escrow_address.read()
+    }
+
+    pub fn escrowed_fees_amount(&self, validator: Address, token: Address) -> Result<U256> {
+        self.escrowed_fees[validator][token].read()
+    }
+
+    pub fn escrow_claim(&self, validator: Address) -> Result<ClaimRecord> {
+        self.escrow_claims[validator].read()
+    }
+
+    pub fn set_escrow_claim_window(&mut self, sender: Address, new_window: u64) -> Result<()> {
+        self.assert_governance(sender)?;
+        if !(Self::MIN_ESCROW_CLAIM_WINDOW_SECS..=Self::MAX_ESCROW_CLAIM_WINDOW_SECS)
+            .contains(&new_window)
+        {
+            return Err(FeeManagerError::escrow_claim_window_out_of_range(new_window).into());
+        }
+        let old = self.escrow_claim_window()?;
+        self.escrow_claim_window.write(new_window)?;
+        self.emit_event(FeeManagerEvent::EscrowClaimWindowChanged(
+            IFeeManager::EscrowClaimWindowChanged {
+                oldWindow: old,
+                newWindow: new_window,
+            },
+        ))?;
+        Ok(())
+    }
+
+    pub fn set_foundation_escrow_address(
+        &mut self,
+        sender: Address,
+        new_address: Address,
+    ) -> Result<()> {
+        self.assert_governance(sender)?;
+        if new_address.is_zero() {
+            return Err(FeeManagerError::zero_address_foundation_escrow().into());
+        }
+        let old = self.foundation_escrow_address.read()?;
+        self.foundation_escrow_address.write(new_address)?;
+        self.emit_event(FeeManagerEvent::FoundationEscrowAddressChanged(
+            IFeeManager::FoundationEscrowAddressChanged {
+                oldAddress: old,
+                newAddress: new_address,
+            },
+        ))?;
+        Ok(())
+    }
+
+    /// Off-boards a validator: walks their accept-set, attempts direct delivery
+    /// of each accumulated fee balance, escrows on failure, then clears the
+    /// accept-set. Records a ClaimRecord stamping the deadline.
+    pub fn offboard_validator(&mut self, sender: Address, validator: Address) -> Result<()> {
+        self.assert_governance(sender)?;
+
+        let existing = self.escrow_claims[validator].read()?;
+        if existing.offboarded {
+            return Err(FeeManagerError::validator_already_offboarded(validator).into());
+        }
+
+        let now_ts = self.storage.timestamp().saturating_to::<u64>();
+        let claim_window = self.escrow_claim_window()?;
+        let record = ClaimRecord::new(now_ts, claim_window);
+        self.escrow_claims[validator].write(record.clone())?;
+
+        let tokens = self.validator_token_list[validator].read()?;
+        for token in &tokens {
+            let amount = self.collected_fees[validator][*token].read()?;
+            self.collected_fees[validator][*token].write(U256::ZERO)?;
+
+            // Drop reverse-index + map flag for this validator/token pair.
+            self.validator_accepted_tokens[validator][*token].write(false)?;
+            let mut rv = self.token_validators[*token].read()?;
+            if let Some(pos) = rv.iter().position(|v| *v == validator) {
+                rv.swap_remove(pos);
+                self.token_validators[*token].write(rv)?;
+            }
+
+            if amount.is_zero() {
+                continue;
+            }
+
+            // Try direct MIP-20 transfer; on any error, escrow.
+            let mut mip20 = MIP20Token::from_address(*token)?;
+            let delivered = mip20
+                .transfer(
+                    self.address,
+                    IMIP20::transferCall {
+                        to: validator,
+                        amount,
+                    },
+                )
+                .is_ok();
+
+            if delivered {
+                self.emit_event(FeeManagerEvent::FeesOffboardDelivered(
+                    IFeeManager::FeesOffboardDelivered {
+                        validator,
+                        token: *token,
+                        amount,
+                    },
+                ))?;
+            } else {
+                let prior = self.escrowed_fees[validator][*token].read()?;
+                let next = prior
+                    .checked_add(amount)
+                    .ok_or(MagnusPrecompileError::under_overflow())?;
+                self.escrowed_fees[validator][*token].write(next)?;
+                self.emit_event(FeeManagerEvent::FeesOffboardEscrowed(
+                    IFeeManager::FeesOffboardEscrowed {
+                        validator,
+                        token: *token,
+                        amount,
+                    },
+                ))?;
+            }
+        }
+
+        // Clear accept-set list (map flags already zeroed above).
+        self.validator_token_list[validator].write(Vec::new())?;
+
+        self.emit_event(FeeManagerEvent::ValidatorOffboarded(
+            IFeeManager::ValidatorOffboarded {
+                validator,
+                claimDeadline: record.claim_deadline,
+            },
+        ))?;
+        Ok(())
+    }
+
+    /// Validator-org claims escrowed fees within the claim window. `sender` is the
+    /// validator address — the caller must control it (multi-sig EIP-712 lands later).
+    pub fn claim_escrowed_fees(
+        &mut self,
+        sender: Address,
+        validator: Address,
+        token: Address,
+        recipient: Address,
+    ) -> Result<U256> {
+        if sender != validator {
+            return Err(FeeManagerError::only_validator().into());
+        }
+        let record = self.escrow_claims[validator].read()?;
+        if !record.offboarded {
+            return Err(FeeManagerError::validator_not_offboarded(validator).into());
+        }
+        let now_ts = self.storage.timestamp().saturating_to::<u64>();
+        if !record.within_claim_window(now_ts) {
+            return Err(FeeManagerError::claim_window_expired(validator).into());
+        }
+        let amount = self.escrowed_fees[validator][token].read()?;
+        if amount.is_zero() {
+            return Err(FeeManagerError::no_escrowed_fees(validator, token).into());
+        }
+
+        self.escrowed_fees[validator][token].write(U256::ZERO)?;
+        let mut mip20 = MIP20Token::from_address(token)?;
+        mip20.transfer(
+            self.address,
+            IMIP20::transferCall {
+                to: recipient,
+                amount,
+            },
+        )?;
+
+        self.emit_event(FeeManagerEvent::EscrowedFeesClaimed(
+            IFeeManager::EscrowedFeesClaimed {
+                validator,
+                token,
+                recipient,
+                amount,
+            },
+        ))?;
+        Ok(amount)
+    }
+
+    /// Governance sweeps a (validator, token) escrow entry to the foundation
+    /// address after the claim window has expired.
+    pub fn sweep_expired_escrow(
+        &mut self,
+        sender: Address,
+        validator: Address,
+        token: Address,
+    ) -> Result<U256> {
+        self.assert_governance(sender)?;
+
+        let record = self.escrow_claims[validator].read()?;
+        if !record.offboarded {
+            return Err(FeeManagerError::validator_not_offboarded(validator).into());
+        }
+        let now_ts = self.storage.timestamp().saturating_to::<u64>();
+        if !record.after_claim_window(now_ts) {
+            return Err(FeeManagerError::claim_window_active(validator).into());
+        }
+
+        let amount = self.escrowed_fees[validator][token].read()?;
+        if amount.is_zero() {
+            return Err(FeeManagerError::no_escrowed_fees(validator, token).into());
+        }
+        let foundation = self.foundation_escrow_address.read()?;
+        if foundation.is_zero() {
+            return Err(FeeManagerError::zero_address_foundation_escrow().into());
+        }
+
+        self.escrowed_fees[validator][token].write(U256::ZERO)?;
+        let mut mip20 = MIP20Token::from_address(token)?;
+        mip20.transfer(
+            self.address,
+            IMIP20::transferCall {
+                to: foundation,
+                amount,
+            },
+        )?;
+
+        self.emit_event(FeeManagerEvent::EscrowSwept(IFeeManager::EscrowSwept {
+            validator,
+            token,
+            foundation,
+            amount,
+        }))?;
+        Ok(amount)
     }
 }
 
@@ -2556,6 +2810,301 @@ mod currency_registry_tests {
             fm.emergency_disable_currency(admin, "USD")?;
             fm.prune_currency("USD", 1, 42)?;
             assert_eq!(fm.get_currency_config("USD")?.last_pruned_at_block, 42);
+            Ok(())
+        })
+    }
+
+    fn fee_manager_for_offboarding(
+        admin: Address,
+        foundation: Address,
+    ) -> Result<MipFeeManager> {
+        let mut fm = fee_manager_with_admin_and_usd(admin)?;
+        fm.set_foundation_escrow_address(admin, foundation)?;
+        Ok(fm)
+    }
+
+    #[test]
+    fn offboard_validator_delivers_when_transfer_succeeds() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        storage.set_timestamp(U256::from(10_000u64));
+        let admin = Address::random();
+        let validator = Address::random();
+        let foundation = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_for_offboarding(admin, foundation)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .with_issuer(admin)
+                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(500u64))
+                .apply()?;
+            fm.add_accepted_token(validator, token.address(), beneficiary)?;
+            fm.collected_fees[validator][token.address()].write(U256::from(500u64))?;
+
+            fm.offboard_validator(admin, validator)?;
+
+            // Direct delivery zeroed the ledger and credited the validator's
+            // balance (token transfer succeeded since FeeManager was funded).
+            assert_eq!(
+                fm.collected_fees[validator][token.address()].read()?,
+                U256::ZERO
+            );
+            assert_eq!(
+                fm.escrowed_fees_amount(validator, token.address())?,
+                U256::ZERO
+            );
+            assert_eq!(fm.get_accepted_tokens(validator)?.len(), 0);
+            assert!(fm.escrow_claim(validator)?.offboarded);
+            assert_eq!(
+                fm.escrow_claim(validator)?.claim_deadline,
+                10_000 + MipFeeManager::DEFAULT_ESCROW_CLAIM_WINDOW_SECS
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn offboard_validator_escrows_when_transfer_fails() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        storage.set_timestamp(U256::from(10_000u64));
+        let admin = Address::random();
+        let validator = Address::random();
+        let foundation = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_for_offboarding(admin, foundation)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+            fm.add_accepted_token(validator, token.address(), beneficiary)?;
+
+            // Stamp a non-zero ledger without funding the FeeManager. The transfer
+            // attempt fails with InsufficientBalance and the amount is escrowed.
+            fm.collected_fees[validator][token.address()].write(U256::from(750u64))?;
+
+            fm.offboard_validator(admin, validator)?;
+
+            assert_eq!(
+                fm.collected_fees[validator][token.address()].read()?,
+                U256::ZERO
+            );
+            assert_eq!(
+                fm.escrowed_fees_amount(validator, token.address())?,
+                U256::from(750u64)
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn offboard_validator_rejects_double_offboard() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let foundation = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_for_offboarding(admin, foundation)?;
+            fm.offboard_validator(admin, validator)?;
+            assert_eq!(
+                fm.offboard_validator(admin, validator).unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::validator_already_offboarded(validator)
+                )
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn claim_escrowed_fees_within_window_transfers_to_recipient() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        storage.set_timestamp(U256::from(0u64));
+        let admin = Address::random();
+        let validator = Address::random();
+        let recipient = Address::random();
+        let foundation = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_for_offboarding(admin, foundation)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .with_issuer(admin)
+                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(900u64))
+                .apply()?;
+
+            // Force escrow path by zeroing FeeManager balance after mint? Instead,
+            // hand-write escrow state to drive the claim path.
+            fm.escrow_claims[validator]
+                .write(ClaimRecord::new(0, MipFeeManager::DEFAULT_ESCROW_CLAIM_WINDOW_SECS))?;
+            fm.escrowed_fees[validator][token.address()].write(U256::from(900u64))?;
+
+            let claimed =
+                fm.claim_escrowed_fees(validator, validator, token.address(), recipient)?;
+            assert_eq!(claimed, U256::from(900u64));
+            assert_eq!(
+                fm.escrowed_fees_amount(validator, token.address())?,
+                U256::ZERO
+            );
+            assert_eq!(token.balances[recipient].read()?, U256::from(900u64));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn claim_escrowed_fees_rejects_after_window() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        storage.set_timestamp(U256::from(0u64));
+        let admin = Address::random();
+        let validator = Address::random();
+        let foundation = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_for_offboarding(admin, foundation)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+            fm.escrow_claims[validator].write(ClaimRecord::new(0, 100))?;
+            fm.escrowed_fees[validator][token.address()].write(U256::from(50u64))?;
+
+            // Move past the deadline.
+            drop(fm);
+            Ok::<_, MagnusPrecompileError>(())
+        })?;
+        storage.set_timestamp(U256::from(101u64));
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = MipFeeManager::new();
+            let validator_token = Address::random();
+            // Look up the escrowed token by reading directly — skip; instead,
+            // assert error by calling claim with a dummy token address; behavior
+            // depends only on the deadline check, not the token.
+            let err = fm
+                .claim_escrowed_fees(validator, validator, validator_token, validator)
+                .unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::claim_window_expired(
+                    validator
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn claim_escrowed_fees_rejects_non_validator_caller() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let validator = Address::random();
+        let intruder = Address::random();
+        let foundation = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_for_offboarding(admin, foundation)?;
+            assert_eq!(
+                fm.claim_escrowed_fees(intruder, validator, Address::random(), intruder)
+                    .unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::only_validator())
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn sweep_expired_escrow_after_window_sends_to_foundation() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        storage.set_timestamp(U256::from(0u64));
+        let admin = Address::random();
+        let validator = Address::random();
+        let foundation = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_for_offboarding(admin, foundation)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .with_issuer(admin)
+                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(200u64))
+                .apply()?;
+            fm.escrow_claims[validator].write(ClaimRecord::new(0, 100))?;
+            fm.escrowed_fees[validator][token.address()].write(U256::from(200u64))?;
+
+            // Active window: sweep rejected.
+            assert_eq!(
+                fm.sweep_expired_escrow(admin, validator, token.address())
+                    .unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::claim_window_active(
+                    validator
+                ))
+            );
+            Ok::<_, MagnusPrecompileError>(())
+        })?;
+        storage.set_timestamp(U256::from(101u64));
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = MipFeeManager::new();
+            // Find the token via stored escrow — tests stamp it explicitly. Use a
+            // freshly minted token for this branch so we have a known address.
+            // Re-derive by scanning would be brittle; instead, deploy a new escrow
+            // entry with a new token to keep the test self-contained.
+            let token2 = MIP20Setup::create("USDD", "USDD", admin)
+                .currency("USD")
+                .with_issuer(admin)
+                .with_mint(TIP_FEE_MANAGER_ADDRESS, U256::from(123u64))
+                .apply()?;
+            fm.escrow_claims[validator].write(ClaimRecord::new(0, 100))?;
+            fm.escrowed_fees[validator][token2.address()].write(U256::from(123u64))?;
+
+            let swept = fm.sweep_expired_escrow(admin, validator, token2.address())?;
+            assert_eq!(swept, U256::from(123u64));
+            assert_eq!(
+                fm.escrowed_fees_amount(validator, token2.address())?,
+                U256::ZERO
+            );
+            assert_eq!(token2.balances[foundation].read()?, U256::from(123u64));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn set_escrow_claim_window_enforces_bounds() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+            assert_eq!(
+                fm.set_escrow_claim_window(admin, MipFeeManager::MIN_ESCROW_CLAIM_WINDOW_SECS - 1)
+                    .unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::escrow_claim_window_out_of_range(
+                        MipFeeManager::MIN_ESCROW_CLAIM_WINDOW_SECS - 1
+                    )
+                )
+            );
+            assert_eq!(
+                fm.set_escrow_claim_window(admin, MipFeeManager::MAX_ESCROW_CLAIM_WINDOW_SECS + 1)
+                    .unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::escrow_claim_window_out_of_range(
+                        MipFeeManager::MAX_ESCROW_CLAIM_WINDOW_SECS + 1
+                    )
+                )
+            );
+            fm.set_escrow_claim_window(admin, 90 * 24 * 60 * 60)?;
+            assert_eq!(fm.escrow_claim_window()?, 90 * 24 * 60 * 60);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn set_foundation_escrow_address_rejects_zero() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+            assert_eq!(
+                fm.set_foundation_escrow_address(admin, Address::ZERO)
+                    .unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::zero_address_foundation_escrow()
+                )
+            );
+            let target = Address::random();
+            fm.set_foundation_escrow_address(admin, target)?;
+            assert_eq!(fm.foundation_escrow_address()?, target);
             Ok(())
         })
     }
