@@ -48,7 +48,7 @@ use magnus_contracts::{
 use magnus_dkg_onchain_artifacts::OnchainDkgOutcome;
 use magnus_evm::evm::{MagnusEvm, MagnusEvmFactory};
 use magnus_precompiles::{
-    PATH_USD_ADDRESS,
+    MAGNUS_USD_ADDRESS,
     account_keychain::AccountKeychain,
     address_registry::AddressRegistry,
     nonce::NonceManager,
@@ -112,7 +112,7 @@ pub(crate) struct GenesisArgs {
     #[arg(long)]
     pub(crate) seed: Option<u64>,
 
-    /// Custom admin address for pathUSD token.
+    /// Custom admin address for MagnusUSD token.
     /// If not set, uses the first generated account.
     #[arg(long)]
     pathusd_admin: Option<Address>,
@@ -256,8 +256,8 @@ impl GenesisArgs {
         println!("Initializing MIP20Factory");
         initialize_tip20_factory(&mut evm)?;
 
-        println!("Creating pathUSD through factory");
-        create_path_usd_token(pathusd_admin, &addresses, self.pathusd_amount, &mut evm)?;
+        println!("Creating MagnusUSD through factory");
+        create_magnus_usd_token(pathusd_admin, &addresses, self.pathusd_amount, &mut evm)?;
 
         let (alpha_token_address, beta_token_address, theta_token_address) =
             if !self.no_extra_tokens {
@@ -266,7 +266,7 @@ impl GenesisArgs {
                     "AlphaUSD",
                     "AlphaUSD",
                     "USD",
-                    PATH_USD_ADDRESS,
+                    MAGNUS_USD_ADDRESS,
                     pathusd_admin,
                     &addresses,
                     U256::from(u64::MAX),
@@ -278,7 +278,7 @@ impl GenesisArgs {
                     "BetaUSD",
                     "BetaUSD",
                     "USD",
-                    PATH_USD_ADDRESS,
+                    MAGNUS_USD_ADDRESS,
                     pathusd_admin,
                     &addresses,
                     U256::from(u64::MAX),
@@ -290,7 +290,7 @@ impl GenesisArgs {
                     "ThetaUSD",
                     "ThetaUSD",
                     "USD",
-                    PATH_USD_ADDRESS,
+                    MAGNUS_USD_ADDRESS,
                     pathusd_admin,
                     &addresses,
                     U256::from(u64::MAX),
@@ -323,7 +323,7 @@ impl GenesisArgs {
                     "DONOTUSE",
                     "DONOTUSE",
                     "USD",
-                    PATH_USD_ADDRESS,
+                    MAGNUS_USD_ADDRESS,
                     self.deployment_gas_token_admin.expect(
                         "Deployment gas token admin is required if you want to deploy the token",
                     ),
@@ -375,13 +375,13 @@ impl GenesisArgs {
         let default_user_fee_token = if let Some(address) = deployment_gas_token {
             address
         } else {
-            alpha_token_address.unwrap_or(PATH_USD_ADDRESS)
+            alpha_token_address.unwrap_or(MAGNUS_USD_ADDRESS)
         };
 
         let default_validator_fee_token = if let Some(address) = deployment_gas_token {
             address
         } else {
-            PATH_USD_ADDRESS
+            MAGNUS_USD_ADDRESS
         };
 
         // Initial currency registry per chain.
@@ -427,7 +427,7 @@ impl GenesisArgs {
                 println!("Minting pairwise FeeAMM liquidity");
                 mint_pairwise_liquidity(
                     alpha,
-                    vec![PATH_USD_ADDRESS, beta, theta],
+                    vec![MAGNUS_USD_ADDRESS, beta, theta],
                     U256::from(10u64.pow(10)),
                     pathusd_admin,
                     &mut evm,
@@ -649,9 +649,8 @@ fn initialize_tip20_factory(evm: &mut MagnusEvm<CacheDB<EmptyDB>>) -> eyre::Resu
     Ok(())
 }
 
-/// Creates pathUSD as the first MIP20 token at a reserved address.
-/// pathUSD is not created via factory since it's at a reserved address.
-fn create_path_usd_token(
+/// Creates MagnusUSD as the first USD MIP-20 token at a reserved address.
+fn create_magnus_usd_token(
     admin: Address,
     recipients: &[Address],
     amount_per_recipient: u64,
@@ -665,20 +664,18 @@ fn create_path_usd_token(
         &ctx.tx,
         || {
             MIP20Factory::new().create_token_reserved_address(
-                PATH_USD_ADDRESS,
-                "pathUSD",
-                "pathUSD",
+                MAGNUS_USD_ADDRESS,
+                "MagnusUSD",
+                "mUSD",
                 "USD",
                 Address::ZERO,
                 admin,
             )?;
 
-            // Initialize pathUSD directly (not via factory) since it's at a reserved address.
-            let mut token = MIP20Token::from_address(PATH_USD_ADDRESS)
-                .expect("Could not create pathUSD token instance");
+            let mut token = MIP20Token::from_address(MAGNUS_USD_ADDRESS)
+                .expect("Could not create MagnusUSD token instance");
             token.grant_role_internal(admin, *ISSUER_ROLE)?;
 
-            // Mint to all recipients
             for recipient in recipients.iter().progress() {
                 token
                     .mint(
@@ -688,7 +685,7 @@ fn create_path_usd_token(
                             amount: U256::from(amount_per_recipient),
                         },
                     )
-                    .expect("Could not mint pathUSD");
+                    .expect("Could not mint MagnusUSD");
             }
 
             Ok(())
@@ -815,34 +812,49 @@ fn initialize_fee_manager(
             fee_manager
                 .initialize()
                 .expect("Could not init fee manager");
-            println!(
-                "Setting user fee token {user_fee_token_address} for {} accounts",
-                initial_accounts.len()
-            );
-            for address in initial_accounts.iter().progress() {
-                fee_manager
-                    .set_user_token(
-                        *address,
-                        IFeeManager::setUserTokenCall {
-                            token: user_fee_token_address,
-                        },
-                    )
-                    .expect("Could not set fee token");
-            }
 
-            // Set validator fee tokens to pathUSD
-            for validator in validators {
-                println!("Setting user token for {validator} {validator_fee_token_address}");
-                fee_manager
-                    .set_validator_token(
-                        validator,
-                        IFeeManager::setValidatorTokenCall {
-                            token: validator_fee_token_address,
-                        },
-                        // use random address to avoid `CannotChangeWithinBlock` error
-                        Address::random(),
-                    )
-                    .expect("Could not set validator fee token");
+            // Legacy single-token preferences are deprecated at T4 (set_* reverts).
+            // Pre-T4 chains still need them populated; T4-from-genesis chains use
+            // governance-bootstrapped accept-sets instead.
+            if !StorageCtx.spec().is_t4() {
+                println!(
+                    "Setting user fee token {user_fee_token_address} for {} accounts",
+                    initial_accounts.len()
+                );
+                for address in initial_accounts.iter().progress() {
+                    fee_manager
+                        .set_user_token(
+                            *address,
+                            IFeeManager::setUserTokenCall {
+                                token: user_fee_token_address,
+                            },
+                        )
+                        .expect("Could not set fee token");
+                }
+
+                for validator in &validators {
+                    println!(
+                        "Setting validator token for {validator} {validator_fee_token_address}"
+                    );
+                    fee_manager
+                        .set_validator_token(
+                            *validator,
+                            IFeeManager::setValidatorTokenCall {
+                                token: validator_fee_token_address,
+                            },
+                            Address::random(),
+                        )
+                        .expect("Could not set validator fee token");
+                }
+            } else {
+                println!(
+                    "Skipping legacy user/validator token bootstrap (T4 active at genesis)"
+                );
+                let _ = (
+                    user_fee_token_address,
+                    validator_fee_token_address,
+                    &validators,
+                );
             }
 
             // Currency registry bootstrap: set admin and pre-register launch currencies.
