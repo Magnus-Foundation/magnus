@@ -2,14 +2,14 @@
 
 use crate::{
     Precompile, charge_input_cost, dispatch_call, mip20_issuer_registry::MIP20IssuerRegistry,
-    storage::StorageCtx, view,
+    mutate_void, view,
 };
 use alloy::{primitives::Address, sol_types::SolInterface};
 use revm::precompile::PrecompileResult;
 use magnus_contracts::precompiles::IMIP20IssuerRegistry::IMIP20IssuerRegistryCalls;
 
 impl Precompile for MIP20IssuerRegistry {
-    fn call(&mut self, calldata: &[u8], _msg_sender: Address) -> PrecompileResult {
+    fn call(&mut self, calldata: &[u8], msg_sender: Address) -> PrecompileResult {
         if let Some(err) = charge_input_cost(&mut self.storage, calldata) {
             return err;
         }
@@ -25,13 +25,16 @@ impl Precompile for MIP20IssuerRegistry {
                 IMIP20IssuerRegistryCalls::getApprovedIssuers(call) => {
                     view(call, |c| self.get_approved_issuers(&c.currency))
                 }
-                // Governance setters are not implemented yet.
-                IMIP20IssuerRegistryCalls::addApprovedIssuer(_)
-                | IMIP20IssuerRegistryCalls::removeApprovedIssuer(_) => StorageCtx.error_result(
-                    crate::error::MagnusPrecompileError::Fatal(
-                        "MIP20IssuerRegistry governance functions not implemented".into(),
-                    ),
-                ),
+                IMIP20IssuerRegistryCalls::addApprovedIssuer(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.add_approved_issuer(s, &c.currency, c.issuer)
+                    })
+                }
+                IMIP20IssuerRegistryCalls::removeApprovedIssuer(call) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.remove_approved_issuer(s, &c.currency, c.issuer)
+                    })
+                }
             },
         )
     }

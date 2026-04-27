@@ -11,29 +11,18 @@ crate::sol! {
         function isApprovedIssuer(string memory currency, address issuer) external view returns (bool);
         function getApprovedIssuers(string memory currency) external view returns (address[] memory);
 
-        function addApprovedIssuer(
-            string memory currency,
-            address issuer,
-            uint64 nonce,
-            uint64 expiresAt,
-            bytes calldata governanceSig
-        ) external;
-
-        function removeApprovedIssuer(
-            string memory currency,
-            address issuer,
-            uint64 nonce,
-            uint64 expiresAt,
-            bytes calldata governanceSig
-        ) external;
+        // Governance-gated by FeeManager.governanceAdmin (sender check).
+        function addApprovedIssuer(string memory currency, address issuer) external;
+        function removeApprovedIssuer(string memory currency, address issuer) external;
 
         event IssuerApproved(string currency, address indexed issuer);
         event IssuerRevoked(string currency, address indexed issuer);
 
         error IssuerNotApproved(address issuer, string currency);
         error IssuerAlreadyApproved(address issuer, string currency);
+        error IssuerNotInAllowlist(address issuer, string currency);
         error CurrencyNotRegistered(string currency);
-        error InvalidGovernanceSignature();
+        error OnlyGovernanceAdmin(address caller);
     }
 }
 
@@ -49,12 +38,16 @@ impl MIP20IssuerRegistryError {
         })
     }
 
+    pub fn issuer_not_in_allowlist(issuer: Address, currency: alloc::string::String) -> Self {
+        Self::IssuerNotInAllowlist(IMIP20IssuerRegistry::IssuerNotInAllowlist { issuer, currency })
+    }
+
     pub fn currency_not_registered(currency: alloc::string::String) -> Self {
         Self::CurrencyNotRegistered(IMIP20IssuerRegistry::CurrencyNotRegistered { currency })
     }
 
-    pub const fn invalid_governance_signature() -> Self {
-        Self::InvalidGovernanceSignature(IMIP20IssuerRegistry::InvalidGovernanceSignature {})
+    pub const fn only_governance_admin(caller: Address) -> Self {
+        Self::OnlyGovernanceAdmin(IMIP20IssuerRegistry::OnlyGovernanceAdmin { caller })
     }
 }
 
@@ -102,12 +95,15 @@ mod tests {
     }
 
     #[test]
-    fn invalid_governance_signature_is_unit_variant() {
-        let err = MIP20IssuerRegistryError::invalid_governance_signature();
-        assert!(matches!(
-            err,
-            MIP20IssuerRegistryError::InvalidGovernanceSignature(_)
-        ));
+    fn only_governance_admin_constructor_preserves_field() {
+        let caller = Address::repeat_byte(0x33);
+        let err = MIP20IssuerRegistryError::only_governance_admin(caller);
+        match err {
+            MIP20IssuerRegistryError::OnlyGovernanceAdmin(inner) => {
+                assert_eq!(inner.caller, caller);
+            }
+            _ => panic!("expected OnlyGovernanceAdmin variant"),
+        }
     }
 
     #[test]
@@ -115,8 +111,9 @@ mod tests {
         let selectors = [
             IMIP20IssuerRegistry::IssuerNotApproved::SELECTOR,
             IMIP20IssuerRegistry::IssuerAlreadyApproved::SELECTOR,
+            IMIP20IssuerRegistry::IssuerNotInAllowlist::SELECTOR,
             IMIP20IssuerRegistry::CurrencyNotRegistered::SELECTOR,
-            IMIP20IssuerRegistry::InvalidGovernanceSignature::SELECTOR,
+            IMIP20IssuerRegistry::OnlyGovernanceAdmin::SELECTOR,
         ];
 
         for i in 0..selectors.len() {

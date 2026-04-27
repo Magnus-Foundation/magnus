@@ -108,6 +108,20 @@ impl MIP20Factory {
     ) -> Result<Address> {
         trace!(%sender, ?call, "Create token");
 
+        // T4+: gate by IssuerRegistry allowlist. Pre-T4 stays permissionless.
+        if self.storage.spec().is_t4() {
+            use crate::mip20_issuer_registry::MIP20IssuerRegistry;
+            use magnus_contracts::precompiles::MIP20IssuerRegistryError;
+            let registry = MIP20IssuerRegistry::new();
+            if !registry.is_approved_issuer(&call.currency, sender)? {
+                return Err(MIP20IssuerRegistryError::issuer_not_approved(
+                    sender,
+                    call.currency.clone(),
+                )
+                .into());
+            }
+        }
+
         // Compute the deterministic address from sender and salt
         let (token_address, lower_bytes) = compute_tip20_address(sender, call.salt);
 

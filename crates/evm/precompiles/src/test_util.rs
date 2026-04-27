@@ -5,6 +5,7 @@ use crate::error::MagnusPrecompileError;
 use crate::{
     PATH_USD_ADDRESS, Precompile, Result,
     address_registry::{AddressRegistry, IAddressRegistry},
+    mip_fee_manager,
     storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
     mip20::{self, IMIP20, MIP20Token},
     mip20_factory::{self, MIP20Factory},
@@ -287,6 +288,42 @@ impl MIP20Setup {
         Ok(factory)
     }
 
+    /// Test-only: when running under T4 spec, ensure FeeManager + IssuerRegistry are
+    /// bootstrapped and `admin` is approved to deploy `currency` tokens. No-op pre-T4.
+    fn bootstrap_issuer_registry_if_needed(admin: Address, currency: &str) -> Result<()> {
+        use crate::{
+            mip20_issuer_registry::MIP20IssuerRegistry,
+            storage::{ContractStorage, StorageCtx},
+        };
+        if !StorageCtx.spec().is_t4() {
+            return Ok(());
+        }
+
+        let mut fm = mip_fee_manager::MipFeeManager::new();
+        if !fm.is_initialized()? {
+            fm.initialize()?;
+        }
+        if fm.governance_admin()?.is_zero() {
+            fm.set_governance_admin(Address::ZERO, admin)?;
+        }
+        let cfg = fm.get_currency_config(currency)?;
+        if !cfg.registered {
+            fm.add_currency(admin, currency, 0)?;
+        }
+        if !fm.is_currency_enabled(currency)? {
+            fm.enable_currency(admin, currency, 0)?;
+        }
+
+        let mut registry = MIP20IssuerRegistry::new();
+        if !registry.is_initialized()? {
+            registry.initialize()?;
+        }
+        if !registry.is_approved_issuer(currency, admin)? {
+            registry.add_approved_issuer(admin, currency, admin)?;
+        }
+        Ok(())
+    }
+
     /// Applies the configuration and returns the fully configured [`MIP20Token`].
     pub fn apply(self) -> Result<MIP20Token> {
         let mut token = match self.action.clone() {
@@ -302,6 +339,11 @@ impl MIP20Setup {
                 let admin = self.admin.expect("initializing a token requires an admin");
                 let quote = self.quote_token.unwrap_or(PATH_USD_ADDRESS);
                 let salt = self.salt.unwrap_or_else(B256::random);
+
+                // Under T4 the factory gates on IssuerRegistry. Auto-bootstrap the registry
+                // for `admin` so existing tests keep working transparently across hardforks.
+                Self::bootstrap_issuer_registry_if_needed(admin, &currency)?;
+
                 let token_address = factory.create_token(
                     admin,
                     mip20_factory::IMIP20Factory::createTokenCall {
