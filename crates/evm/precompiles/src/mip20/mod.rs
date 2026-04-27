@@ -57,6 +57,46 @@ pub fn validate_usd_currency(token: Address) -> Result<()> {
     Ok(())
 }
 
+/// Validates that the given token's currency is registered AND enabled in the FeeManager's
+/// currency registry (multi-currency-fees-design.md §4 / G1).
+///
+/// Reads cross-precompile from the FeeManager's `supported_currencies` map. The token's
+/// currency is read via the standard `MIP20Token::currency()` getter; the registry lookup
+/// uses `keccak256(currency)` per the storage convention defined in
+/// `mip_fee_manager/currency_registry.rs`.
+///
+/// **Replaces** `validate_usd_currency` for fee-related checks once G2 wires the fee path
+/// through this helper. `validate_usd_currency` itself stays available for any path that
+/// is intentionally USD-only.
+///
+/// # Errors
+/// - `InvalidToken` — address does not have the MIP-20 prefix
+/// - `CurrencyNotRegistered` — currency has not been added to the registry
+/// - `CurrencyDisabled` — currency was added but is not currently enabled (G6 will also
+///   produce this for currencies in their post-grace deprecated state)
+pub fn validate_supported_currency(token: Address) -> Result<()> {
+    use crate::mip_fee_manager::MipFeeManager;
+    use magnus_contracts::precompiles::FeeManagerError;
+
+    let currency = MIP20Token::from_address(token)?.currency()?;
+    let fee_manager = MipFeeManager::new();
+    let config = fee_manager.get_currency_config(&currency)?;
+
+    // We surface different errors so wallets and callers can distinguish "this currency
+    // doesn't exist" from "this currency was added but is currently disabled". The
+    // `registered` flag is the existence marker; `enabled` is the gas-eligibility flag.
+    // (Note: G6 will introduce additional disable states — deprecation grace period —
+    // which will need their own dedicated error per spec §11.1; for G1 we treat
+    // registered-but-not-enabled as `CurrencyDisabled`.)
+    if !config.registered {
+        return Err(FeeManagerError::currency_not_registered(currency).into());
+    }
+    if !config.enabled {
+        return Err(FeeManagerError::currency_disabled(currency).into());
+    }
+    Ok(())
+}
+
 /// MIP-20 token contract — the native token standard on Magnus.
 ///
 /// Implements ERC-20-like functionality (balances, allowances, transfers) with additional
@@ -3600,5 +3640,134 @@ pub(crate) mod tests {
             })?;
         }
         Ok(())
+    }
+}
+
+// ─── G1: validate_supported_currency tests (multi-currency-fees-design.md §4) ──
+#[cfg(test)]
+mod validate_supported_currency_tests {
+    use super::*;
+    use crate::{
+        mip_fee_manager::MipFeeManager,
+        storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
+        test_util::MIP20Setup,
+    };
+    use magnus_contracts::precompiles::FeeManagerError;
+
+    /// Bootstrap: set governance admin via zero-address path so tests can configure the
+    /// currency registry. Mirrors the genesis-init flow at T4 activation.
+    fn fee_manager_bootstrap(admin: Address) -> Result<MipFeeManager> {
+        let mut fm = MipFeeManager::new();
+        fm.initialize()?;
+        fm.set_governance_admin(Address::ZERO, admin)?;
+        Ok(fm)
+    }
+
+    #[test]
+    fn validate_succeeds_for_enabled_currency() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            // Bootstrap registry with USD enabled.
+            let mut fm = fee_manager_bootstrap(admin)?;
+            fm.add_currency(admin, "USD", 0)?;
+            fm.enable_currency(admin, "USD", 1)?;
+
+            // Deploy a USD MIP-20 token.
+            let token = MIP20Setup::create("Test USD", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+
+            // Validation passes.
+            validate_supported_currency(token.address())?;
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn validate_rejects_unregistered_currency() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            // Registry is empty (USD never added).
+            let _fm = fee_manager_bootstrap(admin)?;
+
+            // Deploy a USD-tagged token anyway.
+            let token = MIP20Setup::create("Random USD", "RUSD", admin)
+                .currency("USD")
+                .apply()?;
+
+            let err = validate_supported_currency(token.address()).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_not_registered(
+                    "USD".into()
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn validate_rejects_registered_but_disabled_currency() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            // Add USD but never enable. This is the staged-rollout state.
+            let mut fm = fee_manager_bootstrap(admin)?;
+            fm.add_currency(admin, "USD", 100)?;
+
+            let token = MIP20Setup::create("Pending USD", "PUSD", admin)
+                .currency("USD")
+                .apply()?;
+
+            let err = validate_supported_currency(token.address()).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_disabled(
+                    "USD".into()
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn validate_handles_multiple_currencies_independently() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            // USD enabled, VND added-but-disabled, EUR never added.
+            let mut fm = fee_manager_bootstrap(admin)?;
+            fm.add_currency(admin, "USD", 0)?;
+            fm.enable_currency(admin, "USD", 1)?;
+            fm.add_currency(admin, "VND", 2)?;
+
+            let usd_token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+            let vnd_token = MIP20Setup::create("vndBank", "VNDB", admin)
+                .currency("VND")
+                .apply()?;
+            let eur_token = MIP20Setup::create("eurBank", "EURB", admin)
+                .currency("EUR")
+                .apply()?;
+
+            validate_supported_currency(usd_token.address())?;
+
+            assert!(matches!(
+                validate_supported_currency(vnd_token.address()),
+                Err(MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::CurrencyDisabled(_)
+                ))
+            ));
+            assert!(matches!(
+                validate_supported_currency(eur_token.address()),
+                Err(MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::CurrencyNotRegistered(_)
+                ))
+            ));
+            Ok(())
+        })
     }
 }

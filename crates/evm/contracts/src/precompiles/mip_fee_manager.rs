@@ -23,6 +23,20 @@ crate::sol! {
             bool hasBeenSet;
         }
 
+        /// On-chain config for a registered fiat currency (multi-currency-fees-design.md §4.3).
+        /// Returned by `getCurrencyConfig`. G6 will extend this struct with deprecation fields.
+        ///
+        /// `registered` is the existence flag — `false` for any never-added code (a default
+        /// zero slot is indistinguishable from "registered USD at block 0"). Off-chain readers
+        /// MUST check `registered` before interpreting `enabled` / `addedAtBlock` /
+        /// `enabledAtBlock`.
+        struct CurrencyConfig {
+            bool   registered;
+            bool   enabled;
+            uint64 addedAtBlock;
+            uint64 enabledAtBlock;
+        }
+
         // User preferences
         function userTokens(address user) external view returns (address);
         function validatorTokens(address validator) external view returns (address);
@@ -35,10 +49,24 @@ crate::sol! {
         // NOTE: collectFeePreTx is a protocol-internal function called directly by the
         // execution handler, not exposed via the dispatch interface.
 
+        // ─── G1: Currency registry (multi-currency-fees-design.md §4) ──────────────
+        // Governance-only setters (caller must equal `governanceAdmin`):
+        function addCurrency(string calldata code) external;
+        function enableCurrency(string calldata code) external;
+        function setGovernanceAdmin(address newAdmin) external;
+        // Read-only views:
+        function getCurrencyConfig(string calldata code) external view returns (CurrencyConfig memory);
+        function isCurrencyEnabled(string calldata code) external view returns (bool);
+        function governanceAdmin() external view returns (address);
+
         // Events
         event UserTokenSet(address indexed user, address indexed token);
         event ValidatorTokenSet(address indexed validator, address indexed token);
         event FeesDistributed(address indexed validator, address indexed token, uint256 amount);
+        // G1 events:
+        event CurrencyAdded(string code, uint64 atBlock);
+        event CurrencyEnabled(string code, uint64 atBlock);
+        event GovernanceAdminChanged(address indexed oldAdmin, address indexed newAdmin);
 
         // Errors
         error OnlyValidator();
@@ -62,6 +90,18 @@ crate::sol! {
         error FeeTokenNotAccepted(address validator, address token);
         error FeeTokenNotInferable();
         error ValidatorAcceptSetEmpty(address validator);
+
+        // G1 errors:
+        // OnlyGovernanceAdmin: caller of a governance-gated function is not `governanceAdmin`.
+        // CurrencyAlreadyAdded: addCurrency called for a code that is already registered.
+        // CurrencyAlreadyEnabled: enableCurrency called for a code that is already enabled.
+        // InvalidCurrencyCode: code fails the ISO-4217 syntax check (3 uppercase ASCII letters).
+        // ZeroAddressGovernanceAdmin: setGovernanceAdmin(address(0)) is rejected — would brick the registry.
+        error OnlyGovernanceAdmin(address caller);
+        error CurrencyAlreadyAdded(string currency);
+        error CurrencyAlreadyEnabled(string currency);
+        error InvalidCurrencyCode(string currency);
+        error ZeroAddressGovernanceAdmin();
     }
 }
 
@@ -189,6 +229,33 @@ impl FeeManagerError {
     /// Creates an error when the producing validator has no tokens in its accept-set.
     pub fn validator_accept_set_empty(validator: alloy_primitives::Address) -> Self {
         Self::ValidatorAcceptSetEmpty(IFeeManager::ValidatorAcceptSetEmpty { validator })
+    }
+
+    // ─── G1 error constructors ────────────────────────────────────────────────
+
+    /// Creates an error when a non-governance-admin address calls a gov-gated function.
+    pub fn only_governance_admin(caller: alloy_primitives::Address) -> Self {
+        Self::OnlyGovernanceAdmin(IFeeManager::OnlyGovernanceAdmin { caller })
+    }
+
+    /// Creates an error when `addCurrency` is called for an already-registered currency.
+    pub fn currency_already_added(currency: alloc::string::String) -> Self {
+        Self::CurrencyAlreadyAdded(IFeeManager::CurrencyAlreadyAdded { currency })
+    }
+
+    /// Creates an error when `enableCurrency` is called for an already-enabled currency.
+    pub fn currency_already_enabled(currency: alloc::string::String) -> Self {
+        Self::CurrencyAlreadyEnabled(IFeeManager::CurrencyAlreadyEnabled { currency })
+    }
+
+    /// Creates an error when a currency code fails the ISO 4217 syntax check.
+    pub fn invalid_currency_code(currency: alloc::string::String) -> Self {
+        Self::InvalidCurrencyCode(IFeeManager::InvalidCurrencyCode { currency })
+    }
+
+    /// Creates an error when setGovernanceAdmin would set the admin to the zero address.
+    pub const fn zero_address_governance_admin() -> Self {
+        Self::ZeroAddressGovernanceAdmin(IFeeManager::ZeroAddressGovernanceAdmin {})
     }
 }
 

@@ -9,6 +9,7 @@ pub mod dispatch;
 use crate::{
     error::{MagnusPrecompileError, Result},
     mip_fee_manager::amm::{Pool, PoolKey, compute_amount_out},
+    mip_fee_manager::currency_registry::{CurrencyConfig, currency_key, is_valid_currency_code},
     mip20::{IMIP20, MIP20Token, validate_usd_currency},
     mip20_factory::MIP20Factory,
     storage::{Handler, Mapping},
@@ -35,6 +36,19 @@ pub struct MipFeeManager {
     pools: Mapping<B256, Pool>,
     total_supply: Mapping<B256, U256>,
     liquidity_balances: Mapping<B256, Mapping<Address, U256>>,
+
+    // ─── G1: Currency registry (multi-currency-fees-design.md §4) ──────────────
+    //
+    // Authentication for governance-gated functions is `sender == governance_admin`.
+    // The admin is intended to be the address of an off-chain or on-chain multisig
+    // contract; signature aggregation happens at that layer, the precompile only
+    // checks `msg.sender`. Future shared-infrastructure groups may upgrade this to
+    // EIP-712 multisig verification embedded directly here, at which point this
+    // field would be replaced with a signer-set + threshold pair.
+    governance_admin: Address,
+    /// Per-currency configuration map. Key = `keccak256(ISO 4217 code)` (B256).
+    /// Solidity ABI takes the human-readable code; the precompile hashes internally.
+    supported_currencies: Mapping<B256, CurrencyConfig>,
 
     // WARNING(rusowsky): transient storage slots must always be placed at the very end until the `contract`
     // macro is refactored and has 2 independent layouts (persistent and transient).
@@ -283,6 +297,140 @@ impl MipFeeManager {
     /// Reads the stored fee token preference for a user.
     pub fn user_tokens(&self, call: IFeeManager::userTokensCall) -> Result<Address> {
         self.user_tokens[call.user].read()
+    }
+
+    // ─── G1: Currency registry (multi-currency-fees-design.md §4) ──────────────
+    //
+    // Governance-gated setters: `addCurrency`, `enableCurrency`, `setGovernanceAdmin`.
+    // Authentication is `sender == governance_admin`. Reads are public.
+
+    /// Returns the address authorized to call governance-gated setters.
+    /// Zero address means "not yet configured" — all governance setters revert until
+    /// genesis or a one-time bootstrap call sets it.
+    pub fn governance_admin(&self) -> Result<Address> {
+        self.governance_admin.read()
+    }
+
+    /// Reads the on-chain config for a registered currency.
+    /// Returns `CurrencyConfig::default()` (`enabled = false`, blocks = 0) for codes that
+    /// have never been registered. Use `is_currency_enabled` for the explicit check.
+    pub fn get_currency_config(&self, code: &str) -> Result<CurrencyConfig> {
+        self.supported_currencies[currency_key(code)].read()
+    }
+
+    /// Returns `true` if `code` is registered AND currently enabled (gas-eligible).
+    pub fn is_currency_enabled(&self, code: &str) -> Result<bool> {
+        let config = self.get_currency_config(code)?;
+        Ok(config.enabled)
+    }
+
+    /// Registers a new currency (initially disabled) — must be `enable`d separately.
+    /// Two-step add → enable lets governance pre-stage a currency without making it
+    /// gas-eligible until the issuer + validator-org coordination is done.
+    ///
+    /// # Errors
+    /// - `OnlyGovernanceAdmin` — caller is not `governance_admin`
+    /// - `InvalidCurrencyCode` — code fails ISO-4217 syntax check
+    /// - `CurrencyAlreadyAdded` — code is already in the registry
+    pub fn add_currency(&mut self, sender: Address, code: &str, current_block: u64) -> Result<()> {
+        self.assert_governance(sender)?;
+        if !is_valid_currency_code(code) {
+            return Err(FeeManagerError::invalid_currency_code(code.into()).into());
+        }
+
+        let key = currency_key(code);
+        let existing = self.supported_currencies[key].read()?;
+        if existing.registered {
+            return Err(FeeManagerError::currency_already_added(code.into()).into());
+        }
+
+        let config = CurrencyConfig::newly_added(current_block);
+        self.supported_currencies[key].write(config)?;
+
+        self.emit_event(FeeManagerEvent::CurrencyAdded(IFeeManager::CurrencyAdded {
+            code: code.into(),
+            atBlock: current_block,
+        }))?;
+
+        Ok(())
+    }
+
+    /// Marks a registered currency as gas-eligible. Idempotent: re-enable on an
+    /// already-enabled currency reverts with `CurrencyAlreadyEnabled`.
+    ///
+    /// # Errors
+    /// - `OnlyGovernanceAdmin` — caller is not `governance_admin`
+    /// - `InvalidCurrencyCode` — code fails ISO-4217 syntax check
+    /// - `CurrencyNotRegistered` — code has not been added via `addCurrency`
+    /// - `CurrencyAlreadyEnabled` — code is already enabled
+    pub fn enable_currency(
+        &mut self,
+        sender: Address,
+        code: &str,
+        current_block: u64,
+    ) -> Result<()> {
+        self.assert_governance(sender)?;
+        if !is_valid_currency_code(code) {
+            return Err(FeeManagerError::invalid_currency_code(code.into()).into());
+        }
+
+        let key = currency_key(code);
+        let mut config = self.supported_currencies[key].read()?;
+        if !config.registered {
+            return Err(FeeManagerError::currency_not_registered(code.into()).into());
+        }
+        if config.enabled {
+            return Err(FeeManagerError::currency_already_enabled(code.into()).into());
+        }
+
+        config.enabled = true;
+        config.enabled_at_block = current_block;
+        self.supported_currencies[key].write(config)?;
+
+        self.emit_event(FeeManagerEvent::CurrencyEnabled(IFeeManager::CurrencyEnabled {
+            code: code.into(),
+            atBlock: current_block,
+        }))?;
+
+        Ok(())
+    }
+
+    /// Transfers governance authority to a new admin address. Only the current admin
+    /// (or zero-address sentinel during genesis bootstrap) may call.
+    ///
+    /// # Errors
+    /// - `OnlyGovernanceAdmin` — caller is not the current admin
+    /// - `ZeroAddressGovernanceAdmin` — `new_admin == address(0)` would brick the registry
+    pub fn set_governance_admin(&mut self, sender: Address, new_admin: Address) -> Result<()> {
+        if new_admin.is_zero() {
+            return Err(FeeManagerError::zero_address_governance_admin().into());
+        }
+        let old_admin = self.governance_admin.read()?;
+        // Bootstrap rule: while admin is zero, anyone may set the initial admin (e.g. via the
+        // genesis-init transaction or a privileged setup call). After that, only the current
+        // admin can rotate authority.
+        if !old_admin.is_zero() && sender != old_admin {
+            return Err(FeeManagerError::only_governance_admin(sender).into());
+        }
+        self.governance_admin.write(new_admin)?;
+
+        self.emit_event(FeeManagerEvent::GovernanceAdminChanged(
+            IFeeManager::GovernanceAdminChanged {
+                oldAdmin: old_admin,
+                newAdmin: new_admin,
+            },
+        ))?;
+
+        Ok(())
+    }
+
+    /// Internal helper: enforces `sender == governance_admin` for governance-gated setters.
+    fn assert_governance(&self, sender: Address) -> Result<()> {
+        let admin = self.governance_admin.read()?;
+        if sender != admin {
+            return Err(FeeManagerError::only_governance_admin(sender).into());
+        }
+        Ok(())
     }
 }
 
@@ -961,6 +1109,309 @@ mod tests {
             let fee_manager2 = MipFeeManager::new();
             assert!(fee_manager2.is_initialized()?);
 
+            Ok(())
+        })
+    }
+}
+
+// ─── G1: Currency registry tests (multi-currency-fees-design.md §4) ──────────
+#[cfg(test)]
+mod currency_registry_tests {
+    use super::*;
+    use crate::{
+        error::MagnusPrecompileError,
+        storage::{StorageCtx, hashmap::HashMapStorageProvider},
+    };
+
+    /// Bootstrap helper: a fresh FeeManager with `governance_admin` set to `admin` via the
+    /// zero-address bootstrap path. Mirrors what the genesis-init transaction does at T4
+    /// activation.
+    fn fee_manager_with_admin(admin: Address) -> Result<MipFeeManager> {
+        let mut fee_manager = MipFeeManager::new();
+        fee_manager.initialize()?;
+        // Bootstrap: admin == zero, so any caller can set the initial admin.
+        fee_manager.set_governance_admin(Address::ZERO, admin)?;
+        Ok(fee_manager)
+    }
+
+    #[test]
+    fn governance_admin_zero_at_genesis() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        StorageCtx::enter(&mut storage, || {
+            let fee_manager = MipFeeManager::new();
+            assert_eq!(fee_manager.governance_admin()?, Address::ZERO);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn set_governance_admin_bootstrap_from_zero_succeeds() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let any_caller = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = MipFeeManager::new();
+            // Zero-address bootstrap: anyone can set the initial admin.
+            fee_manager.set_governance_admin(any_caller, admin)?;
+            assert_eq!(fee_manager.governance_admin()?, admin);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn set_governance_admin_rotates_only_via_current_admin() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::repeat_byte(0xAA);
+        let new_admin = Address::repeat_byte(0xBB);
+        let attacker = Address::repeat_byte(0xCC);
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = fee_manager_with_admin(admin)?;
+
+            // Non-admin cannot rotate.
+            let err = fee_manager
+                .set_governance_admin(attacker, new_admin)
+                .unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::only_governance_admin(
+                    attacker
+                ))
+            );
+
+            // Current admin can rotate.
+            fee_manager.set_governance_admin(admin, new_admin)?;
+            assert_eq!(fee_manager.governance_admin()?, new_admin);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn set_governance_admin_rejects_zero_address() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = fee_manager_with_admin(admin)?;
+            let err = fee_manager
+                .set_governance_admin(admin, Address::ZERO)
+                .unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::zero_address_governance_admin()
+                )
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn add_currency_happy_path_emits_event_and_persists() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = fee_manager_with_admin(admin)?;
+            fee_manager.clear_emitted_events();
+
+            fee_manager.add_currency(admin, "USD", 100)?;
+
+            // Persisted: registered, not yet enabled.
+            let config = fee_manager.get_currency_config("USD")?;
+            assert!(!config.enabled);
+            assert_eq!(config.added_at_block, 100);
+            assert_eq!(config.enabled_at_block, 0);
+            assert!(!fee_manager.is_currency_enabled("USD")?);
+
+            // Event emitted.
+            fee_manager.assert_emitted_events(vec![FeeManagerEvent::CurrencyAdded(
+                IFeeManager::CurrencyAdded {
+                    code: "USD".into(),
+                    atBlock: 100,
+                },
+            )]);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn add_currency_rejects_non_admin() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let attacker = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = fee_manager_with_admin(admin)?;
+            let err = fee_manager.add_currency(attacker, "USD", 0).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::only_governance_admin(
+                    attacker
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn add_currency_rejects_invalid_code() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = fee_manager_with_admin(admin)?;
+            for bad in &["", "us", "usd", "USDT", "US1"] {
+                let err = fee_manager.add_currency(admin, bad, 0).unwrap_err();
+                assert_eq!(
+                    err,
+                    MagnusPrecompileError::FeeManagerError(FeeManagerError::invalid_currency_code(
+                        (*bad).into()
+                    )),
+                    "expected InvalidCurrencyCode for {:?}",
+                    bad
+                );
+            }
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn add_currency_rejects_double_add() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = fee_manager_with_admin(admin)?;
+            fee_manager.add_currency(admin, "USD", 0)?;
+            let err = fee_manager.add_currency(admin, "USD", 1).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_already_added(
+                    "USD".into()
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn enable_currency_happy_path_flips_flag_and_records_block() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = fee_manager_with_admin(admin)?;
+            fee_manager.add_currency(admin, "USD", 50)?;
+            fee_manager.clear_emitted_events();
+
+            fee_manager.enable_currency(admin, "USD", 200)?;
+
+            let config = fee_manager.get_currency_config("USD")?;
+            assert!(config.enabled);
+            assert_eq!(config.added_at_block, 50);
+            assert_eq!(config.enabled_at_block, 200);
+            assert!(fee_manager.is_currency_enabled("USD")?);
+
+            fee_manager.assert_emitted_events(vec![FeeManagerEvent::CurrencyEnabled(
+                IFeeManager::CurrencyEnabled {
+                    code: "USD".into(),
+                    atBlock: 200,
+                },
+            )]);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn enable_currency_rejects_unregistered() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = fee_manager_with_admin(admin)?;
+            let err = fee_manager.enable_currency(admin, "VND", 0).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_not_registered(
+                    "VND".into()
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn enable_currency_rejects_already_enabled() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = fee_manager_with_admin(admin)?;
+            fee_manager.add_currency(admin, "USD", 0)?;
+            fee_manager.enable_currency(admin, "USD", 1)?;
+            let err = fee_manager.enable_currency(admin, "USD", 2).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_already_enabled(
+                    "USD".into()
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn enable_currency_rejects_non_admin() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let attacker = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = fee_manager_with_admin(admin)?;
+            fee_manager.add_currency(admin, "USD", 0)?;
+            let err = fee_manager.enable_currency(attacker, "USD", 1).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::only_governance_admin(
+                    attacker
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn unregistered_currency_returns_default_config() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        StorageCtx::enter(&mut storage, || {
+            let fee_manager = MipFeeManager::new();
+            let config = fee_manager.get_currency_config("USD")?;
+            assert!(!config.enabled);
+            assert_eq!(config.added_at_block, 0);
+            assert_eq!(config.enabled_at_block, 0);
+            assert!(!fee_manager.is_currency_enabled("USD")?);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn multiple_currencies_can_be_independently_managed() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fee_manager = fee_manager_with_admin(admin)?;
+            fee_manager.add_currency(admin, "USD", 10)?;
+            fee_manager.add_currency(admin, "VND", 20)?;
+            fee_manager.add_currency(admin, "EUR", 30)?;
+            fee_manager.enable_currency(admin, "USD", 100)?;
+            fee_manager.enable_currency(admin, "VND", 200)?;
+            // EUR registered but not enabled.
+
+            assert!(fee_manager.is_currency_enabled("USD")?);
+            assert!(fee_manager.is_currency_enabled("VND")?);
+            assert!(!fee_manager.is_currency_enabled("EUR")?);
+            assert!(!fee_manager.is_currency_enabled("GBP")?); // never added
+
+            let usd = fee_manager.get_currency_config("USD")?;
+            assert_eq!(usd.added_at_block, 10);
+            assert_eq!(usd.enabled_at_block, 100);
+            let vnd = fee_manager.get_currency_config("VND")?;
+            assert_eq!(vnd.added_at_block, 20);
+            assert_eq!(vnd.enabled_at_block, 200);
+            let eur = fee_manager.get_currency_config("EUR")?;
+            assert_eq!(eur.added_at_block, 30);
+            assert_eq!(eur.enabled_at_block, 0);
             Ok(())
         })
     }

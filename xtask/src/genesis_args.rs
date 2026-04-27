@@ -384,12 +384,28 @@ impl GenesisArgs {
             PATH_USD_ADDRESS
         };
 
+        // ─── G1: choose initial currency registry state per chain ─────────────
+        // multi-currency-fees-design.md §3.3 / §10:
+        //   - testnet (chainId 42431): USD only
+        //   - mainnet (chainId 4217):  USD + VND day 1
+        //   - dev / other:             empty registry; tests register manually
+        // Genesis sets `governance_admin` to the coinbase as a default; real deployments
+        // override this via `setGovernanceAdmin` in a post-launch governance tx.
+        let initial_currencies: &[&str] = match self.chain_id {
+            4217 => &["USD", "VND"],
+            42431 => &["USD"],
+            _ => &[],
+        };
+        let governance_admin = self.coinbase;
+
         initialize_fee_manager(
             default_validator_fee_token,
             default_user_fee_token,
             addresses.clone(),
             // TODO: also populate validators here, once the logic is back.
             vec![self.coinbase],
+            governance_admin,
+            initial_currencies,
             &mut evm,
         );
 
@@ -789,6 +805,8 @@ fn initialize_fee_manager(
     user_fee_token_address: Address,
     initial_accounts: Vec<Address>,
     validators: Vec<Address>,
+    governance_admin: Address,
+    initial_currencies: &[&str],
     evm: &mut MagnusEvm<CacheDB<EmptyDB>>,
 ) {
     // Update the beneficiary since the validator can't set the validator fee token for themselves
@@ -831,6 +849,41 @@ fn initialize_fee_manager(
                         Address::random(),
                     )
                     .expect("Could not set validator fee token");
+            }
+
+            // ─── G1: Currency registry bootstrap ─────────────────────────────
+            // Genesis sets the governance admin (zero-address bootstrap path) and pre-registers
+            // the launch-day currencies so the fee path has something to validate against on
+            // T4 activation. Per multi-currency-fees-design.md §10:
+            //   - testnet: USD only
+            //   - mainnet: USD + VND from day 1 (Path A launch)
+            // The admin is the only address that can subsequently `addCurrency`/`enableCurrency`.
+            //
+            // NOTE: governance_admin == Address::ZERO is allowed and means "leave unset; the
+            // multisig will bootstrap via setGovernanceAdmin in a post-launch tx". For most
+            // genesis flows we want a real admin baked in.
+            if !governance_admin.is_zero() {
+                println!("Setting governance admin to {governance_admin}");
+                fee_manager
+                    .set_governance_admin(Address::ZERO, governance_admin)
+                    .expect("Could not set governance admin");
+
+                // Block 0 is the canonical genesis block. add+enable in one shot so the
+                // currency is gas-eligible from block 1 onward.
+                for code in initial_currencies {
+                    println!("Registering and enabling currency {code}");
+                    fee_manager
+                        .add_currency(governance_admin, code, 0)
+                        .unwrap_or_else(|e| panic!("could not add currency {code}: {e:?}"));
+                    fee_manager
+                        .enable_currency(governance_admin, code, 0)
+                        .unwrap_or_else(|e| panic!("could not enable currency {code}: {e:?}"));
+                }
+            } else if !initial_currencies.is_empty() {
+                println!(
+                    "WARN: governance_admin is zero; skipping {} currency registrations",
+                    initial_currencies.len()
+                );
             }
         },
     );

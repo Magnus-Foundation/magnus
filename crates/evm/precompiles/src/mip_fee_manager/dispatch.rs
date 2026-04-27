@@ -71,6 +71,44 @@ impl Precompile for MipFeeManager {
                     })
                 }
 
+                // ─── G1: Currency registry views ──────────────────────────────────
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::governanceAdmin(call)) => {
+                    view(call, |_| self.governance_admin())
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::getCurrencyConfig(call)) => {
+                    view(call, |c| {
+                        let config = self.get_currency_config(&c.code)?;
+                        Ok(magnus_contracts::precompiles::IFeeManager::CurrencyConfig {
+                            registered: config.registered,
+                            enabled: config.enabled,
+                            addedAtBlock: config.added_at_block,
+                            enabledAtBlock: config.enabled_at_block,
+                        })
+                    })
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::isCurrencyEnabled(call)) => {
+                    view(call, |c| self.is_currency_enabled(&c.code))
+                }
+
+                // ─── G1: Currency registry governance setters ─────────────────────
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::addCurrency(call)) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        let block = self.storage.block_number();
+                        self.add_currency(s, &c.code, block)
+                    })
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::enableCurrency(call)) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        let block = self.storage.block_number();
+                        self.enable_currency(s, &c.code, block)
+                    })
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::setGovernanceAdmin(call)) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        self.set_governance_admin(s, c.newAdmin)
+                    })
+                }
+
                 // ITIPFeeAMM metadata functions
                 TipFeeManagerCall::Amm(ITIPFeeAMMCalls::M(_)) => {
                     metadata::<ITIPFeeAMM::MCall>(|| Ok(M))
