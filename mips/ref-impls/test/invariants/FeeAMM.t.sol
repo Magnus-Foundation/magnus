@@ -170,8 +170,8 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
             for (uint256 j = 0; j < totalTokens; j++) {
                 if (i == j) continue;
 
-                address ut = i == 0 ? address(pathUSD) : address(_tokens[i - 1]);
-                address vt = j == 0 ? address(pathUSD) : address(_tokens[j - 1]);
+                address ut = i == 0 ? address(MagnusUSD) : address(_tokens[i - 1]);
+                address vt = j == 0 ? address(MagnusUSD) : address(_tokens[j - 1]);
 
                 IFeeAMM.Pool memory pool = amm.getPool(ut, vt);
                 if (pool.reserveUserToken > 0) {
@@ -201,7 +201,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         view
         returns (address actor, uint256 balance)
     {
-        uint64 policyId = token == address(pathUSD) ? _pathUsdPolicyId : _tokenPolicyIds[token];
+        uint64 policyId = token == address(MagnusUSD) ? _pathUsdPolicyId : _tokenPolicyIds[token];
 
         address[] memory blacklisted = new address[](BLACKLISTABLE_ACTOR_COUNT);
         uint256[] memory balances = new uint256[](BLACKLISTABLE_ACTOR_COUNT);
@@ -801,8 +801,8 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         address actor = _selectActor(actorSeed);
         address token = _selectToken(tokenSeed);
 
-        uint64 policyId = token == address(pathUSD) ? _pathUsdPolicyId : _tokenPolicyIds[token];
-        address policyAdmin = token == address(pathUSD) ? pathUSDAdmin : admin;
+        uint64 policyId = token == address(MagnusUSD) ? _pathUsdPolicyId : _tokenPolicyIds[token];
+        address policyAdmin = token == address(MagnusUSD) ? MagnusUSDAdmin : admin;
 
         // Determine if this actor is in the blacklistable pool (actors 0-4)
         uint256 actorIndex = actorSeed % _actors.length;
@@ -901,12 +901,12 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         address user = _selectActor(userSeed);
         address validator = _selectActor(validatorSeed);
 
-        // Get user and validator token preferences (default to pathUSD if not set)
+        // Get user and validator token preferences (default to MagnusUSD if not set)
         address userToken = amm.userTokens(user);
-        if (userToken == address(0)) userToken = address(pathUSD);
+        if (userToken == address(0)) userToken = address(MagnusUSD);
 
         address validatorToken = amm.validatorTokens(validator);
-        if (validatorToken == address(0)) validatorToken = address(pathUSD);
+        if (validatorToken == address(0)) validatorToken = address(MagnusUSD);
 
         // Bound fee amount first so we can check liquidity
         uint256 feeAmount = bound(feeAmountRaw, 1000, 1_000_000);
@@ -914,7 +914,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
 
         // Skip if user is blacklisted for userToken (can't mint funds to them or transfer from them)
         uint64 userTokenPolicyId =
-            userToken == address(pathUSD) ? _pathUsdPolicyId : _tokenPolicyIds[userToken];
+            userToken == address(MagnusUSD) ? _pathUsdPolicyId : _tokenPolicyIds[userToken];
         vm.assume(registry.isAuthorized(userTokenPolicyId, user));
 
         // Bias toward cross-token swaps: 90% chance to force different tokens
@@ -1104,11 +1104,11 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         for (uint256 i = 0; i < numTokens; i++) {
             ammBalances[i] = _tokens[i].balanceOf(address(amm));
         }
-        uint256 ammPathUsdBalance = pathUSD.balanceOf(address(amm));
+        uint256 ammPathUsdBalance = MagnusUSD.balanceOf(address(amm));
 
         // Check combined solvency per token (FEE5) - reserves + collected fees <= balance
         // A token's total obligations = sum of reserves across all pools referencing it + collected fees
-        uint256 totalTokens = numTokens + 1; // _tokens + pathUSD
+        uint256 totalTokens = numTokens + 1; // _tokens + MagnusUSD
         for (uint256 i = 0; i < numTokens; i++) {
             address token = address(_tokens[i]);
 
@@ -1121,7 +1121,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
             // Sum reserves for this token across all pools where it appears
             uint256 totalReserves = 0;
             for (uint256 j = 0; j < totalTokens; j++) {
-                address other = j == 0 ? address(pathUSD) : address(_tokens[j - 1]);
+                address other = j == 0 ? address(MagnusUSD) : address(_tokens[j - 1]);
                 if (other == token) continue;
 
                 // token as userToken in pool(token, other)
@@ -1138,25 +1138,25 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 "MAGNUS-FEE5: Combined reserves + collected fees exceed AMM balance"
             );
         }
-        // Check pathUSD combined solvency
+        // Check MagnusUSD combined solvency
         {
             uint256 totalPathUsdCollected = 0;
             for (uint256 a = 0; a < numActors; a++) {
-                totalPathUsdCollected += amm.collectedFees(_actors[a], address(pathUSD));
+                totalPathUsdCollected += amm.collectedFees(_actors[a], address(MagnusUSD));
             }
             uint256 totalPathUsdReserves = 0;
             for (uint256 j = 0; j < numTokens; j++) {
                 address other = address(_tokens[j]);
-                // pathUSD as userToken in pool(pathUSD, other)
-                IFeeAMM.Pool memory p1 = amm.getPool(address(pathUSD), other);
+                // MagnusUSD as userToken in pool(MagnusUSD, other)
+                IFeeAMM.Pool memory p1 = amm.getPool(address(MagnusUSD), other);
                 totalPathUsdReserves += uint256(p1.reserveUserToken);
-                // pathUSD as validatorToken in pool(other, pathUSD)
-                IFeeAMM.Pool memory p2 = amm.getPool(other, address(pathUSD));
+                // MagnusUSD as validatorToken in pool(other, MagnusUSD)
+                IFeeAMM.Pool memory p2 = amm.getPool(other, address(MagnusUSD));
                 totalPathUsdReserves += uint256(p2.reserveValidatorToken);
             }
             assertTrue(
                 totalPathUsdReserves + totalPathUsdCollected <= ammPathUsdBalance,
-                "MAGNUS-FEE5: Combined pathUSD reserves + collected fees exceed AMM balance"
+                "MAGNUS-FEE5: Combined MagnusUSD reserves + collected fees exceed AMM balance"
             );
         }
 
@@ -1217,20 +1217,20 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
             }
         }
 
-        // Check pathUSD pools - MAGNUS-AMM13
+        // Check MagnusUSD pools - MAGNUS-AMM13
         for (uint256 i = 0; i < numTokens; i++) {
             address token = address(_tokens[i]);
 
-            IFeeAMM.Pool memory pool1 = amm.getPool(address(pathUSD), token);
+            IFeeAMM.Pool memory pool1 = amm.getPool(address(MagnusUSD), token);
             assertTrue(
                 ammPathUsdBalance >= pool1.reserveUserToken,
-                "MAGNUS-AMM13: AMM pathUSD balance < reserve (as user)"
+                "MAGNUS-AMM13: AMM MagnusUSD balance < reserve (as user)"
             );
 
-            IFeeAMM.Pool memory pool2 = amm.getPool(token, address(pathUSD));
+            IFeeAMM.Pool memory pool2 = amm.getPool(token, address(MagnusUSD));
             assertTrue(
                 ammPathUsdBalance >= pool2.reserveValidatorToken,
-                "MAGNUS-AMM13: AMM pathUSD balance < reserve (as validator)"
+                "MAGNUS-AMM13: AMM MagnusUSD balance < reserve (as validator)"
             );
         }
     }
@@ -1397,9 +1397,9 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 if (i == j) continue;
                 _verifyPoolShape(address(_tokens[i]), address(_tokens[j]));
             }
-            // Check pathUSD pools
-            _verifyPoolShape(address(_tokens[i]), address(pathUSD));
-            _verifyPoolShape(address(pathUSD), address(_tokens[i]));
+            // Check MagnusUSD pools
+            _verifyPoolShape(address(_tokens[i]), address(MagnusUSD));
+            _verifyPoolShape(address(MagnusUSD), address(_tokens[i]));
         }
     }
 
@@ -1479,9 +1479,9 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 }
             }
 
-            // Unblacklist for pathUSD
+            // Unblacklist for MagnusUSD
             if (!registry.isAuthorized(_pathUsdPolicyId, actor)) {
-                vm.prank(pathUSDAdmin);
+                vm.prank(MagnusUSDAdmin);
                 registry.modifyPolicyBlacklist(_pathUsdPolicyId, actor, false);
                 unblacklistedCount++;
             }
@@ -1512,16 +1512,16 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 }
             }
 
-            // pathUSD fees
-            uint256 pendingPathUSD = amm.collectedFees(validator, address(pathUSD));
+            // MagnusUSD fees
+            uint256 pendingPathUSD = amm.collectedFees(validator, address(MagnusUSD));
             if (pendingPathUSD > 0) {
-                try amm.distributeFees(validator, address(pathUSD)) {
+                try amm.distributeFees(validator, address(MagnusUSD)) {
                     distributedAfterUnblacklist += pendingPathUSD;
                 } catch (bytes memory reason) {
                     _assertKnownFeeManagerError(reason);
                     revert(
                         string.concat(
-                            "MAGNUS-AMM34: pathUSD distribution failed for ",
+                            "MAGNUS-AMM34: MagnusUSD distribution failed for ",
                             vm.toString(validator),
                             " after unblacklist - frozen fees should be recoverable"
                         )
@@ -1539,7 +1539,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
             for (uint256 t = 0; t < _tokens.length; t++) {
                 remainingFees += amm.collectedFees(_actors[i], address(_tokens[t]));
             }
-            remainingFees += amm.collectedFees(_actors[i], address(pathUSD));
+            remainingFees += amm.collectedFees(_actors[i], address(MagnusUSD));
         }
 
         assertEq(
@@ -1557,9 +1557,9 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                     bytes32 poolId = amm.getPoolId(address(_tokens[i]), address(_tokens[j]));
                     remainingLP += amm.liquidityBalances(poolId, _actors[a]);
                 }
-                // pathUSD pairs
-                bytes32 poolId1 = amm.getPoolId(address(_tokens[i]), address(pathUSD));
-                bytes32 poolId2 = amm.getPoolId(address(pathUSD), address(_tokens[i]));
+                // MagnusUSD pairs
+                bytes32 poolId1 = amm.getPoolId(address(_tokens[i]), address(MagnusUSD));
+                bytes32 poolId2 = amm.getPoolId(address(MagnusUSD), address(_tokens[i]));
                 remainingLP += amm.liquidityBalances(poolId1, _actors[a]);
                 remainingLP += amm.liquidityBalances(poolId2, _actors[a]);
             }
@@ -1600,10 +1600,10 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 }
             }
 
-            // Also distribute pathUSD fees
-            uint256 pendingPathUSD = amm.collectedFees(validator, address(pathUSD));
+            // Also distribute MagnusUSD fees
+            uint256 pendingPathUSD = amm.collectedFees(validator, address(MagnusUSD));
             if (pendingPathUSD > 0) {
-                try amm.distributeFees(validator, address(pathUSD)) { }
+                try amm.distributeFees(validator, address(MagnusUSD)) { }
                 catch (bytes memory reason) {
                     _assertKnownFeeManagerError(reason);
                     _exitFrozenFeesPathUSD += pendingPathUSD;
@@ -1637,26 +1637,26 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                     }
                 }
 
-                // Also check pathUSD pairs
+                // Also check MagnusUSD pairs
                 address token = address(_tokens[i]);
 
-                // token/pathUSD pool
-                bytes32 poolId1 = amm.getPoolId(token, address(pathUSD));
+                // token/MagnusUSD pool
+                bytes32 poolId1 = amm.getPoolId(token, address(MagnusUSD));
                 uint256 lpBalance1 = amm.liquidityBalances(poolId1, actor);
                 if (lpBalance1 > 0) {
                     vm.prank(actor);
-                    try amm.burn(token, address(pathUSD), lpBalance1, actor) { }
+                    try amm.burn(token, address(MagnusUSD), lpBalance1, actor) { }
                     catch (bytes memory reason) {
                         _assertKnownError(reason);
                     }
                 }
 
-                // pathUSD/token pool
-                bytes32 poolId2 = amm.getPoolId(address(pathUSD), token);
+                // MagnusUSD/token pool
+                bytes32 poolId2 = amm.getPoolId(address(MagnusUSD), token);
                 uint256 lpBalance2 = amm.liquidityBalances(poolId2, actor);
                 if (lpBalance2 > 0) {
                     vm.prank(actor);
-                    try amm.burn(address(pathUSD), token, lpBalance2, actor) { }
+                    try amm.burn(address(MagnusUSD), token, lpBalance2, actor) { }
                     catch (bytes memory reason) {
                         _assertKnownError(reason);
                     }
@@ -1682,7 +1682,7 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         _verifyMinLiquidityPreservesReserves();
 
         // Calculate actual remaining balance per token
-        uint256 ammPathUSD = pathUSD.balanceOf(address(amm));
+        uint256 ammPathUSD = MagnusUSD.balanceOf(address(amm));
 
         // Calculate expected remaining = sum of all pool reserves (after burns)
         // After burn, pools retain MIN_LIQUIDITY's worth of tokens
@@ -1698,12 +1698,12 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 expectedTokens[j] += pool.reserveValidatorToken;
             }
 
-            // pathUSD pairs
-            IFeeAMM.Pool memory pool1 = amm.getPool(address(_tokens[i]), address(pathUSD));
+            // MagnusUSD pairs
+            IFeeAMM.Pool memory pool1 = amm.getPool(address(_tokens[i]), address(MagnusUSD));
             expectedTokens[i] += pool1.reserveUserToken;
             expectedPathUSD += pool1.reserveValidatorToken;
 
-            IFeeAMM.Pool memory pool2 = amm.getPool(address(pathUSD), address(_tokens[i]));
+            IFeeAMM.Pool memory pool2 = amm.getPool(address(MagnusUSD), address(_tokens[i]));
             expectedPathUSD += pool2.reserveUserToken;
             expectedTokens[i] += pool2.reserveValidatorToken;
         }
@@ -1712,11 +1712,11 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
         // The difference is dust from fee swaps that accumulated
         assertTrue(
             ammPathUSD >= expectedPathUSD,
-            "MAGNUS-AMM24: pathUSD balance < expected reserves after exit"
+            "MAGNUS-AMM24: MagnusUSD balance < expected reserves after exit"
         );
-        uint256 pathUSDDust = ammPathUSD - expectedPathUSD;
+        uint256 MagnusUSDDust = ammPathUSD - expectedPathUSD;
 
-        uint256 totalDust = pathUSDDust;
+        uint256 totalDust = MagnusUSDDust;
         for (uint256 t = 0; t < _tokens.length; t++) {
             uint256 ammBalance = _tokens[t].balanceOf(address(amm));
 
@@ -1768,9 +1768,9 @@ contract FeeAMMInvariantTest is InvariantBaseTest {
                 _verifyPoolMinLiquidity(address(_tokens[i]), address(_tokens[j]));
             }
 
-            // Check pathUSD pools
-            _verifyPoolMinLiquidity(address(_tokens[i]), address(pathUSD));
-            _verifyPoolMinLiquidity(address(pathUSD), address(_tokens[i]));
+            // Check MagnusUSD pools
+            _verifyPoolMinLiquidity(address(_tokens[i]), address(MagnusUSD));
+            _verifyPoolMinLiquidity(address(MagnusUSD), address(_tokens[i]));
         }
     }
 

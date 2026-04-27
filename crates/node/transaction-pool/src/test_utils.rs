@@ -16,7 +16,7 @@ use std::time::Instant;
 use magnus_chainspec::{
     MagnusChainSpec,
     hardfork::MagnusHardfork,
-    spec::{DEV, MODERATO},
+    spec::{DEV, ALLEGRO},
 };
 use magnus_precompiles::storage::{StorageCtx, hashmap::HashMapStorageProvider};
 use magnus_primitives::{
@@ -84,7 +84,7 @@ impl Default for TxBuilder {
             fee_token: None,
             valid_after: None,
             valid_before: None,
-            chain_id: 42431, // MODERATO chain_id
+            chain_id: 42431, // ALLEGRO chain_id
             calls: None,
             authorization_list: None,
             access_list: Default::default(),
@@ -196,7 +196,7 @@ impl TxBuilder {
         });
 
         let tx = MagnusTransaction {
-            chain_id: MODERATO.chain_id(),
+            chain_id: ALLEGRO.chain_id(),
             max_priority_fee_per_gas: self.max_priority_fee_per_gas,
             max_fee_per_gas: self.max_fee_per_gas,
             gas_limit: self.gas_limit,

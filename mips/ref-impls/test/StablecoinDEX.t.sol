@@ -44,21 +44,21 @@ contract StablecoinDEXTest is BaseTest {
         token1.mint(bob, INITIAL_BALANCE);
         vm.stopPrank();
 
-        vm.startPrank(pathUSDAdmin);
-        pathUSD.grantRole(_ISSUER_ROLE, pathUSDAdmin);
-        pathUSD.mint(alice, INITIAL_BALANCE);
-        pathUSD.mint(bob, INITIAL_BALANCE);
+        vm.startPrank(MagnusUSDAdmin);
+        MagnusUSD.grantRole(_ISSUER_ROLE, MagnusUSDAdmin);
+        MagnusUSD.mint(alice, INITIAL_BALANCE);
+        MagnusUSD.mint(bob, INITIAL_BALANCE);
         vm.stopPrank();
 
         // Approve exchange to spend tokens
         vm.startPrank(alice);
         token1.approve(address(exchange), type(uint256).max);
-        pathUSD.approve(address(exchange), type(uint256).max);
+        MagnusUSD.approve(address(exchange), type(uint256).max);
         vm.stopPrank();
 
         vm.startPrank(bob);
         token1.approve(address(exchange), type(uint256).max);
-        pathUSD.approve(address(exchange), type(uint256).max);
+        MagnusUSD.approve(address(exchange), type(uint256).max);
         vm.stopPrank();
 
         // Create trading pair
@@ -127,7 +127,7 @@ contract StablecoinDEXTest is BaseTest {
 
     function test_CreatePair() public {
         IMIP20 newQuote = IMIP20(
-            factory.createToken("New Quote", "NQUOTE", "USD", pathUSD, admin, bytes32("newquote"))
+            factory.createToken("New Quote", "NQUOTE", "USD", MagnusUSD, admin, bytes32("newquote"))
         );
 
         IMIP20 newBase = IMIP20(
@@ -147,20 +147,20 @@ contract StablecoinDEXTest is BaseTest {
         // Create a dedicated base token and two possible quote tokens, all USD-denominated.
         vm.startPrank(admin);
         IMIP20 base =
-            IMIP20(factory.createToken("OBBase", "OBB", "USD", pathUSD, admin, bytes32(0)));
+            IMIP20(factory.createToken("OBBase", "OBB", "USD", MagnusUSD, admin, bytes32(0)));
         IMIP20 quote1 = IMIP20(
-            factory.createToken("OBQuote1", "OBQ1", "USD", pathUSD, admin, bytes32(uint256(1)))
+            factory.createToken("OBQuote1", "OBQ1", "USD", MagnusUSD, admin, bytes32(uint256(1)))
         );
         vm.stopPrank();
 
-        // Initial state: base quotes pathUSD
-        assertEq(address(base.quoteToken()), address(pathUSD));
+        // Initial state: base quotes MagnusUSD
+        assertEq(address(base.quoteToken()), address(MagnusUSD));
 
-        // 1) First pair: (base, pathUSD)
+        // 1) First pair: (base, MagnusUSD)
         bytes32 key0 = exchange.createPair(address(base));
         (address b0, address q0,,) = exchange.books(key0);
         assertEq(b0, address(base), "first book base mismatch");
-        assertEq(q0, address(pathUSD), "first book quote mismatch");
+        assertEq(q0, address(MagnusUSD), "first book quote mismatch");
 
         // 2) Update base's quote token to quote1 and create a new pair
         vm.startPrank(admin);
@@ -178,14 +178,14 @@ contract StablecoinDEXTest is BaseTest {
         // Keys must differ when quoteToken changes
         assertTrue(key1 != key0, "orderbook key should change when quoteToken changes");
 
-        // 3) Reset base's quote token back to pathUSD so that setting quote1's
+        // 3) Reset base's quote token back to MagnusUSD so that setting quote1's
         // quote token to base does not create a quote-token loop.
         vm.startPrank(admin);
-        base.setNextQuoteToken(pathUSD);
+        base.setNextQuoteToken(MagnusUSD);
         base.completeQuoteTokenUpdate();
         vm.stopPrank();
 
-        assertEq(address(base.quoteToken()), address(pathUSD));
+        assertEq(address(base.quoteToken()), address(MagnusUSD));
 
         // 4) Now set quote1's quote token to base and create a pair for quote1.
         // This tests that we can still create a new pair where the previous quote
@@ -204,7 +204,7 @@ contract StablecoinDEXTest is BaseTest {
 
         // The (base, quote1) and (quote1, base) books must have different keys
         assertTrue(key2 != key1, "reversed base/quote should have different key");
-        // And also be distinct from the initial (base, pathUSD) configuration
+        // And also be distinct from the initial (base, MagnusUSD) configuration
         assertTrue(key2 != key0, "third key should differ from first");
     }
 
@@ -218,8 +218,8 @@ contract StablecoinDEXTest is BaseTest {
         // Escrow rounds UP to favor protocol
         uint256 expectedEscrow = (uint256(1e18) * uint256(price) + exchange.PRICE_SCALE() - 1)
             / uint256(exchange.PRICE_SCALE());
-        assertEq(pathUSD.balanceOf(alice), uint256(INITIAL_BALANCE) - expectedEscrow);
-        assertEq(pathUSD.balanceOf(address(exchange)), expectedEscrow);
+        assertEq(MagnusUSD.balanceOf(alice), uint256(INITIAL_BALANCE) - expectedEscrow);
+        assertEq(MagnusUSD.balanceOf(address(exchange)), expectedEscrow);
 
         // Verify order is immediately active in orderbook
         (uint128 bidHead, uint128 bidTail, uint128 bidLiquidity) =
@@ -256,10 +256,10 @@ contract StablecoinDEXTest is BaseTest {
         assertEq(ceilEscrow - floorEscrow, 1, "Difference should be exactly 1 wei");
 
         // Verify the contract used ceiling division
-        uint256 actualEscrow = uint256(INITIAL_BALANCE) - pathUSD.balanceOf(alice);
+        uint256 actualEscrow = uint256(INITIAL_BALANCE) - MagnusUSD.balanceOf(alice);
         assertEq(actualEscrow, ceilEscrow, "Escrow should use ceiling division (round UP)");
         assertEq(
-            pathUSD.balanceOf(address(exchange)),
+            MagnusUSD.balanceOf(address(exchange)),
             ceilEscrow,
             "Exchange should receive ceiling amount"
         );
@@ -291,9 +291,9 @@ contract StablecoinDEXTest is BaseTest {
         // Skip if escrow would exceed balance
         vm.assume(expectedEscrow <= INITIAL_BALANCE);
 
-        uint256 balanceBefore = pathUSD.balanceOf(alice);
+        uint256 balanceBefore = MagnusUSD.balanceOf(alice);
         _placeBidOrder(alice, amount, tick);
-        uint256 actualEscrow = balanceBefore - pathUSD.balanceOf(alice);
+        uint256 actualEscrow = balanceBefore - MagnusUSD.balanceOf(alice);
 
         assertEq(actualEscrow, expectedEscrow, "Escrow should always round UP");
     }
@@ -328,8 +328,8 @@ contract StablecoinDEXTest is BaseTest {
         // Escrow rounds UP to favor protocol
         uint256 expectedEscrow = (uint256(1e18) * uint256(price) + exchange.PRICE_SCALE() - 1)
             / uint256(exchange.PRICE_SCALE());
-        assertEq(pathUSD.balanceOf(alice), uint256(INITIAL_BALANCE) - expectedEscrow);
-        assertEq(pathUSD.balanceOf(address(exchange)), expectedEscrow);
+        assertEq(MagnusUSD.balanceOf(alice), uint256(INITIAL_BALANCE) - expectedEscrow);
+        assertEq(MagnusUSD.balanceOf(address(exchange)), expectedEscrow);
 
         // Verify order is immediately active in orderbook
         (uint128 bidHead, uint128 bidTail, uint128 bidLiquidity) =
@@ -374,7 +374,7 @@ contract StablecoinDEXTest is BaseTest {
         emit OrderPlaced(2, alice, address(token1), 1e18, false, 200, true, 100);
 
         vm.prank(bob);
-        exchange.swapExactAmountIn(address(token1), address(pathUSD), 1e18, 0);
+        exchange.swapExactAmountIn(address(token1), address(MagnusUSD), 1e18, 0);
 
         assertEq(exchange.nextOrderId(), 3);
         // TODO: pull the order from orders mapping and assert state changes
@@ -417,7 +417,7 @@ contract StablecoinDEXTest is BaseTest {
         uint32 price = exchange.tickToPrice(100);
         uint256 escrowAmount = (uint256(1e18) * uint256(price) + exchange.PRICE_SCALE() - 1)
             / uint256(exchange.PRICE_SCALE());
-        assertEq(exchange.balanceOf(alice, address(pathUSD)), escrowAmount);
+        assertEq(exchange.balanceOf(alice, address(MagnusUSD)), escrowAmount);
 
         // Verify order removed from orderbook
         (uint128 bidHead, uint128 bidTail, uint128 bidLiquidity) =
@@ -432,14 +432,14 @@ contract StablecoinDEXTest is BaseTest {
         vm.prank(alice);
         exchange.cancel(orderId);
 
-        uint128 exchangeBalance = exchange.balanceOf(alice, address(pathUSD));
-        uint256 initialTokenBalance = pathUSD.balanceOf(alice);
+        uint128 exchangeBalance = exchange.balanceOf(alice, address(MagnusUSD));
+        uint256 initialTokenBalance = MagnusUSD.balanceOf(alice);
 
         vm.prank(alice);
-        exchange.withdraw(address(pathUSD), exchangeBalance);
+        exchange.withdraw(address(MagnusUSD), exchangeBalance);
 
-        assertEq(exchange.balanceOf(alice, address(pathUSD)), 0);
-        assertEq(pathUSD.balanceOf(alice), initialTokenBalance + exchangeBalance);
+        assertEq(exchange.balanceOf(alice, address(MagnusUSD)), 0);
+        assertEq(MagnusUSD.balanceOf(alice), initialTokenBalance + exchangeBalance);
     }
 
     function test_QuoteSwapExactAmountOut() public {
@@ -449,7 +449,7 @@ contract StablecoinDEXTest is BaseTest {
 
         uint128 amountOut = 500e18;
         uint128 amountIn =
-            exchange.quoteSwapExactAmountOut(address(pathUSD), address(token1), amountOut);
+            exchange.quoteSwapExactAmountOut(address(MagnusUSD), address(token1), amountOut);
 
         uint32 price = exchange.tickToPrice(100);
         uint128 expectedAmountIn = (amountOut * price) / exchange.PRICE_SCALE();
@@ -473,7 +473,7 @@ contract StablecoinDEXTest is BaseTest {
 
         vm.prank(alice);
         uint128 amountIn =
-            exchange.swapExactAmountOut(address(pathUSD), address(token1), amountOut, maxAmountIn);
+            exchange.swapExactAmountOut(address(MagnusUSD), address(token1), amountOut, maxAmountIn);
 
         assertEq(amountIn, expectedAmountIn);
         assertEq(token1.balanceOf(alice), initialBaseBalance + amountOut);
@@ -487,7 +487,7 @@ contract StablecoinDEXTest is BaseTest {
 
         vm.prank(alice);
         uint128 amountIn2 = exchange.swapExactAmountOut(
-            address(pathUSD), address(token1), remainingAmount, maxAmountIn
+            address(MagnusUSD), address(token1), remainingAmount, maxAmountIn
         );
 
         assertEq(amountIn2, expectedAmountIn2);
@@ -525,7 +525,7 @@ contract StablecoinDEXTest is BaseTest {
 
         vm.prank(alice);
         uint128 amountIn =
-            exchange.swapExactAmountOut(address(pathUSD), address(token1), buyAmount, maxIn);
+            exchange.swapExactAmountOut(address(MagnusUSD), address(token1), buyAmount, maxIn);
 
         assertEq(amountIn, totalCost);
         assertEq(token1.balanceOf(alice), initBalance + buyAmount);
@@ -538,7 +538,7 @@ contract StablecoinDEXTest is BaseTest {
 
         uint128 amountIn = 500e18;
         uint128 amountOut =
-            exchange.quoteSwapExactAmountIn(address(token1), address(pathUSD), amountIn);
+            exchange.quoteSwapExactAmountIn(address(token1), address(MagnusUSD), amountIn);
 
         uint32 price = exchange.tickToPrice(100);
         uint128 expectedProceeds = (amountIn * price) / exchange.PRICE_SCALE();
@@ -554,7 +554,7 @@ contract StablecoinDEXTest is BaseTest {
         uint32 price = exchange.tickToPrice(100);
         uint128 expectedAmountOut = (amountIn * price) / exchange.PRICE_SCALE();
         uint128 minAmountOut = expectedAmountOut - 1000;
-        uint256 initialQuoteBalance = pathUSD.balanceOf(alice);
+        uint256 initialQuoteBalance = MagnusUSD.balanceOf(alice);
 
         // Execute swap to partially fill order
         vm.expectEmit(true, true, true, true);
@@ -562,10 +562,10 @@ contract StablecoinDEXTest is BaseTest {
 
         vm.prank(alice);
         uint128 amountOut =
-            exchange.swapExactAmountIn(address(token1), address(pathUSD), amountIn, minAmountOut);
+            exchange.swapExactAmountIn(address(token1), address(MagnusUSD), amountIn, minAmountOut);
 
         assertEq(amountOut, expectedAmountOut);
-        assertEq(pathUSD.balanceOf(alice), initialQuoteBalance + amountOut);
+        assertEq(MagnusUSD.balanceOf(alice), initialQuoteBalance + amountOut);
 
         // Execute swap to fully fill order
         uint128 remainingAmount = 500e18; // 1000e18 - 500e18 = 500e18 remaining
@@ -577,11 +577,11 @@ contract StablecoinDEXTest is BaseTest {
 
         vm.prank(alice);
         uint128 amountOut2 = exchange.swapExactAmountIn(
-            address(token1), address(pathUSD), remainingAmount, minAmountOut2
+            address(token1), address(MagnusUSD), remainingAmount, minAmountOut2
         );
 
         assertEq(amountOut2, expectedAmountOut2);
-        assertEq(pathUSD.balanceOf(alice), initialQuoteBalance + amountOut + amountOut2);
+        assertEq(MagnusUSD.balanceOf(alice), initialQuoteBalance + amountOut + amountOut2);
     }
 
     function test_SwapExactAmountIn_MultiTick() public {
@@ -602,7 +602,7 @@ contract StablecoinDEXTest is BaseTest {
         uint128 totalOut = out1 + out2 + out3;
 
         uint128 minOut = totalOut / 2;
-        uint256 initBalance = pathUSD.balanceOf(alice);
+        uint256 initBalance = MagnusUSD.balanceOf(alice);
 
         vm.expectEmit(true, true, true, true);
         emit OrderFilled(order1, bob, alice, 1e18, false);
@@ -615,10 +615,10 @@ contract StablecoinDEXTest is BaseTest {
 
         vm.prank(alice);
         uint128 amountOut =
-            exchange.swapExactAmountIn(address(token1), address(pathUSD), sellAmount, minOut);
+            exchange.swapExactAmountIn(address(token1), address(MagnusUSD), sellAmount, minOut);
 
         assertEq(amountOut, totalOut);
-        assertEq(pathUSD.balanceOf(alice), initBalance + totalOut);
+        assertEq(MagnusUSD.balanceOf(alice), initBalance + totalOut);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -646,7 +646,7 @@ contract StablecoinDEXTest is BaseTest {
     }
 
     function test_PlaceOrder_SucceedsAbove_MinimumOrderSize(uint128 amount) public {
-        // For bid orders (buying token1 with pathUSD), the escrow amount uses ceiling division:
+        // For bid orders (buying token1 with MagnusUSD), the escrow amount uses ceiling division:
         // escrow = ceil(amount * tickToPrice(100) / PRICE_SCALE)
         //        = (amount * price + PRICE_SCALE - 1) / PRICE_SCALE
         // We need escrow <= INITIAL_BALANCE, so:
@@ -785,7 +785,7 @@ contract StablecoinDEXTest is BaseTest {
     function test_CreatePair_RevertIf_NonUsdToken() public {
         // Create a non-USD token
         IMIP20 eurToken =
-            IMIP20(factory.createToken("EUR Token", "EUR", "EUR", pathUSD, admin, bytes32("eur")));
+            IMIP20(factory.createToken("EUR Token", "EUR", "EUR", MagnusUSD, admin, bytes32("eur")));
 
         try exchange.createPair(address(eurToken)) {
             revert CallShouldHaveReverted();
@@ -855,11 +855,11 @@ contract StablecoinDEXTest is BaseTest {
         exchange.cancel(orderId);
 
         // Get alice's actual balance
-        uint128 actualBalance = exchange.balanceOf(alice, address(pathUSD));
+        uint128 actualBalance = exchange.balanceOf(alice, address(MagnusUSD));
 
         // Try to withdraw more than balance
         vm.prank(alice);
-        try exchange.withdraw(address(pathUSD), actualBalance + 1) {
+        try exchange.withdraw(address(MagnusUSD), actualBalance + 1) {
             revert CallShouldHaveReverted();
         } catch (bytes memory) {
             // Successfully reverted with InsufficientBalance
@@ -870,7 +870,7 @@ contract StablecoinDEXTest is BaseTest {
     function test_Swap_RevertIf_PairNotExists() public {
         // Try to swap between two tokens that don't have a trading pair
         IMIP20 token3 =
-            IMIP20(factory.createToken("Token3", "TK3", "USD", pathUSD, admin, bytes32("token3")));
+            IMIP20(factory.createToken("Token3", "TK3", "USD", MagnusUSD, admin, bytes32("token3")));
 
         try exchange.swapExactAmountIn(address(token3), address(token2), 100, 0) {
             revert CallShouldHaveReverted();
@@ -885,7 +885,7 @@ contract StablecoinDEXTest is BaseTest {
         address invalidToken = address(0x1234567890123456789012345678901234567890);
 
         vm.prank(alice);
-        try exchange.swapExactAmountIn(invalidToken, address(pathUSD), 100, 0) {
+        try exchange.swapExactAmountIn(invalidToken, address(MagnusUSD), 100, 0) {
             revert CallShouldHaveReverted();
         } catch (bytes memory err) {
             assertEq(err, abi.encodeWithSelector(IStablecoinDEX.InvalidToken.selector));
@@ -893,7 +893,7 @@ contract StablecoinDEXTest is BaseTest {
 
         // Also test with invalid tokenOut
         vm.prank(alice);
-        try exchange.swapExactAmountIn(address(pathUSD), invalidToken, 100, 0) {
+        try exchange.swapExactAmountIn(address(MagnusUSD), invalidToken, 100, 0) {
             revert CallShouldHaveReverted();
         } catch (bytes memory err) {
             assertEq(err, abi.encodeWithSelector(IStablecoinDEX.InvalidToken.selector));
@@ -903,7 +903,7 @@ contract StablecoinDEXTest is BaseTest {
     function test_Swap_RevertIf_InsufficientLiquidity() public {
         // Try to swap when no orders exist
         vm.prank(alice);
-        try exchange.swapExactAmountIn(address(token1), address(pathUSD), 100, 0) {
+        try exchange.swapExactAmountIn(address(token1), address(MagnusUSD), 100, 0) {
             revert CallShouldHaveReverted();
         } catch (bytes memory err) {
             assertEq(err, abi.encodeWithSelector(IStablecoinDEX.InsufficientLiquidity.selector));
@@ -919,7 +919,7 @@ contract StablecoinDEXTest is BaseTest {
 
         // Try to swap with unrealistic minimum output
         vm.prank(alice);
-        try exchange.swapExactAmountIn(address(pathUSD), address(token1), 1e18, type(uint128).max) {
+        try exchange.swapExactAmountIn(address(MagnusUSD), address(token1), 1e18, type(uint128).max) {
             revert CallShouldHaveReverted();
         } catch (bytes memory) {
             // Successfully reverted
@@ -1014,14 +1014,14 @@ contract StablecoinDEXTest is BaseTest {
 
     // Test direct pair routing (1 hop)
     function test_Routing_DirectPair() public {
-        // token1 -> pathUSD is a direct pair
+        // token1 -> MagnusUSD is a direct pair
         vm.prank(bob);
         exchange.place(address(token1), 1e18, false, 0);
 
         // Orders are immediately active
 
         // Swap should work via direct route
-        uint128 amountOut = exchange.quoteSwapExactAmountIn(address(pathUSD), address(token1), 1e18);
+        uint128 amountOut = exchange.quoteSwapExactAmountIn(address(MagnusUSD), address(token1), 1e18);
 
         assertGt(amountOut, 0, "Should get output from direct pair");
     }
@@ -1029,7 +1029,7 @@ contract StablecoinDEXTest is BaseTest {
     // Test sibling token routing (2 hops through LinkingUSD)
     function test_Routing_SiblingTokens() public {
         // Create two sibling tokens: token1 and token2, both quote LinkingUSD
-        // Route: token1 -> pathUSD -> token2
+        // Route: token1 -> MagnusUSD -> token2
 
         // Create orderbooks
         exchange.createPair(address(token2));
@@ -1042,19 +1042,19 @@ contract StablecoinDEXTest is BaseTest {
         vm.prank(bob);
         token2.approve(address(exchange), type(uint256).max);
 
-        // For token1 -> pathUSD: Bob buys token1 (bids for token1)
-        // This means alice can sell token1 to get pathUSD
+        // For token1 -> MagnusUSD: Bob buys token1 (bids for token1)
+        // This means alice can sell token1 to get MagnusUSD
         vm.prank(bob);
         exchange.place(address(token1), 1e18, true, 0);
 
-        // For pathUSD -> token2: Bob sells token2 (asks for token2)
-        // This means alice can buy token2 with pathUSD
+        // For MagnusUSD -> token2: Bob sells token2 (asks for token2)
+        // This means alice can buy token2 with MagnusUSD
         vm.prank(bob);
         exchange.place(address(token2), 1e18, false, 0);
 
         // Orders are immediately active
 
-        // Try to swap token1 -> token2 (should route through pathUSD)
+        // Try to swap token1 -> token2 (should route through MagnusUSD)
         vm.prank(alice);
         uint128 amountOut = exchange.quoteSwapExactAmountIn(
             address(token1),
@@ -1062,7 +1062,7 @@ contract StablecoinDEXTest is BaseTest {
             1e17 // Small amount
         );
 
-        assertGt(amountOut, 0, "Should route through pathUSD");
+        assertGt(amountOut, 0, "Should route through MagnusUSD");
     }
 
     // Multi-level routing test skipped - requires complex token hierarchy setup
@@ -1074,7 +1074,7 @@ contract StablecoinDEXTest is BaseTest {
         uint128 minOrderAmount = exchange.MIN_ORDER_AMOUNT();
 
         if (scenario == 0) {
-            // Direct pair: token1 <-> pathUSD
+            // Direct pair: token1 <-> MagnusUSD
             vm.prank(bob);
             exchange.place(address(token1), minOrderAmount * 100, false, 0);
 
@@ -1082,10 +1082,10 @@ contract StablecoinDEXTest is BaseTest {
 
             // Should find direct path
             uint128 amountOut =
-                exchange.quoteSwapExactAmountIn(address(pathUSD), address(token1), minOrderAmount);
+                exchange.quoteSwapExactAmountIn(address(MagnusUSD), address(token1), minOrderAmount);
             assertGt(amountOut, 0);
         } else if (scenario == 1) {
-            // Sibling tokens through pathUSD
+            // Sibling tokens through MagnusUSD
             exchange.createPair(address(token2));
 
             vm.prank(admin);
@@ -1095,16 +1095,16 @@ contract StablecoinDEXTest is BaseTest {
             vm.prank(bob);
             token2.approve(address(exchange), type(uint256).max);
 
-            // For token1 -> pathUSD: Bob bids for token1 (buys token1 with pathUSD)
+            // For token1 -> MagnusUSD: Bob bids for token1 (buys token1 with MagnusUSD)
             vm.prank(bob);
             exchange.place(address(token1), minOrderAmount * 100, true, 0);
-            // For pathUSD -> token2: Bob asks for token2 (sells token2 for pathUSD)
+            // For MagnusUSD -> token2: Bob asks for token2 (sells token2 for MagnusUSD)
             vm.prank(bob);
             exchange.place(address(token2), minOrderAmount * 100, false, 0);
 
             // Orders are immediately active
 
-            // Should route token1 -> pathUSD -> token2
+            // Should route token1 -> MagnusUSD -> token2
             uint128 amountOut =
                 exchange.quoteSwapExactAmountIn(address(token1), address(token2), minOrderAmount);
             assertGt(amountOut, 0);
@@ -1117,7 +1117,7 @@ contract StablecoinDEXTest is BaseTest {
 
             // Should find path in reverse
             uint128 amountOut =
-                exchange.quoteSwapExactAmountIn(address(token1), address(pathUSD), minOrderAmount);
+                exchange.quoteSwapExactAmountIn(address(token1), address(MagnusUSD), minOrderAmount);
             assertGt(amountOut, 0);
         }
     }
@@ -1125,11 +1125,11 @@ contract StablecoinDEXTest is BaseTest {
     // Test routing reverts when no orderbook exists for a pair in the path
     function test_Routing_RevertIf_NoPathExists() public {
         // Create a token but don't create its orderbook pair
-        // The path algorithm will find token1 -> pathUSD -> isolatedToken
+        // The path algorithm will find token1 -> MagnusUSD -> isolatedToken
         // But the swap will fail because the isolatedToken pair doesn't exist
 
         IMIP20 isolatedToken = IMIP20(
-            factory.createToken("Isolated", "ISO", "USD", pathUSD, admin, bytes32("isolated"))
+            factory.createToken("Isolated", "ISO", "USD", MagnusUSD, admin, bytes32("isolated"))
         );
 
         // Don't create a pair for isolatedToken - this means the orderbook doesn't exist
@@ -1179,8 +1179,8 @@ contract StablecoinDEXTest is BaseTest {
         // Orders are immediately active
 
         // Try swap based on configuration - may fail due to insufficient liquidity
-        address tokenIn = swapDirection ? address(token1) : address(pathUSD);
-        address tokenOut = swapDirection ? address(pathUSD) : address(token1);
+        address tokenIn = swapDirection ? address(token1) : address(MagnusUSD);
+        address tokenOut = swapDirection ? address(MagnusUSD) : address(token1);
 
         // Always use try/catch since liquidity setup varies and may not support this direction
         try exchange.quoteSwapExactAmountIn(tokenIn, tokenOut, minOrderAmount) returns (
@@ -1245,9 +1245,9 @@ contract StablecoinDEXTest is BaseTest {
         vm.prank(admin);
         token1.changeTransferPolicyId(policyId);
 
-        // Also set the policy on pathUSD (quote token) for bid orders
-        vm.prank(pathUSDAdmin);
-        pathUSD.changeTransferPolicyId(policyId);
+        // Also set the policy on MagnusUSD (quote token) for bid orders
+        vm.prank(MagnusUSDAdmin);
+        MagnusUSD.changeTransferPolicyId(policyId);
 
         // Give alice some internal balance by placing and canceling an order
         uint128 orderAmount = exchange.MIN_ORDER_AMOUNT() * 2;
@@ -1293,11 +1293,11 @@ contract StablecoinDEXTest is BaseTest {
         // Create a blacklist policy
         uint64 policyId = registry.createPolicy(admin, IMIP403Registry.PolicyType.BLACKLIST);
 
-        // Set the policy on pathUSD
-        vm.prank(pathUSDAdmin);
-        pathUSD.changeTransferPolicyId(policyId);
+        // Set the policy on MagnusUSD
+        vm.prank(MagnusUSDAdmin);
+        MagnusUSD.changeTransferPolicyId(policyId);
 
-        // Give alice some internal pathUSD balance by placing and canceling a bid order
+        // Give alice some internal MagnusUSD balance by placing and canceling a bid order
         uint128 bidAmount = exchange.MIN_ORDER_AMOUNT() * 10;
         vm.prank(alice);
         uint128 orderId = exchange.place(address(token1), bidAmount, true, 100);
@@ -1305,9 +1305,9 @@ contract StablecoinDEXTest is BaseTest {
         vm.prank(alice);
         exchange.cancel(orderId);
 
-        // Verify alice has internal pathUSD balance
-        uint128 aliceInternalBalance = exchange.balanceOf(alice, address(pathUSD));
-        assertGt(aliceInternalBalance, 0, "Alice should have internal pathUSD balance");
+        // Verify alice has internal MagnusUSD balance
+        uint128 aliceInternalBalance = exchange.balanceOf(alice, address(MagnusUSD));
+        assertGt(aliceInternalBalance, 0, "Alice should have internal MagnusUSD balance");
 
         // Blacklist alice
         vm.prank(admin);
@@ -1315,7 +1315,7 @@ contract StablecoinDEXTest is BaseTest {
 
         // Try to swap using internal balance - should fail
         vm.prank(alice);
-        try exchange.swapExactAmountIn(address(pathUSD), address(token1), aliceInternalBalance, 0) {
+        try exchange.swapExactAmountIn(address(MagnusUSD), address(token1), aliceInternalBalance, 0) {
             revert CallShouldHaveReverted();
         } catch (bytes memory err) {
             assertEq(err, abi.encodeWithSelector(IMIP20.PolicyForbids.selector));
@@ -1323,7 +1323,7 @@ contract StablecoinDEXTest is BaseTest {
 
         // Verify alice's internal balance is unchanged
         assertEq(
-            exchange.balanceOf(alice, address(pathUSD)),
+            exchange.balanceOf(alice, address(MagnusUSD)),
             aliceInternalBalance,
             "Alice's internal balance should be unchanged"
         );
@@ -1349,15 +1349,15 @@ contract StablecoinDEXTest is BaseTest {
         assertFalse(registry.isAuthorized(policyId, alice));
 
         uint256 bobInitialToken1 = token1.balanceOf(bob);
-        uint256 bobInitialPathUSD = pathUSD.balanceOf(bob);
+        uint256 bobInitialPathUSD = MagnusUSD.balanceOf(bob);
 
         vm.prank(bob);
         uint128 amountOut =
-            exchange.swapExactAmountIn(address(token1), address(pathUSD), orderAmount, 0);
+            exchange.swapExactAmountIn(address(token1), address(MagnusUSD), orderAmount, 0);
 
         assertGt(amountOut, 0);
         assertEq(token1.balanceOf(bob), bobInitialToken1 - orderAmount);
-        assertEq(pathUSD.balanceOf(bob), bobInitialPathUSD + amountOut);
+        assertEq(MagnusUSD.balanceOf(bob), bobInitialPathUSD + amountOut);
 
         uint128 aliceInternalToken1 = exchange.balanceOf(alice, address(token1));
         assertEq(aliceInternalToken1, orderAmount);
@@ -1382,7 +1382,7 @@ contract StablecoinDEXTest is BaseTest {
         // Bob partially fills the order (sells 1e18 base tokens)
         // This credits Alice's internal balance with 1e18 base tokens
         vm.prank(bob);
-        exchange.swapExactAmountIn(address(token1), address(pathUSD), 1e18, 0);
+        exchange.swapExactAmountIn(address(token1), address(MagnusUSD), 1e18, 0);
 
         // Verify Alice has received base tokens in her internal balance
         uint128 aliceBaseBalance = exchange.balanceOf(alice, address(token1));
@@ -1416,7 +1416,7 @@ contract StablecoinDEXTest is BaseTest {
         // The flip order should NOT be created because Alice's internal balance is insufficient
         // and we don't resort to transferFrom for flip orders
         vm.prank(bob);
-        exchange.swapExactAmountIn(address(token1), address(pathUSD), 1e18, 0);
+        exchange.swapExactAmountIn(address(token1), address(MagnusUSD), 1e18, 0);
 
         // The original flip order should be fully filled and deleted
         try exchange.getOrder(flipOrderId) {
@@ -1458,8 +1458,8 @@ contract StablecoinDEXTest is BaseTest {
         // Verify alice is blacklisted in token1
         assertFalse(registry.isAuthorized(policyId, alice), "Alice should be blacklisted in token1");
 
-        // Alice tries to place a bid order to BUY token1 with pathUSD
-        // Even though alice is authorized in pathUSD (the escrow token), she is blacklisted in token1
+        // Alice tries to place a bid order to BUY token1 with MagnusUSD
+        // Even though alice is authorized in MagnusUSD (the escrow token), she is blacklisted in token1
         uint128 orderAmount = exchange.MIN_ORDER_AMOUNT() * 2;
         vm.prank(alice);
         try exchange.place(address(token1), orderAmount, true, 100) {
@@ -1472,24 +1472,24 @@ contract StablecoinDEXTest is BaseTest {
     /// @notice Test that a maker blacklisted in the token they would receive cannot place an ask order
     /// @dev This tests the new check that verifies authorization on both base and quote tokens
     function test_BlacklistedInReceiveToken_CannotPlaceAskOrder() public {
-        // Create a blacklist policy for pathUSD (the quote token alice would receive)
-        uint64 policyId = registry.createPolicy(pathUSDAdmin, IMIP403Registry.PolicyType.BLACKLIST);
+        // Create a blacklist policy for MagnusUSD (the quote token alice would receive)
+        uint64 policyId = registry.createPolicy(MagnusUSDAdmin, IMIP403Registry.PolicyType.BLACKLIST);
 
-        // Set the policy on pathUSD
-        vm.prank(pathUSDAdmin);
-        pathUSD.changeTransferPolicyId(policyId);
+        // Set the policy on MagnusUSD
+        vm.prank(MagnusUSDAdmin);
+        MagnusUSD.changeTransferPolicyId(policyId);
 
-        // Blacklist alice in pathUSD
-        vm.prank(pathUSDAdmin);
+        // Blacklist alice in MagnusUSD
+        vm.prank(MagnusUSDAdmin);
         registry.modifyPolicyBlacklist(policyId, alice, true);
 
-        // Verify alice is blacklisted in pathUSD
+        // Verify alice is blacklisted in MagnusUSD
         assertFalse(
-            registry.isAuthorized(policyId, alice), "Alice should be blacklisted in pathUSD"
+            registry.isAuthorized(policyId, alice), "Alice should be blacklisted in MagnusUSD"
         );
 
-        // Alice tries to place an ask order to SELL token1 for pathUSD
-        // Even though alice is authorized in token1 (the escrow token), she is blacklisted in pathUSD
+        // Alice tries to place an ask order to SELL token1 for MagnusUSD
+        // Even though alice is authorized in token1 (the escrow token), she is blacklisted in MagnusUSD
         uint128 orderAmount = exchange.MIN_ORDER_AMOUNT() * 2;
         vm.prank(alice);
         try exchange.place(address(token1), orderAmount, false, 100) {
@@ -1587,9 +1587,9 @@ contract StablecoinDEXTest is BaseTest {
         // Create a blacklist policy
         uint64 policyId = registry.createPolicy(admin, IMIP403Registry.PolicyType.BLACKLIST);
 
-        // Set the policy on pathUSD (quote token for bids)
-        vm.prank(pathUSDAdmin);
-        pathUSD.changeTransferPolicyId(policyId);
+        // Set the policy on MagnusUSD (quote token for bids)
+        vm.prank(MagnusUSDAdmin);
+        MagnusUSD.changeTransferPolicyId(policyId);
 
         // Alice places a bid order (escrows quote token)
         uint128 orderAmount = exchange.MIN_ORDER_AMOUNT() * 2;
@@ -1622,7 +1622,7 @@ contract StablecoinDEXTest is BaseTest {
 
         // Verify escrow is refunded to alice's internal balance (quote token)
         assertEq(
-            exchange.balanceOf(alice, address(pathUSD)),
+            exchange.balanceOf(alice, address(MagnusUSD)),
             expectedEscrow,
             "Alice should have quote escrow refunded to internal balance"
         );
@@ -1783,36 +1783,36 @@ contract StablecoinDEXTest is BaseTest {
         _placeBidOrder(alice, exchange.MIN_ORDER_AMOUNT() * 2, 100);
 
         uint256 balanceBefore1 = token1.balanceOf(bob);
-        uint256 balanceBeforeUSD = pathUSD.balanceOf(bob);
+        uint256 balanceBeforeUSD = MagnusUSD.balanceOf(bob);
 
         vm.startPrank(bob);
         uint256 out1 = exchange.swapExactAmountIn(
-            address(token1), address(pathUSD), exchange.MIN_ORDER_AMOUNT() / 2, 0
+            address(token1), address(MagnusUSD), exchange.MIN_ORDER_AMOUNT() / 2, 0
         );
         uint256 out2 = exchange.swapExactAmountIn(
-            address(pathUSD), address(token1), exchange.MIN_ORDER_AMOUNT() / 2, 0
+            address(MagnusUSD), address(token1), exchange.MIN_ORDER_AMOUNT() / 2, 0
         );
 
         vm.assertGt(token1.balanceOf(bob), balanceBefore1);
-        vm.assertGt(pathUSD.balanceOf(bob), balanceBeforeUSD);
+        vm.assertGt(MagnusUSD.balanceOf(bob), balanceBeforeUSD);
     }
 
     // Test the case when a maker is a taker in their own orderbook
     function test_TakerIsMaker() external {
         uint256 balanceBefore1 = token1.balanceOf(alice);
-        uint256 balanceBeforeUSD = pathUSD.balanceOf(alice);
+        uint256 balanceBeforeUSD = MagnusUSD.balanceOf(alice);
 
         // token1 escrowed
         _placeAskOrder(alice, exchange.MIN_ORDER_AMOUNT(), 100);
 
         vm.startPrank(alice);
         uint128 out = exchange.swapExactAmountIn(
-            address(pathUSD), address(token1), exchange.MIN_ORDER_AMOUNT() / 2, 0
+            address(MagnusUSD), address(token1), exchange.MIN_ORDER_AMOUNT() / 2, 0
         );
 
         vm.assertEq(token1.balanceOf(alice), balanceBefore1 - exchange.MIN_ORDER_AMOUNT() + out); //
-        exchange.withdraw(address(pathUSD), exchange.balanceOf(alice, address(pathUSD)));
-        vm.assertEq(pathUSD.balanceOf(alice), balanceBeforeUSD); // order fills go back into self balance
+        exchange.withdraw(address(MagnusUSD), exchange.balanceOf(alice, address(MagnusUSD)));
+        vm.assertEq(MagnusUSD.balanceOf(alice), balanceBeforeUSD); // order fills go back into self balance
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1882,7 +1882,7 @@ contract StablecoinDEXTest is BaseTest {
         vm.prank(bob);
         uint128 baseIn = exchange.swapExactAmountOut(
             address(token1), // tokenIn = base
-            address(pathUSD), // tokenOut = quote
+            address(MagnusUSD), // tokenOut = quote
             release, // amountOut
             type(uint128).max // maxAmountIn
         );
@@ -1922,7 +1922,7 @@ contract StablecoinDEXTest is BaseTest {
         // Bob takes all available quote
         vm.prank(bob);
         uint128 baseIn = exchange.swapExactAmountOut(
-            address(token1), address(pathUSD), release, type(uint128).max
+            address(token1), address(MagnusUSD), release, type(uint128).max
         );
 
         // baseIn should be the ceiling (may be less than or equal to amount)
@@ -1956,14 +1956,14 @@ contract StablecoinDEXTest is BaseTest {
         assertEq(order1, 1);
 
         // Sanity: contract holds quote from the order.
-        assertEq(pathUSD.balanceOf(address(exchange)), escrow);
+        assertEq(MagnusUSD.balanceOf(address(exchange)), escrow);
 
         // Execute exactOut swap for exactly the escrow amount.
         // baseNeeded = ceil(escrow * PRICE_SCALE / price) + 1, but capped at order.remaining
         vm.prank(charlie);
         uint128 amountIn = exchange.swapExactAmountOut(
             address(token1), // tokenIn = base
-            address(pathUSD), // tokenOut = quote
+            address(MagnusUSD), // tokenOut = quote
             escrow,
             type(uint128).max
         );
@@ -1994,7 +1994,7 @@ contract StablecoinDEXTest is BaseTest {
 
         // Calculate quote needed for single trade
         uint128 singleTradeQuote = exchange.quoteSwapExactAmountOut(
-            address(pathUSD), // tokenIn = quote
+            address(MagnusUSD), // tokenIn = quote
             address(token1), // tokenOut = base
             totalBaseOut
         );
@@ -2011,7 +2011,7 @@ contract StablecoinDEXTest is BaseTest {
             }
             if (thisAmount > 0) {
                 totalSplitQuote += exchange.quoteSwapExactAmountOut(
-                    address(pathUSD), address(token1), thisAmount
+                    address(MagnusUSD), address(token1), thisAmount
                 );
             }
         }
@@ -2037,13 +2037,13 @@ contract StablecoinDEXTest is BaseTest {
 
         // Quote for single trade of 100 base
         uint128 singleTradeQuote =
-            exchange.quoteSwapExactAmountOut(address(pathUSD), address(token1), 100);
+            exchange.quoteSwapExactAmountOut(address(MagnusUSD), address(token1), 100);
 
         // Quote for 100 trades of 1 base each
         uint128 totalOneAtATime = 0;
         for (uint256 i = 0; i < 100; i++) {
             uint128 quoteFor1 =
-                exchange.quoteSwapExactAmountOut(address(pathUSD), address(token1), 1);
+                exchange.quoteSwapExactAmountOut(address(MagnusUSD), address(token1), 1);
             totalOneAtATime += quoteFor1;
 
             // With ceiling rounding, each 1-base trade costs at least 1 quote

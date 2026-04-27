@@ -38,7 +38,7 @@ abstract contract InvariantBase is BaseTest, ActorManager, GhostState {
 
         // Initialize fee token
         feeToken = MIP20(
-            factory.createToken("Fee Token", "FEE", "USD", pathUSD, admin, bytes32("feetoken"))
+            factory.createToken("Fee Token", "FEE", "USD", MagnusUSD, admin, bytes32("feetoken"))
         );
 
         // Initialize actors
@@ -60,19 +60,19 @@ abstract contract InvariantBase is BaseTest, ActorManager, GhostState {
     }
 
     function _setupAmmLiquidity() internal {
-        // Grant ISSUER_ROLE to admin on pathUSD (requires pathUSDAdmin)
-        vm.prank(pathUSDAdmin);
-        pathUSD.grantRole(_ISSUER_ROLE, admin);
+        // Grant ISSUER_ROLE to admin on MagnusUSD (requires MagnusUSDAdmin)
+        vm.prank(MagnusUSDAdmin);
+        MagnusUSD.grantRole(_ISSUER_ROLE, admin);
 
         vm.startPrank(admin);
         // Mint tokens to admin first, then provide liquidity
         feeToken.mint(admin, 100_000_000e6);
-        pathUSD.mint(admin, 100_000_000e6);
+        MagnusUSD.mint(admin, 100_000_000e6);
         // Approve the AMM to spend tokens
         feeToken.approve(address(amm), type(uint256).max);
-        pathUSD.approve(address(amm), type(uint256).max);
+        MagnusUSD.approve(address(amm), type(uint256).max);
         // Provide liquidity - AMM will transfer from admin
-        amm.mint(address(feeToken), address(pathUSD), 50_000_000e6, admin);
+        amm.mint(address(feeToken), address(MagnusUSD), 50_000_000e6, admin);
         vm.stopPrank();
 
         vm.prank(validator, validator);

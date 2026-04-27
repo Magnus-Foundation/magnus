@@ -120,7 +120,7 @@ G0 (errors and ABI scaffolding).
 
 ## G2 — Validator multi-token accept-set (~7 eng-days)
 
-**Purpose:** replace single-token validator preference with multi-token accept-set. Removes per-user fee-token state. Removes `DEFAULT_FEE_TOKEN` fallback.
+**Purpose:** replace single-token validator preference with multi-token accept-set. Removes per-user fee-token state. Removes `MAGNUS_USD_ADDRESS` fallback.
 
 ### Deliverables
 
@@ -139,7 +139,7 @@ G0 (errors and ABI scaffolding).
 - Replace `get_validator_token` with `accepts_token(validator, token)` and `get_accepted_tokens(validator)`.
 - Add `is_accepted_by_any_validator(token)` view.
 - Remove `set_user_token`, `userTokens`, `get_user_token` entirely.
-- Remove `DEFAULT_FEE_TOKEN` fallback from `get_validator_token` semantics. New behavior: if validator has empty accept-set, fee collection reverts with `ValidatorAcceptSetEmpty`.
+- Remove `MAGNUS_USD_ADDRESS` fallback from `get_validator_token` semantics. New behavior: if validator has empty accept-set, fee collection reverts with `ValidatorAcceptSetEmpty`.
 - Add `MAX_ACCEPT_SET_SIZE = 32` constant; enforce in `add_accepted_token`.
 - Update `IFeeManager` ABI to drop `setUserToken`, `userTokens`, `setValidatorToken`, `validatorTokens` events/errors; add new functions.
 
@@ -290,18 +290,18 @@ G0 (scaffold and address constant), G1 (currency registry — `addApprovedIssuer
 
 ## G5 — MagnusUSD genesis deployment (~3 eng-days)
 
-**Purpose:** replace inherited Tempo `pathUSD` genesis bytecode at `0x20C0…0000` with Magnus Foundation-issued `MagnusUSD` at `0x20C0…0010`.
+**Purpose:** replace inherited Tempo `MagnusUSD` genesis bytecode at `0x20C0…0000` with Magnus Foundation-issued `MagnusUSD` at `0x20C0…0010`.
 
 ### Deliverables
 
 - Update `crates/evm/contracts/src/precompiles/mod.rs`:
   ```rust
-  // OLD: pub const PATH_USD_ADDRESS = address!("0x20C0...0000");
+  // OLD: pub const MAGNUS_USD_ADDRESS = address!("0x20C0...0000");
   // NEW:
   pub const MAGNUS_USD_ADDRESS: Address = address!("0x20C0000000000000000000000000000000000010");
   ```
-  Search-and-replace `PATH_USD_ADDRESS` → `MAGNUS_USD_ADDRESS` across the codebase (renames + value change).
-- Update `mip20_factory/mod.rs` slot-0 special-case ([line 197](../crates/evm/precompiles/src/mip20_factory/mod.rs#L197)): generalize from `address == PATH_USD_ADDRESS` to first-of-currency rule per spec §4.4a.
+  Search-and-replace `MAGNUS_USD_ADDRESS` → `MAGNUS_USD_ADDRESS` across the codebase (renames + value change).
+- Update `mip20_factory/mod.rs` slot-0 special-case ([line 197](../crates/evm/precompiles/src/mip20_factory/mod.rs#L197)): generalize from `address == MAGNUS_USD_ADDRESS` to first-of-currency rule per spec §4.4a.
 - Genesis JSON updates:
   - `crates/primitives/chainspec/src/genesis/dev.json`
   - `crates/primitives/chainspec/src/genesis/moderato.json`
@@ -333,11 +333,11 @@ Single PR. ~400 LoC of code + significant genesis JSON changes.
 
 ### Dependencies
 
-G2 (replaces existing path that referenced PATH_USD_ADDRESS).
+G2 (replaces existing path that referenced MAGNUS_USD_ADDRESS).
 
 ### Risks
 
-- **Genesis JSON state has many bytes** (the existing pathUSD allocation is large bytecode). Easy to introduce typos. Recommend generating the new genesis allocation programmatically (small script) rather than hand-editing JSON.
+- **Genesis JSON state has many bytes** (the existing MagnusUSD allocation is large bytecode). Easy to introduce typos. Recommend generating the new genesis allocation programmatically (small script) rather than hand-editing JSON.
 
 ---
 
@@ -629,7 +629,7 @@ G0 deliberately ships scaffolding with stubs that subsequent groups replace. Thi
 | `FeeManagerError::CurrencyDisabled` constructor exists, never called | [mip_fee_manager.rs](../crates/evm/contracts/src/precompiles/mip_fee_manager.rs) | **G6** | Called from grace-expiry check in `settle_fee` and from emergency-disable path |
 | `FeeManagerError::FeeTokenNotAccepted` constructor exists, never called | [mip_fee_manager.rs](../crates/evm/contracts/src/precompiles/mip_fee_manager.rs) | **G2/G3** | Called from `swap_fee` revert when validator's accept-set lacks the user's token |
 | `FeeManagerError::FeeTokenNotInferable` constructor exists, never called | [mip_fee_manager.rs](../crates/evm/contracts/src/precompiles/mip_fee_manager.rs) | **G8** | Called from `infer_fee_token` when calldata cannot be parsed |
-| `FeeManagerError::ValidatorAcceptSetEmpty` constructor exists, never called | [mip_fee_manager.rs](../crates/evm/contracts/src/precompiles/mip_fee_manager.rs) | **G2** | Called from `get_validator_token` when validator has no tokens (replaces removed `DEFAULT_FEE_TOKEN` fallback) |
+| `FeeManagerError::ValidatorAcceptSetEmpty` constructor exists, never called | [mip_fee_manager.rs](../crates/evm/contracts/src/precompiles/mip_fee_manager.rs) | **G2** | Called from `get_validator_token` when validator has no tokens (replaces removed `MAGNUS_USD_ADDRESS` fallback) |
 | `MIP20IssuerRegistryError` registered in error decoder but no path emits | [error.rs](../crates/evm/precompiles/src/error.rs) | **G4** | Emitted from registry governance functions |
 | T4 wiring resolves `MIP20_ISSUER_REGISTRY_ADDRESS` to a stub precompile | [lib.rs:140-145](../crates/evm/precompiles/src/lib.rs#L140-L145) | **G4** | Stub precompile is replaced when G4 lands real logic; the wiring itself stays |
 | Factory does NOT yet call `IssuerRegistry.is_approved_issuer` | [mip20_factory/mod.rs:104-161](../crates/evm/precompiles/src/mip20_factory/mod.rs#L104-L161) | **G4** | Add the gate at the top of `create_token`; bubble up `MIP20IssuerRegistryError::issuer_not_approved` |

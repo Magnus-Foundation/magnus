@@ -20,7 +20,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
   RUSTC_WRAPPER: "sccache"
-  MAGNUS_TESTNET_RPC_URL: ${{ secrets.MAGNUS_TESTNET_RPC_URL || 'https://rpc.moderato.magnus.xyz' }}
+  ALLEGRO_RPC_URL: ${{ secrets.ALLEGRO_RPC_URL || 'https://rpc.allegro.magnus.xyz' }}
   MAGNUS_DEVNET_RPC_URL: ${{ secrets.MAGNUS_DEVNET_RPC_URL || 'https://rpc.devnet.magnusxyz.dev' }}
 
 jobs:

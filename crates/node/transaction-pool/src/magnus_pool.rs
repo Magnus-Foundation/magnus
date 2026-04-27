@@ -1276,7 +1276,7 @@ mod tests {
     };
     use magnus_chainspec::{
         hardfork::MagnusHardfork,
-        spec::{MODERATO, MAGNUS_T1_TX_GAS_LIMIT_CAP},
+        spec::{ALLEGRO, MAGNUS_T1_TX_GAS_LIMIT_CAP},
     };
     use magnus_contracts::precompiles::IMIP403Registry;
     use magnus_evm::MagnusEvmConfig;
@@ -1314,7 +1314,7 @@ mod tests {
         setup_spec: MagnusHardfork,
     ) -> Box<dyn reth_storage_api::StateProvider> {
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         // Write AuthorizedKey with enforce_limits=true
@@ -1391,7 +1391,7 @@ mod tests {
         ));
 
         let provider = MockEthProvider::<MagnusPrimitives>::new()
-            .with_chain_spec(std::sync::Arc::unwrap_or_clone(MODERATO.clone()));
+            .with_chain_spec(std::sync::Arc::unwrap_or_clone(ALLEGRO.clone()));
         provider.add_account(sender, ExtendedAccount::new(pooled.nonce(), *pooled.cost()));
         provider.add_block(
             B256::random(),
@@ -1477,7 +1477,7 @@ mod tests {
         let recipient_sub_policy: u64 = 4;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         // Set up MIP20 token with transfer_policy_id = compound_policy_id
@@ -1538,7 +1538,7 @@ mod tests {
         let recipient_sub_policy: u64 = 4;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1596,7 +1596,7 @@ mod tests {
         let mint_recipient_sub: u64 = 6;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1650,7 +1650,7 @@ mod tests {
         let recipient_sub: u64 = 4;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1707,7 +1707,7 @@ mod tests {
         let simple_policy_id: u64 = 7;
 
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
 
         let transfer_policy_id_packed =
@@ -1806,7 +1806,7 @@ mod tests {
 
         // Provider with AuthorizedKey (enforce_limits=true) but no spending limit slot
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
         provider
             .setup_storage(MagnusHardfork::default(), || {
@@ -1841,7 +1841,7 @@ mod tests {
 
         // Provider with AuthorizedKey (enforce_limits=false)
         let provider = MockEthProvider::default().with_chain_spec(std::sync::Arc::unwrap_or_clone(
-            magnus_chainspec::spec::MODERATO.clone(),
+            magnus_chainspec::spec::ALLEGRO.clone(),
         ));
         provider
             .setup_storage(MagnusHardfork::default(), || {

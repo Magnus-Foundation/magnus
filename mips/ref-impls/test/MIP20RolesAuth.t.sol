@@ -14,7 +14,7 @@ contract MIP20RolesAuthTest is BaseTest {
         super.setUp();
         token = MIP20(
             factory.createToken(
-                "Test Token", "TST", "USD", MIP20(_PATH_USD), admin, bytes32("test")
+                "Test Token", "TST", "USD", MIP20(_MAGNUS_USD), admin, bytes32("test")
             )
         );
     }

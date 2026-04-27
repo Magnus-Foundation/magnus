@@ -40,8 +40,8 @@ impl ForkSchedule {
     fn reference_genesis(&self) -> Option<&'static str> {
         match self {
             Self::Devnet => None,
-            Self::Testnet => Some(include_str!("../../../../primitives/chainspec/src/genesis/moderato.json")),
-            Self::Mainnet => Some(include_str!("../../../../primitives/chainspec/src/genesis/presto.json")),
+            Self::Testnet => Some(include_str!("../../../../primitives/chainspec/src/genesis/allegro.json")),
+            Self::Mainnet => Some(include_str!("../../../../primitives/chainspec/src/genesis/maestoso.json")),
         }
     }
 

@@ -36,7 +36,7 @@ use magnus_alloy::MagnusNetwork;
 
 async fn build_provider() -> Result<impl Provider<MagnusNetwork>, TransportError> {
     ProviderBuilder::new_with_network::<MagnusNetwork>()
-        .connect("https://rpc.moderato.magnus.xyz")
+        .connect("https://rpc.allegro.magnus.xyz")
         .await
 }
 ```
@@ -90,7 +90,7 @@ use magnus_alloy::{MagnusNetwork, provider::ext::MagnusProviderExt};
 
 async fn keychain_example() -> Result<(), Box<dyn std::error::Error>> {
     let provider = ProviderBuilder::new_with_network::<MagnusNetwork>()
-        .connect("https://rpc.moderato.magnus.xyz")
+        .connect("https://rpc.allegro.magnus.xyz")
         .await?;
 
     let account = address!("0x1111111111111111111111111111111111111111");

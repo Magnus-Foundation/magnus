@@ -43,7 +43,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
 
         // One-time constant checks (immutable after deployment)
         // MAGNUS-FAC8: isTIP20 consistency for system contracts
-        assertTrue(factory.isTIP20(address(pathUSD)), "MAGNUS-FAC8: pathUSD should be MIP20");
+        assertTrue(factory.isTIP20(address(MagnusUSD)), "MAGNUS-FAC8: MagnusUSD should be MIP20");
         assertFalse(factory.isTIP20(address(factory)), "MAGNUS-FAC8: Factory should not be MIP20");
         assertFalse(factory.isTIP20(address(amm)), "MAGNUS-FAC8: AMM should not be MIP20");
     }
@@ -84,7 +84,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
         // Check if token already exists at this address
         if (predictedAddr.code.length != 0) {
             vm.startPrank(actor);
-            try factory.createToken(name, symbol, "USD", pathUSD, admin, salt) {
+            try factory.createToken(name, symbol, "USD", MagnusUSD, admin, salt) {
                 vm.stopPrank();
                 revert("MAGNUS-FAC3: Should revert for existing token");
             } catch (bytes memory reason) {
@@ -99,7 +99,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
         }
 
         vm.startPrank(actor);
-        try factory.createToken(name, symbol, "USD", pathUSD, admin, salt) returns (
+        try factory.createToken(name, symbol, "USD", MagnusUSD, admin, salt) returns (
             address tokenAddr
         ) {
             vm.stopPrank();
@@ -204,7 +204,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
         string memory currency = _generateNonUsdCurrency(currencyIdx);
 
         vm.startPrank(actor);
-        try factory.createToken("Test", "TST", currency, pathUSD, admin, salt) returns (
+        try factory.createToken("Test", "TST", currency, MagnusUSD, admin, salt) returns (
             address tokenAddr
         ) {
             vm.stopPrank();
@@ -248,7 +248,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
             } else {
                 vm.startPrank(actor);
                 try factory.createToken(
-                    "EUR Token", "EUR", "EUR", pathUSD, admin, eurSalt
+                    "EUR Token", "EUR", "EUR", MagnusUSD, admin, eurSalt
                 ) returns (
                     address addr
                 ) {
@@ -315,7 +315,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
         }
 
         vm.startPrank(actor);
-        try factory.createToken("Reserved", "RES", "USD", pathUSD, admin, salt) {
+        try factory.createToken("Reserved", "RES", "USD", MagnusUSD, admin, salt) {
             vm.stopPrank();
             revert("MAGNUS-FAC5: Should revert for reserved address on createToken");
         } catch (bytes memory reason) {
@@ -339,8 +339,8 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
             address checkAddr = _createdTokens[addrSeed % _createdTokens.length];
             assertTrue(factory.isTIP20(checkAddr), "MAGNUS-FAC8: Created token should be MIP20");
         } else if (addrSeed % 4 == 1) {
-            // Check pathUSD (known MIP20)
-            assertTrue(factory.isTIP20(address(pathUSD)), "MAGNUS-FAC8: pathUSD should be MIP20");
+            // Check MagnusUSD (known MIP20)
+            assertTrue(factory.isTIP20(address(MagnusUSD)), "MAGNUS-FAC8: MagnusUSD should be MIP20");
         } else if (addrSeed % 4 == 2) {
             // Check factory address - should NOT be MIP20
             assertFalse(
@@ -359,7 +359,7 @@ contract MIP20FactoryInvariantTest is InvariantBaseTest {
             bool isReserved = hasPrefix && lowerBytes < 1024;
 
             if (
-                !_isCreatedToken[checkAddr] && checkAddr != address(pathUSD)
+                !_isCreatedToken[checkAddr] && checkAddr != address(MagnusUSD)
                     && checkAddr != address(token1) && checkAddr != address(token2)
                     && checkAddr != address(token3) && checkAddr != address(token4) && !isReserved
             ) {

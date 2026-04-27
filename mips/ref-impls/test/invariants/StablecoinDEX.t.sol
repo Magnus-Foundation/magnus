@@ -94,12 +94,12 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
             escrowAmount = amount;
         }
 
-        // Ensure funds for the token being escrowed (pathUSD for bids, base token for asks)
-        _ensureFunds(actor, MIP20(isBid ? address(pathUSD) : token), escrowAmount);
+        // Ensure funds for the token being escrowed (MagnusUSD for bids, base token for asks)
+        _ensureFunds(actor, MIP20(isBid ? address(MagnusUSD) : token), escrowAmount);
 
         // Capture actor's token balance before placing order (for cancel verification)
         uint256 actorBalanceBeforePlace =
-            isBid ? pathUSD.balanceOf(actor) : MIP20(token).balanceOf(actor);
+            isBid ? MagnusUSD.balanceOf(actor) : MIP20(token).balanceOf(actor);
 
         vm.startPrank(actor);
         uint128 orderId = exchange.place(token, amount, isBid, tick);
@@ -170,11 +170,11 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
 
         _ghostDivisibleEscrowCount++;
         uint256 expectedEscrow = product / scale;
-        _ensureFunds(actor, pathUSD, expectedEscrow + 1000);
+        _ensureFunds(actor, MagnusUSD, expectedEscrow + 1000);
 
         // Capture both external and internal balance before placing order
-        uint256 externalBefore = pathUSD.balanceOf(actor);
-        uint256 internalBefore = exchange.balanceOf(actor, address(pathUSD));
+        uint256 externalBefore = MagnusUSD.balanceOf(actor);
+        uint256 internalBefore = exchange.balanceOf(actor, address(MagnusUSD));
         uint256 totalBefore = externalBefore + internalBefore;
 
         vm.prank(actor);
@@ -182,8 +182,8 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
         _assertNextOrderId(orderId);
 
         // Calculate total escrow from both external and internal balance changes
-        uint256 externalAfter = pathUSD.balanceOf(actor);
-        uint256 internalAfter = exchange.balanceOf(actor, address(pathUSD));
+        uint256 externalAfter = MagnusUSD.balanceOf(actor);
+        uint256 internalAfter = exchange.balanceOf(actor, address(MagnusUSD));
         uint256 totalAfter = externalAfter + internalAfter;
         uint256 escrowed = totalBefore - totalAfter;
 
@@ -328,9 +328,9 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
     )
         internal
     {
-        uint128 balanceBefore = exchange.balanceOf(actor, address(pathUSD));
-        uint256 dexBalanceBefore = pathUSD.balanceOf(address(exchange));
-        uint256 actorExternalBefore = pathUSD.balanceOf(actor);
+        uint128 balanceBefore = exchange.balanceOf(actor, address(MagnusUSD));
+        uint256 dexBalanceBefore = MagnusUSD.balanceOf(address(exchange));
+        uint256 actorExternalBefore = MagnusUSD.balanceOf(actor);
 
         vm.startPrank(actor);
         exchange.cancel(orderId);
@@ -341,30 +341,30 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
                 / uint256(exchange.PRICE_SCALE())
         );
 
-        uint128 balanceAfter = exchange.balanceOf(actor, address(pathUSD));
+        uint128 balanceAfter = exchange.balanceOf(actor, address(MagnusUSD));
         assertEq(
             balanceAfter - balanceBefore, expectedEscrow, "MAGNUS-DEX3: bid cancel refund mismatch"
         );
 
         uint128 withdrawAmount = balanceAfter;
-        exchange.withdraw(address(pathUSD), withdrawAmount);
+        exchange.withdraw(address(MagnusUSD), withdrawAmount);
         vm.stopPrank();
 
-        uint256 dexBalanceAfter = pathUSD.balanceOf(address(exchange));
+        uint256 dexBalanceAfter = MagnusUSD.balanceOf(address(exchange));
         assertEq(
             dexBalanceBefore - dexBalanceAfter,
             withdrawAmount,
-            "MAGNUS-DEX3: DEX pathUSD balance did not decrease correctly"
+            "MAGNUS-DEX3: DEX MagnusUSD balance did not decrease correctly"
         );
         assertEq(
-            pathUSD.balanceOf(actor),
+            MagnusUSD.balanceOf(actor),
             actorExternalBefore + withdrawAmount,
-            "MAGNUS-DEX3: actor pathUSD balance did not increase correctly"
+            "MAGNUS-DEX3: actor MagnusUSD balance did not increase correctly"
         );
         assertGe(
-            pathUSD.balanceOf(actor),
+            MagnusUSD.balanceOf(actor),
             actorBalanceBeforePlace,
-            "MAGNUS-DEX3: actor pathUSD balance less than before place"
+            "MAGNUS-DEX3: actor MagnusUSD balance less than before place"
         );
     }
 
@@ -437,13 +437,13 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
         (bool ok, int16 flipTick) = _pickFlipTick(tick, isBid, flipTickRnd);
         if (!ok) return;
 
-        // Ensure funds for the token being escrowed (pathUSD for bids, base token for asks)
+        // Ensure funds for the token being escrowed (MagnusUSD for bids, base token for asks)
         // For bids, escrow = baseToQuoteCeil(amount, tick), so we need to ensure enough funds
         if (isBid) {
             uint32 price = exchange.tickToPrice(tick);
             uint256 escrowAmount =
                 (uint256(amount) * price + exchange.PRICE_SCALE() - 1) / exchange.PRICE_SCALE();
-            _ensureFunds(actor, pathUSD, escrowAmount);
+            _ensureFunds(actor, MagnusUSD, escrowAmount);
         } else {
             _ensureFunds(actor, token, amount);
         }
@@ -499,8 +499,8 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
         address swapper = _actors[swapperRnd % _actors.length];
         amount = uint128(bound(amount, 100_000_000, 1_000_000_000));
 
-        // Select tokenIn and tokenOut from all available tokens (base tokens + pathUSD)
-        // This allows any-to-any token swaps (e.g., T1->T2, T1->pathUSD, pathUSD->T3, etc.)
+        // Select tokenIn and tokenOut from all available tokens (base tokens + MagnusUSD)
+        // This allows any-to-any token swaps (e.g., T1->T2, T1->MagnusUSD, MagnusUSD->T3, etc.)
         address tokenIn = _selectToken(tokenInRnd);
         address tokenOut = _selectToken(tokenOutRnd);
 
@@ -540,7 +540,7 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
     /// @dev Tests MAGNUS-DEX18 (stale order cancellation by non-owner when maker is blacklisted)
     /// @param blacklistActorRnd Random seed for selecting actor to blacklist
     /// @param cancellerActorRnd Random seed for selecting actor who will cancel stale orders
-    /// @param forBids If true, blacklist in quote token (pathUSD) for bids; if false, blacklist in base token for asks
+    /// @param forBids If true, blacklist in quote token (MagnusUSD) for bids; if false, blacklist in base token for asks
     function cancelStaleOrderAfterBlacklist(
         uint256 blacklistActorRnd,
         uint256 cancellerActorRnd,
@@ -556,8 +556,8 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
 
         // Blacklist the actor in the appropriate token(s)
         if (forBids) {
-            // For bids, blacklist in quote token (pathUSD) since that's the escrow token
-            vm.prank(pathUSDAdmin);
+            // For bids, blacklist in quote token (MagnusUSD) since that's the escrow token
+            vm.prank(MagnusUSDAdmin);
             registry.modifyPolicyBlacklist(_pathUsdPolicyId, blacklistedActor, true);
         } else {
             // For asks, blacklist in all base tokens since orders can be on any token
@@ -586,7 +586,7 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
 
                     // Capture balance before cancel
                     uint128 balanceBefore = forBids
-                        ? exchange.balanceOf(blacklistedActor, address(pathUSD))
+                        ? exchange.balanceOf(blacklistedActor, address(MagnusUSD))
                         : exchange.balanceOf(blacklistedActor, base);
 
                     // MAGNUS-DEX18: Anyone can cancel a stale order from a blacklisted maker
@@ -594,7 +594,7 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
 
                     // Verify refund was credited to blacklisted actor's internal balance
                     uint128 balanceAfter = forBids
-                        ? exchange.balanceOf(blacklistedActor, address(pathUSD))
+                        ? exchange.balanceOf(blacklistedActor, address(MagnusUSD))
                         : exchange.balanceOf(blacklistedActor, base);
 
                     if (order.isBid) {
@@ -635,7 +635,7 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
 
         // Whitelist the actor again so they can continue to be used in tests
         if (forBids) {
-            vm.prank(pathUSDAdmin);
+            vm.prank(MagnusUSDAdmin);
             registry.modifyPolicyBlacklist(_pathUsdPolicyId, blacklistedActor, false);
         } else {
             vm.startPrank(admin);
@@ -679,10 +679,10 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
                             / exchange.PRICE_SCALE()
                     );
                     assertTrue(
-                        exchange.balanceOf(maker, address(pathUSD)) >= expectedRefund,
+                        exchange.balanceOf(maker, address(MagnusUSD)) >= expectedRefund,
                         "MAGNUS-DEX3: bid cancel refund not credited"
                     );
-                    exchange.withdraw(address(pathUSD), expectedRefund);
+                    exchange.withdraw(address(MagnusUSD), expectedRefund);
                 } else {
                     assertTrue(
                         exchange.balanceOf(maker, base) >= order.remaining,
@@ -700,7 +700,7 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
         for (uint256 i = 0; i < _actors.length; i++) {
             address actor = _actors[i];
             vm.startPrank(actor);
-            exchange.withdraw(address(pathUSD), exchange.balanceOf(actor, address(pathUSD)));
+            exchange.withdraw(address(MagnusUSD), exchange.balanceOf(actor, address(MagnusUSD)));
             for (uint256 j = 0; j < _tokens.length; j++) {
                 exchange.withdraw(
                     address(_tokens[j]), exchange.balanceOf(actor, address(_tokens[j]))
@@ -716,7 +716,7 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
 
         assertGe(
             _maxDust,
-            pathUSD.balanceOf(address(exchange)) + totalBalance,
+            MagnusUSD.balanceOf(address(exchange)) + totalBalance,
             "MAGNUS-DEX9: Excess post-swap dust"
         );
     }
@@ -734,7 +734,7 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
             _computeExpectedEscrow();
 
         // Cache DEX balances and compute user totals in single pass
-        uint256 dexPathUsdBalance = pathUSD.balanceOf(address(exchange));
+        uint256 dexPathUsdBalance = MagnusUSD.balanceOf(address(exchange));
         uint256 totalUserPathUsd = 0;
         uint256[] memory dexTokenBalances = new uint256[](_tokens.length);
         uint256[] memory totalUserTokenBalances = new uint256[](_tokens.length);
@@ -747,13 +747,13 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
         // Single pass over actors to accumulate all user balances
         for (uint256 i = 0; i < _actors.length; i++) {
             address actor = _actors[i];
-            totalUserPathUsd += exchange.balanceOf(actor, address(pathUSD));
+            totalUserPathUsd += exchange.balanceOf(actor, address(MagnusUSD));
             for (uint256 t = 0; t < _tokens.length; t++) {
                 totalUserTokenBalances[t] += exchange.balanceOf(actor, address(_tokens[t]));
             }
         }
 
-        // MAGNUS-DEX10: Check pathUSD balance solvency
+        // MAGNUS-DEX10: Check MagnusUSD balance solvency
         assertTrue(
             dexPathUsdBalance >= totalUserPathUsd,
             "MAGNUS-DEX10: DEX pathUsd balance < sum of user internal balances"
@@ -762,7 +762,7 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
             dexPathUsdBalance,
             totalUserPathUsd + expectedPathUsdEscrowed,
             _maxDust,
-            "MAGNUS-DEX10: DEX pathUSD balance != user balances + escrowed"
+            "MAGNUS-DEX10: DEX MagnusUSD balance != user balances + escrowed"
         );
 
         // Single loop over tokens for all token-based checks
@@ -804,10 +804,10 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
     function _computeDust() internal view returns (uint256 dust) {
         (uint256 pathUsdEscrowed, uint256[] memory tokenEscrowed,) = _computeExpectedEscrow();
 
-        uint256 dexPathUsdBalance = pathUSD.balanceOf(address(exchange));
+        uint256 dexPathUsdBalance = MagnusUSD.balanceOf(address(exchange));
         uint256 totalUserPathUsd = 0;
         for (uint256 i = 0; i < _actors.length; i++) {
-            totalUserPathUsd += exchange.balanceOf(_actors[i], address(pathUSD));
+            totalUserPathUsd += exchange.balanceOf(_actors[i], address(MagnusUSD));
         }
         if (dexPathUsdBalance > totalUserPathUsd + pathUsdEscrowed) {
             dust += dexPathUsdBalance - totalUserPathUsd - pathUsdEscrowed;
@@ -839,7 +839,7 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
 
     /// @notice Computes expected escrowed amounts by iterating through all orders
     /// @dev Iterates all order IDs to catch flip-created orders not in _placedOrders
-    /// @return pathUsdEscrowed Total pathUSD escrowed in active bid orders
+    /// @return pathUsdEscrowed Total MagnusUSD escrowed in active bid orders
     /// @return tokenEscrowed Array of escrowed amounts for each base token (ask orders)
     /// @return orderCount Number of active orders (for rounding tolerance)
     function _computeExpectedEscrow()
@@ -1046,7 +1046,7 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
     /// @param baseToken The base token address for the trading pair
     function _assertBestTickConsistency(address baseToken) internal view {
         (,, int16 bestBidTick, int16 bestAskTick) =
-            exchange.books(exchange.pairKey(baseToken, address(pathUSD)));
+            exchange.books(exchange.pairKey(baseToken, address(MagnusUSD)));
 
         // MAGNUS-DEX12: If bestBidTick is not MIN, it should have liquidity
         if (bestBidTick != type(int16).min) {
@@ -1200,13 +1200,13 @@ contract StablecoinDEXInvariantTest is InvariantBaseTest {
     /// @dev Returns the number of hops in a trade path (similar to findTradePath in StablecoinDEX)
     /// @param tokenIn The input token
     /// @param tokenOut The output token
-    /// @return hops Number of hops (1 for direct, 2 for multi-hop via pathUSD)
+    /// @return hops Number of hops (1 for direct, 2 for multi-hop via MagnusUSD)
     function _findRoute(address tokenIn, address tokenOut) internal view returns (uint256 hops) {
-        // Direct pair: one of the tokens is pathUSD
-        if (tokenIn == address(pathUSD) || tokenOut == address(pathUSD)) {
+        // Direct pair: one of the tokens is MagnusUSD
+        if (tokenIn == address(MagnusUSD) || tokenOut == address(MagnusUSD)) {
             return 1;
         }
-        // Multi-hop: base -> pathUSD -> base
+        // Multi-hop: base -> MagnusUSD -> base
         return 2;
     }
 

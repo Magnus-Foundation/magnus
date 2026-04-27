@@ -70,8 +70,8 @@ You can connect to Magnus's public testnet using the following details:
 | **Network Name**   | Magnus Testnet (Moderato)           |
 | **Currency**       | `USD`                              |
 | **Chain ID**       | `42431`                            |
-| **HTTP URL**       | `https://rpc.moderato.magnus.xyz`   |
-| **WebSocket URL**  | `wss://rpc.moderato.magnus.xyz`     |
+| **HTTP URL**       | `https://rpc.allegro.magnus.xyz`   |
+| **WebSocket URL**  | `wss://rpc.allegro.magnus.xyz`     |
 | **Block Explorer** | `https://explore.magnus.xyz`        |
 
 Next, grab some stablecoins to test with from Magnus's [Faucet](https://docs.magnus.xyz/quickstart/faucet#faucet).
@@ -79,7 +79,7 @@ Next, grab some stablecoins to test with from Magnus's [Faucet](https://docs.mag
 Alternatively, use [`cast`](https://github.com/foundry-rs/foundry):
 
 ```bash
-cast rpc magnus_fundAddress <ADDRESS> --rpc-url https://rpc.moderato.magnus.xyz
+cast rpc magnus_fundAddress <ADDRESS> --rpc-url https://rpc.allegro.magnus.xyz
 ```
 
 ### As an operator

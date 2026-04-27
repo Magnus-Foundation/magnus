@@ -660,7 +660,7 @@ mod tests {
     };
     use revm::context::result::InvalidTransaction;
     use std::sync::Arc;
-    use magnus_chainspec::spec::{MODERATO, MAGNUS_T0_BASE_FEE, MAGNUS_T1_TX_GAS_LIMIT_CAP};
+    use magnus_chainspec::spec::{ALLEGRO, MAGNUS_T0_BASE_FEE, MAGNUS_T1_TX_GAS_LIMIT_CAP};
     use magnus_precompiles::{
         MAGNUS_USD_ADDRESS,
         mip20::{MIP20Token, slots as mip20_slots},
@@ -721,7 +721,7 @@ mod tests {
         tip_timestamp: u64,
     ) -> MagnusTransactionValidator<MockEthProvider<MagnusPrimitives, MagnusChainSpec>> {
         let provider = MockEthProvider::<MagnusPrimitives>::new()
-            .with_chain_spec(Arc::unwrap_or_clone(MODERATO.clone()));
+            .with_chain_spec(Arc::unwrap_or_clone(ALLEGRO.clone()));
         provider.add_account(
             transaction.sender(),
             ExtendedAccount::new(transaction.nonce(), alloy_primitives::U256::ZERO),
@@ -766,7 +766,7 @@ mod tests {
         );
 
         let inner =
-            EthTransactionValidatorBuilder::new(provider.clone(), MagnusEvmConfig::moderato())
+            EthTransactionValidatorBuilder::new(provider.clone(), MagnusEvmConfig::testnet())
                 .with_custom_tx_type(MagnusTxType::AA as u8)
                 .disable_balance_check()
                 .build(InMemoryBlobStore::default());
@@ -867,7 +867,7 @@ mod tests {
     #[tokio::test]
     async fn test_system_tx_rejected_as_invalid() {
         let tx = TxLegacy {
-            chain_id: Some(MODERATO.chain_id()),
+            chain_id: Some(ALLEGRO.chain_id()),
             nonce: 0,
             gas_price: 0,
             gas_limit: 0,
@@ -907,7 +907,7 @@ mod tests {
         }];
 
         let tx = MagnusTransaction {
-            chain_id: MODERATO.chain_id(),
+            chain_id: ALLEGRO.chain_id(),
             max_priority_fee_per_gas: 1_000_000_000,
             max_fee_per_gas: 20_000_000_000,
             gas_limit: 1_000_000,
@@ -954,7 +954,7 @@ mod tests {
         let sender = signer.address();
 
         let mut tx = MagnusTransaction {
-            chain_id: MODERATO.chain_id(),
+            chain_id: ALLEGRO.chain_id(),
             max_priority_fee_per_gas: 1_000_000_000,
             max_fee_per_gas: 20_000_000_000,
             gas_limit: 1_000_000,
@@ -1143,7 +1143,7 @@ mod tests {
                 .collect();
 
             let tx = MagnusTransaction {
-                chain_id: MODERATO.chain_id(),
+                chain_id: ALLEGRO.chain_id(),
                 max_priority_fee_per_gas: 1_000_000_000,
                 max_fee_per_gas: 20_000_000_000, // 20 gwei, above T1's minimum
                 gas_limit,
@@ -1253,7 +1253,7 @@ mod tests {
             };
 
             let tx = MagnusTransaction {
-                chain_id: MODERATO.chain_id(),
+                chain_id: ALLEGRO.chain_id(),
                 max_priority_fee_per_gas: 1_000_000_000,
                 max_fee_per_gas: 20_000_000_000,
                 gas_limit,
@@ -1471,7 +1471,7 @@ mod tests {
             }];
 
             let tx = MagnusTransaction {
-                chain_id: MODERATO.chain_id(),
+                chain_id: ALLEGRO.chain_id(),
                 max_priority_fee_per_gas: 1_000_000_000,
                 max_fee_per_gas: 20_000_000_000,
                 gas_limit,
@@ -1760,7 +1760,7 @@ mod tests {
             .as_secs();
 
         // Create a transaction with max_fee_per_gas exactly at minimum
-        let active_fork = MODERATO.magnus_hardfork_at(current_time);
+        let active_fork = ALLEGRO.magnus_hardfork_at(current_time);
         let transaction = TxBuilder::aa(Address::random())
             .max_fee(active_fork.base_fee() as u128)
             .max_priority_fee(1_000_000_000)
@@ -2282,7 +2282,7 @@ mod tests {
             uint!(0x5553440000000000000000000000000000000000000000000000000000000006_U256);
 
         let provider =
-            MockEthProvider::default().with_chain_spec(Arc::unwrap_or_clone(MODERATO.clone()));
+            MockEthProvider::default().with_chain_spec(Arc::unwrap_or_clone(ALLEGRO.clone()));
         provider.add_account(
             fee_token,
             ExtendedAccount::new(0, U256::ZERO).extend_storage([
@@ -2411,7 +2411,7 @@ mod tests {
             uint!(0x5553440000000000000000000000000000000000000000000000000000000006_U256);
 
         let provider =
-            MockEthProvider::default().with_chain_spec(Arc::unwrap_or_clone(MODERATO.clone()));
+            MockEthProvider::default().with_chain_spec(Arc::unwrap_or_clone(ALLEGRO.clone()));
 
         // Set up the token as a valid USD token but PAUSED
         provider.add_account(

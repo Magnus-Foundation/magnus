@@ -19,7 +19,7 @@ import { IValidatorConfigV2 } from "../src/interfaces/IValidatorConfigV2.sol";
 import { Test, console } from "forge-std/Test.sol";
 
 /// @notice Base test framework for all spec tests
-/// pathUSD is just a MIP20 at a special address (0x20C0...) with token_id=0
+/// MagnusUSD is just a MIP20 at a special address (0x20C0...) with token_id=0
 contract BaseTest is Test {
 
     // Registry precompiles
@@ -27,7 +27,7 @@ contract BaseTest is Test {
     address internal constant _TIP403REGISTRY = 0x403c000000000000000000000000000000000000;
     address internal constant _ADDRESS_REGISTRY = 0xfDC0000000000000000000000000000000000000;
     address internal constant _TIP20FACTORY = 0x20Fc000000000000000000000000000000000000;
-    address internal constant _PATH_USD = 0x20C0000000000000000000000000000000000000;
+    address internal constant _MAGNUS_USD = 0x20C0000000000000000000000000000000000000;
     address internal constant _STABLECOIN_DEX = 0xDEc0000000000000000000000000000000000000;
     address internal constant _FEE_AMM = 0xfeEC000000000000000000000000000000000000;
     address internal constant _NONCE = 0x4e4F4E4345000000000000000000000000000000;
@@ -47,12 +47,12 @@ contract BaseTest is Test {
     address public alice = address(0x200);
     address public bob = address(0x300);
     address public charlie = address(0x400);
-    address public pathUSDAdmin = address(0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84);
+    address public MagnusUSDAdmin = address(0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84);
 
     // Common test contracts
     IAccountKeychain public keychain = IAccountKeychain(_ACCOUNT_KEYCHAIN);
     MIP20Factory public factory = MIP20Factory(_TIP20FACTORY);
-    MIP20 public pathUSD = MIP20(_PATH_USD); // pathUSD is just a MIP20 at token_id=0
+    MIP20 public MagnusUSD = MIP20(_MAGNUS_USD); // MagnusUSD is just a MIP20 at token_id=0
     StablecoinDEX public exchange = StablecoinDEX(_STABLECOIN_DEX);
     FeeManager public amm = FeeManager(_FEE_AMM);
     MIP403Registry public registry = MIP403Registry(_TIP403REGISTRY);
@@ -70,7 +70,7 @@ contract BaseTest is Test {
     function setUp() public virtual {
         // Is this magnus chain?
         isMagnus = _ACCOUNT_KEYCHAIN.code.length + _TIP403REGISTRY.code.length
-                + _ADDRESS_REGISTRY.code.length + _TIP20FACTORY.code.length + _PATH_USD.code.length
+                + _ADDRESS_REGISTRY.code.length + _TIP20FACTORY.code.length + _MAGNUS_USD.code.length
                 + _STABLECOIN_DEX.code.length + _FEE_AMM.code.length + _NONCE.code.length
                 + _VALIDATOR_CONFIG.code.length + _VALIDATOR_CONFIG_V2.code.length > 0;
 
@@ -84,11 +84,11 @@ contract BaseTest is Test {
             deployCodeTo("StablecoinDEX", _STABLECOIN_DEX);
             deployCodeTo("FeeManager", _FEE_AMM);
             deployCodeTo("MIP20Factory", _TIP20FACTORY);
-            // Deploy pathUSD as a MIP20 at the special address
+            // Deploy MagnusUSD as a MIP20 at the special address
             deployCodeTo(
                 "MIP20.sol",
-                abi.encode("pathUSD", "pathUSD", "USD", address(0), pathUSDAdmin),
-                _PATH_USD
+                abi.encode("MagnusUSD", "MagnusUSD", "USD", address(0), MagnusUSDAdmin),
+                _MAGNUS_USD
             );
             deployCodeTo("Nonce", _NONCE);
             // Deploy ValidatorConfig with admin as owner
@@ -110,8 +110,8 @@ contract BaseTest is Test {
             if (_TIP20FACTORY.code.length == 0) {
                 revert MissingPrecompile("MIP20Factory", _TIP20FACTORY);
             }
-            if (_PATH_USD.code.length == 0) {
-                revert MissingPrecompile("pathUSD", _PATH_USD);
+            if (_MAGNUS_USD.code.length == 0) {
+                revert MissingPrecompile("MagnusUSD", _MAGNUS_USD);
             }
             if (_STABLECOIN_DEX.code.length == 0) {
                 revert MissingPrecompile("StablecoinDEX", _STABLECOIN_DEX);
@@ -132,29 +132,29 @@ contract BaseTest is Test {
             // owner is at slot 0 in ValidatorConfig
             vm.store(_VALIDATOR_CONFIG, bytes32(uint256(0)), bytes32(uint256(uint160(admin))));
 
-            // Grant DEFAULT_ADMIN_ROLE to admin for pathUSD via direct storage write
+            // Grant DEFAULT_ADMIN_ROLE to admin for MagnusUSD via direct storage write
             bytes32 adminRoleSlot = keccak256(
                 abi.encode(
                     bytes32(0), // DEFAULT_ADMIN_ROLE
                     keccak256(abi.encode(admin, uint256(0)))
                 )
             );
-            vm.store(_PATH_USD, adminRoleSlot, bytes32(uint256(1)));
+            vm.store(_MAGNUS_USD, adminRoleSlot, bytes32(uint256(1)));
 
-            // Grant DEFAULT_ADMIN_ROLE to pathUSDAdmin
+            // Grant DEFAULT_ADMIN_ROLE to MagnusUSDAdmin
             bytes32 magnusAdminRoleSlot = keccak256(
                 abi.encode(
                     bytes32(0), // DEFAULT_ADMIN_ROLE
-                    keccak256(abi.encode(pathUSDAdmin, uint256(0)))
+                    keccak256(abi.encode(MagnusUSDAdmin, uint256(0)))
                 )
             );
-            vm.store(_PATH_USD, magnusAdminRoleSlot, bytes32(uint256(1)));
+            vm.store(_MAGNUS_USD, magnusAdminRoleSlot, bytes32(uint256(1)));
         }
 
         token1 =
-            MIP20(factory.createToken("TOKEN1", "T1", "USD", pathUSD, admin, bytes32("token1")));
+            MIP20(factory.createToken("TOKEN1", "T1", "USD", MagnusUSD, admin, bytes32("token1")));
         token2 =
-            MIP20(factory.createToken("TOKEN2", "T2", "USD", pathUSD, admin, bytes32("token2")));
+            MIP20(factory.createToken("TOKEN2", "T2", "USD", MagnusUSD, admin, bytes32("token2")));
     }
 
 }

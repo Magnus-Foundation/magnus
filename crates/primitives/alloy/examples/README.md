@@ -7,7 +7,7 @@ Runnable examples demonstrating common operations with the `magnus-alloy` crate.
 Set the `RPC_URL` environment variable to a Magnus RPC endpoint:
 
 ```bash
-export RPC_URL="https://rpc.moderato.magnus.xyz"
+export RPC_URL="https://rpc.allegro.magnus.xyz"
 ```
 
 ## Running Examples

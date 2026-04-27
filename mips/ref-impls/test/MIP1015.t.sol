@@ -78,7 +78,7 @@ contract MIP1015Test is BaseTest {
         vendorCreditsPolicy = registry.createCompoundPolicy(1, recipientOnlyPolicy, 1);
 
         compoundToken = MIP20(
-            factory.createToken("COMPOUND", "CMP", "USD", pathUSD, admin, bytes32("compound"))
+            factory.createToken("COMPOUND", "CMP", "USD", MagnusUSD, admin, bytes32("compound"))
         );
         compoundToken.grantRole(_ISSUER_ROLE, admin);
         compoundToken.grantRole(_BURN_BLOCKED_ROLE, admin);
@@ -362,7 +362,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 simpleToken =
-            MIP20(factory.createToken("SIMPLE", "SMP", "USD", pathUSD, admin, bytes32("simple")));
+            MIP20(factory.createToken("SIMPLE", "SMP", "USD", MagnusUSD, admin, bytes32("simple")));
         simpleToken.grantRole(_ISSUER_ROLE, admin);
         simpleToken.changeTransferPolicyId(mintRecipientWhitelist);
 
@@ -376,7 +376,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 simpleToken = MIP20(
-            factory.createToken("SIMPLE2", "SMP2", "USD", pathUSD, admin, bytes32("simple2"))
+            factory.createToken("SIMPLE2", "SMP2", "USD", MagnusUSD, admin, bytes32("simple2"))
         );
         simpleToken.grantRole(_ISSUER_ROLE, admin);
         simpleToken.grantRole(_ISSUER_ROLE, address(this));
@@ -416,7 +416,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 simpleToken =
-            MIP20(factory.createToken("XFER1", "XF1", "USD", pathUSD, admin, bytes32("xfer1")));
+            MIP20(factory.createToken("XFER1", "XF1", "USD", MagnusUSD, admin, bytes32("xfer1")));
         simpleToken.grantRole(_ISSUER_ROLE, admin);
         simpleToken.changeTransferPolicyId(1);
         simpleToken.mint(sender, 1000);
@@ -434,7 +434,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 simpleToken =
-            MIP20(factory.createToken("XFER2", "XF2", "USD", pathUSD, admin, bytes32("xfer2")));
+            MIP20(factory.createToken("XFER2", "XF2", "USD", MagnusUSD, admin, bytes32("xfer2")));
         simpleToken.grantRole(_ISSUER_ROLE, admin);
         simpleToken.changeTransferPolicyId(1);
         simpleToken.mint(blockedUser, 1000);
@@ -468,7 +468,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 testToken =
-            MIP20(factory.createToken("XFER3", "XF3", "USD", pathUSD, admin, bytes32("xfer3")));
+            MIP20(factory.createToken("XFER3", "XF3", "USD", MagnusUSD, admin, bytes32("xfer3")));
         testToken.grantRole(_ISSUER_ROLE, admin);
 
         uint64 testCompound = registry.createCompoundPolicy(senderOnlyPolicy, 1, 1);
@@ -490,7 +490,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 testToken =
-            MIP20(factory.createToken("XFER4", "XF4", "USD", pathUSD, admin, bytes32("xfer4")));
+            MIP20(factory.createToken("XFER4", "XF4", "USD", MagnusUSD, admin, bytes32("xfer4")));
         testToken.grantRole(_ISSUER_ROLE, admin);
         testToken.changeTransferPolicyId(1);
         testToken.mint(sender, 1000);
@@ -509,7 +509,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 testToken =
-            MIP20(factory.createToken("ASYM1", "ASY1", "USD", pathUSD, admin, bytes32("asym1")));
+            MIP20(factory.createToken("ASYM1", "ASY1", "USD", MagnusUSD, admin, bytes32("asym1")));
         testToken.grantRole(_ISSUER_ROLE, admin);
         testToken.changeTransferPolicyId(1);
         testToken.mint(sender, 1000);
@@ -537,7 +537,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 testToken =
-            MIP20(factory.createToken("BURN1", "BRN1", "USD", pathUSD, admin, bytes32("burn1")));
+            MIP20(factory.createToken("BURN1", "BRN1", "USD", MagnusUSD, admin, bytes32("burn1")));
         testToken.grantRole(_ISSUER_ROLE, admin);
         testToken.grantRole(_BURN_BLOCKED_ROLE, admin);
 
@@ -555,7 +555,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 testToken =
-            MIP20(factory.createToken("BURN2", "BRN2", "USD", pathUSD, admin, bytes32("burn2")));
+            MIP20(factory.createToken("BURN2", "BRN2", "USD", MagnusUSD, admin, bytes32("burn2")));
         testToken.grantRole(_ISSUER_ROLE, admin);
         testToken.grantRole(_BURN_BLOCKED_ROLE, admin);
         testToken.grantRole(_BURN_BLOCKED_ROLE, address(this));
@@ -572,7 +572,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 testToken =
-            MIP20(factory.createToken("BURN3", "BRN3", "USD", pathUSD, admin, bytes32("burn3")));
+            MIP20(factory.createToken("BURN3", "BRN3", "USD", MagnusUSD, admin, bytes32("burn3")));
         testToken.grantRole(_ISSUER_ROLE, admin);
         testToken.grantRole(_BURN_BLOCKED_ROLE, admin);
 
@@ -590,7 +590,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 testToken =
-            MIP20(factory.createToken("BURN4", "BRN4", "USD", pathUSD, admin, bytes32("burn4")));
+            MIP20(factory.createToken("BURN4", "BRN4", "USD", MagnusUSD, admin, bytes32("burn4")));
         testToken.grantRole(_ISSUER_ROLE, admin);
         testToken.grantRole(_BURN_BLOCKED_ROLE, admin);
         testToken.grantRole(_BURN_BLOCKED_ROLE, address(this));
@@ -615,7 +615,7 @@ contract MIP1015Test is BaseTest {
         uint64 recipientBlockedCompound = registry.createCompoundPolicy(1, recipientBlacklist, 1);
 
         MIP20 testToken =
-            MIP20(factory.createToken("BURN5", "BRN5", "USD", pathUSD, admin, bytes32("burn5")));
+            MIP20(factory.createToken("BURN5", "BRN5", "USD", MagnusUSD, admin, bytes32("burn5")));
         testToken.grantRole(_ISSUER_ROLE, admin);
         testToken.grantRole(_BURN_BLOCKED_ROLE, admin);
         testToken.grantRole(_BURN_BLOCKED_ROLE, address(this));
@@ -640,7 +640,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 baseToken =
-            MIP20(factory.createToken("BASE1", "BS1", "USD", pathUSD, admin, bytes32("base1")));
+            MIP20(factory.createToken("BASE1", "BS1", "USD", MagnusUSD, admin, bytes32("base1")));
         baseToken.grantRole(_ISSUER_ROLE, admin);
         baseToken.changeTransferPolicyId(1);
         baseToken.mint(sender, MIN_ORDER * 10);
@@ -649,23 +649,23 @@ contract MIP1015Test is BaseTest {
 
         vm.stopPrank();
 
-        vm.startPrank(pathUSDAdmin);
-        pathUSD.grantRole(_ISSUER_ROLE, pathUSDAdmin);
-        pathUSD.mint(sender, MIN_ORDER * 10);
+        vm.startPrank(MagnusUSDAdmin);
+        MagnusUSD.grantRole(_ISSUER_ROLE, MagnusUSDAdmin);
+        MagnusUSD.mint(sender, MIN_ORDER * 10);
         vm.stopPrank();
 
         vm.startPrank(sender);
         baseToken.approve(address(exchange), type(uint256).max);
-        pathUSD.approve(address(exchange), type(uint256).max);
+        MagnusUSD.approve(address(exchange), type(uint256).max);
 
         uint128 orderId = exchange.place(address(baseToken), MIN_ORDER, true, 0);
         vm.stopPrank();
 
-        vm.startPrank(pathUSDAdmin);
+        vm.startPrank(MagnusUSDAdmin);
         uint64 makerBlacklist =
-            registry.createPolicy(pathUSDAdmin, IMIP403Registry.PolicyType.BLACKLIST);
+            registry.createPolicy(MagnusUSDAdmin, IMIP403Registry.PolicyType.BLACKLIST);
         registry.modifyPolicyBlacklist(makerBlacklist, sender, true);
-        pathUSD.changeTransferPolicyId(makerBlacklist);
+        MagnusUSD.changeTransferPolicyId(makerBlacklist);
         vm.stopPrank();
 
         vm.prank(recipient);
@@ -678,7 +678,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 baseToken =
-            MIP20(factory.createToken("BASE2", "BS2", "USD", pathUSD, admin, bytes32("base2")));
+            MIP20(factory.createToken("BASE2", "BS2", "USD", MagnusUSD, admin, bytes32("base2")));
         baseToken.grantRole(_ISSUER_ROLE, admin);
         baseToken.changeTransferPolicyId(1);
         baseToken.mint(sender, MIN_ORDER * 10);
@@ -687,14 +687,14 @@ contract MIP1015Test is BaseTest {
 
         vm.stopPrank();
 
-        vm.startPrank(pathUSDAdmin);
-        pathUSD.grantRole(_ISSUER_ROLE, pathUSDAdmin);
-        pathUSD.mint(sender, MIN_ORDER * 10);
+        vm.startPrank(MagnusUSDAdmin);
+        MagnusUSD.grantRole(_ISSUER_ROLE, MagnusUSDAdmin);
+        MagnusUSD.mint(sender, MIN_ORDER * 10);
         vm.stopPrank();
 
         vm.startPrank(sender);
         baseToken.approve(address(exchange), type(uint256).max);
-        pathUSD.approve(address(exchange), type(uint256).max);
+        MagnusUSD.approve(address(exchange), type(uint256).max);
 
         uint128 orderId = exchange.place(address(baseToken), MIN_ORDER, true, 0);
         vm.stopPrank();
@@ -709,7 +709,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 baseToken =
-            MIP20(factory.createToken("BASE3", "BS3", "USD", pathUSD, admin, bytes32("base3")));
+            MIP20(factory.createToken("BASE3", "BS3", "USD", MagnusUSD, admin, bytes32("base3")));
         baseToken.grantRole(_ISSUER_ROLE, admin);
         baseToken.changeTransferPolicyId(1);
         baseToken.mint(sender, MIN_ORDER * 10);
@@ -718,25 +718,25 @@ contract MIP1015Test is BaseTest {
 
         vm.stopPrank();
 
-        vm.startPrank(pathUSDAdmin);
-        pathUSD.grantRole(_ISSUER_ROLE, pathUSDAdmin);
-        pathUSD.mint(sender, MIN_ORDER * 10);
+        vm.startPrank(MagnusUSDAdmin);
+        MagnusUSD.grantRole(_ISSUER_ROLE, MagnusUSDAdmin);
+        MagnusUSD.mint(sender, MIN_ORDER * 10);
         vm.stopPrank();
 
         vm.startPrank(sender);
         baseToken.approve(address(exchange), type(uint256).max);
-        pathUSD.approve(address(exchange), type(uint256).max);
+        MagnusUSD.approve(address(exchange), type(uint256).max);
 
         uint128 orderId = exchange.place(address(baseToken), MIN_ORDER, true, 0);
         vm.stopPrank();
 
-        vm.startPrank(pathUSDAdmin);
+        vm.startPrank(MagnusUSDAdmin);
         uint64 senderOnlyBL =
-            registry.createPolicy(pathUSDAdmin, IMIP403Registry.PolicyType.BLACKLIST);
+            registry.createPolicy(MagnusUSDAdmin, IMIP403Registry.PolicyType.BLACKLIST);
         registry.modifyPolicyBlacklist(senderOnlyBL, sender, true);
 
         uint64 staleCompound = registry.createCompoundPolicy(senderOnlyBL, 1, 1);
-        pathUSD.changeTransferPolicyId(staleCompound);
+        MagnusUSD.changeTransferPolicyId(staleCompound);
         vm.stopPrank();
 
         vm.prank(recipient);
@@ -778,7 +778,7 @@ contract MIP1015Test is BaseTest {
                 "FUZZ",
                 "FZZ",
                 "USD",
-                pathUSD,
+                MagnusUSD,
                 admin,
                 keccak256(abi.encode(senderInWhitelist, recipientInWhitelist))
             )
@@ -838,7 +838,7 @@ contract MIP1015Test is BaseTest {
                 "FUZZ2",
                 "FZ2",
                 "USD",
-                pathUSD,
+                MagnusUSD,
                 admin,
                 keccak256(abi.encode(inSenderPolicy, inRecipientPolicy, inMintPolicy))
             )
@@ -867,7 +867,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 rewardToken = MIP20(
-            factory.createToken("REWARD1", "RWD1", "USD", pathUSD, admin, bytes32("reward1"))
+            factory.createToken("REWARD1", "RWD1", "USD", MagnusUSD, admin, bytes32("reward1"))
         );
         rewardToken.grantRole(_ISSUER_ROLE, admin);
 
@@ -934,7 +934,7 @@ contract MIP1015Test is BaseTest {
         vm.startPrank(admin);
 
         MIP20 rewardToken = MIP20(
-            factory.createToken("CLAIM1", "CLM1", "USD", pathUSD, admin, bytes32("claim1"))
+            factory.createToken("CLAIM1", "CLM1", "USD", MagnusUSD, admin, bytes32("claim1"))
         );
         rewardToken.grantRole(_ISSUER_ROLE, admin);
 
@@ -1030,7 +1030,7 @@ contract MIP1015Test is BaseTest {
                 "FUZZD",
                 "FZD",
                 "USD",
-                pathUSD,
+                MagnusUSD,
                 admin,
                 keccak256(
                     abi.encode("distributeReward", senderAuthorized, contractAuthorizedAsRecipient)
@@ -1090,7 +1090,7 @@ contract MIP1015Test is BaseTest {
                 "FUZZC",
                 "FZC",
                 "USD",
-                pathUSD,
+                MagnusUSD,
                 admin,
                 keccak256(
                     abi.encode("claimRewards", contractAuthorizedAsSender, recipientAuthorized)

@@ -77,9 +77,9 @@ impl MagnusEvmConfig {
         &self.inner
     }
 
-    /// Returns the moderato EVM config.
-    pub fn moderato() -> Self {
-        Self::new(Arc::new(MagnusChainSpec::moderato()))
+    /// Returns the Magnus testnet EVM config.
+    pub fn testnet() -> Self {
+        Self::new(Arc::new(MagnusChainSpec::testnet()))
     }
 
     /// Returns the mainnet EVM config.

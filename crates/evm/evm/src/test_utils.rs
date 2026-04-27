@@ -6,7 +6,7 @@ use reth_chainspec::EthChainSpec;
 use reth_evm::block::StateDB;
 use reth_revm::context::BlockEnv;
 use revm::inspector::NoOpInspector;
-use magnus_chainspec::{MagnusChainSpec, spec::MODERATO};
+use magnus_chainspec::{MagnusChainSpec, spec::ALLEGRO};
 use magnus_revm::MagnusBlockEnv;
 
 use crate::{MagnusBlockExecutionCtx, block::MagnusBlockExecutor, evm::MagnusEvm};
@@ -15,7 +15,7 @@ use alloy_primitives::U256;
 use magnus_primitives::subblock::PartialValidatorKey;
 
 pub(crate) fn test_chainspec() -> Arc<MagnusChainSpec> {
-    Arc::new(MagnusChainSpec::from_genesis(MODERATO.genesis().clone()))
+    Arc::new(MagnusChainSpec::from_genesis(ALLEGRO.genesis().clone()))
 }
 
 pub(crate) fn test_evm<DB: Database>(db: DB) -> MagnusEvm<DB, NoOpInspector> {

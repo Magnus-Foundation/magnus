@@ -8,7 +8,7 @@
 
 1. **Multi-currency fees.** Any registered fiat currency (USD, VND, EUR, …) can be used for gas. Per-currency governance enable/disable.
 2. **Issuer allowlist (per-currency).** Only Magnus-governance-approved addresses can deploy MIP-20s of a given currency. Permissionless deployment is **disabled** in v1.
-3. **Magnus Foundation as bootstrap issuer.** Foundation deploys `MagnusUSD` (symbol `mUSD`) at genesis at reserved address `0x20C0…0010`, holding real USD reserves. Real stablecoin, not a stub. Slot `0x20C0…0000` (the inherited Tempo `pathUSD` slot) is left empty in genesis.
+3. **Magnus Foundation as bootstrap issuer.** Foundation deploys `MagnusUSD` (symbol `mUSD`) at genesis at reserved address `0x20C0…0010`, holding real USD reserves. Real stablecoin, not a stub. Slot `0x20C0…0000` (the inherited Tempo `MagnusUSD` slot) is left empty in genesis.
 4. **Multi-token validator accept-set.** Validator-orgs accept a set of tokens, not a single one. Receive payouts as a basket.
 5. **Wallet-inferred fee token.** No per-user fee-token state. Wallet picks fee token per-tx based on what's being moved.
 6. **No DEX, no Fee AMM in fee path.** Fee collection is direct-credit-or-revert. Fee AMM precompile deleted.
@@ -20,18 +20,18 @@
 
 ### 1.1 What Magnus inherited from Tempo
 
-Tempo hard-codes USD as the only fee-payable currency, restricts validators and users to a single token each, routes cross-token same-currency conversion through a Fee AMM, and uses `pathUSD` (issued by Bridge, Stripe-owned) as the canonical USD anchor.
+Tempo hard-codes USD as the only fee-payable currency, restricts validators and users to a single token each, routes cross-token same-currency conversion through a Fee AMM, and uses `MagnusUSD` (issued by Bridge, Stripe-owned) as the canonical USD anchor.
 
 | Behavior | File | Magnus replaces with |
 |---|---|---|
 | `validate_usd_currency` gate | [`mip20/mod.rs:53-58`](../crates/evm/precompiles/src/mip20/mod.rs#L53-L58) | `validate_supported_currency` (registry-driven) |
 | `setValidatorToken(single)` | [`mip_fee_manager/mod.rs:80-108`](../crates/evm/precompiles/src/mip_fee_manager/mod.rs#L80-L108) | `addAcceptedToken / removeAcceptedToken` (multi-token) |
 | `setUserToken(single)` per-user state | [`mip_fee_manager/mod.rs:116-145`](../crates/evm/precompiles/src/mip_fee_manager/mod.rs#L116-L145) | Removed entirely; wallet infers |
-| `DEFAULT_FEE_TOKEN = pathUSD` fallback | [`mip_fee_manager/mod.rs:60-68`](../crates/evm/precompiles/src/mip_fee_manager/mod.rs#L60-L68) | Removed; fail-closed |
+| `MAGNUS_USD_ADDRESS = MagnusUSD` fallback | [`mip_fee_manager/mod.rs:60-68`](../crates/evm/precompiles/src/mip_fee_manager/mod.rs#L60-L68) | Removed; fail-closed |
 | Fee AMM swap inside `swap_fee` | [`mip_fee_manager/mod.rs:209-222`](../crates/evm/precompiles/src/mip_fee_manager/mod.rs#L209-L222) | Removed; direct credit only |
 | Cross-currency quoteToken rejection | [`mip20_factory/mod.rs:126-130`](../crates/evm/precompiles/src/mip20_factory/mod.rs#L126-L130) | Same-currency rule retained, generalized; `quoteToken = 0` allowed |
 | Permissionless `createToken` | [`mip20_factory/mod.rs:104-161`](../crates/evm/precompiles/src/mip20_factory/mod.rs#L104-L161) | **Issuer allowlist gate added** via new `MIP20IssuerRegistry` precompile |
-| `pathUSD` at `0x20C0…0000` (Bridge-issued) | Genesis JSON | `MagnusUSD` (Magnus Foundation-issued) at `0x20C0…0010`; slot `0x20C0…0000` left empty |
+| `MagnusUSD` at `0x20C0…0000` (Bridge-issued) | Genesis JSON | `MagnusUSD` (Magnus Foundation-issued) at `0x20C0…0010`; slot `0x20C0…0000` left empty |
 
 ### 1.2 Magnus's chosen model
 
@@ -220,7 +220,7 @@ This means:
 - **Name:** `MagnusUSD`
 - **Symbol:** `mUSD`
 - **Decimals:** 6 (per MIP-20 standard)
-- **Address:** `0x20C0000000000000000000000000000000000010` (reserved slot 0x010). Distinct from the inherited Tempo `pathUSD` slot `0x20C0…0000`, which is left empty in Magnus genesis. Magnus Foundation reserves the `0x010`–`0x0FF` band for its own stablecoin family (future `MagnusVND`, `MagnusEUR`, etc. if ever issued); `0x000`–`0x00F` stays free for protocol-utility tokens.
+- **Address:** `0x20C0000000000000000000000000000000000010` (reserved slot 0x010). Distinct from the inherited Tempo `MagnusUSD` slot `0x20C0…0000`, which is left empty in Magnus genesis. Magnus Foundation reserves the `0x010`–`0x0FF` band for its own stablecoin family (future `MagnusVND`, `MagnusEUR`, etc. if ever issued); `0x000`–`0x00F` stays free for protocol-utility tokens.
 - **Issuer:** Magnus Foundation
 - **Currency:** `"USD"`
 - **Quote token:** `address(0)` (first-of-currency at genesis)
@@ -262,15 +262,15 @@ In [`crates/evm/contracts/src/precompiles/mod.rs`](../crates/evm/contracts/src/p
 
 ```rust
 // Old (Tempo-inherited):
-pub const PATH_USD_ADDRESS: Address = address!("0x20C0000000000000000000000000000000000000");
+pub const MAGNUS_USD_ADDRESS: Address = address!("0x20C0000000000000000000000000000000000000");
 
 // New (Magnus v3.8.1):
 pub const MAGNUS_USD_ADDRESS: Address = address!("0x20C0000000000000000000000000000000000010");
 ```
 
-The constant is renamed AND the address moves from slot `0x000` to slot `0x010`. Slot `0x20C0…0000` is left empty in Magnus genesis to provide a clean break from inherited Tempo `pathUSD` state.
+The constant is renamed AND the address moves from slot `0x000` to slot `0x010`. Slot `0x20C0…0000` is left empty in Magnus genesis to provide a clean break from inherited Tempo `MagnusUSD` state.
 
-All references to `PATH_USD_ADDRESS` in the codebase update to `MAGNUS_USD_ADDRESS` with the new value. Reserved-range slot-0 special-cases in factory code (e.g. [`mip20_factory/mod.rs:197`](../crates/evm/precompiles/src/mip20_factory/mod.rs#L197) which hard-codes `address == PATH_USD_ADDRESS` to require zero quote token) are **generalized** to the first-of-currency rule from §4.4a, no longer dependent on a specific slot.
+All references to `MAGNUS_USD_ADDRESS` in the codebase update to `MAGNUS_USD_ADDRESS` with the new value. Reserved-range slot-0 special-cases in factory code (e.g. [`mip20_factory/mod.rs:197`](../crates/evm/precompiles/src/mip20_factory/mod.rs#L197) which hard-codes `address == MAGNUS_USD_ADDRESS` to require zero quote token) are **generalized** to the first-of-currency rule from §4.4a, no longer dependent on a specific slot.
 
 ## 6. Validator accept-sets
 
@@ -372,8 +372,8 @@ If either fails, wallet shows error or suggests alternative.
 ### 9.3 Modified: [`crates/evm/contracts/src/precompiles/mod.rs`](../crates/evm/contracts/src/precompiles/mod.rs)
 
 - Add `pub const MIP20_ISSUER_REGISTRY_ADDRESS: Address = address!("0x20FA000000000000000000000000000000000000");`
-- Rename `PATH_USD_ADDRESS` → `MAGNUS_USD_ADDRESS` AND change value from `0x20C0…0000` to `0x20C0…0010`.
-- Update `DEFAULT_FEE_TOKEN` constant — recommendation: delete entirely (no callers after FeeManager changes).
+- Rename `MAGNUS_USD_ADDRESS` → `MAGNUS_USD_ADDRESS` AND change value from `0x20C0…0000` to `0x20C0…0010`.
+- Update `MAGNUS_USD_ADDRESS` constant — recommendation: delete entirely (no callers after FeeManager changes).
 
 ### 9.4 Modified: [`crates/evm/precompiles/src/mip20_factory/mod.rs`](../crates/evm/precompiles/src/mip20_factory/mod.rs)
 
@@ -400,7 +400,7 @@ If either fails, wallet shows error or suggests alternative.
 - Replace `validator_tokens` with `validator_accepted_tokens` + `validator_token_list` (§6.1).
 - Replace `set_validator_token` with `add_accepted_token` + `remove_accepted_token` (§6.2).
 - Replace `get_validator_token` with `accepts_token` + `get_accepted_tokens`.
-- Remove `DEFAULT_FEE_TOKEN` fallback. Fail-closed.
+- Remove `MAGNUS_USD_ADDRESS` fallback. Fail-closed.
 - Remove `set_user_token`, `userTokens`, view functions for user tokens.
 - Replace `swap_fee` AMM-call path with direct-credit-or-revert.
 - Delete `mip_fee_manager/amm.rs` and `TIPFeeAMM` interface entirely.
@@ -416,7 +416,7 @@ If either fails, wallet shows error or suggests alternative.
 
 ### 9.8 Modified: [`crates/primitives/chainspec/src/genesis/*.json`](../crates/primitives/chainspec/src/genesis/)
 
-- **Remove** the existing `pathUSD` allocation at `0x20c0000000000000000000000000000000000000`. Slot is left empty (no bytecode, no storage).
+- **Remove** the existing `MagnusUSD` allocation at `0x20c0000000000000000000000000000000000000`. Slot is left empty (no bytecode, no storage).
 - **Add** new `MagnusUSD` allocation at `0x20c0000000000000000000000000000000000010`:
   - `name = "MagnusUSD"`, `symbol = "mUSD"`, `currency = "USD"`, `quoteToken = 0x0`, `admin = magnusFoundationMultisig`, supply cap configurable.
 - **Update** genesis `supportedCurrencies` config in `MipFeeManager` storage:
@@ -452,7 +452,7 @@ T-0:00  Mainnet block 1 produced. State:
         - approvedIssuers = {} (empty)
         - validator accept-sets = {} (empty)
         - MagnusUSD already deployed at 0x20C0…0010 (genesis allocation)
-        - 0x20C0…0000 (inherited Tempo pathUSD slot) is empty
+        - 0x20C0…0000 (inherited Tempo MagnusUSD slot) is empty
 
 T+0:01  Foundation multisig calls (pre-coordinated, signers ready):
         - IssuerRegistry.addApprovedIssuer("USD", magnusFoundationAddr)
@@ -864,15 +864,15 @@ Future routers register via governance after deployment.
 
 ## 14. Change log
 
-- **2026-04-27 (v3.8.2):** Moved `MagnusUSD` from inherited Tempo `pathUSD` slot `0x20C0…0000` to fresh reserved slot `0x20C0…0010`. Slot `0x20C0…0000` is left empty in Magnus genesis (clean break from inherited Tempo state). Slot-0 special-cases in factory code (`mip20_factory/mod.rs:197`) generalized to the first-of-currency rule from §4.4a. Reserved-range allocation policy documented in §9.8: `0x000-0x00F` free, `0x010` MagnusUSD, `0x011-0x0FF` reserved for Magnus Foundation stablecoin family, `0x100-0x3FF` reserved for protocol use.
+- **2026-04-27 (v3.8.2):** Moved `MagnusUSD` from inherited Tempo `MagnusUSD` slot `0x20C0…0000` to fresh reserved slot `0x20C0…0010`. Slot `0x20C0…0000` is left empty in Magnus genesis (clean break from inherited Tempo state). Slot-0 special-cases in factory code (`mip20_factory/mod.rs:197`) generalized to the first-of-currency rule from §4.4a. Reserved-range allocation policy documented in §9.8: `0x000-0x00F` free, `0x010` MagnusUSD, `0x011-0x0FF` reserved for Magnus Foundation stablecoin family, `0x100-0x3FF` reserved for protocol use.
 - **2026-04-26 (v3.8.1):** Removed placeholder "MIP-2010" identifier from §11.3. Replaced with neutral reference to a wallet-developer doc at `docs.magnus.xyz/protocol/wallet-fee-token-inference`. Formal MIP designation deferred until Magnus's MIP process is formally stood up.
 - **2026-04-26 (v3.8):** Refined §11.3. Two-layer strategy (protocol-side inference + optional SDK), removed RPC middleware as a distinct layer. Protocol owns inference logic as the canonical reference. SDK is UX enhancement, not functionality requirement. Vanilla EVM wallets work for direct MIP-20 transfers + registered routers; require explicit `feeToken` override for unknown contract calls. `feeToken` envelope field retained for power-user / sponsor / paymaster use cases.
 - **2026-04-26 (v3.7):** Initial §11.3 resolution with three-layer (protocol + SDK + RPC middleware) strategy. Refined in v3.8.
 - **2026-04-26 (v3.6):** Resolved §11.1 disable-currency semantics. Hybrid mechanism: standard `disableCurrency` with grace period (Option C) + `emergencyDisableCurrency` immediate hard-stop (Option A) + `pruneCurrency` for state cleanup (Option B). Both grace duration and emergency threshold are governance-tunable with sanity bounds. Genesis defaults: 30-day grace, 7-of-9 emergency threshold. Resolved §11.2 validator-org churn. Hybrid distribute-on-removal with escrow fallback (Option D). New `offboardValidator` + `claimEscrowedFees` + `sweepExpiredEscrow` functions. Bounded-gas low-level call with USDT-compatible void-return handling. Genesis default: 365-day claim window.
-- **2026-04-26 (v3.5):** Issuer allowlist (`IMIP20IssuerRegistry` precompile, per-currency, multisig-only) added as v1 scope. Magnus Foundation deploys real `MagnusUSD` (renamed from inherited `pathUSD`) as bootstrap stablecoin issuer. Multi-token validator accept-sets retained from v3.4. Wallet-inferred fee token retained from v3.4. Fee AMM deletion confirmed. Launch plan: USD + VND from day 1, Magnus Foundation as sole launch validator-org, ~6-week delay.
+- **2026-04-26 (v3.5):** Issuer allowlist (`IMIP20IssuerRegistry` precompile, per-currency, multisig-only) added as v1 scope. Magnus Foundation deploys real `MagnusUSD` (renamed from inherited `MagnusUSD`) as bootstrap stablecoin issuer. Multi-token validator accept-sets retained from v3.4. Wallet-inferred fee token retained from v3.4. Fee AMM deletion confirmed. Launch plan: USD + VND from day 1, Magnus Foundation as sole launch validator-org, ~6-week delay.
 - **2026-04-26 (v3.4):** Multi-token validator accept-set, removed `userTokens`, removed Fee AMM from fee path.
-- **2026-04-26 (v3.2):** Validator-token bootstrap (§4.5a). Removed `DEFAULT_FEE_TOKEN` fallback.
+- **2026-04-26 (v3.2):** Validator-token bootstrap (§4.5a). Removed `MAGNUS_USD_ADDRESS` fallback.
 - **2026-04-26 (v3.1):** First-of-currency bootstrap (§4.4a). Factory accepts `quoteToken = 0`.
 - **2026-04-26 (v3):** Validators as partner organizations. Removed DEX from fee path.
 - **2026-04-26 (v2):** Issuer-first, no-canonical-token model. Removed path-token references.
-- **2026-04-24 (v1):** Initial draft proposing path-token family extending Tempo's `pathUSD`.
+- **2026-04-24 (v1):** Initial draft proposing path-token family extending Tempo's `MagnusUSD`.

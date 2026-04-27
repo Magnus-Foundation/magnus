@@ -20,7 +20,7 @@ use alloy_eips::Encodable2718;
 use reth_primitives_traits::transaction::TxHashRef;
 use magnus_chainspec::{
     hardfork::{MagnusHardfork, MagnusHardforks},
-    spec::{DEV, MODERATO, PRESTO},
+    spec::{DEV, ALLEGRO, MAESTOSO},
 };
 use magnus_primitives::{MagnusTxEnvelope, transaction::magnus_transaction::Call};
 
@@ -87,8 +87,8 @@ impl RpcEnv {
 
         // Chain IDs from genesis/*.json (mirrors bootnodes() in spec.rs)
         let chain_spec = match chain_id {
-            4217 => PRESTO.clone(), // mainnet
-            42431 => MODERATO.clone(),
+            4217 => MAESTOSO.clone(), // mainnet
+            42431 => ALLEGRO.clone(),
             _ => DEV.clone(),
         };
         let latest_block: alloy::rpc::types::Block = provider
@@ -105,7 +105,7 @@ impl RpcEnv {
     }
 
     pub(super) async fn testnet() -> eyre::Result<Option<Self>> {
-        match std::env::var("MAGNUS_TESTNET_RPC_URL") {
+        match std::env::var("ALLEGRO_RPC_URL") {
             Ok(url) => Self::connect(&url).await.map(Some),
             Err(_) => Ok(None),
         }

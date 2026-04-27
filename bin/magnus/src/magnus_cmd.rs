@@ -337,7 +337,7 @@ pub(crate) struct ValidatorTransactionArgs {
     wallet: WalletArgs,
 
     /// The RPC URL to submit the transaction to.
-    #[arg(long, default_value = "https://rpc.presto.magnus.xyz")]
+    #[arg(long, default_value = "https://rpc.maestoso.magnus.xyz")]
     rpc_url: String,
 
     /// Skip the interactive confirmation prompt.
@@ -625,7 +625,7 @@ pub(crate) struct CreateAddValidatorSignatureArgs {
     #[arg(
         long,
         value_name = "RPC_URL",
-        default_value = "https://rpc.presto.magnus.xyz"
+        default_value = "https://rpc.maestoso.magnus.xyz"
     )]
     chain_id_from_rpc_url: String,
     /// Path to the ed25519 signing key file.
@@ -667,7 +667,7 @@ pub(crate) struct CreateRotateValidatorSignatureArgs {
     #[arg(
         long,
         value_name = "RPC_URL",
-        default_value = "https://rpc.presto.magnus.xyz"
+        default_value = "https://rpc.maestoso.magnus.xyz"
     )]
     chain_id_from_rpc_url: String,
     /// Path to the ed25519 signing key file.
@@ -896,7 +896,7 @@ pub(crate) struct ValidatorInfo {
     id: ValidatorId,
 
     /// RPC URL to query.
-    #[arg(long, default_value = "https://rpc.presto.magnus.xyz")]
+    #[arg(long, default_value = "https://rpc.maestoso.magnus.xyz")]
     rpc_url: String,
 
     /// Chain spec override for local/unknown chains (mainnet, testnet, moderato, or path to
@@ -1081,8 +1081,8 @@ struct ValidatorEntry {
 
 #[derive(Debug, clap::Args)]
 pub(crate) struct ValidatorsInfo {
-    /// RPC URL to query. Defaults to <https://rpc.presto.magnus.xyz>
-    #[arg(long, default_value = "https://rpc.presto.magnus.xyz")]
+    /// RPC URL to query. Defaults to <https://rpc.maestoso.magnus.xyz>
+    #[arg(long, default_value = "https://rpc.maestoso.magnus.xyz")]
     rpc_url: String,
 
     /// Chain spec override for local/unknown chains (mainnet, testnet, moderato, or path to
@@ -1266,7 +1266,7 @@ mod tests {
             "magnus",
             "p2p-proxy",
             "--rpc-url",
-            "https://rpc.moderato.magnus.xyz",
+            "https://rpc.allegro.magnus.xyz",
         ])
         .unwrap();
 
