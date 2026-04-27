@@ -42,6 +42,9 @@ pub struct MipFeeManager {
     governance_admin: Address,
     /// Per-currency config. Key = `keccak256(ISO 4217 code)`.
     supported_currencies: Mapping<B256, CurrencyConfig>,
+    /// Seconds between `disable_currency` and the currency becoming disabled.
+    /// Zero (default) means use `DEFAULT_GRACE_PERIOD_SECS`.
+    deprecation_grace_period: u64,
 
     /// Validator → token → accepted? Multi-token accept-set replacing the legacy
     /// single-token `validator_tokens` model. Map + list stay in sync.
@@ -388,6 +391,9 @@ impl MipFeeManager {
 
         config.enabled = true;
         config.enabled_at_block = current_block;
+        // Re-enabling clears any prior deprecation flags.
+        config.deprecating = false;
+        config.deprecation_activates_at = 0;
         self.supported_currencies[key].write(config)?;
 
         self.emit_event(FeeManagerEvent::CurrencyEnabled(IFeeManager::CurrencyEnabled {
@@ -396,6 +402,98 @@ impl MipFeeManager {
         }))?;
 
         Ok(())
+    }
+
+    /// Genesis default for `deprecation_grace_period`: 30 days in seconds.
+    pub const DEFAULT_GRACE_PERIOD_SECS: u64 = 30 * 24 * 60 * 60;
+    /// Sanity-bound minimum grace period: 1 hour.
+    pub const MIN_GRACE_PERIOD_SECS: u64 = 60 * 60;
+    /// Sanity-bound maximum grace period: 365 days.
+    pub const MAX_GRACE_PERIOD_SECS: u64 = 365 * 24 * 60 * 60;
+
+    /// Effective grace period; falls back to the default when storage is zero.
+    pub fn deprecation_grace_period(&self) -> Result<u64> {
+        let raw = self.deprecation_grace_period.read()?;
+        Ok(if raw == 0 {
+            Self::DEFAULT_GRACE_PERIOD_SECS
+        } else {
+            raw
+        })
+    }
+
+    /// Sets the grace period. Caller must be `governance_admin`. Bounded to
+    /// `[MIN_GRACE_PERIOD_SECS, MAX_GRACE_PERIOD_SECS]`.
+    pub fn set_deprecation_grace_period(
+        &mut self,
+        sender: Address,
+        new_grace: u64,
+    ) -> Result<()> {
+        self.assert_governance(sender)?;
+        if !(Self::MIN_GRACE_PERIOD_SECS..=Self::MAX_GRACE_PERIOD_SECS).contains(&new_grace) {
+            return Err(FeeManagerError::grace_period_out_of_range(new_grace).into());
+        }
+        let old = self.deprecation_grace_period.read()?;
+        self.deprecation_grace_period.write(new_grace)?;
+        self.emit_event(FeeManagerEvent::DeprecationGracePeriodChanged(
+            IFeeManager::DeprecationGracePeriodChanged {
+                oldGracePeriod: old,
+                newGracePeriod: new_grace,
+            },
+        ))?;
+        Ok(())
+    }
+
+    /// Starts the deprecation grace period for `code`. After the grace window
+    /// the currency becomes effectively disabled; existing fees can still settle
+    /// in the meantime, but new factory deploys and accept-set adds are blocked.
+    pub fn disable_currency(
+        &mut self,
+        sender: Address,
+        code: &str,
+        now_ts: u64,
+    ) -> Result<()> {
+        self.assert_governance(sender)?;
+        if !is_valid_currency_code(code) {
+            return Err(FeeManagerError::invalid_currency_code(code.into()).into());
+        }
+
+        let key = currency_key(code);
+        let mut config = self.supported_currencies[key].read()?;
+        if !config.registered {
+            return Err(FeeManagerError::currency_not_registered(code.into()).into());
+        }
+        if !config.enabled {
+            return Err(FeeManagerError::currency_disabled(code.into()).into());
+        }
+        if config.deprecating {
+            return Err(FeeManagerError::currency_already_deprecating(code.into()).into());
+        }
+
+        let grace = self.deprecation_grace_period()?;
+        let ends_at = now_ts.saturating_add(grace);
+
+        config.deprecating = true;
+        config.deprecation_activates_at = ends_at;
+        self.supported_currencies[key].write(config)?;
+
+        self.emit_event(FeeManagerEvent::CurrencyDisabling(
+            IFeeManager::CurrencyDisabling {
+                code: code.into(),
+                graceEndsAt: ends_at,
+                by: sender,
+            },
+        ))?;
+        Ok(())
+    }
+
+    /// Lazy effective-enabled check at `now_ts` (timestamp in seconds).
+    pub fn is_currency_effectively_enabled(&self, code: &str, now_ts: u64) -> Result<bool> {
+        Ok(self.get_currency_config(code)?.effectively_enabled(now_ts))
+    }
+
+    /// True iff `code` is currently in the deprecation grace window.
+    pub fn is_currency_in_grace(&self, code: &str, now_ts: u64) -> Result<bool> {
+        Ok(self.get_currency_config(code)?.in_grace_period(now_ts))
     }
 
     /// Rotates governance authority. Bootstrap: when current admin is zero, any caller may set.
@@ -454,6 +552,20 @@ impl MipFeeManager {
             return Err(FeeManagerError::invalid_token().into());
         }
         crate::mip20::validate_supported_currency(token)?;
+
+        // Block adds during a deprecation grace window. Validators may keep their
+        // existing accept-set entries — only new entries are blocked.
+        let currency = MIP20Token::from_address(token)?.currency()?;
+        let now_ts = self.storage.timestamp().saturating_to::<u64>();
+        let cfg = self.get_currency_config(&currency)?;
+        if cfg.in_grace_period(now_ts) {
+            return Err(FeeManagerError::currency_deprecating(
+                currency,
+                cfg.deprecation_activates_at,
+            )
+            .into());
+        }
+
         if sender == beneficiary {
             return Err(FeeManagerError::cannot_change_within_block().into());
         }
@@ -1958,6 +2070,170 @@ mod currency_registry_tests {
             assert_eq!(
                 fm.user_tokens(IFeeManager::userTokensCall { user })?,
                 Address::ZERO
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn disable_currency_starts_grace_period() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        storage.set_timestamp(U256::from(1_000u64));
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+
+            fm.disable_currency(admin, "USD", 1_000)?;
+            let cfg = fm.get_currency_config("USD")?;
+            assert!(cfg.deprecating);
+            assert!(cfg.enabled);
+            assert_eq!(
+                cfg.deprecation_activates_at,
+                1_000 + MipFeeManager::DEFAULT_GRACE_PERIOD_SECS
+            );
+            assert!(cfg.in_grace_period(1_000));
+            assert!(cfg.effectively_enabled(1_000));
+            assert!(!cfg.effectively_enabled(cfg.deprecation_activates_at));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn disable_currency_rejects_non_admin() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        let intruder = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let err = fm.disable_currency(intruder, "USD", 0).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::only_governance_admin(
+                    intruder
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn disable_currency_rejects_unregistered() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+            let err = fm.disable_currency(admin, "EUR", 0).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_not_registered(
+                    "EUR".into()
+                ))
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn disable_currency_rejects_double_disable() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            fm.disable_currency(admin, "USD", 0)?;
+            let err = fm.disable_currency(admin, "USD", 0).unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::currency_already_deprecating("USD".into())
+                )
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn re_enable_clears_deprecation_flags() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            fm.disable_currency(admin, "USD", 0)?;
+            assert!(fm.get_currency_config("USD")?.deprecating);
+
+            // Force re-enable: enable_currency rejects already-enabled, so flip the
+            // flag down first by using enable after explicit disable. Here grace is
+            // active but enabled is still true, so enable() returns AlreadyEnabled.
+            // Simulate G6b emergency-disable by zeroing `enabled`, then re-enable.
+            let key = currency_key("USD");
+            let mut cfg = fm.supported_currencies[key].read()?;
+            cfg.enabled = false;
+            fm.supported_currencies[key].write(cfg)?;
+
+            fm.enable_currency(admin, "USD", 100)?;
+            let cfg = fm.get_currency_config("USD")?;
+            assert!(cfg.enabled);
+            assert!(!cfg.deprecating);
+            assert_eq!(cfg.deprecation_activates_at, 0);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn set_deprecation_grace_period_enforces_bounds() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        let admin = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin(admin)?;
+
+            // Below the lower bound (1 hour - 1).
+            let too_low = MipFeeManager::MIN_GRACE_PERIOD_SECS - 1;
+            assert_eq!(
+                fm.set_deprecation_grace_period(admin, too_low).unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::grace_period_out_of_range(too_low)
+                )
+            );
+            // Above the upper bound.
+            let too_high = MipFeeManager::MAX_GRACE_PERIOD_SECS + 1;
+            assert_eq!(
+                fm.set_deprecation_grace_period(admin, too_high).unwrap_err(),
+                MagnusPrecompileError::FeeManagerError(
+                    FeeManagerError::grace_period_out_of_range(too_high)
+                )
+            );
+
+            // Inside the range.
+            fm.set_deprecation_grace_period(admin, 7 * 24 * 60 * 60)?;
+            assert_eq!(fm.deprecation_grace_period()?, 7 * 24 * 60 * 60);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn add_accepted_token_rejected_during_grace_period() -> eyre::Result<()> {
+        let mut storage = HashMapStorageProvider::new(1);
+        storage.set_timestamp(U256::from(500u64));
+        let admin = Address::random();
+        let validator = Address::random();
+        let beneficiary = Address::random();
+        StorageCtx::enter(&mut storage, || {
+            let mut fm = fee_manager_with_admin_and_usd(admin)?;
+            let token = MIP20Setup::create("USDC", "USDC", admin)
+                .currency("USD")
+                .apply()?;
+
+            fm.disable_currency(admin, "USD", 500)?;
+
+            let err = fm
+                .add_accepted_token(validator, token.address(), beneficiary)
+                .unwrap_err();
+            let cfg = fm.get_currency_config("USD")?;
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_deprecating(
+                    "USD".into(),
+                    cfg.deprecation_activates_at
+                ))
             );
             Ok(())
         })

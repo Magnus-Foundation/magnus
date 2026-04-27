@@ -120,6 +120,20 @@ impl MIP20Factory {
                 )
                 .into());
             }
+
+            // Reject deploys for currencies in deprecation grace period.
+            use crate::mip_fee_manager::MipFeeManager;
+            use magnus_contracts::precompiles::FeeManagerError;
+            let fee_manager = MipFeeManager::new();
+            let cfg = fee_manager.get_currency_config(&call.currency)?;
+            let now_ts = self.storage.timestamp().saturating_to::<u64>();
+            if cfg.in_grace_period(now_ts) {
+                return Err(FeeManagerError::currency_deprecating(
+                    call.currency.clone(),
+                    cfg.deprecation_activates_at,
+                )
+                .into());
+            }
         }
 
         // Compute the deterministic address from sender and salt
@@ -253,7 +267,7 @@ mod tests {
         storage::{ContractStorage, StorageCtx, hashmap::HashMapStorageProvider},
         test_util::MIP20Setup,
     };
-    use alloy::primitives::{Address, address};
+    use alloy::primitives::{Address, U256, address};
 
     #[test]
     fn test_is_initialized() -> eyre::Result<()> {
@@ -754,6 +768,59 @@ mod tests {
             assert_eq!(
                 result.unwrap_err(),
                 MagnusPrecompileError::MIP20(MIP20Error::invalid_quote_token())
+            );
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn test_create_token_t4_rejects_currency_in_grace_period() -> eyre::Result<()> {
+        use crate::mip_fee_manager::MipFeeManager;
+        use crate::mip20_issuer_registry::MIP20IssuerRegistry;
+        use magnus_chainspec::hardfork::MagnusHardfork;
+        use magnus_contracts::precompiles::FeeManagerError;
+
+        let mut storage = HashMapStorageProvider::new_with_spec(1, MagnusHardfork::T4);
+        storage.set_timestamp(U256::from(500u64));
+        let admin = Address::random();
+
+        StorageCtx::enter(&mut storage, || {
+            // Bootstrap: FeeManager + USD currency + IssuerRegistry approval.
+            let mut fm = MipFeeManager::new();
+            fm.initialize()?;
+            fm.set_governance_admin(Address::ZERO, admin)?;
+            fm.add_currency(admin, "USD", 0)?;
+            fm.enable_currency(admin, "USD", 0)?;
+
+            let mut registry = MIP20IssuerRegistry::new();
+            registry.initialize()?;
+            registry.add_approved_issuer(admin, "USD", admin)?;
+
+            // Start grace.
+            fm.disable_currency(admin, "USD", 500)?;
+
+            // Public factory create now fails.
+            let mut factory = MIP20Factory::new();
+            let cfg = fm.get_currency_config("USD")?;
+            let err = factory
+                .create_token(
+                    admin,
+                    IMIP20Factory::createTokenCall {
+                        name: "Token".into(),
+                        symbol: "TKN".into(),
+                        currency: "USD".into(),
+                        quoteToken: Address::ZERO,
+                        admin,
+                        salt: B256::random(),
+                    },
+                )
+                .unwrap_err();
+            assert_eq!(
+                err,
+                MagnusPrecompileError::FeeManagerError(FeeManagerError::currency_deprecating(
+                    "USD".into(),
+                    cfg.deprecation_activates_at
+                ))
             );
             Ok(())
         })

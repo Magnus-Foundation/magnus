@@ -81,13 +81,19 @@ impl Precompile for MipFeeManager {
                         Ok(magnus_contracts::precompiles::IFeeManager::CurrencyConfig {
                             registered: config.registered,
                             enabled: config.enabled,
+                            deprecating: config.deprecating,
                             addedAtBlock: config.added_at_block,
                             enabledAtBlock: config.enabled_at_block,
+                            deprecationActivatesAt: config.deprecation_activates_at,
+                            lastPrunedAtBlock: config.last_pruned_at_block,
                         })
                     })
                 }
                 TipFeeManagerCall::FeeManager(IFeeManagerCalls::isCurrencyEnabled(call)) => {
                     view(call, |c| self.is_currency_enabled(&c.code))
+                }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::deprecationGracePeriod(call)) => {
+                    view(call, |_| self.deprecation_grace_period())
                 }
 
                 TipFeeManagerCall::FeeManager(IFeeManagerCalls::addCurrency(call)) => {
@@ -102,6 +108,18 @@ impl Precompile for MipFeeManager {
                         self.enable_currency(s, &c.code, block)
                     })
                 }
+                TipFeeManagerCall::FeeManager(IFeeManagerCalls::disableCurrency(call)) => {
+                    mutate_void(call, msg_sender, |s, c| {
+                        let now_ts =
+                            self.storage.timestamp().saturating_to::<u64>();
+                        self.disable_currency(s, &c.code, now_ts)
+                    })
+                }
+                TipFeeManagerCall::FeeManager(
+                    IFeeManagerCalls::setDeprecationGracePeriod(call),
+                ) => mutate_void(call, msg_sender, |s, c| {
+                    self.set_deprecation_grace_period(s, c.newGracePeriod)
+                }),
                 TipFeeManagerCall::FeeManager(IFeeManagerCalls::setGovernanceAdmin(call)) => {
                     mutate_void(call, msg_sender, |s, c| {
                         self.set_governance_admin(s, c.newAdmin)

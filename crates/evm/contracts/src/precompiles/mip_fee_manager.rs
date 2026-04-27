@@ -29,8 +29,11 @@ crate::sol! {
         struct CurrencyConfig {
             bool   registered;
             bool   enabled;
+            bool   deprecating;
             uint64 addedAtBlock;
             uint64 enabledAtBlock;
+            uint64 deprecationActivatesAt;
+            uint64 lastPrunedAtBlock;
         }
 
         // User preferences
@@ -48,9 +51,12 @@ crate::sol! {
         // Currency registry (governance-gated by `governanceAdmin`).
         function addCurrency(string calldata code) external;
         function enableCurrency(string calldata code) external;
+        function disableCurrency(string calldata code) external;
+        function setDeprecationGracePeriod(uint64 newGracePeriod) external;
         function setGovernanceAdmin(address newAdmin) external;
         function getCurrencyConfig(string calldata code) external view returns (CurrencyConfig memory);
         function isCurrencyEnabled(string calldata code) external view returns (bool);
+        function deprecationGracePeriod() external view returns (uint64);
         function governanceAdmin() external view returns (address);
 
         // Validator multi-token accept-set.
@@ -66,6 +72,8 @@ crate::sol! {
         event FeesDistributed(address indexed validator, address indexed token, uint256 amount);
         event CurrencyAdded(string code, uint64 atBlock);
         event CurrencyEnabled(string code, uint64 atBlock);
+        event CurrencyDisabling(string code, uint64 graceEndsAt, address by);
+        event DeprecationGracePeriodChanged(uint64 oldGracePeriod, uint64 newGracePeriod);
         event GovernanceAdminChanged(address indexed oldAdmin, address indexed newAdmin);
         event AcceptedTokenAdded(address indexed validator, address indexed token);
         event AcceptedTokenRemoved(address indexed validator, address indexed token);
@@ -98,6 +106,10 @@ crate::sol! {
         error MaxAcceptSetReached(address validator);
 
         error UserTokenApiRemoved();
+
+        error CurrencyDeprecating(string currency, uint64 graceEndsAt);
+        error CurrencyAlreadyDeprecating(string currency);
+        error GracePeriodOutOfRange(uint64 grace);
     }
 }
 
@@ -267,6 +279,21 @@ impl FeeManagerError {
 
     pub const fn user_token_api_removed() -> Self {
         Self::UserTokenApiRemoved(IFeeManager::UserTokenApiRemoved {})
+    }
+
+    pub fn currency_deprecating(currency: alloc::string::String, grace_ends_at: u64) -> Self {
+        Self::CurrencyDeprecating(IFeeManager::CurrencyDeprecating {
+            currency,
+            graceEndsAt: grace_ends_at,
+        })
+    }
+
+    pub fn currency_already_deprecating(currency: alloc::string::String) -> Self {
+        Self::CurrencyAlreadyDeprecating(IFeeManager::CurrencyAlreadyDeprecating { currency })
+    }
+
+    pub const fn grace_period_out_of_range(grace: u64) -> Self {
+        Self::GracePeriodOutOfRange(IFeeManager::GracePeriodOutOfRange { grace })
     }
 }
 
